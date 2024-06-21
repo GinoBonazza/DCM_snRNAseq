@@ -1,0 +1,397 @@
+---
+title: "Differential Espression of all cell types and all clinical parameters using edgeR"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 600, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Differential_expression_edgeR_All"
+
+# Load libraries
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyr)
+library(edgeR)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(limma)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(EnhancedVolcano)
+library(RColorBrewer)
+library(Matrix.utils)
+library(DESeq2)
+library(apeglm)
+library(tibble)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+Read Seurat object, remove unwanted assays and extract metadata
+```{r, message = FALSE, warning = FALSE}
+DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_integrated_RNA.rds"))
+DefaultAssay(DCM_RV_integrated) <- "RNA"
+#DCM_RV_integrated@assays[["SCT"]] <- NULL
+#DCM_RV_integrated@assays[["RAW"]] <- NULL
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("0"), "cell_type"] = "Cardiomyocytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("1"), "cell_type"] = "Fibroblasts"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("2", "6"), "cell_type"] = "Endothelial cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_type"] = "Pericytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_type"] = "Macrophages"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("5"), "cell_type"] = "Lymphocytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("7"), "cell_type"] = "Smooth muscle cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("8"), "cell_type"] = "Dying cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("9"), "cell_type"] = "Neuronal cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("10"), "cell_type"] = "Endocardial cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("11"), "cell_type"] = "Mast cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("12"), "cell_type"] = "Adipocytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("13"), "cell_type"] = "Lymphatic cells"
+
+DCM_RV_integrated$cell_type <- factor(DCM_RV_integrated$cell_type, levels = c("Cardiomyocytes", 
+                                                                        "Fibroblasts",
+                                                                        "Endothelial cells",
+                                                                        "Pericytes",
+                                                                        "Macrophages",
+                                                                        "Lymphocytes",
+                                                                        "Smooth muscle cells",
+                                                                        "Dying cells",
+                                                                        "Neuronal cells",
+                                                                        "Endocardial cells",
+                                                                        "Mast cells",
+                                                                        "Adipocytes",
+                                                                        "Lymphatic cells"))
+Idents(DCM_RV_integrated) <- DCM_RV_integrated$cell_type
+
+DefaultAssay(DCM_RV_integrated) <- "RNA"
+DCM_RV_integrated <- NormalizeData(DCM_RV_integrated)
+metadata <- unique(subset(DCM_RV_integrated@meta.data, select = c(Sample:CO_l.min)))
+samples_index <- match(metadata$Sample, names(table(DCM_RV_integrated$Sample)))
+metadata <- metadata[samples_index, ]
+rownames(metadata) <- metadata$Sample
+metadata <- metadata[, -which(names(metadata) %in% c("LVID_mm", "RVIT_mm"))]
+rm(samples_index)
+```
+
+## Run differential expression analysis
+The cell types included in the analysis are Cardiomyocytes, Endothelial cells, Fibroblasts, Pericytes, Macrophages, Smooth muscle cells, T lymphocytes, Neuronal cells, Endocardial cells. Adipocytes, Lymphatic cells, Mast cells and B lymphocytes will be excluded because of the really number of cells. For each cell type, different models including one clinical parameter will be tested using EdgeR glmQL. 
+
+The gene filtering strategy includes:
+- Removal of genes expressed in <1% of the cells in the cell type of interest
+- Removal of mitochondrial and ribosomal genes
+- edgeR::filterByExpr to remove genes without enough counts to be retained in a statistical analysis
+
+The output files are: 
+- PCA plots
+- Csv tables with all genes or with only significant genes
+- Volcano plots
+- Figures for enrichment analysis results
+- Xlsx files for enrichment analysis results
+
+```{r, message = FALSE, warning = FALSE, results='asis'}
+clusters <- c("Cardiomyocytes", "Endothelial cells", "Fibroblasts",
+              "Pericytes", "Macrophages", "Smooth muscle cells", 
+              "T lymphocytes", "Neuronal cells", "Endocardial cells"
+              )
+for (j in 1:length(clusters)) {
+  new_dir <- here::here(output_dir_data, clusters[j])
+  if (!dir.exists(new_dir)) dir.create(new_dir)
+}
+
+for (j in 1:length(clusters)) {
+  cat("  \n<h2>",  clusters[j], "</h2>\n")
+  setwd(here::here(output_dir_data, clusters[j]))
+  data <- subset(DCM_RV_integrated, cell_type == clusters[j])
+  
+  #remove genes expressed in <1% of cells
+  counts <- GetAssayData(object = data, slot = "counts", assay = "RNA")
+  n <- dim(data)[2]/100
+  nonzero <- counts > 0
+  keep_genes <- Matrix::rowSums(nonzero) >= n
+  #table(keep_genes)
+  data <- data[keep_genes, ]
+  
+  #remove MT and RP genes
+  mt_genes <- rownames(data)[regexpr("MT-",rownames(data)) != -1]
+  rb_genes <- rownames(data)[regexpr("^RP[SL]",rownames(data)) != -1]
+  data <- data[which(!rownames(data) %in% mt_genes & !rownames(data) %in% rb_genes),]
+  
+  rm(n, nonzero, keep_genes, mt_genes, rb_genes)
+  
+  pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+  colnames(pseudocounts) <- pseudocounts$samples$sample
+  keep.samples <- pseudocounts$samples$lib.size > 5e4
+  pseudocounts <- pseudocounts[, keep.samples]
+  keep.genes <- filterByExpr(pseudocounts)
+  pseudocounts <- pseudocounts[keep.genes, ]
+  metadata_subset <- metadata[metadata$Sample %in% pseudocounts$samples$sample, ]
+  pseudocounts <- normLibSizes(pseudocounts)
+  
+  mds <- plotMDS(pseudocounts, plot = FALSE)
+    
+  mds_df <- data.frame(mds[c("x", "y")],
+                    sample_id = metadata_subset$Sample,
+                    group_id = metadata_subset[[1]]
+                    )
+  mds_plot <- ggplot(mds_df, aes(x, y, col = group_id)) + 
+    geom_point(size = 3, alpha = 0.8) +
+    labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+    ggtitle(clusters[j]) + 
+    theme_bw() +
+    theme(panel.grid.minor = element_blank(),
+          plot.title = element_text(hjust = 0.5)) +
+    coord_fixed() + 
+    guides(color = guide_legend(ncol = 2, title = colnames(metadata[1])))
+  ggsave(plot = mds_plot, filename = paste0(clusters[j], "_MDSplot_", colnames(metadata[1]), ".png"), 
+          width = 5, height = 3, dpi=300, bg = "white")
+  cat("![](",paste0(getwd(), "/", clusters[j], "_MDSplot_", colnames(metadata[1]), ".png"),"){width=40%}")
+  
+  mds_df <- data.frame(mds[c("x", "y")],
+                    sample_id = metadata_subset$Sample,
+                    group_id = metadata_subset[[2]]
+                    )
+  mds_plot <- ggplot(mds_df, aes(x, y, col = group_id)) + 
+    geom_point(size = 3, alpha = 0.8) +
+    labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+    ggtitle(clusters[j]) + 
+    theme_bw() +
+    theme(panel.grid.minor = element_blank(),
+          plot.title = element_text(hjust = 0.5)) +
+    coord_fixed() + 
+    guides(color = guide_legend(title = colnames(metadata[2])))
+  ggsave(plot = mds_plot, filename = paste0(clusters[j], "_MDSplot_", colnames(metadata[2]), ".png"), 
+          width = 5, height = 3, dpi=300, bg = "white")
+  cat("![](",paste0(getwd(), "/", clusters[j], "_MDSplot_", colnames(metadata[2]), ".png"),"){width=40%}")
+  
+  mds_df <- data.frame(mds[c("x", "y")],
+                    sample_id = metadata_subset$Sample,
+                    group_id = metadata_subset[[3]]
+                    )
+  mds_plot <- ggplot(mds_df, aes(x, y, col = group_id)) + 
+    geom_point(size = 3, alpha = 0.8) +
+    labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+    ggtitle(clusters[j]) + 
+    theme_bw() +
+    theme(panel.grid.minor = element_blank(),
+          plot.title = element_text(hjust = 0.5)) +
+    coord_fixed() + 
+    guides(color = guide_legend(title = colnames(metadata[3])))
+  ggsave(plot = mds_plot, filename = paste0(clusters[j], "_MDSplot_", colnames(metadata[3]), ".png"), 
+          width = 5, height = 3, dpi=300, bg = "white")
+  cat("![](",paste0(getwd(), "/", clusters[j], "_MDSplot_", colnames(metadata[3]), ".png"),"){width=40%}")
+  
+  mds_df <- data.frame(mds[c("x", "y")],
+                    sample_id = metadata_subset$Sample,
+                    group_id = metadata_subset[[4]]
+                    )
+  mds_plot <- ggplot(mds_df, aes(x, y, col = group_id)) + 
+    geom_point(size = 3, alpha = 0.8) +
+    labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+    ggtitle(clusters[j]) + 
+    theme_bw() +
+    theme(panel.grid.minor = element_blank(),
+          plot.title = element_text(hjust = 0.5)) +
+    coord_fixed() + 
+    guides(color = guide_colorbar(title = colnames(metadata[4])))
+  ggsave(plot = mds_plot, filename = paste0(clusters[j], "_MDSplot_", colnames(metadata[4]), ".png"), 
+          width = 5, height = 3, dpi=300, bg = "white")
+  cat("![](",paste0(getwd(), "/", clusters[j], "_MDSplot_", colnames(metadata[4]), ".png"),"){width=40%}")
+  
+  rm(pseudocounts, mds, mds_df, keep.samples, keep.genes, metadata_subset, sample.formula, mds_plot)
+  
+  
+  for (i in 5:(length(metadata))) {
+    cat("  \n<h3>",  colnames(metadata[i]), "</h3>\n")
+    metadata_subset <- metadata[complete.cases(metadata[[i]]),]
+    
+    pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+    colnames(pseudocounts) <- pseudocounts$samples$sample
+    pseudocounts <- pseudocounts[, metadata_subset$Sample]
+    
+    keep.samples <- pseudocounts$samples$lib.size > 5e4
+    #table(keep.samples)
+    pseudocounts <- pseudocounts[, keep.samples]
+    
+    keep.genes <- filterByExpr(pseudocounts)
+    #table(keep.genes)
+    pseudocounts <- pseudocounts[keep.genes, ]
+    
+    metadata_subset <- metadata_subset[metadata_subset$Sample %in% pseudocounts$samples$sample, ]
+    
+    pseudocounts <- normLibSizes(pseudocounts)
+  
+    mds <- plotMDS(pseudocounts, plot = FALSE)
+    
+    mds_df <- data.frame(mds[c("x", "y")],
+                    sample_id = metadata_subset$Sample,
+                    group_id = metadata_subset[[i]]
+                    )
+    mds_plot <- ggplot(mds_df, aes(x, y, col = group_id)) + 
+      geom_point(size = 3, alpha = 0.8) +
+      labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+      ggtitle(clusters[j]) + 
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+          plot.title = element_text(hjust = 0.5)) +
+      coord_fixed() + 
+      guides(color = guide_colorbar(title = colnames(metadata[i])))
+    ggsave(plot = mds_plot, filename = paste0(clusters[j], "_MDSplot_", colnames(metadata[i]), ".png"), 
+          width = 5, height = 3, dpi=300, bg = "white")
+    cat("![](",paste0(getwd(), "/", clusters[j], "_MDSplot_", colnames(metadata[i]), ".png"),"){width=40%}")
+    
+    metadata_subset[,i] <- rescale(metadata_subset[,i])
+    design <- model.matrix(~ metadata_subset[[i]])
+    colnames(design)[2] <- colnames(metadata_subset[i])
+
+    pseudocounts <- estimateDisp(pseudocounts, design)
+    
+    fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+    fit <- glmQLFTest(fit, coef = 2)
+    res <- topTags(fit, n = Inf)$table
+    
+    signif <- res %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+      dplyr::arrange(FDR)
+    head(signif)
+    
+    write.csv(res, file = paste0(clusters[j], "_Results_", colnames(metadata[i]), ".csv"), quote=F, row.names = F)
+    write.csv(signif, file = paste0(clusters[j], "_Significant_", colnames(metadata[i]), ".csv"), quote=F, row.names = F)
+    Volcano <- EnhancedVolcano(res,
+                  lab = res$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 4,
+                  FCcutoff = 1,
+                  pCutoff  = 0.05,
+                  col = c("black", "black", "black", "red"),
+                  colAlpha = 1,
+                  drawConnectors = TRUE,
+                  widthConnectors = 0.1,
+                  boxedLabels = TRUE,
+                  subtitle = NULL,
+                  title = paste0(clusters[j], "\n", colnames(metadata[i]), "\nn = ", nrow(metadata_subset))
+  )
+  ggsave(plot = Volcano, filename = paste0(clusters[j], "_VolcanoPlot_", colnames(metadata[i]), ".png"), 
+         width = 7, height = 10, dpi=300, bg = "white")
+  cat("![](",paste0(getwd(), "/", clusters[j], "_VolcanoPlot_", colnames(metadata[i]), ".png"),"){width=40%}")
+  
+  up_genes <- filter(signif, logFC > 0.5)$gene
+  down_genes <- filter(signif, logFC < -0.5)$gene
+  up_genes <- try(bitr(up_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db"), silent = T)
+  if (inherits(up_genes, "try-error")) {
+    #print("An error occurred during annotation.")
+    up_genes <- data.frame(SYMBOL = character(), ENTREZID = character(), stringsAsFactors = FALSE)
+    }
+  down_genes <- try(bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db"), silent = T)
+  if (inherits(down_genes, "try-error")) {
+    #print("An error occurred during annotation.")
+    down_genes <- data.frame(SYMBOL = character(), ENTREZID = character(), stringsAsFactors = FALSE)
+    }
+  genelist <- list("High" = up_genes$ENTREZID, 
+                   "Low"  = down_genes$ENTREZID
+                   )
+  names(genelist) <- c(paste0("High ", colnames(metadata)[i]), paste0("Low ", colnames(metadata)[i]))
+  
+  GOclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichGO", OrgDb = "org.Hs.eg.db", universe = rownames(data))
+  if (!is.null(GOclusterplot)) {
+    GOclusterplot <- gsfilter(GOclusterplot, by = 'Count', min = 3)
+    if (!is.null(GOclusterplot) && nrow(GOclusterplot@compareClusterResult) > 0) {
+      pathways <- dotplot(GOclusterplot, showCategory = 10) + scale_fill_gradient(low = "red", high = "grey") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 15),
+              plot.title = element_text(hjust = 0.5, size = 16), 
+              axis.text.y = element_text(size = 13), axis.title.x = element_blank()) +
+        ggtitle(paste0(clusters[j], "\nGene Ontology enrichment analysis"))
+      ggsave(plot = pathways, filename = paste0(clusters[j], "_Pathways_", colnames(metadata)[i], "_GO.png"), 
+             width = 6, height = 10, dpi=300, bg = "white")
+      cat("![](",paste0(getwd(), "/", clusters[j], "_Pathways_", colnames(metadata)[i], "_GO.png"),"){width=40%}")
+      GOclusterplot <- setReadable(GOclusterplot , 'org.Hs.eg.db', 'SYMBOL')
+      GO_df <- as.data.frame(GOclusterplot@compareClusterResult)
+      GO_df$geneID <- gsub("/", ", ", GO_df$geneID)
+      write.xlsx(GO_df, file = paste0(clusters[j], "_Pathways_", colnames(metadata)[i], "_GO", ".xlsx"), 
+                 row.names = F)
+      }
+  }
+  
+  KEGGclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichKEGG", organism = 'hsa', universe = rownames(data))
+  if (!is.null(KEGGclusterplot)) {
+    KEGGclusterplot <- gsfilter(KEGGclusterplot, by = 'Count', min = 3)
+    if (!is.null(KEGGclusterplot) && nrow(KEGGclusterplot@compareClusterResult) > 0) {
+      pathways <- dotplot(KEGGclusterplot, showCategory = 10) + scale_fill_gradient(low = "red", high = "grey") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 15), 
+              plot.title = element_text(hjust = 0.5, size = 16), 
+              axis.text.y = element_text(size = 13), axis.title.x = element_blank()) +
+        ggtitle(paste0(clusters[j], "\nKEGG pathways enrichment analysis"))
+      ggsave(plot = pathways, filename = paste0(clusters[j], "_Pathways_", colnames(metadata)[i], "_KEGG.png"), 
+             width = 6, height = 10, dpi=300, bg = "white")
+      cat("![](",paste0(getwd(), "/", clusters[j], "_Pathways_", colnames(metadata)[i], "_KEGG.png"),"){width=40%}")
+      KEGGclusterplot <- setReadable(KEGGclusterplot , 'org.Hs.eg.db', 'SYMBOL')
+      KEGG_df <- as.data.frame(KEGGclusterplot@compareClusterResult)
+      KEGG_df$geneID <- gsub("/", ", ", KEGG_df$geneID)
+      write.xlsx(KEGG_df, file = paste0(clusters[j], "_Pathways_", colnames(metadata)[i], "_KEGG", ".xlsx"), 
+                 row.names = F)
+     }
+  }
+  
+  REACTOMEclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichPathway", organism = "human", universe = rownames(data))
+  if (!is.null(REACTOMEclusterplot)) {
+    REACTOMEclusterplot <- gsfilter(REACTOMEclusterplot, by = 'Count', min = 3)
+    if (!is.null(REACTOMEclusterplot) && nrow(REACTOMEclusterplot@compareClusterResult) > 0) {
+      pathways <- dotplot(REACTOMEclusterplot, showCategory = 10) + scale_fill_gradient(low = "red", high = "grey") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 15), 
+              plot.title = element_text(hjust = 0.5, size = 16),
+              axis.text.y = element_text(size = 13), axis.title.x = element_blank()) +
+        ggtitle(paste0(clusters[j], "\nReactome enrichment analysis"))
+      ggsave(plot = pathways, filename = paste0(clusters[j], "_Pathways_", colnames(metadata)[i], "_Reactome.png"), 
+             width = 6, height = 10, dpi=300, bg = "white")
+      cat("![](",paste0(getwd(), "/", clusters[j], "_Pathways_", colnames(metadata)[i], "_Reactome.png"),"){width=40%}")
+      REACTOMEclusterplot <- setReadable(REACTOMEclusterplot , 'org.Hs.eg.db', 'SYMBOL')
+      REACTOME_df <- as.data.frame(REACTOMEclusterplot@compareClusterResult)
+      REACTOME_df$geneID <- gsub("/", ", ", REACTOME_df$geneID)
+      write.xlsx(REACTOME_df, file = paste0(clusters[j], "_Pathways_", colnames(metadata)[i], "_REACTOME", ".xlsx"), 
+                 row.names = F)
+    }
+  }
+  }
+}
+
+```
+
