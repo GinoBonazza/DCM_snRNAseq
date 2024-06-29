@@ -1,0 +1,217 @@
+---
+title: "QC_integration_annotation"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 600, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "QC_integration_annotation"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+```{r read DCM_RV_integrated}
+DCM_RV_integrated <- readRDS(here::here(output_dir_data, "DCM_RV_integrated.rds"))
+```
+
+```{r Elbow_integrated, fig.width=4, fig.height=4}
+ElbowPlot(DCM_RV_integrated, ndims = 50)
+```
+
+Recluster
+
+```{r recluster, eval=FALSE}
+DCM_RV_integrated <- RunUMAP(DCM_RV_integrated, dims = 1:30, reduction = "harmony")
+DCM_RV_integrated <- FindNeighbors(DCM_RV_integrated, dims = 1:30, reduction = "harmony")
+DCM_RV_integrated <- FindClusters(DCM_RV_integrated, resolution = seq(0.1, 0.8, by=0.1))
+```
+
+```{r Clustree_integrated, fig.width=6, fig.height=9}
+clustree::clustree(DCM_RV_integrated@meta.data[,grep("SCT_snn_res", colnames(DCM_RV_integrated@meta.data))],
+                   prefix = "SCT_snn_res.")
+```
+
+```{r UMAPs_integrated, fig.width=12, fig.height=10}
+DimPlot(DCM_RV_integrated, reduction = "umap", shuffle = T,
+        group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
+```
+
+Find the markers that characterize each cell population
+
+```{r FindAllMarkers 2}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+DCM_RV_integrated <- PrepSCTFindMarkers(DCM_RV_integrated)
+Idents(DCM_RV_integrated) <- "SCT_snn_res.0.2"
+Markers <- FindAllMarkers(DCM_RV_integrated, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.5)
+write.csv(Markers, here::here(output_dir_data, "DCM_RV_Markers_all.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "DCM_RV_Markers_top10.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "DCM_RV_Markers_top3.csv"))
+```
+
+Check cell cycle genes
+```{r Cell_cycle_UMAP, fig.width=5, fig.height=4}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+s.genes <- cc.genes$s.genes
+g2m.genes <- cc.genes$g2m.genes
+DCM_RV_integrated <- CellCycleScoring(DCM_RV_integrated, s.features = s.genes, g2m.features = g2m.genes)
+DimPlot(DCM_RV_integrated, reduction = "umap", shuffle = T,
+        group.by = "Phase")
+```
+
+
+## Cell type annotation
+
+Annotate the clusters based on the characteristic markers
+
+```{r annotation}
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("0"), "cell_type"] = "Cardiomyocytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("1"), "cell_type"] = "Fibroblasts"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("2", "6"), "cell_type"] = "Endothelial cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_type"] = "Pericytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_type"] = "Macrophages"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("5"), "cell_type"] = "Lymphocytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("7"), "cell_type"] = "Smooth muscle cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("8"), "cell_type"] = "Neuronal cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("9"), "cell_type"] = "Endocardial cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("10"), "cell_type"] = "Mast cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("11"), "cell_type"] = "Adipocytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("12"), "cell_type"] = "Lymphatic cells"
+
+DCM_RV_integrated$cell_type <- factor(DCM_RV_integrated$cell_type, levels = c("Cardiomyocytes", 
+                                                                        "Fibroblasts",
+                                                                        "Endothelial cells",
+                                                                        "Pericytes",
+                                                                        "Macrophages",
+                                                                        "Lymphocytes",
+                                                                        "Smooth muscle cells",
+                                                                        "Neuronal cells",
+                                                                        "Endocardial cells",
+                                                                        "Mast cells",
+                                                                        "Adipocytes",
+                                                                        "Lymphatic cells"))
+Idents(DCM_RV_integrated) <- DCM_RV_integrated$cell_type
+```
+
+```{r FindAllMarkers cell_type}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+Idents(DCM_RV_integrated) <- "cell_type"
+Markers <- FindAllMarkers(DCM_RV_integrated, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.5)
+write.csv(Markers, here::here(output_dir_data, "DCM_RV_Markers_all_cell_type.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "DCM_RV_Markers_top10_cell_type.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "DCM_RV_Markers_top3_cell_type.csv"))
+```
+
+```{r Heatmap, fig.width=12, fig.height=8}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+Heatmap <- DoHeatmap(subset(DCM_RV_integrated, cells = sample(colnames(DCM_RV_integrated), 10000)), label = FALSE, draw.line = F, features = Markers_top10$gene) + 
+  theme(text = element_text(size = 12), 
+        axis.text.y = element_text(size = 4.5)) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "inches")) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4))
+Heatmap
+```
+
+```{r UMAP_cell_type, fig.width=6.5, fig.height=6}
+p <- DimPlot(DCM_RV_integrated, group.by = "cell_type", reduction = "umap", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p, id = "cell_type", fontface = "bold", size = 5, repel = T)
+```
+
+```{r DotPlot_markers, fig.width=8, fig.height=12}
+Markers_top3 <- Markers_top3[-c(34),]
+DotPlot(DCM_RV_integrated, assay = "SCT", features = rev(Markers_top3$gene), dot.scale = 5, cluster.idents = FALSE) +
+  RotatedAxis() +
+  coord_flip() +
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 13), legend.text = element_text(size = 9), legend.title = element_text(size = 11), plot.margin = unit(c(0, 0, 0, 0.1), 
+                           "inches"))
+```
+
+```{r FeatPlot_markers, fig.width=12, fig.height=8}
+FeaturePlot(DCM_RV_integrated, features = c("RYR2", "COL6A3", "VWF", "RGS5", "MRC1", "PTPRC", "RGS6", "NRXN1", "PKHD1L1", "IL18R1", "GPAM", "MMRN1"), ncol = 4)
+```
+
+```{r save DCM_RV_integrated final, eval = FALSE}
+saveRDS(DCM_RV_integrated, 
+        here::here(output_dir_data, "DCM_RV_integrated.rds"))
+```
+
+```{r save DCM_RV_integrated_RNA_SCT, eval = FALSE}
+DCM_RV_integrated_RNA_SCT <-DCM_RV_integrated
+DCM_RV_integrated_RNA_SCT@assays[["RAW"]] <- NULL
+saveRDS(DCM_RV_integrated_RNA_SCT, 
+        here::here(output_dir_data, "DCM_RV_integrated_RNA_SCT.rds"))
+rm(DCM_RV_integrated)
+DCM_RV_integrated_RNA <-DCM_RV_integrated_RNA_SCT
+DCM_RV_integrated_RNA@assays[["SCT"]] <- NULL
+saveRDS(DCM_RV_integrated_RNA, 
+        here::here(output_dir_data, "DCM_RV_integrated_RNA.rds"))
+rm(DCM_RV_integrated_RNA, DCM_RV_integrated_RNA_SCT)
+```
+
+
+
+
+
