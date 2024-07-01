@@ -354,7 +354,7 @@ div.tocify {
 <h4 class="author">GinoBonazza (<a
 href="mailto:ginoandrea.bonazza@usz.ch"
 class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
-<h4 class="date">29 June, 2024</h4>
+<h4 class="date">01 July, 2024</h4>
 
 </div>
 
@@ -383,7 +383,7 @@ class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2024-06-29
+<strong>Last updated:</strong> 2024-07-01
 </p>
 <p>
 <strong>Checks:</strong> <span
@@ -514,13 +514,13 @@ project makes it easier to run your code on other machines.</p>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrong7d9ce2b">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrong2bc8aed">
 <span class="glyphicon glyphicon-ok text-success"
-aria-hidden="true"></span> <strong>Repository version:</strong> 7d9ce2b
+aria-hidden="true"></span> <strong>Repository version:</strong> 2bc8aed
 </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrong7d9ce2b"
+<div id="strongRepositoryversionstrong2bc8aed"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -529,7 +529,7 @@ and connecting the code version to the results is critical for
 reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version 7d9ce2b.
+The results in this page were generated with repository version 2bc8aed.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -546,11 +546,11 @@ were generated:
 Ignored files:
     Ignored:    .Rhistory
     Ignored:    .Rproj.user/
-    Ignored:    analysis/figure/
 
 Untracked files:
     Untracked:  analysis/UpSet_plot_DEGs.Rmd
     Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
     Untracked:  code/DE_5_percent.Rmd
     Untracked:  code/DE_5_percent.html
     Untracked:  code/DE_5_percent/
@@ -621,6 +621,40 @@ Message
 Rmd
 </td>
 <td>
+2bc8aed
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-07-01
+</td>
+<td>
+Publish DCM_snRNAseq QC_integration_annotation
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+<td>
+Build site.
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
 7d9ce2b
 </td>
 <td>
@@ -686,9 +720,489 @@ if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(he
 
 output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
 if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
-<pre class="r"><code>DCM_RV_integrated &lt;- readRDS(here::here(output_dir_data, &quot;DCM_RV_integrated.rds&quot;))</code></pre>
+</div>
+<div id="quality-control" class="section level2">
+<h2>Quality Control</h2>
+<p>Load and merge cellbender and cellranger output</p>
+<pre class="r"><code>cell_bender_merged &lt;- Read_CellBender_h5_Multi_File(merge = TRUE,
+                                                    data_dir = here::here(&quot;data&quot;, &quot;Cellbender_output&quot;),
+                                                    custom_name = &quot;_filtered.h5&quot;,
+                                                    sample_list = c(&quot;cellbender_output_319801_1-337PK&quot;, 
+                                                                    &quot;cellbender_output_319801_2-357PK&quot;, 
+                                                                    &quot;cellbender_output_319801_3-345PK&quot;, 
+                                                                    &quot;cellbender_output_323041_1-369PK&quot;, 
+                                                                    &quot;cellbender_output_323041_2-375PK&quot;, 
+                                                                    &quot;cellbender_output_323041_3-385PK&quot;,
+                                                                    &quot;cellbender_output_327451_1-401PK&quot;, 
+                                                                    &quot;cellbender_output_327451_2-403PK&quot;, 
+                                                                    &quot;cellbender_output_327451_3-415PK&quot;, 
+                                                                    &quot;cellbender_output_330241_1-437PK&quot;, 
+                                                                    &quot;cellbender_output_330241_2-439PK&quot;, 
+                                                                    &quot;cellbender_output_330241_3-461PK&quot;, 
+                                                                    &quot;cellbender_output_330241_4-441PK_reprocessed&quot;, 
+                                                                    &quot;cellbender_output_330241_5-463PK&quot;, 
+                                                                    &quot;cellbender_output_351071_1-213PK&quot;, 
+                                                                    &quot;cellbender_output_351071_2-229PK&quot;, 
+                                                                    &quot;cellbender_output_351071_3-P3&quot;, 
+                                                                    &quot;cellbender_output_351071_4-P8&quot;, 
+                                                                    &quot;cellbender_output_352751_1-153PK&quot;, 
+                                                                    &quot;cellbender_output_352751_2-211PK&quot;, 
+                                                                    &quot;cellbender_output_352751_3-323PK&quot;, 
+                                                                    &quot;cellbender_output_352751_4-P5&quot; 
+                                                                    ),
+                                                    sample_names = c(&quot;PK337&quot;, 
+                                                                     &quot;PK357&quot;, 
+                                                                     &quot;PK345&quot;, 
+                                                                     &quot;PK369&quot;, 
+                                                                     &quot;PK375&quot;, 
+                                                                     &quot;PK385&quot;, 
+                                                                     &quot;PK401&quot;, 
+                                                                     &quot;PK403&quot;, 
+                                                                     &quot;PK415&quot;, 
+                                                                     &quot;PK437&quot;, 
+                                                                     &quot;PK439&quot;, 
+                                                                     &quot;PK461&quot;, 
+                                                                     &quot;PK441&quot;, 
+                                                                     &quot;PK463&quot;, 
+                                                                     &quot;PK213&quot;, 
+                                                                     &quot;PK229&quot;, 
+                                                                     &quot;P3&quot;, 
+                                                                     &quot;P8&quot;, 
+                                                                     &quot;PK153&quot;, 
+                                                                     &quot;PK211&quot;, 
+                                                                     &quot;PK323&quot;, 
+                                                                     &quot;P5&quot;)
+                                                    )
+
+cell_ranger_merged &lt;- Read10X_h5_GEO(merge = TRUE,
+                                     data_dir = here::here(&quot;data&quot;, &quot;Cellranger_output&quot;), 
+                                     shared_suffix = &quot;_filtered_feature_bc_matrix.h5&quot;,
+                                     sample_list = c(&quot;319801_1-337PK&quot;, 
+                                                     &quot;319801_2-357PK&quot;, 
+                                                     &quot;319801_3-345PK&quot;, 
+                                                     &quot;323041_1-369PK&quot;, 
+                                                     &quot;323041_2-375PK&quot;, 
+                                                     &quot;323041_3-385PK&quot;, 
+                                                     &quot;327451_1-401PK&quot;, 
+                                                     &quot;327451_2-403PK&quot;, 
+                                                     &quot;327451_3-415PK&quot;, 
+                                                     &quot;330241_1-437PK&quot;, 
+                                                     &quot;330241_2-439PK&quot;, 
+                                                     &quot;330241_3-461PK&quot;, 
+                                                     &quot;330241_4-441PK_reprocessed&quot;, 
+                                                     &quot;330241_5-463PK&quot;, 
+                                                     &quot;351071_1-213PK&quot;, 
+                                                     &quot;351071_2-229PK&quot;, 
+                                                     &quot;351071_3-P3&quot;, 
+                                                     &quot;351071_4-P8&quot;, 
+                                                     &quot;352751_1-153PK&quot;, 
+                                                     &quot;352751_2-211PK&quot;, 
+                                                     &quot;352751_3-323PK&quot;, 
+                                                     &quot;352751_4-P5&quot;),
+                                     sample_names = c(&quot;PK337&quot;, 
+                                                      &quot;PK357&quot;, 
+                                                      &quot;PK345&quot;, 
+                                                      &quot;PK369&quot;, 
+                                                      &quot;PK375&quot;, 
+                                                      &quot;PK385&quot;, 
+                                                      &quot;PK401&quot;, 
+                                                      &quot;PK403&quot;, 
+                                                      &quot;PK415&quot;, 
+                                                      &quot;PK437&quot;, 
+                                                      &quot;PK439&quot;, 
+                                                      &quot;PK461&quot;, 
+                                                      &quot;PK441&quot;, 
+                                                      &quot;PK463&quot;, 
+                                                      &quot;PK213&quot;, 
+                                                      &quot;PK229&quot;, 
+                                                      &quot;P3&quot;, 
+                                                      &quot;P8&quot;, 
+                                                      &quot;PK153&quot;, 
+                                                      &quot;PK211&quot;, 
+                                                      &quot;PK323&quot;, 
+                                                      &quot;P5&quot;)
+                                     )
+
+DCM_RV_preQC &lt;- Create_CellBender_Merged_Seurat(raw_cell_bender_matrix = cell_bender_merged, 
+                                             raw_counts_matrix = cell_ranger_merged, 
+                                             raw_assay_name = &quot;RAW&quot;, 
+                                             cell_bender_assay_name = &quot;RNA&quot;)</code></pre>
+<p>Add metadata: percentage of mitochondrial and ribosomal genes,
+clinical data</p>
+<pre class="r"><code>DCM_RV_preQC[[&quot;percent.mt&quot;]] &lt;- PercentageFeatureSet(DCM_RV_preQC, pattern = &quot;^MT-&quot;)
+DCM_RV_preQC[[&quot;percent.rp&quot;]] &lt;- PercentageFeatureSet(DCM_RV_preQC, pattern = &quot;^RP[SL]&quot;)
+DCM_RV_preQC$Sample &lt;- DCM_RV_preQC$orig.ident
+Clinical_data &lt;- read_excel(here::here(&quot;data&quot;, &quot;DCM_Clinical_data.xlsx&quot;))
+add_metadata &lt;- left_join(DCM_RV_preQC[[&quot;Sample&quot;]], Clinical_data)
+row.names(add_metadata) &lt;- row.names(DCM_RV_preQC[[]])
+DCM_RV_preQC &lt;- AddMetaData(DCM_RV_preQC, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+metadata &lt;- unique(subset(DCM_RV_preQC@meta.data, select = c(orig.ident, Sample:length(DCM_RV_preQC@meta.data))))
+rownames(metadata) &lt;- metadata$orig.ident
+metadata</code></pre>
+<pre><code>      orig.ident Sample Batch_processing Batch_sequencing Age_years
+PK337      PK337  PK337           Batch1       Batch1_seq        32
+PK357      PK357  PK357           Batch1       Batch1_seq        61
+PK345      PK345  PK345           Batch1       Batch1_seq        29
+PK369      PK369  PK369           Batch2       Batch2_seq        56
+PK375      PK375  PK375           Batch2       Batch2_seq        53
+PK385      PK385  PK385           Batch2       Batch2_seq        58
+PK401      PK401  PK401           Batch3       Batch3_seq        41
+PK403      PK403  PK403           Batch2       Batch3_seq        61
+PK415      PK415  PK415           Batch3       Batch3_seq        41
+PK437      PK437  PK437           Batch3       Batch4_seq        52
+PK439      PK439  PK439           Batch4       Batch4_seq        66
+PK461      PK461  PK461           Batch4       Batch4_seq        57
+PK441      PK441  PK441           Batch5       Batch4_seq        16
+PK463      PK463  PK463           Batch5       Batch4_seq        40
+PK213      PK213  PK213           Batch6       Batch5_seq        49
+PK229      PK229  PK229           Batch6       Batch5_seq        49
+P3            P3     P3           Batch6       Batch5_seq        19
+P8            P8     P8           Batch6       Batch5_seq        37
+PK153      PK153  PK153           Batch7       Batch6_seq        28
+PK211      PK211  PK211           Batch7       Batch6_seq        50
+PK323      PK323  PK323           Batch7       Batch6_seq        45
+P5            P5     P5           Batch7       Batch6_seq        36
+      LVEF_percent LVID_mm LVEDD_mm RVID_mm TAPSE_mm RVIT_mm RAA_cm2 RVS_cm.s
+PK337           16      62       67      44       16      43    25.0        8
+PK357           15      71       71      48       15      48    26.7        9
+PK345           15      88       88      49       17      49      NA        9
+PK369           15      74       74      58       15      58    22.0       NA
+PK375           18      82       82      33       20      33    15.0        8
+PK385           10      84       84      60       17      60      NA        6
+PK401           35      58       58      40       18      40      NA        7
+PK403            6      83       83      47       15      47      NA       10
+PK415           20      63       63      37       12      37      NA       NA
+PK437           20      89       89      41       22      41    32.0        7
+PK439           23      69       69      46       19      46    25.0       NA
+PK461           15      98       98      45       19      45    30.4        9
+PK441           20      58       58      60        7      60      NA       NA
+PK463           17      80       81      57       15      57    27.3        7
+PK213           10      86       92      54        9      NA    26.0        9
+PK229           30      63       69      30       20      NA    23.0       11
+P3              10      NA       76      39       13      NA    25.0        7
+P8              10      NA       98      45       13      NA    30.0        6
+PK153           18      NA       72      28       24      NA    12.0       NA
+PK211           30      69       82      46       12      NA      NA       NA
+PK323           15      69       75      39       12      NA    25.0        8
+P5              15      74       80      41        9      NA    19.0        6
+      RVSP_mmHg sPAP_mmHg mPAP_mmHg PCW_mmHg PVR_WU TPG_mmHg CO_l.min
+PK337        52        51        41       32   3.67        9      2.5
+PK357        48        54        39       31   3.26        8      2.5
+PK345        75        56        43       35   2.55        8      3.1
+PK369        65        51        36       25   3.38       11      3.2
+PK375        NA        31        21        9   2.05       12      5.9
+PK385        42        45        29       20   2.42        9      3.7
+PK401        NA        55        43       NA   5.80       NA      2.2
+PK403        47        44        30       21   2.50        9      3.6
+PK415        NA        NA        NA       NA     NA       NA       NA
+PK437        60        42        29       17   2.40       12      5.0
+PK439        30        26        19       10   2.37        9      3.4
+PK461        40        41        34       28   2.27        6      2.6
+PK441        NA        NA        NA       NA     NA       NA       NA
+PK463        45        58        48       33   3.90       15      3.8
+PK213        61        48        33       20   4.80       13      2.7
+PK229        33        33        22       15   1.39        7      5.0
+P3           35        NA        NA       NA     NA       NA       NA
+P8           28        37        26       20   1.50        6      4.0
+PK153        37        41        27       23   1.27        4      3.1
+PK211        NA        62        31       23   1.91        8       NA
+PK323        41        38        30       18   2.20       12      5.4
+P5           24        35        25       22   0.68        3      4.4</code></pre>
+<p>Check how much Cellbender has affected the dataset</p>
+<pre class="r"><code>table(DCM_RV_preQC$Sample)</code></pre>
+<pre><code>
+   P3    P5    P8 PK153 PK211 PK213 PK229 PK323 PK337 PK345 PK357 PK369 PK375 
+ 4603  9418  5202  3578  3731  8675  5834 10035  8293  7926  8341 10244  9637 
+PK385 PK401 PK403 PK415 PK437 PK439 PK441 PK461 PK463 
+10145  7223  8549  7614  9307 10060  8401  8166  7752 </code></pre>
+<pre class="r"><code>DCM_RV_preQC &lt;- Add_CellBender_Diff(seurat_object = DCM_RV_preQC, 
+                                 raw_assay_name = &quot;RAW&quot;, 
+                                 cell_bender_assay_name = &quot;RNA&quot;)
+
+median_stats &lt;- Median_Stats(seurat_object = DCM_RV_preQC, 
+                             group_by_var = &quot;orig.ident&quot;, 
+                             median_var = c(&quot;nCount_Diff&quot;, &quot;nFeature_Diff&quot;))
+median_stats</code></pre>
+<pre><code># A tibble: 23 × 5
+   orig.ident Median_nCount_RNA Median_nFeature_RNA Median_nCount_Diff
+   &lt;fct&gt;                  &lt;dbl&gt;               &lt;dbl&gt;              &lt;dbl&gt;
+ 1 P3                     6679                2681                 120
+ 2 P5                     3965                1995                   7
+ 3 P8                     5300                2232                 111
+ 4 PK153                  8380                3078.                 15
+ 5 PK211                  1457                 992                   5
+ 6 PK213                  3921                1893                 113
+ 7 PK229                  4538.               2044.                160
+ 8 PK323                  5407                2443                  12
+ 9 PK337                  7529                2670                 713
+10 PK345                  6564                2558.                690
+# ℹ 13 more rows
+# ℹ 1 more variable: Median_nFeature_Diff &lt;dbl&gt;</code></pre>
+<pre class="r"><code>feature_diff &lt;- CellBender_Feature_Diff(seurat_object = DCM_RV_preQC, 
+                                        raw_assay = &quot;RAW&quot;, 
+                                        cell_bender_assay = &quot;RNA&quot;)
+head(feature_diff)</code></pre>
+<pre><code>           Raw_Counts CellBender_Counts Count_Diff Pct_Diff
+AC092490.2       1847               231       1616 87.49323
+NEUROD1           388                59        329 84.79381
+LINC00558        1203               231        972 80.79800
+POTEG             539               111        428 79.40631
+IZUMO3            186                44        142 76.34409
+AL591888.1        388                94        294 75.77320</code></pre>
+<pre class="r"><code>CellBender_Diff_Plot(feature_diff_df = feature_diff)</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/Cellbender-1.png" width="4200" style="display: block; margin: auto;" /></p>
+<p>Check quality control parameters</p>
+<pre class="r"><code>p1 &lt;- VlnPlot(DCM_RV_preQC, features = &quot;nCount_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 &lt;- VlnPlot(DCM_RV_preQC, features = &quot;nFeature_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 &lt;- VlnPlot(DCM_RV_preQC, features = &quot;percent.mt&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 &lt;- VlnPlot(DCM_RV_preQC, features = &quot;percent.rp&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_pre_VlnPlots &lt;- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_pre_VlnPlots</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/QC_pre_VlnPlots-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- VlnPlot(DCM_RV_preQC, features = &quot;nCount_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 20000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 &lt;- VlnPlot(DCM_RV_preQC, features = &quot;nFeature_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 10000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 &lt;- VlnPlot(DCM_RV_preQC, features = &quot;percent.mt&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 &lt;- VlnPlot(DCM_RV_preQC, features = &quot;percent.rp&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_pre_VlnPlots_zoom &lt;- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_pre_VlnPlots_zoom</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/QC_pre_VlnPlots_zoom-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<p>Doublets detection</p>
+<pre class="r"><code>DCM_RV_preQC_sce &lt;- as.SingleCellExperiment(DCM_RV_preQC)
+DCM_RV_preQC_sce &lt;- scDblFinder(DCM_RV_preQC_sce, samples=&quot;Sample&quot;, clusters = TRUE)
+table(DCM_RV_preQC_sce@colData$scDblFinder.class)</code></pre>
+<pre><code>
+singlet doublet 
+ 155730   17004 </code></pre>
+<pre class="r"><code>DCM_RV_preQC &lt;- as.Seurat(DCM_RV_preQC_sce, counts = &quot;counts&quot;, data = &quot;logcounts&quot;)
+rm(DCM_RV_preQC_sce)
+DCM_RV_preQC@meta.data[DCM_RV_preQC@meta.data$scDblFinder.class %in% &quot;singlet&quot;, &quot;scDblFinder.n&quot;] = paste0(&quot;Singlets (n=&quot;, table(DCM_RV_preQC$scDblFinder.class)[1], &quot;)&quot;)
+DCM_RV_preQC@meta.data[DCM_RV_preQC@meta.data$scDblFinder.class %in% &quot;doublet&quot;, &quot;scDblFinder.n&quot;] = paste0(&quot;Doublets (n=&quot;, table(DCM_RV_preQC$scDblFinder.class)[2], &quot;)&quot;)
+DCM_RV_preQC$scDblFinder.n &lt;- factor(x = DCM_RV_preQC$scDblFinder.n, levels = c(rownames(table(DCM_RV_preQC$scDblFinder.n))[2], rownames(table(DCM_RV_preQC$scDblFinder.n))[1])) </code></pre>
+<pre class="r"><code>p1 &lt;- VlnPlot(DCM_RV_preQC, features = c(&quot;nCount_RNA&quot;), split.by = &quot;scDblFinder.n&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 50000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 &lt;- VlnPlot(DCM_RV_preQC, features = c(&quot;nFeature_RNA&quot;), split.by = &quot;scDblFinder.n&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 10000) + theme(axis.title.x = element_blank()) 
+
+QC_pre_Doublets &lt;- p1 + p2 + plot_layout(ncol = 2)
+
+QC_pre_Doublets</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/QC_pre_Doublets-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>saveRDS(DCM_RV_preQC, 
+        here::here(output_dir_data, &quot;DCM_RV_preQC.rds&quot;))</code></pre>
+<p>Remove doublets</p>
+<pre class="r"><code>DCM_RV_preQC_no_doublets &lt;- subset(x = DCM_RV_preQC, subset = scDblFinder.class == &quot;singlet&quot;)
+table(DCM_RV_preQC_no_doublets@meta.data$scDblFinder.class)</code></pre>
+<pre><code>
+singlet doublet 
+ 155730       0 </code></pre>
+<pre class="r"><code>rm(DCM_RV_preQC)</code></pre>
+<p>Check quality control parameters after removing doublets</p>
+<pre class="r"><code>p1 &lt;- VlnPlot(DCM_RV_preQC_no_doublets, features = &quot;nCount_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 &lt;- VlnPlot(DCM_RV_preQC_no_doublets, features = &quot;nFeature_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 &lt;- VlnPlot(DCM_RV_preQC_no_doublets, features = &quot;percent.mt&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 &lt;- VlnPlot(DCM_RV_preQC_no_doublets, features = &quot;percent.rp&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_pre_no_doublets_VlnPlots &lt;- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_pre_no_doublets_VlnPlots</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/QC_pre_no_doublets_VlnPlots-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- VlnPlot(DCM_RV_preQC_no_doublets, features = &quot;nCount_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 20000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 &lt;- VlnPlot(DCM_RV_preQC_no_doublets, features = &quot;nFeature_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 10000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 &lt;- VlnPlot(DCM_RV_preQC_no_doublets, features = &quot;percent.mt&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 1.5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 &lt;- VlnPlot(DCM_RV_preQC_no_doublets, features = &quot;percent.rp&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 1.5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_pre_no_doublets_VlnPlots_zoom &lt;- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_pre_no_doublets_VlnPlots_zoom</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/QC_pre_no_doublets_VlnPlots_zoom-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<p>Filter based on number of counts, features and percentage of
+mitochondrial genes</p>
+<pre class="r"><code>DCM_RV &lt;- subset(DCM_RV_preQC_no_doublets, subset = 
+                   nFeature_RNA &gt; 500 &amp;
+                   percent.mt &lt; 1.5 &amp;
+                   nCount_RNA &gt; 1000 &amp;
+                   nCount_RNA &lt; 100000)
+
+table(DCM_RV$Sample)</code></pre>
+<pre><code>
+   P3    P5    P8 PK153 PK211 PK213 PK229 PK323 PK337 PK345 PK357 PK369 PK375 
+ 3814  7286  4342  3004   954  7331  4874  8083  6998  6798  7167  8100  8170 
+PK385 PK401 PK403 PK415 PK437 PK439 PK441 PK461 PK463 
+ 8306  4755  7392  5946  7681  8342  6503  6747  6534 </code></pre>
+<p>Sample PK211 has a really low number of counts and features, too
+different compared to all other samples. Therefore it will be excluded
+from the analysis</p>
+<pre class="r"><code>DCM_RV &lt;- subset(DCM_RV, subset = 
+                   Sample != &quot;PK211&quot;)
+
+table(DCM_RV$Sample)</code></pre>
+<pre><code>
+   P3    P5    P8 PK153 PK213 PK229 PK323 PK337 PK345 PK357 PK369 PK375 PK385 
+ 3814  7286  4342  3004  7331  4874  8083  6998  6798  7167  8100  8170  8306 
+PK401 PK403 PK415 PK437 PK439 PK441 PK461 PK463 
+ 4755  7392  5946  7681  8342  6503  6747  6534 </code></pre>
+<p>Check quality control parameters</p>
+<pre class="r"><code>p1 &lt;- VlnPlot(DCM_RV, features = &quot;nCount_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 &lt;- VlnPlot(DCM_RV, features = &quot;nFeature_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 &lt;- VlnPlot(DCM_RV, features = &quot;percent.mt&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 &lt;- VlnPlot(DCM_RV, features = &quot;percent.rp&quot;, group.by = &quot;Sample&quot;, pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_post_VlnPlots &lt;- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_post_VlnPlots</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/QC_post_VlnPlots-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- VlnPlot(DCM_RV, features = &quot;nCount_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 20000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 &lt;- VlnPlot(DCM_RV, features = &quot;nFeature_RNA&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 10000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 &lt;- VlnPlot(DCM_RV, features = &quot;percent.mt&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 1.5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 &lt;- VlnPlot(DCM_RV, features = &quot;percent.rp&quot;, group.by = &quot;Sample&quot;, pt.size = 0, y.max = 1.5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_post_VlnPlots_zoom &lt;- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_post_VlnPlots_zoom</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/QC_post_VlnPlots_zoom-1.png" width="4800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="integration-and-clustering" class="section level2">
+<h2>Integration and clustering</h2>
+<p>Normalization and scaling using SCTransform.</p>
+<pre class="r"><code>DefaultAssay(DCM_RV) &lt;- &quot;RNA&quot;
+DCM_RV.list &lt;- SplitObject(DCM_RV, split.by = &quot;Sample&quot;)
+for (i in 1:length(DCM_RV.list)) {
+  DCM_RV.list[[i]] &lt;- SCTransform(DCM_RV.list[[i]], vst.flavor = &quot;v2&quot;, vars.to.regress = c(&quot;percent.mt&quot;, &quot;percent.rp&quot;), return.only.var.genes = FALSE)
+}
+rm(DCM_RV, DCM_RV_preQC_no_doublets)</code></pre>
+<p>PCA</p>
+<pre class="r"><code>features &lt;- SelectIntegrationFeatures(object.list = DCM_RV.list, nfeatures = 3000)
+DCM_RV_not_integrated &lt;- merge(x = DCM_RV.list[[1]], y = DCM_RV.list[2:length(DCM_RV.list)], merge.data=TRUE)
+VariableFeatures(DCM_RV_not_integrated) &lt;- features
+DCM_RV_not_integrated &lt;- RunPCA(DCM_RV_not_integrated)</code></pre>
+<pre class="r"><code>saveRDS(DCM_RV_not_integrated, 
+        here::here(output_dir_data, &quot;DCM_RV_not_integrated.rds&quot;))</code></pre>
+<pre class="r"><code>DCM_RV_not_integrated &lt;- readRDS(here::here(output_dir_data, &quot;DCM_RV_not_integrated.rds&quot;))</code></pre>
+<pre class="r"><code>ElbowPlot(DCM_RV_not_integrated, ndims = 50)</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/Elbow_not_integrated-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<p>Clustering without integration</p>
+<pre class="r"><code>DCM_RV_not_integrated &lt;- RunUMAP(DCM_RV_not_integrated, dims = 1:40)
+DCM_RV_not_integrated &lt;- FindNeighbors(DCM_RV_not_integrated, dims = 1:40)
+DCM_RV_not_integrated &lt;- FindClusters(DCM_RV_not_integrated, resolution = seq(0.1, 0.8, by=0.1))</code></pre>
+<pre class="r"><code>clustree::clustree(DCM_RV_not_integrated@meta.data[,grep(&quot;SCT_snn_res&quot;, colnames(DCM_RV_not_integrated@meta.data))],
+                   prefix = &quot;SCT_snn_res.&quot;)</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/Clustree_not_integrated-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DimPlot(DCM_RV_not_integrated, reduction = &quot;umap&quot;, shuffle = T,
+        group.by = c(&quot;SCT_snn_res.0.2&quot;, &quot;Sample&quot;, &quot;Batch_processing&quot;, &quot;Batch_sequencing&quot;), ncol = 2)</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/UMAPs_not_integrated-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>saveRDS(DCM_RV_not_integrated, 
+        here::here(output_dir_data, &quot;DCM_RV_not_integrated.rds&quot;))</code></pre>
+<p>Integrate the samples</p>
+<pre class="r"><code>DCM_RV_integrated &lt;- RunHarmony(DCM_RV_not_integrated, assay.use=&quot;SCT&quot;, group.by.vars = &quot;Sample&quot;, dims.use = 1:50)</code></pre>
+<pre class="r"><code>saveRDS(DCM_RV_integrated, 
+        here::here(output_dir_data, &quot;DCM_RV_integrated_low_quality.rds&quot;))</code></pre>
+<pre class="r"><code>rm(DCM_RV_not_integrated)
+DCM_RV_integrated &lt;- readRDS(here::here(output_dir_data, &quot;DCM_RV_integrated_low_quality.rds&quot;))</code></pre>
+<pre class="r"><code>ElbowPlot(DCM_RV_integrated, ndims = 50)</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/Elbow_integrated_low_quality-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<p>Clustering after integration</p>
+<pre class="r"><code>DefaultAssay(DCM_RV_integrated) &lt;- &quot;SCT&quot;
+DCM_RV_integrated &lt;- RunUMAP(DCM_RV_integrated, dims = 1:30, reduction = &quot;harmony&quot;)
+DCM_RV_integrated &lt;- FindNeighbors(DCM_RV_integrated, dims = 1:30, reduction = &quot;harmony&quot;)
+DCM_RV_integrated &lt;- FindClusters(DCM_RV_integrated, resolution = seq(0.1, 0.8, by=0.1))</code></pre>
+<pre class="r"><code>clustree::clustree(DCM_RV_integrated@meta.data[,grep(&quot;SCT_snn_res&quot;, colnames(DCM_RV_integrated@meta.data))],
+                   prefix = &quot;SCT_snn_res.&quot;)</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/Clustree_integrated_low_quality-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DimPlot(DCM_RV_integrated, reduction = &quot;umap&quot;, shuffle = T,
+        group.by = c(&quot;SCT_snn_res.0.2&quot;, &quot;Sample&quot;, &quot;Batch_processing&quot;, &quot;Batch_sequencing&quot;), ncol = 2)</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/UMAPs_integrated_low_quality-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>saveRDS(DCM_RV_integrated, 
+        here::here(output_dir_data, &quot;DCM_RV_integrated_low_quality.rds&quot;))</code></pre>
+<p>Find the markers that characterize each cell population</p>
+<pre class="r"><code>DefaultAssay(DCM_RV_integrated) &lt;- &quot;SCT&quot;
+DCM_RV_integrated &lt;- PrepSCTFindMarkers(DCM_RV_integrated)
+Idents(DCM_RV_integrated) &lt;- &quot;SCT_snn_res.0.2&quot;
+Markers &lt;- FindAllMarkers(DCM_RV_integrated, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.5)
+write.csv(Markers, here::here(output_dir_data, &quot;DCM_RV_Markers_all_low_quality.csv&quot;))
+Markers_top10 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, &quot;DCM_RV_Markers_top10_low_quality.csv&quot;))
+Markers_top3 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, &quot;DCM_RV_Markers_top3_low_quality.csv&quot;))</code></pre>
+<pre class="r"><code>mapal &lt;- colorRampPalette(RColorBrewer::brewer.pal(9,&quot;RdBu&quot;))(256)
+mapal &lt;- rev(mapal[1:256])
+Heatmap &lt;- DoHeatmap(subset(DCM_RV_integrated, cells = sample(colnames(DCM_RV_integrated), 10000)), label = FALSE, draw.line = F, features = Markers_top10$gene) +
+  scale_fill_gradientn(colours = mapal) +
+  theme(axis.text.y = element_text(size = 5)) +
+  theme(plot.margin = unit(c(0.1, 0, 0, 0), 
+                           &quot;inches&quot;))
+Heatmap</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/Heatmap_low_quality-1.png" width="9000" style="display: block; margin: auto;" /></p>
+<p>Check QC parameters in each cluster</p>
+<pre class="r"><code>VlnPlot(DCM_RV_integrated, features = c(&quot;nCount_RNA&quot;, &quot;nFeature_RNA&quot;, &quot;percent.mt&quot;, &quot;percent.rp&quot;), ncol = 2, pt.size = 0) + theme(axis.title.x = element_blank())</code></pre>
+<p><img src="figure/QC_integration_annotation.Rmd/QC_VlnPlots_low_quality-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<p>Remove low quality cells (clusters with low number of count and
+features and higher percentage of mt genes)</p>
+<pre class="r"><code>DCM_RV_integrated &lt;- subset(DCM_RV_integrated, subset = SCT_snn_res.0.2 != &quot;8&quot;)</code></pre>
+<pre class="r"><code>saveRDS(DCM_RV_integrated, 
+        here::here(output_dir_data, &quot;DCM_RV_integrated.rds&quot;))</code></pre>
+<pre class="r"><code>rm(DCM_RV_integrated)
+DCM_RV_integrated &lt;- readRDS(here::here(output_dir_data, &quot;DCM_RV_integrated.rds&quot;))</code></pre>
 <pre class="r"><code>ElbowPlot(DCM_RV_integrated, ndims = 50)</code></pre>
 <p><img src="figure/QC_integration_annotation.Rmd/Elbow_integrated-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Elbow_integrated-1">
+Past versions of Elbow_integrated-1.png
+</button>
+</p>
+<div id="fig-Elbow_integrated-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <p>Recluster</p>
 <pre class="r"><code>DCM_RV_integrated &lt;- RunUMAP(DCM_RV_integrated, dims = 1:30, reduction = &quot;harmony&quot;)
 DCM_RV_integrated &lt;- FindNeighbors(DCM_RV_integrated, dims = 1:30, reduction = &quot;harmony&quot;)
@@ -696,9 +1210,83 @@ DCM_RV_integrated &lt;- FindClusters(DCM_RV_integrated, resolution = seq(0.1, 0.
 <pre class="r"><code>clustree::clustree(DCM_RV_integrated@meta.data[,grep(&quot;SCT_snn_res&quot;, colnames(DCM_RV_integrated@meta.data))],
                    prefix = &quot;SCT_snn_res.&quot;)</code></pre>
 <p><img src="figure/QC_integration_annotation.Rmd/Clustree_integrated-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Clustree_integrated-1">
+Past versions of Clustree_integrated-1.png
+</button>
+</p>
+<div id="fig-Clustree_integrated-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>DimPlot(DCM_RV_integrated, reduction = &quot;umap&quot;, shuffle = T,
         group.by = c(&quot;SCT_snn_res.0.2&quot;, &quot;Sample&quot;, &quot;Batch_processing&quot;, &quot;Batch_sequencing&quot;), ncol = 2)</code></pre>
 <p><img src="figure/QC_integration_annotation.Rmd/UMAPs_integrated-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-UMAPs_integrated-1">
+Past versions of UMAPs_integrated-1.png
+</button>
+</p>
+<div id="fig-UMAPs_integrated-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <p>Find the markers that characterize each cell population</p>
 <pre class="r"><code>DefaultAssay(DCM_RV_integrated) &lt;- &quot;SCT&quot;
 DCM_RV_integrated &lt;- PrepSCTFindMarkers(DCM_RV_integrated)
@@ -717,6 +1305,43 @@ DCM_RV_integrated &lt;- CellCycleScoring(DCM_RV_integrated, s.features = s.genes
 DimPlot(DCM_RV_integrated, reduction = &quot;umap&quot;, shuffle = T,
         group.by = &quot;Phase&quot;)</code></pre>
 <p><img src="figure/QC_integration_annotation.Rmd/Cell_cycle_UMAP-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Cell_cycle_UMAP-1">
+Past versions of Cell_cycle_UMAP-1.png
+</button>
+</p>
+<div id="fig-Cell_cycle_UMAP-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 </div>
 <div id="cell-type-annotation" class="section level2">
 <h2>Cell type annotation</h2>
@@ -757,18 +1382,93 @@ Markers_top3 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n
 write.csv(Markers_top3, here::here(output_dir_data, &quot;DCM_RV_Markers_top3_cell_type.csv&quot;))</code></pre>
 <pre class="r"><code>DefaultAssay(DCM_RV_integrated) &lt;- &quot;SCT&quot;
 Heatmap &lt;- DoHeatmap(subset(DCM_RV_integrated, cells = sample(colnames(DCM_RV_integrated), 10000)), label = FALSE, draw.line = F, features = Markers_top10$gene) + 
+  scale_fill_gradientn(colours = mapal) +
   theme(text = element_text(size = 12), 
         axis.text.y = element_text(size = 4.5)) +
   theme(plot.margin = unit(c(0, 0, 0, 0), &quot;inches&quot;)) +
   guides(fill = guide_colorbar(barwidth = 1, barheight = 4))
 Heatmap</code></pre>
 <p><img src="figure/QC_integration_annotation.Rmd/Heatmap-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Heatmap-1">
+Past versions of Heatmap-1.png
+</button>
+</p>
+<div id="fig-Heatmap-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>p &lt;- DimPlot(DCM_RV_integrated, group.by = &quot;cell_type&quot;, reduction = &quot;umap&quot;, label = F) + 
   NoLegend() + 
   theme(axis.text=element_text(size=10, face = &quot;bold&quot;), axis.title = element_text(size = 14, face = &quot;bold&quot;)) + 
   theme(plot.title = element_blank())
 LabelClusters(p, id = &quot;cell_type&quot;, fontface = &quot;bold&quot;, size = 5, repel = T)</code></pre>
 <p><img src="figure/QC_integration_annotation.Rmd/UMAP_cell_type-1.png" width="3900" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-UMAP_cell_type-1">
+Past versions of UMAP_cell_type-1.png
+</button>
+</p>
+<div id="fig-UMAP_cell_type-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>Markers_top3 &lt;- Markers_top3[-c(34),]
 DotPlot(DCM_RV_integrated, assay = &quot;SCT&quot;, features = rev(Markers_top3$gene), dot.scale = 5, cluster.idents = FALSE) +
   RotatedAxis() +
@@ -776,8 +1476,82 @@ DotPlot(DCM_RV_integrated, assay = &quot;SCT&quot;, features = rev(Markers_top3$
   theme(axis.title = element_blank(), axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 13), legend.text = element_text(size = 9), legend.title = element_text(size = 11), plot.margin = unit(c(0, 0, 0, 0.1), 
                            &quot;inches&quot;))</code></pre>
 <p><img src="figure/QC_integration_annotation.Rmd/DotPlot_markers-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-DotPlot_markers-1">
+Past versions of DotPlot_markers-1.png
+</button>
+</p>
+<div id="fig-DotPlot_markers-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>FeaturePlot(DCM_RV_integrated, features = c(&quot;RYR2&quot;, &quot;COL6A3&quot;, &quot;VWF&quot;, &quot;RGS5&quot;, &quot;MRC1&quot;, &quot;PTPRC&quot;, &quot;RGS6&quot;, &quot;NRXN1&quot;, &quot;PKHD1L1&quot;, &quot;IL18R1&quot;, &quot;GPAM&quot;, &quot;MMRN1&quot;), ncol = 4)</code></pre>
 <p><img src="figure/QC_integration_annotation.Rmd/FeatPlot_markers-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-FeatPlot_markers-1">
+Past versions of FeatPlot_markers-1.png
+</button>
+</p>
+<div id="fig-FeatPlot_markers-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+93bef95
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-06-29
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>saveRDS(DCM_RV_integrated, 
         here::here(output_dir_data, &quot;DCM_RV_integrated.rds&quot;))</code></pre>
 <pre class="r"><code>DCM_RV_integrated_RNA_SCT &lt;-DCM_RV_integrated
@@ -889,51 +1663,53 @@ loaded via a namespace (and not attached):
  [71] survival_3.5-8            rJava_1.0-11             
  [73] bluster_1.12.0            ellipsis_0.3.2           
  [75] fitdistrplus_1.1-11       ROCR_1.0-11              
- [77] nlme_3.1-164              RcppAnnoy_0.0.22         
- [79] rprojroot_2.0.4           bslib_0.6.1              
- [81] irlba_2.3.5.1             vipor_0.4.7              
- [83] KernSmooth_2.23-22        colorspace_2.1-0         
- [85] ggrastr_1.0.2             tidyselect_1.2.1         
- [87] compiler_4.3.1            git2r_0.33.0             
- [89] BiocNeighbors_1.20.2      DelayedArray_0.28.0      
- [91] plotly_4.10.4             rtracklayer_1.62.0       
- [93] checkmate_2.3.1           lmtest_0.9-40            
- [95] digest_0.6.35             goftest_1.2-3            
- [97] spatstat.utils_3.0-4      rmarkdown_2.26           
- [99] XVector_0.42.0            htmltools_0.5.8.1        
-[101] pkgconfig_2.0.3           sparseMatrixStats_1.14.0 
-[103] highr_0.10                fastmap_1.1.1            
-[105] rlang_1.1.4               GlobalOptions_0.1.2      
-[107] htmlwidgets_1.6.4         shiny_1.8.0              
-[109] DelayedMatrixStats_1.24.0 farver_2.1.1             
-[111] jquerylib_0.1.4           zoo_1.8-12               
-[113] jsonlite_1.8.8            BiocParallel_1.36.0      
-[115] R.oo_1.26.0               BiocSingular_1.18.0      
-[117] RCurl_1.98-1.14           GenomeInfoDbData_1.2.11  
-[119] dotCall64_1.1-1           Rhdf5lib_1.24.2          
-[121] munsell_0.5.0             viridis_0.6.5            
-[123] reticulate_1.35.0         stringi_1.8.3            
-[125] zlibbioc_1.48.0           MASS_7.3-60.0.1          
-[127] parallel_4.3.1            listenv_0.9.1            
-[129] ggrepel_0.9.5             deldir_2.0-4             
-[131] graphlayouts_1.1.1        Biostrings_2.70.2        
-[133] splines_4.3.1             tensor_1.5               
-[135] hms_1.1.3                 circlize_0.4.16          
-[137] locfit_1.5-9.9            igraph_2.0.3             
-[139] spatstat.geom_3.2-9       ScaledMatrix_1.10.0      
-[141] XML_3.99-0.16.1           evaluate_0.23            
-[143] scran_1.30.2              ggprism_1.0.4            
-[145] tweenr_2.0.3              tzdb_0.4.0               
-[147] httpuv_1.6.14             grr_0.9.5                
-[149] RANN_2.6.1                polyclip_1.10-6          
-[151] future_1.33.1             scattermore_1.2          
-[153] ggforce_0.4.2             janitor_2.2.0            
-[155] rsvd_1.0.5                xtable_1.8-4             
-[157] restfulr_0.0.15           later_1.3.2              
-[159] viridisLite_0.4.2         memoise_2.0.1            
-[161] beeswarm_0.4.0            GenomicAlignments_1.38.2 
-[163] cluster_2.1.6             workflowr_1.7.1          
-[165] timechange_0.3.0          globals_0.16.3           </code></pre>
+ [77] nlme_3.1-164              bit64_4.0.5              
+ [79] RcppAnnoy_0.0.22          rprojroot_2.0.4          
+ [81] bslib_0.6.1               irlba_2.3.5.1            
+ [83] vipor_0.4.7               KernSmooth_2.23-22       
+ [85] colorspace_2.1-0          ggrastr_1.0.2            
+ [87] tidyselect_1.2.1          bit_4.0.5                
+ [89] compiler_4.3.1            git2r_0.33.0             
+ [91] BiocNeighbors_1.20.2      hdf5r_1.3.10             
+ [93] DelayedArray_0.28.0       plotly_4.10.4            
+ [95] rtracklayer_1.62.0        checkmate_2.3.1          
+ [97] lmtest_0.9-40             digest_0.6.35            
+ [99] goftest_1.2-3             spatstat.utils_3.0-4     
+[101] rmarkdown_2.26            XVector_0.42.0           
+[103] htmltools_0.5.8.1         pkgconfig_2.0.3          
+[105] sparseMatrixStats_1.14.0  highr_0.10               
+[107] fastmap_1.1.1             rlang_1.1.4              
+[109] GlobalOptions_0.1.2       htmlwidgets_1.6.4        
+[111] shiny_1.8.0               DelayedMatrixStats_1.24.0
+[113] farver_2.1.1              jquerylib_0.1.4          
+[115] zoo_1.8-12                jsonlite_1.8.8           
+[117] BiocParallel_1.36.0       R.oo_1.26.0              
+[119] BiocSingular_1.18.0       RCurl_1.98-1.14          
+[121] GenomeInfoDbData_1.2.11   dotCall64_1.1-1          
+[123] Rhdf5lib_1.24.2           munsell_0.5.0            
+[125] viridis_0.6.5             reticulate_1.35.0        
+[127] stringi_1.8.3             zlibbioc_1.48.0          
+[129] MASS_7.3-60.0.1           parallel_4.3.1           
+[131] listenv_0.9.1             ggrepel_0.9.5            
+[133] deldir_2.0-4              graphlayouts_1.1.1       
+[135] Biostrings_2.70.2         splines_4.3.1            
+[137] tensor_1.5                hms_1.1.3                
+[139] circlize_0.4.16           locfit_1.5-9.9           
+[141] igraph_2.0.3              spatstat.geom_3.2-9      
+[143] ScaledMatrix_1.10.0       XML_3.99-0.16.1          
+[145] evaluate_0.23             scran_1.30.2             
+[147] ggprism_1.0.4             tweenr_2.0.3             
+[149] tzdb_0.4.0                httpuv_1.6.14            
+[151] grr_0.9.5                 RANN_2.6.1               
+[153] polyclip_1.10-6           future_1.33.1            
+[155] scattermore_1.2           ggforce_0.4.2            
+[157] janitor_2.2.0             rsvd_1.0.5               
+[159] xtable_1.8-4              restfulr_0.0.15          
+[161] later_1.3.2               viridisLite_0.4.2        
+[163] memoise_2.0.1             beeswarm_0.4.0           
+[165] GenomicAlignments_1.38.2  cluster_2.1.6            
+[167] workflowr_1.7.1           timechange_0.3.0         
+[169] globals_0.16.3           </code></pre>
 </div>
 </div>
 
