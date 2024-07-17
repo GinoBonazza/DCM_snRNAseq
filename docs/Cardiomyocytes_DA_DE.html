@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Differential abundance and differential expression analysis in cardiomyocytes</title>
+
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_DA_DE.html">Cardiomyocytes differential expression</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Differential abundance and differential
+expression analysis in cardiomyocytes</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">17 July, 2024</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2024-07-17
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.1). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreea1e64729de0023efc1428def5f735248edeee642targetblanka1e6472a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/a1e64729de0023efc1428def5f735248edeee642" target="_blank">a1e6472</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreea1e64729de0023efc1428def5f735248edeee642targetblanka1e6472a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/a1e64729de0023efc1428def5f735248edeee642" target="_blank">a1e6472</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+
+Untracked files:
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/old.R
+    Untracked:  core
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data.xlsx
+    Untracked:  data/Raw/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/QC_integration_annotation/
+
+Unstaged changes:
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown (<code>analysis/Cardiomyocytes_DA_DE.Rmd</code>)
+and HTML (<code>docs/Cardiomyocytes_DA_DE.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/a1e64729de0023efc1428def5f735248edeee642/analysis/Cardiomyocytes_DA_DE.Rmd" target="_blank">a1e6472</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-07-17
+</td>
+<td>
+wflow_publish(c("analysis/Cardiomyocytes_DA_DE.Rmd"))
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code># Get current file name to make folder
+current_file &lt;- &quot;Cardiomyocytes_DA_DE&quot;
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+
+
+#Output paths
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;))
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
+<p>Load cardiomyocytes dataset</p>
+<pre class="r"><code>CM &lt;- readRDS(here::here(&quot;output&quot;, &quot;Cardiomyocytes_subclustering&quot;, &quot;CM.rds&quot;))</code></pre>
+</div>
+<div id="differential-abundance-analysis" class="section level2">
+<h2>Differential abundance analysis</h2>
+<pre class="r"><code>differential_abundance &lt;- data.frame()
+metadata &lt;- unique(subset(CM@meta.data, select = c(Sample:CO_l.min)))
+samples_index &lt;- match(metadata$Sample, names(table(CM$Sample)))
+metadata &lt;- metadata[samples_index, ]
+rownames(metadata) &lt;- metadata$Sample
+metadata &lt;- metadata[, -which(names(metadata) %in% c(&quot;LVID_mm&quot;, &quot;RVIT_mm&quot;))]
+rm(samples_index)
+
+for (i in 4:(length(metadata))) {
+  metadata_subset &lt;- metadata[complete.cases(metadata[[i]]),]
+
+  data &lt;- subset(CM, Sample %in% metadata_subset$Sample)
+  props &lt;- getTransformedProps(data$cell_state, data$Sample, transform=&quot;logit&quot;)
+  
+  
+  design &lt;- model.matrix(~ metadata_subset[[i]])
+  fit &lt;- lmFit(props$TransformedProps, design)
+  fit &lt;- eBayes(fit, robust=TRUE)
+  differential_abundance_temp &lt;- topTable(fit, n = Inf, coef = 2)
+  differential_abundance_temp$metadata &lt;- colnames(metadata_subset[i])
+  differential_abundance_temp$cell_state &lt;- rownames(differential_abundance_temp)
+  differential_abundance &lt;- rbind(differential_abundance, differential_abundance_temp)
+  
+  fit.prop &lt;- lmFit(props$Proportions,design)
+  fit.prop &lt;- eBayes(fit.prop, robust=TRUE)
+}
+rownames(differential_abundance) &lt;- NULL
+differential_abundance &lt;- dplyr::arrange(differential_abundance, adj.P.Val)
+head(differential_abundance, 10)</code></pre>
+<pre><code>         logFC     AveExpr         t    P.Value  adj.P.Val         B  metadata
+1   0.23035877 -1.17923786  2.618583 0.01595999 0.05722654 -3.002781    PVR_WU
+2  -0.23414331 -2.54557149 -2.369348 0.02736683 0.05722654 -3.447766    PVR_WU
+3  -0.18974827 -2.24750665 -2.261549 0.03433592 0.05722654 -3.632955    PVR_WU
+4  -0.24031232 -2.60375174 -2.803591 0.01147960 0.05739798 -2.742746  RVS_cm.s
+5  -0.17695880 -2.29123066 -2.435963 0.02508132 0.06270329 -3.410288  RVS_cm.s
+6  -0.02900361 -2.24750665 -2.243429 0.03574059 0.09297148 -4.338403 mPAP_mmHg
+7   0.03118332 -1.17923786  2.224259 0.03718859 0.09297148 -4.373952 mPAP_mmHg
+8  -0.03005217 -2.54557149 -1.901181 0.07103940 0.11839899 -4.943080 mPAP_mmHg
+9   0.09430588  0.03940108  1.842982 0.08129933 0.12125709 -4.382823  RVS_cm.s
+10  0.13927351 -1.14399249  1.747529 0.09700567 0.12125709 -4.523485  RVS_cm.s
+   cell_state
+1         CM2
+2         CM4
+3         CM3
+4         CM4
+5         CM3
+6         CM3
+7         CM2
+8         CM4
+9         CM1
+10        CM2</code></pre>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;mPAP_mmHg&quot;]]),]
+
+data &lt;- subset(CM, Sample %in% metadata_subset$Sample)
+props &lt;- getTransformedProps(data$cell_state, data$Sample, transform=&quot;logit&quot;)
+
+
+design &lt;- model.matrix(~ metadata_subset$mPAP_mmHg)
+fit &lt;- lmFit(props$TransformedProps, design)
+fit &lt;- eBayes(fit, robust=TRUE)
+
+fit.prop &lt;- lmFit(props$Proportions,design)
+fit.prop &lt;- eBayes(fit.prop, robust=TRUE)
+
+par(mfrow=c(1,5))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$mPAP_mmHg, props$Proportions[i,], main = rownames(props$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;mPAP_mmHg&quot;, cex.lab=1.5, cex.axis=1.5,
+       cex.main=2)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/Speckle_mPAP-1.png" width="12000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;PVR_WU&quot;]]),]
+
+data &lt;- subset(CM, Sample %in% metadata_subset$Sample)
+props &lt;- getTransformedProps(data$cell_state, data$Sample, transform=&quot;logit&quot;)
+
+
+design &lt;- model.matrix(~ metadata_subset$PVR_WU)
+fit &lt;- lmFit(props$TransformedProps, design)
+fit &lt;- eBayes(fit, robust=TRUE)
+
+fit.prop &lt;- lmFit(props$Proportions,design)
+fit.prop &lt;- eBayes(fit.prop, robust=TRUE)
+
+par(mfrow=c(1,5))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$PVR_WU, props$Proportions[i,], main = rownames(props$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;PVR_WU&quot;, cex.lab=1.5, cex.axis=1.5,
+       cex.main=2)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/Speckle_PVR-1.png" width="12000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;RVS_cm.s&quot;]]),]
+
+data &lt;- subset(CM, Sample %in% metadata_subset$Sample)
+props &lt;- getTransformedProps(data$cell_state, data$Sample, transform=&quot;logit&quot;)
+
+
+design &lt;- model.matrix(~ metadata_subset$RVS_cm.s)
+fit &lt;- lmFit(props$TransformedProps, design)
+fit &lt;- eBayes(fit, robust=TRUE)
+
+fit.prop &lt;- lmFit(props$Proportions,design)
+fit.prop &lt;- eBayes(fit.prop, robust=TRUE)
+
+par(mfrow=c(1,5))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$RVS_cm.s, props$Proportions[i,], main = rownames(props$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;RVS_cm.s&quot;, cex.lab=1.5, cex.axis=1.5,
+       cex.main=2)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/Speckle_RVS-1.png" width="12000" style="display: block; margin: auto;" /></p>
+</div>
+<div id="differential-expression-analysis" class="section level2">
+<h2>Differential expression analysis</h2>
+<p>Extract metadata table</p>
+<pre class="r"><code>metadata &lt;- unique(subset(CM@meta.data, select = c(Sample:CO_l.min)))
+samples_index &lt;- match(metadata$Sample, names(table(CM$Sample)))
+metadata &lt;- metadata[samples_index, ]
+rownames(metadata) &lt;- metadata$Sample
+metadata &lt;- metadata[, -which(names(metadata) %in% c(&quot;LVID_mm&quot;, &quot;RVIT_mm&quot;))]
+rm(samples_index)</code></pre>
+<p>Remove genes expressed in &lt;1% of cells and MT and RP genes</p>
+<pre class="r"><code>percent_stats &lt;- Percent_Expressing(seurat_object = CM, features = rownames(CM), assay = &quot;RNA&quot;, entire_object = TRUE)
+percent_stats$gene &lt;- rownames(percent_stats)
+
+keep_genes &lt;- rownames(dplyr::filter(percent_stats, All_Cells &gt; 1))
+
+data &lt;- CM[which(rownames(CM) %in% keep_genes),]
+
+rm(keep_genes)</code></pre>
+<p>Create and prepare pseudobulk object for differential expression
+analysis</p>
+<pre class="r"><code>pseudocounts &lt;- Seurat2PB(data, sample=&quot;Sample&quot;, cluster = &quot;cell_type&quot;)
+colnames(pseudocounts) &lt;- pseudocounts$samples$sample
+keep.samples &lt;- pseudocounts$samples$lib.size &gt; 5e4
+pseudocounts &lt;- pseudocounts[, keep.samples]
+keep.genes &lt;- filterByExpr(pseudocounts)
+pseudocounts &lt;- pseudocounts[keep.genes, ]</code></pre>
+<p>Create empty objects for the DE output</p>
+<pre class="r"><code>results &lt;- list()
+signif &lt;- list()
+volcano &lt;- list()
+n_de_genes &lt;- data.frame()</code></pre>
+<pre class="r"><code>for (i in 5:(length(metadata))) {
+  metadata_subset &lt;- metadata[complete.cases(metadata[[i]]),]
+  metadata_subset[,i] &lt;- rescale(metadata_subset[,i])
+  design &lt;- model.matrix(~ metadata_subset[[i]])
+  colnames(design)[2] &lt;- colnames(metadata_subset[i])
+  
+  pseudocounts_subset &lt;- pseudocounts[, metadata_subset$Sample]
+  pseudocounts_subset &lt;- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset &lt;- estimateDisp(pseudocounts_subset, design)
+  
+  fit &lt;- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit &lt;- glmQLFTest(fit, coef = 2)
+  
+  results[[i]] &lt;- topTags(fit, n = Inf)$table
+  results[[i]] &lt;- merge(results[[i]], percent_stats[, c(&quot;gene&quot;, &quot;All_Cells&quot;)], by = &quot;gene&quot;, all.x = FALSE)
+  signif[[i]] &lt;- results[[i]] %&gt;% dplyr::filter(FDR &lt; 0.05, abs(logFC) &gt; 0.5) %&gt;% 
+    dplyr::arrange(FDR)
+
+  names(results)[i] &lt;- colnames(metadata_subset[i])
+  names(signif)[i] &lt;- colnames(metadata_subset[i])
+  
+  write.csv(results[[i]], file = here::here(output_dir_data, paste0(&quot;CM_Results_&quot;, colnames(metadata[i]), &quot;.csv&quot;)), quote=F, row.names = F)
+  write.csv(signif[[i]], file = here::here(output_dir_data, paste0(&quot;CM_Significant_&quot;, colnames(metadata[i]), &quot;.csv&quot;)), quote=F, row.names = F)
+  
+  n_de_genes_temp &lt;- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i]]$logFC &gt; 0.5),
+                                n_downregulated = sum(signif[[i]]$logFC &lt; -0.5),
+                                n_tot = nrow(signif[[i]])
+                                )
+  n_de_genes &lt;- rbind(n_de_genes, n_de_genes_temp)
+  
+  volcano[[i]] &lt;- EnhancedVolcano(results[[i]],
+                  lab = results[[i]]$gene,
+                  x = &quot;logFC&quot;,
+                  y = &quot;FDR&quot;,
+                  labSize = 3.5,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  col = c(&quot;black&quot;, &quot;black&quot;, &quot;black&quot;, &quot;red&quot;),
+                  colAlpha = 1,
+                  drawConnectors = TRUE,
+                  widthConnectors = 0.1,
+                  boxedLabels = TRUE,
+                  subtitle = NULL,
+                  maxoverlapsConnectors = 100,
+                  max.overlaps = 100,
+                  title = paste0(&quot;Cardiomyocytes&quot;, &quot;\n&quot;, colnames(metadata_subset[i]), &quot;\nn = &quot;, nrow(metadata_subset))
+  ) + theme(legend.position = &quot;none&quot;)
+  names(volcano)[i] &lt;- colnames(metadata_subset[i])
+}</code></pre>
+<pre class="r"><code>combined_plots &lt;- (volcano[[5]] | volcano[[6]] | volcano[[7]] | volcano[[8]] | volcano[[9]] | volcano[[10]] | volcano[[11]]) / 
+  (volcano[[12]] | volcano[[13]] |  volcano[[14]] | volcano[[15]] | volcano[[16]] | volcano[[17]])
+print(combined_plots)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/Volcano_all_metadata-1.png" width="8400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="over-representation-analysis" class="section level2">
+<h2>Over-representation analysis</h2>
+<pre class="r"><code># Calculate gene counts across cells
+gene_counts &lt;- rowSums(CM@assays$RNA@counts &gt; 0)
+
+# Filter genes to include only those expressed in at least 3 cells
+universe_genes &lt;- names(gene_counts[gene_counts &gt;= 3])
+write.csv(as.data.frame(universe_genes), here::here(output_dir_data, &quot;CM_universe_genes.csv&quot;))
+
+# Convert universe gene symbols to Entrez IDs
+universe_entrez &lt;- bitr(universe_genes, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db)$ENTREZID
+write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, &quot;CM_universe_entrez.csv&quot;))</code></pre>
+<pre class="r"><code>up_genes &lt;- filter(signif[[&quot;mPAP_mmHg&quot;]], logFC &gt; 0.5)$gene
+up_genes &lt;- bitr(up_genes, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)$ENTREZID
+down_genes &lt;- filter(signif[[&quot;mPAP_mmHg&quot;]], logFC &lt; -0.5)$gene
+down_genes &lt;- bitr(down_genes, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)$ENTREZID</code></pre>
+<pre class="r"><code>mPAP_GO_MF_up &lt;- enrichGO(up_genes, OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;MF&quot;, readable = TRUE)
+mPAP_GO_MF_up &lt;- gsfilter(mPAP_GO_MF_up, by = &#39;Count&#39;, min = 3)
+mPAP_GO_MF_down &lt;- enrichGO(down_genes, OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;MF&quot;, readable = TRUE)
+mPAP_GO_MF_down &lt;- gsfilter(mPAP_GO_MF_down, by = &#39;Count&#39;, min = 3)
+p1 &lt;- dotplot(mPAP_GO_MF_up, showCategory = 10, title = paste0(&quot;GO - Molecular Function&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_GO_MF-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mPAP_GO_MF_simplified_up &lt;- simplify(
+  mPAP_GO_MF_up,
+  cutoff = 0.5,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+p1 &lt;- dotplot(mPAP_GO_MF_simplified_up, showCategory = 10, title = paste0(&quot;GO - Molecular Function&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_GO_MF_simplified-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mPAP_GO_BP_up &lt;- enrichGO(up_genes, OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;BP&quot;, readable = TRUE)
+mPAP_GO_BP_up &lt;- gsfilter(mPAP_GO_BP_up, by = &#39;Count&#39;, min = 3)
+mPAP_GO_BP_down &lt;- enrichGO(down_genes, OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;BP&quot;, readable = TRUE)
+mPAP_GO_BP_down &lt;- gsfilter(mPAP_GO_BP_down, by = &#39;Count&#39;, min = 3)
+p1 &lt;- dotplot(mPAP_GO_BP_up, showCategory = 10, title = paste0(&quot;GO - Biological Process&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_GO_BP-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mPAP_GO_BP_simplified_up &lt;- simplify(
+  mPAP_GO_BP_up,
+  cutoff = 0.5,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+p1 &lt;- dotplot(mPAP_GO_BP_simplified_up, showCategory = 10, title = paste0(&quot;GO - Biological Process&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_GO_BP_simplified-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mPAP_KEGG_up &lt;- enrichKEGG(up_genes, organism = &#39;hsa&#39;, universe = universe_entrez)
+mPAP_KEGG_up &lt;- gsfilter(mPAP_KEGG_up, by = &#39;Count&#39;, min = 3)
+mPAP_KEGG_down &lt;- enrichKEGG(down_genes,  organism = &#39;hsa&#39;, universe = universe_entrez)
+mPAP_KEGG_down &lt;- gsfilter(mPAP_KEGG_down, by = &#39;Count&#39;, min = 3)
+p1 &lt;- dotplot(mPAP_KEGG_up, showCategory = 10, title = paste0(&quot;KEGG Pathways&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_KEGG-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mPAP_REACTOME_up &lt;- enrichPathway(up_genes, organism = &#39;human&#39;, universe = universe_entrez, readable = TRUE, pvalueCutoff = 0.1)
+mPAP_REACTOME_up &lt;- gsfilter(mPAP_REACTOME_up, by = &#39;Count&#39;, min = 3)
+mPAP_REACTOME_down &lt;- enrichPathway(down_genes, organism = &#39;human&#39;, universe = universe_entrez, readable = TRUE, pvalueCutoff = 0.1)
+mPAP_REACTOME_down &lt;- gsfilter(mPAP_REACTOME_down, by = &#39;Count&#39;, min = 3)
+p1 &lt;- dotplot(mPAP_REACTOME_up, showCategory = 10, title = paste0(&quot;REACTOME&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_REACTOME-1.png" width="3600" style="display: block; margin: auto;" /></p>
+</div>
+<div id="gene-set-enrichment-analysis" class="section level2">
+<h2>Gene set enrichment analysis</h2>
+<pre class="r"><code>ranked_genes &lt;- results[[&quot;mPAP_mmHg&quot;]]
+ranked_genes$metric &lt;- ranked_genes$logFC*-log10(ranked_genes$PValue)
+entrezid &lt;- bitr(ranked_genes$gene, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)
+ranked_genes &lt;- merge(ranked_genes, entrezid, by.x = &quot;gene&quot;, by.y = &quot;SYMBOL&quot;)
+ranked_genes &lt;- ranked_genes[!duplicated(ranked_genes$metric), ]
+genelist &lt;- ranked_genes$metric
+names(genelist) &lt;- ranked_genes$ENTREZID
+genelist &lt;- genelist[order(genelist, decreasing = T)]</code></pre>
+<pre class="r"><code>gseaGO_MF &lt;- gseGO(geneList = genelist,
+                OrgDb = org.Hs.eg.db,
+                ont = &quot;MF&quot;,
+                keyType = &quot;ENTREZID&quot;,
+                nPermSimple = 1000000)</code></pre>
+<pre class="r"><code>gseaGO_MF_simplified &lt;- simplify(
+  gseaGO_MF,
+  cutoff = 0.7,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+p1 &lt;- dotplot(gseaGO_MF_simplified, showCategory = 10, split=&quot;.sign&quot;, title = paste0(&quot;GSEA\nGO - Molecular Function&quot;, &quot;\n mPAP-associated genes&quot;), label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_gseaGO_MF_simplified-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>classify_terms &lt;- function(df) {
+  df$sign &lt;- ifelse(df$NES &gt; 0, &quot;activated&quot;, &quot;suppressed&quot;)
+  return(df)
+}
+gseaGO_MF@result &lt;- classify_terms(gseaGO_MF@result)
+# Split the GSEA results
+activated_terms &lt;- subset(gseaGO_MF@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(gseaGO_MF@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gseaGO_MF_activated &lt;- gseaGO_MF
+gseaGO_MF_activated@result &lt;- activated_terms
+
+gseaGO_MF_suppressed &lt;- gseaGO_MF
+gseaGO_MF_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gseaGO_MF_activated), showCategory = 20, cex_label_category = 0.7) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gseaGO_MF_suppressed), showCategory = 20, cex_label_category = 0.7) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_gseaGO_MF_emapplot-1.png" width="9000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- ridgeplot(gseaGO_MF_simplified, showCategory = 20) + labs(x = &quot;enrichment distribution&quot;)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_gseaGO_MF_ridgeplot-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaGO_BP &lt;- gseGO(geneList = genelist,
+                OrgDb = org.Hs.eg.db,
+                ont = &quot;BP&quot;,
+                keyType = &quot;ENTREZID&quot;,
+                nPermSimple = 1000000)</code></pre>
+<pre class="r"><code>gseaGO_BP_simplified &lt;- simplify(
+  gseaGO_BP,
+  cutoff = 0.7,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+p1 &lt;- dotplot(gseaGO_BP_simplified, showCategory = 10, split=&quot;.sign&quot;, title = paste0(&quot;GSEA\nGO - Biological Process&quot;, &quot;\n mPAP-associated genes&quot;), label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_gseaGO_BP_simplified-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaGO_BP@result &lt;- classify_terms(gseaGO_BP@result)
+# Split the GSEA results
+activated_terms &lt;- subset(gseaGO_BP@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(gseaGO_BP@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gseaGO_MF_activated &lt;- gseaGO_BP
+gseaGO_MF_activated@result &lt;- activated_terms
+
+gseaGO_MF_suppressed &lt;- gseaGO_BP
+gseaGO_MF_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gseaGO_MF_activated), showCategory = 20, cex_label_category = 0.7) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gseaGO_MF_suppressed), showCategory = 20, cex_label_category = 0.7) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_gseaGO_BP_emapplot-1.png" width="9000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- ridgeplot(gseaGO_BP_simplified, showCategory = 20) + labs(x = &quot;enrichment distribution&quot;)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_gseaGO_BP_ridgeplot-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaKEGG &lt;- gseKEGG(geneList = genelist,
+                organism = &quot;hsa&quot;,
+                keyType = &quot;kegg&quot;,
+                nPermSimple = 100000)</code></pre>
+<pre class="r"><code>p1 &lt;- dotplot(gseaKEGG, showCategory = 10, split=&quot;.sign&quot;, title = paste0(&quot;GSEA\nKEGG Pathways&quot;, &quot;\n mPAP-associated genes&quot;), label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/gseaKEGG-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaKEGG@result &lt;- classify_terms(gseaKEGG@result)
+# Split the GSEA results
+activated_terms &lt;- subset(gseaKEGG@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(gseaKEGG@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gseaKEGG_activated &lt;- gseaKEGG
+gseaKEGG_activated@result &lt;- activated_terms
+
+gseaKEGG_suppressed &lt;- gseaKEGG
+gseaKEGG_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gseaKEGG_activated), showCategory = 20, cex_label_category = 0.7) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gseaKEGG_suppressed), showCategory = 20, cex_label_category = 0.7) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_gseaKEGG_emapplot-1.png" width="9000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- ridgeplot(gseaKEGG, showCategory = 20) + labs(x = &quot;enrichment distribution&quot;)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_gseaKEGG_ridgeplot-1.png" width="7200" style="display: block; margin: auto;" /></p>
+</div>
+<div id="transcription-factor-inference-analysis"
+class="section level2">
+<h2>Transcription factor inference analysis</h2>
+<pre class="r"><code>net &lt;- get_collectri(organism=&#39;human&#39;, split_complexes=FALSE)
+net</code></pre>
+<pre><code># A tibble: 43,178 × 3
+   source target   mor
+   &lt;chr&gt;  &lt;chr&gt;  &lt;dbl&gt;
+ 1 MYC    TERT       1
+ 2 SPI1   BGLAP      1
+ 3 SMAD3  JUN        1
+ 4 SMAD4  JUN        1
+ 5 STAT5A IL2        1
+ 6 STAT5B IL2        1
+ 7 RELA   FAS        1
+ 8 WT1    NR0B1      1
+ 9 NR0B2  CASP1      1
+10 SP1    ALDOA      1
+# ℹ 43,168 more rows</code></pre>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;mPAP_mmHg&quot;]]),]
+metadata_subset[,i] &lt;- rescale(metadata_subset[,&quot;mPAP_mmHg&quot;])
+design &lt;- model.matrix(~ metadata_subset[[&quot;mPAP_mmHg&quot;]])
+colnames(design)[2] &lt;- colnames(metadata_subset[&quot;mPAP_mmHg&quot;])
+  
+pseudocounts_subset &lt;- pseudocounts[, metadata_subset$Sample]
+pseudocounts_subset &lt;- normLibSizes(pseudocounts_subset)
+pseudocounts_subset &lt;- estimateDisp(pseudocounts_subset, design)
+
+counts &lt;- cpm(pseudocounts_subset, log = TRUE)
+head(counts)</code></pre>
+<pre><code>              PK403     PK437    PK439    PK461     PK463    PK213     PK229
+AL627309.5 1.320903 2.4713201 1.239315 2.141724 2.7864917 2.485466 2.3648947
+LINC01409  4.594067 3.1681197 5.168570 3.833868 2.7809457 4.581706 4.9294284
+LINC01128  6.530832 6.2642960 6.630353 6.199305 6.7363270 6.319890 6.5908826
+LINC00115  1.518905 0.9609201 1.671780 1.136104 0.8187969 2.011302 1.9900129
+NOC2L      3.282563 2.5068892 2.911272 2.947719 2.9008469 2.787216 3.0521499
+PLEKHN1    1.605087 1.5942225 3.860795 2.355487 1.3018463 0.867622 0.6519203
+                  P8     PK323    PK153        P5    PK375     PK385    PK337
+AL627309.5 2.3248883 2.1545925 2.008576 2.3569630 1.422754 2.0327414 1.681110
+LINC01409  3.9127182 3.2100835 4.369665 4.0194064 4.609442 3.5831865 3.344171
+LINC01128  6.3451925 7.0651338 6.727960 6.3497422 6.290856 6.6607930 7.602251
+LINC00115  1.4644547 0.9184087 1.481175 1.6915425 1.624291 0.8275877 1.198492
+NOC2L      2.6080532 2.9068148 2.732483 2.9953439 3.324281 2.6215926 2.600822
+PLEKHN1    0.3617785 1.6597815 1.344274 0.7420735 2.596266 1.9304448 2.502255
+               PK345     PK369     PK401    PK357
+AL627309.5 1.7516126 1.2621577 2.7123585 1.626685
+LINC01409  3.0845168 3.3266696 2.4085042 3.988499
+LINC01128  6.6414725 6.7209585 7.1265533 6.792682
+LINC00115  0.7917193 0.5370604 0.4685174 1.544558
+NOC2L      2.8287937 2.8676240 3.6204255 2.826994
+PLEKHN1    2.1264104 0.6409003 2.4845174 2.051155</code></pre>
+<pre class="r"><code>deg &lt;- ranked_genes %&gt;%
+  dplyr::select(gene, logFC, metric, PValue) %&gt;% 
+  remove_rownames() %&gt;%
+  column_to_rownames(var = &quot;gene&quot;) %&gt;%
+  as.matrix()
+head(deg)</code></pre>
+<pre><code>               logFC      metric       PValue
+A1CF      -4.5757028 -20.9693522 2.613599e-05
+A2M       -1.7560272  -6.4313348 2.175531e-04
+A2M-AS1    0.2105770   0.1032361 3.234048e-01
+A2ML1     -0.5590191  -0.3002608 2.903214e-01
+A2ML1-AS1 -2.6258024  -9.5482674 2.310343e-04
+A4GALT     1.9398979   5.4700788 1.514340e-03</code></pre>
+<pre class="r"><code># Run ulm
+contrast_acts &lt;- run_ulm(mat=deg[, &#39;metric&#39;, drop=FALSE], net=net, .source=&#39;source&#39;, .target=&#39;target&#39;,
+                  .mor=&#39;mor&#39;, minsize = 5)
+head(contrast_acts)</code></pre>
+<pre><code># A tibble: 6 × 5
+  statistic source condition  score p_value
+  &lt;chr&gt;     &lt;chr&gt;  &lt;chr&gt;      &lt;dbl&gt;   &lt;dbl&gt;
+1 ulm       ABL1   metric     1.46   0.145 
+2 ulm       AHR    metric     1.20   0.231 
+3 ulm       AIRE   metric    -0.101  0.919 
+4 ulm       AP1    metric     0.481  0.630 
+5 ulm       APEX1  metric     0.444  0.657 
+6 ulm       AR     metric     2.22   0.0263</code></pre>
+<pre class="r"><code>n_tfs &lt;- 40
+
+# Filter top TFs in both signs
+f_contrast_acts &lt;- contrast_acts %&gt;%
+  mutate(rnk = NA)
+msk &lt;- f_contrast_acts$score &gt; 0
+f_contrast_acts[msk, &#39;rnk&#39;] &lt;- rank(-f_contrast_acts[msk, &#39;score&#39;])
+f_contrast_acts[!msk, &#39;rnk&#39;] &lt;- rank(-abs(f_contrast_acts[!msk, &#39;score&#39;]))
+tfs &lt;- f_contrast_acts %&gt;%
+  arrange(rnk) %&gt;%
+  head(n_tfs) %&gt;%
+  pull(source)
+f_contrast_acts &lt;- f_contrast_acts %&gt;%
+  filter(source %in% tfs)
+
+# Plot
+ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) + 
+    geom_bar(aes(fill = score), stat = &quot;identity&quot;) +
+    scale_fill_gradient2(low = &quot;darkblue&quot;, high = &quot;indianred&quot;, 
+        mid = &quot;whitesmoke&quot;, midpoint = 0) + 
+    theme_minimal() +
+    theme(axis.title = element_text(face = &quot;bold&quot;, size = 12),
+        axis.text.x = 
+            element_text(angle = 45, hjust = 1, size =10, face= &quot;bold&quot;),
+        axis.text.y = element_text(size =10, face= &quot;bold&quot;),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+    xlab(&quot;TFs&quot;)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/mPAP_TF%20barplot-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tf &lt;- &#39;TCF21&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(deg),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- deg[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/TF_TCF21-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tf &lt;- &#39;MYOCD&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(deg),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- deg[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/TF_MYOCD-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tf &lt;- &#39;HIF1A&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(deg),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- deg[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/TF_HIF1A-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tf &lt;- &#39;MEF2A&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(deg),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- deg[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE.Rmd/unnamed-chunk-16-1.png" width="4200" style="display: block; margin: auto;" /></p>
+<p><a href="https://www.nature.com/articles/s41419-023-05665-8"
+class="uri">https://www.nature.com/articles/s41419-023-05665-8</a></p>
+</div>
+<div id="pathway-inference-analysis" class="section level2">
+<h2>Pathway inference analysis</h2>
+<pre class="r"><code>saveRDS(CM, 
+        here::here(output_dir_data, &quot;CM.rds&quot;))</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.3.1 (2023-06-16)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 22.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;  LAPACK version 3.10.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8          LC_NUMERIC=C                 
+ [3] LC_TIME=en_US.UTF-8           LC_COLLATE=en_US.UTF-8       
+ [5] LC_MONETARY=en_US.UTF-8       LC_MESSAGES=en_US.UTF-8      
+ [7] LC_PAPER=en_US.UTF-8          LC_NAME=en_US.UTF-8          
+ [9] LC_ADDRESS=en_US.UTF-8        LC_TELEPHONE=en_US.UTF-8     
+[11] LC_MEASUREMENT=en_US.UTF-8    LC_IDENTIFICATION=en_US.UTF-8
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] enrichplot_1.22.0           dorothea_1.14.1            
+ [3] OmnipathR_3.10.1            decoupleR_2.9.7            
+ [5] EnhancedVolcano_1.20.0      ggrepel_0.9.5              
+ [7] speckle_1.2.0               edgeR_4.0.16               
+ [9] limma_3.58.1                ReactomePA_1.46.0          
+[11] AnnotationHub_3.10.0        BiocFileCache_2.10.1       
+[13] dbplyr_2.4.0                org.Hs.eg.db_3.18.0        
+[15] AnnotationDbi_1.64.1        clusterProfiler_4.10.1     
+[17] gprofiler2_0.2.3            harmony_1.2.0              
+[19] clustree_0.5.1              ggraph_2.2.1               
+[21] rhdf5_2.46.1                Rcpp_1.0.12                
+[23] data.table_1.15.2           plyr_1.8.9                 
+[25] gtable_0.3.4                gtools_3.9.5               
+[27] ArchR_1.0.2                 statmod_1.5.0              
+[29] patchwork_1.2.0             scater_1.30.1              
+[31] scuttle_1.12.0              Matrix.utils_0.9.7         
+[33] RColorBrewer_1.1-3          scales_1.3.0               
+[35] knitr_1.45                  gridExtra_2.3              
+[37] png_0.1-8                   pheatmap_1.0.12            
+[39] reshape2_1.4.4              lubridate_1.9.3            
+[41] forcats_1.0.0               stringr_1.5.1              
+[43] purrr_1.0.2                 tidyr_1.3.1                
+[45] tibble_3.2.1                tidyverse_2.0.0            
+[47] magrittr_2.0.3              ggplot2_3.5.0              
+[49] dplyr_1.1.4                 scCustomize_2.1.2          
+[51] scDblFinder_1.16.0          Matrix_1.6-5               
+[53] DropletUtils_1.22.0         SingleCellExperiment_1.24.0
+[55] SummarizedExperiment_1.32.0 Biobase_2.62.0             
+[57] GenomicRanges_1.54.1        GenomeInfoDb_1.38.7        
+[59] IRanges_2.36.0              S4Vectors_0.40.2           
+[61] BiocGenerics_0.48.1         MatrixGenerics_1.14.0      
+[63] matrixStats_1.2.0           SeuratObject_5.0.2         
+[65] Seurat_4.4.0                xlsx_0.6.5                 
+[67] readxl_1.4.3                readr_2.1.5                
+[69] here_1.0.1                 
+
+loaded via a namespace (and not attached):
+  [1] R.methodsS3_1.8.2             vroom_1.6.5                  
+  [3] progress_1.2.3                goftest_1.2-3                
+  [5] Biostrings_2.70.2             HDF5Array_1.30.1             
+  [7] vctrs_0.6.5                   spatstat.random_3.2-3        
+  [9] digest_0.6.35                 shape_1.4.6.1                
+ [11] git2r_0.33.0                  deldir_2.0-4                 
+ [13] parallelly_1.37.1             bcellViper_1.38.0            
+ [15] MASS_7.3-60.0.1               httpuv_1.6.14                
+ [17] qvalue_2.34.0                 withr_3.0.0                  
+ [19] ggrastr_1.0.2                 ggfun_0.1.4                  
+ [21] xfun_0.42                     ellipsis_0.3.2               
+ [23] survival_3.5-8                memoise_2.0.1                
+ [25] ggbeeswarm_0.7.2              gson_0.1.0                   
+ [27] janitor_2.2.0                 tidytree_0.4.6               
+ [29] zoo_1.8-12                    GlobalOptions_0.1.2          
+ [31] pbapply_1.7-2                 R.oo_1.26.0                  
+ [33] prettyunits_1.2.0             rematch2_2.1.2               
+ [35] KEGGREST_1.42.0               promises_1.2.1               
+ [37] httr_1.4.7                    restfulr_0.0.15              
+ [39] globals_0.16.3                fitdistrplus_1.1-11          
+ [41] rhdf5filters_1.14.1           rstudioapi_0.15.0            
+ [43] miniUI_0.1.1.1                generics_0.1.3               
+ [45] DOSE_3.28.2                   reactome.db_1.86.2           
+ [47] curl_5.2.1                    zlibbioc_1.48.0              
+ [49] ScaledMatrix_1.10.0           polyclip_1.10-6              
+ [51] GenomeInfoDbData_1.2.11       SparseArray_1.2.4            
+ [53] interactiveDisplayBase_1.40.0 xtable_1.8-4                 
+ [55] evaluate_0.23                 S4Arrays_1.2.1               
+ [57] hms_1.1.3                     irlba_2.3.5.1                
+ [59] filelock_1.0.3                colorspace_2.1-0             
+ [61] ROCR_1.0-11                   reticulate_1.35.0            
+ [63] spatstat.data_3.0-4           lmtest_0.9-40                
+ [65] snakecase_0.11.1              ggtree_3.10.1                
+ [67] later_1.3.2                   viridis_0.6.5                
+ [69] lattice_0.22-5                spatstat.geom_3.2-9          
+ [71] future.apply_1.11.1           shadowtext_0.1.3             
+ [73] scattermore_1.2               XML_3.99-0.16.1              
+ [75] cowplot_1.1.3                 RcppAnnoy_0.0.22             
+ [77] pillar_1.9.0                  nlme_3.1-164                 
+ [79] compiler_4.3.1                beachmat_2.18.1              
+ [81] stringi_1.8.3                 tensor_1.5                   
+ [83] GenomicAlignments_1.38.2      crayon_1.5.2                 
+ [85] abind_1.4-5                   BiocIO_1.12.0                
+ [87] gridGraphics_0.5-1            locfit_1.5-9.9               
+ [89] sp_2.1-3                      graphlayouts_1.1.1           
+ [91] bit_4.0.5                     fastmatch_1.1-4              
+ [93] whisker_0.4.1                 codetools_0.2-19             
+ [95] BiocSingular_1.18.0           bslib_0.6.1                  
+ [97] paletteer_1.6.0               plotly_4.10.4                
+ [99] mime_0.12                     splines_4.3.1                
+[101] circlize_0.4.16               sparseMatrixStats_1.14.0     
+[103] HDO.db_0.99.1                 cellranger_1.1.0             
+[105] grr_0.9.5                     blob_1.2.4                   
+[107] utf8_1.2.4                    BiocVersion_3.18.1           
+[109] fs_1.6.3                      checkmate_2.3.1              
+[111] listenv_0.9.1                 DelayedMatrixStats_1.24.0    
+[113] logger_0.3.0                  ggplotify_0.1.2              
+[115] tzdb_0.4.0                    tweenr_2.0.3                 
+[117] pkgconfig_2.0.3               tools_4.3.1                  
+[119] cachem_1.0.8                  RSQLite_2.3.5                
+[121] rvest_1.0.4                   viridisLite_0.4.2            
+[123] DBI_1.2.2                     graphite_1.48.0              
+[125] fastmap_1.1.1                 rmarkdown_2.26               
+[127] ica_1.0-3                     Rsamtools_2.18.0             
+[129] sass_0.4.9                    BiocManager_1.30.22          
+[131] ggprism_1.0.4                 dotCall64_1.1-1              
+[133] graph_1.80.0                  selectr_0.4-2                
+[135] RANN_2.6.1                    farver_2.1.1                 
+[137] scatterpie_0.2.1              tidygraph_1.3.1              
+[139] yaml_2.3.8                    workflowr_1.7.1              
+[141] rtracklayer_1.62.0            cli_3.6.2                    
+[143] leiden_0.4.3.1                lifecycle_1.0.4              
+[145] uwot_0.1.16                   backports_1.4.1              
+[147] bluster_1.12.0                BiocParallel_1.36.0          
+[149] timechange_0.3.0              rjson_0.2.21                 
+[151] ggridges_0.5.6                progressr_0.14.0             
+[153] ape_5.7-1                     parallel_4.3.1               
+[155] jsonlite_1.8.8                bitops_1.0-7                 
+[157] bit64_4.0.5                   xgboost_1.7.7.1              
+[159] Rtsne_0.17                    yulab.utils_0.1.4            
+[161] spatstat.utils_3.0-4          BiocNeighbors_1.20.2         
+[163] highr_0.10                    jquerylib_0.1.4              
+[165] metapod_1.10.1                GOSemSim_2.28.1              
+[167] dqrng_0.3.2                   R.utils_2.12.3               
+[169] lazyeval_0.2.2                shiny_1.8.0                  
+[171] htmltools_0.5.8.1             rJava_1.0-11                 
+[173] GO.db_3.18.0                  sctransform_0.4.1            
+[175] rappdirs_0.3.3                glue_1.7.0                   
+[177] spam_2.10-0                   XVector_0.42.0               
+[179] RCurl_1.98-1.14               treeio_1.26.0                
+[181] rprojroot_2.0.4               scran_1.30.2                 
+[183] igraph_2.0.3                  R6_2.5.1                     
+[185] labeling_0.4.3                xlsxjars_0.6.1               
+[187] cluster_2.1.6                 Rhdf5lib_1.24.2              
+[189] aplot_0.2.2                   DelayedArray_0.28.0          
+[191] tidyselect_1.2.1              vipor_0.4.7                  
+[193] xml2_1.3.6                    ggforce_0.4.2                
+[195] future_1.33.1                 rsvd_1.0.5                   
+[197] munsell_0.5.0                 KernSmooth_2.23-22           
+[199] htmlwidgets_1.6.4             fgsea_1.28.0                 
+[201] rlang_1.1.4                   spatstat.sparse_3.0-3        
+[203] spatstat.explore_3.2-6        ggnewscale_0.4.10            
+[205] fansi_1.0.6                   beeswarm_0.4.0               </code></pre>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
