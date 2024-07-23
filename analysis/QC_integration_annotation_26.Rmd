@@ -1,0 +1,704 @@
+---
+title: "QC, integration, annotation including HC"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "QC_integration_annotation_26"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(speckle)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+## Quality Control
+
+Load and merge cellbender and cellranger output
+
+```{r load data, echo=T, results= "hide"}
+cell_bender_merged <- Read_CellBender_h5_Multi_File(merge = TRUE,
+                                                    data_dir = here::here("data", "Cellbender_output"),
+                                                    custom_name = "_filtered.h5",
+                                                    sample_list = c("cellbender_output_319801_1-337PK", 
+                                                                    "cellbender_output_319801_2-357PK", 
+                                                                    "cellbender_output_319801_3-345PK", 
+                                                                    "cellbender_output_323041_1-369PK", 
+                                                                    "cellbender_output_323041_2-375PK", 
+                                                                    "cellbender_output_323041_3-385PK",
+                                                                    "cellbender_output_327451_1-401PK", 
+                                                                    "cellbender_output_327451_2-403PK", 
+                                                                    "cellbender_output_327451_3-415PK", 
+                                                                    "cellbender_output_330241_1-437PK", 
+                                                                    "cellbender_output_330241_2-439PK", 
+                                                                    "cellbender_output_330241_3-461PK", 
+                                                                    "cellbender_output_330241_4-441PK_reprocessed", 
+                                                                    "cellbender_output_330241_5-463PK", 
+                                                                    "cellbender_output_351071_1-213PK", 
+                                                                    "cellbender_output_351071_2-229PK", 
+                                                                    "cellbender_output_351071_3-P3", 
+                                                                    "cellbender_output_351071_4-P8", 
+                                                                    "cellbender_output_352751_1-153PK", 
+                                                                    "cellbender_output_352751_2-211PK", 
+                                                                    "cellbender_output_352751_3-323PK", 
+                                                                    "cellbender_output_352751_4-P5",
+                                                                    "cellbender_output_356841_1-CZD4",
+                                                                    "cellbender_output_356841_2-CZD5",
+                                                                    "cellbender_output_356841_3-CZD6",
+                                                                    "cellbender_output_356841_4-CZD7"
+                                                                    ),
+                                                    sample_names = c("PK337", 
+                                                                     "PK357", 
+                                                                     "PK345", 
+                                                                     "PK369", 
+                                                                     "PK375", 
+                                                                     "PK385", 
+                                                                     "PK401", 
+                                                                     "PK403", 
+                                                                     "PK415", 
+                                                                     "PK437", 
+                                                                     "PK439", 
+                                                                     "PK461", 
+                                                                     "PK441", 
+                                                                     "PK463", 
+                                                                     "PK213", 
+                                                                     "PK229", 
+                                                                     "P3", 
+                                                                     "P8", 
+                                                                     "PK153", 
+                                                                     "PK211", 
+                                                                     "PK323", 
+                                                                     "P5",
+                                                                     "CZD4",
+                                                                     "CZD5",
+                                                                     "CZD6",
+                                                                     "CZD7")
+                                                    )
+
+cell_ranger_merged <- Read10X_h5_GEO(merge = TRUE,
+                                     data_dir = here::here("data", "Cellranger_output"), 
+                                     shared_suffix = "_filtered_feature_bc_matrix.h5",
+                                     sample_list = c("319801_1-337PK", 
+                                                     "319801_2-357PK", 
+                                                     "319801_3-345PK", 
+                                                     "323041_1-369PK", 
+                                                     "323041_2-375PK", 
+                                                     "323041_3-385PK", 
+                                                     "327451_1-401PK", 
+                                                     "327451_2-403PK", 
+                                                     "327451_3-415PK", 
+                                                     "330241_1-437PK", 
+                                                     "330241_2-439PK", 
+                                                     "330241_3-461PK", 
+                                                     "330241_4-441PK_reprocessed", 
+                                                     "330241_5-463PK", 
+                                                     "351071_1-213PK", 
+                                                     "351071_2-229PK", 
+                                                     "351071_3-P3", 
+                                                     "351071_4-P8", 
+                                                     "352751_1-153PK", 
+                                                     "352751_2-211PK", 
+                                                     "352751_3-323PK", 
+                                                     "352751_4-P5",
+                                                     "356841_1-CZD4",
+                                                     "356841_2-CZD5",
+                                                     "356841_3-CZD6",
+                                                     "356841_4-CZD7"),
+                                     sample_names = c("PK337", 
+                                                      "PK357", 
+                                                      "PK345", 
+                                                      "PK369", 
+                                                      "PK375", 
+                                                      "PK385", 
+                                                      "PK401", 
+                                                      "PK403", 
+                                                      "PK415", 
+                                                      "PK437", 
+                                                      "PK439", 
+                                                      "PK461", 
+                                                      "PK441", 
+                                                      "PK463", 
+                                                      "PK213", 
+                                                      "PK229", 
+                                                      "P3", 
+                                                      "P8", 
+                                                      "PK153", 
+                                                      "PK211", 
+                                                      "PK323", 
+                                                      "P5",
+                                                      "CZD4",
+                                                      "CZD5",
+                                                      "CZD6",
+                                                      "CZD7")
+                                     )
+
+DCM_RV_preQC <- Create_CellBender_Merged_Seurat(raw_cell_bender_matrix = cell_bender_merged, 
+                                             raw_counts_matrix = cell_ranger_merged, 
+                                             raw_assay_name = "RAW", 
+                                             cell_bender_assay_name = "RNA")
+rm(cell_bender_merged, cell_ranger_merged)
+```
+
+Add metadata: percentage of mitochondrial and ribosomal genes, clinical data
+
+```{r add metedata}
+DCM_RV_preQC[["percent.mt"]] <- PercentageFeatureSet(DCM_RV_preQC, pattern = "^MT-")
+DCM_RV_preQC[["percent.rp"]] <- PercentageFeatureSet(DCM_RV_preQC, pattern = "^RP[SL]")
+DCM_RV_preQC$Sample <- DCM_RV_preQC$orig.ident
+Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_26.xlsx"))
+add_metadata <- left_join(DCM_RV_preQC[["Sample"]], Clinical_data)
+row.names(add_metadata) <- row.names(DCM_RV_preQC[[]])
+DCM_RV_preQC <- AddMetaData(DCM_RV_preQC, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+metadata <- unique(subset(DCM_RV_preQC@meta.data, select = c(orig.ident, Sample:length(DCM_RV_preQC@meta.data))))
+rownames(metadata) <- metadata$orig.ident
+metadata
+```
+
+Check how much Cellbender has affected the dataset
+
+```{r Cellbender, fig.height=4, fig.width=7}
+table(DCM_RV_preQC$Sample)
+
+DCM_RV_preQC <- Add_CellBender_Diff(seurat_object = DCM_RV_preQC, 
+                                 raw_assay_name = "RAW", 
+                                 cell_bender_assay_name = "RNA")
+
+median_stats <- Median_Stats(seurat_object = DCM_RV_preQC, 
+                             group_by_var = "orig.ident", 
+                             median_var = c("nCount_Diff", "nFeature_Diff"))
+median_stats
+
+feature_diff <- CellBender_Feature_Diff(seurat_object = DCM_RV_preQC, 
+                                        raw_assay = "RAW", 
+                                        cell_bender_assay = "RNA")
+head(feature_diff)
+
+CellBender_Diff_Plot(feature_diff_df = feature_diff)
+```
+
+Check quality control parameters
+
+```{r QC_pre_VlnPlots, fig.height=6, fig.width=15}
+p1 <- VlnPlot(DCM_RV_preQC, features = "nCount_RNA", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 <- VlnPlot(DCM_RV_preQC, features = "nFeature_RNA", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 <- VlnPlot(DCM_RV_preQC, features = "percent.mt", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 <- VlnPlot(DCM_RV_preQC, features = "percent.rp", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_pre_VlnPlots <- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_pre_VlnPlots
+```
+
+```{r QC_pre_VlnPlots_zoom, fig.height=10, fig.width=15}
+p1 <- VlnPlot(DCM_RV_preQC, features = "nCount_RNA", group.by = "Sample", pt.size = 0, y.max = 20000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 <- VlnPlot(DCM_RV_preQC, features = "nFeature_RNA", group.by = "Sample", pt.size = 0, y.max = 10000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 <- VlnPlot(DCM_RV_preQC, features = "percent.mt", group.by = "Sample", pt.size = 0, y.max = 5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 <- VlnPlot(DCM_RV_preQC, features = "percent.rp", group.by = "Sample", pt.size = 0, y.max = 5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_pre_VlnPlots_zoom <- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_pre_VlnPlots_zoom
+```
+
+Doublets detection
+
+```{r Doublets detection}
+DCM_RV_preQC_sce <- as.SingleCellExperiment(DCM_RV_preQC)
+DCM_RV_preQC_sce <- scDblFinder(DCM_RV_preQC_sce, samples="Sample", clusters = TRUE)
+table(DCM_RV_preQC_sce@colData$scDblFinder.class)
+DCM_RV_preQC <- as.Seurat(DCM_RV_preQC_sce, counts = "counts", data = "logcounts")
+rm(DCM_RV_preQC_sce)
+DCM_RV_preQC@meta.data[DCM_RV_preQC@meta.data$scDblFinder.class %in% "singlet", "scDblFinder.n"] = paste0("Singlets (n=", table(DCM_RV_preQC$scDblFinder.class)[1], ")")
+DCM_RV_preQC@meta.data[DCM_RV_preQC@meta.data$scDblFinder.class %in% "doublet", "scDblFinder.n"] = paste0("Doublets (n=", table(DCM_RV_preQC$scDblFinder.class)[2], ")")
+DCM_RV_preQC$scDblFinder.n <- factor(x = DCM_RV_preQC$scDblFinder.n, levels = c(rownames(table(DCM_RV_preQC$scDblFinder.n))[2], rownames(table(DCM_RV_preQC$scDblFinder.n))[1])) 
+```
+
+```{r QC_pre_Doublets, fig.height=3, fig.width=15}
+p1 <- VlnPlot(DCM_RV_preQC, features = c("nCount_RNA"), split.by = "scDblFinder.n", group.by = "Sample", pt.size = 0, y.max = 50000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 <- VlnPlot(DCM_RV_preQC, features = c("nFeature_RNA"), split.by = "scDblFinder.n", group.by = "Sample", pt.size = 0, y.max = 10000) + theme(axis.title.x = element_blank()) 
+
+QC_pre_Doublets <- p1 + p2 + plot_layout(ncol = 2)
+
+QC_pre_Doublets
+```
+
+```{r save DCM_RV_preQC, eval=FALSE}
+saveRDS(DCM_RV_preQC, 
+        here::here(output_dir_data, "DCM_RV_preQC.rds"))
+```
+
+Remove doublets
+
+```{r Remove doublets, DCM_RV_preQC_no_doublets}
+DCM_RV_preQC_no_doublets <- subset(x = DCM_RV_preQC, subset = scDblFinder.class == "singlet")
+table(DCM_RV_preQC_no_doublets@meta.data$scDblFinder.class)
+rm(DCM_RV_preQC)
+```
+
+Check quality control parameters after removing doublets
+
+```{r QC_pre_no_doublets_VlnPlots, fig.height=6, fig.width=15}
+p1 <- VlnPlot(DCM_RV_preQC_no_doublets, features = "nCount_RNA", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 <- VlnPlot(DCM_RV_preQC_no_doublets, features = "nFeature_RNA", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 <- VlnPlot(DCM_RV_preQC_no_doublets, features = "percent.mt", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 <- VlnPlot(DCM_RV_preQC_no_doublets, features = "percent.rp", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_pre_no_doublets_VlnPlots <- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_pre_no_doublets_VlnPlots
+```
+
+```{r QC_pre_no_doublets_VlnPlots_zoom, fig.height=10, fig.width=15}
+p1 <- VlnPlot(DCM_RV_preQC_no_doublets, features = "nCount_RNA", group.by = "Sample", pt.size = 0, y.max = 20000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 <- VlnPlot(DCM_RV_preQC_no_doublets, features = "nFeature_RNA", group.by = "Sample", pt.size = 0, y.max = 10000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 <- VlnPlot(DCM_RV_preQC_no_doublets, features = "percent.mt", group.by = "Sample", pt.size = 0, y.max = 1.5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 <- VlnPlot(DCM_RV_preQC_no_doublets, features = "percent.rp", group.by = "Sample", pt.size = 0, y.max = 1.5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_pre_no_doublets_VlnPlots_zoom <- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_pre_no_doublets_VlnPlots_zoom
+```
+
+Filter based on number of counts, features and percentage of mitochondrial genes
+
+```{r filter}
+DCM_RV <- subset(DCM_RV_preQC_no_doublets, subset = 
+                   nFeature_RNA > 500 &
+                   percent.mt < 1.5 &
+                   nCount_RNA > 1000 &
+                   nCount_RNA < 100000)
+rm(DCM_RV_preQC_no_doublets)
+table(DCM_RV$Sample)
+```
+
+Sample PK211 has a really low number of counts and features, too different compared to all other samples. Therefore it will be excluded from the analysis
+
+```{r remove PK211}
+DCM_RV <- subset(DCM_RV, subset = 
+                   Sample != "PK211")
+
+table(DCM_RV$Sample)
+```
+
+Check quality control parameters
+
+```{r QC_post_VlnPlots, fig.height=6, fig.width=15}
+p1 <- VlnPlot(DCM_RV, features = "nCount_RNA", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 <- VlnPlot(DCM_RV, features = "nFeature_RNA", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 <- VlnPlot(DCM_RV, features = "percent.mt", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 <- VlnPlot(DCM_RV, features = "percent.rp", group.by = "Sample", pt.size = 0) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_post_VlnPlots <- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_post_VlnPlots
+```
+
+```{r QC_post_VlnPlots_zoom, fig.height=10, fig.width=15}
+p1 <- VlnPlot(DCM_RV, features = "nCount_RNA", group.by = "Sample", pt.size = 0, y.max = 20000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p2 <- VlnPlot(DCM_RV, features = "nFeature_RNA", group.by = "Sample", pt.size = 0, y.max = 10000) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p3 <- VlnPlot(DCM_RV, features = "percent.mt", group.by = "Sample", pt.size = 0, y.max = 1.5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+p4 <- VlnPlot(DCM_RV, features = "percent.rp", group.by = "Sample", pt.size = 0, y.max = 1.5) + theme(axis.title.x = element_blank()) + NoLegend()
+
+QC_post_VlnPlots_zoom <- p1 + p2 + p3 + p4 + plot_layout(ncol = 2)
+
+QC_post_VlnPlots_zoom
+```
+
+
+## Integration and clustering
+
+Normalization and scaling using SCTransform.
+
+```{r SCTransform, eval=FALSE}
+DefaultAssay(DCM_RV) <- "RNA"
+DCM_RV.list <- SplitObject(DCM_RV, split.by = "Sample")
+for (i in 1:length(DCM_RV.list)) {
+  DCM_RV.list[[i]] <- SCTransform(DCM_RV.list[[i]], vst.flavor = "v2", vars.to.regress = c("percent.mt", "percent.rp"), return.only.var.genes = FALSE)
+}
+```
+
+PCA
+
+```{r PCA, eval=FALSE}
+features <- SelectIntegrationFeatures(object.list = DCM_RV.list, nfeatures = 3000)
+DCM_RV_not_integrated <- merge(x = DCM_RV.list[[1]], y = DCM_RV.list[2:length(DCM_RV.list)], merge.data=TRUE)
+VariableFeatures(DCM_RV_not_integrated) <- features
+DCM_RV_not_integrated <- RunPCA(DCM_RV_not_integrated)
+```
+
+```{r save DCM_RV_not_integrated, eval=FALSE}
+saveRDS(DCM_RV_not_integrated, 
+        here::here(output_dir_data, "DCM_RV_not_integrated.rds"))
+```
+
+```{r read DCM_RV_not_integrated}
+rm(DCM_RV)
+DCM_RV_not_integrated <- readRDS(here::here(output_dir_data, "DCM_RV_not_integrated.rds"))
+```
+
+
+```{r Elbow_not_integrated, fig.width=4, fig.height=4}
+ElbowPlot(DCM_RV_not_integrated, ndims = 50)
+```
+
+Clustering without integration
+
+```{r clustering not integrated, eval=FALSE}
+DCM_RV_not_integrated <- RunUMAP(DCM_RV_not_integrated, dims = 1:40)
+DCM_RV_not_integrated <- FindNeighbors(DCM_RV_not_integrated, dims = 1:40)
+DCM_RV_not_integrated <- FindClusters(DCM_RV_not_integrated, resolution = seq(0.1, 0.8, by=0.1))
+```
+
+```{r Clustree_not_integrated, fig.width=6, fig.height=9}
+clustree::clustree(DCM_RV_not_integrated@meta.data[,grep("SCT_snn_res", colnames(DCM_RV_not_integrated@meta.data))],
+                   prefix = "SCT_snn_res.")
+```
+
+```{r UMAPs_not_integrated, fig.width=18, fig.height=10}
+DimPlot(DCM_RV_not_integrated, reduction = "umap", shuffle = T,
+        group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing", "Batch_sequencing", "Group"), ncol = 3)
+```
+
+```{r save DCM_RV_not_integrated 2, eval=FALSE}
+saveRDS(DCM_RV_not_integrated, 
+        here::here(output_dir_data, "DCM_RV_not_integrated.rds"))
+```
+
+Integrate the samples
+
+```{r RunHarmony, eval=FALSE}
+DCM_RV_integrated <- RunHarmony(DCM_RV_not_integrated, assay.use="SCT", group.by.vars = "Sample", dims.use = 1:50)
+```
+
+```{r save DCM_RV_integrated_low_quality, eval=FALSE}
+saveRDS(DCM_RV_integrated, 
+        here::here(output_dir_data, "DCM_RV_integrated_low_quality.rds"))
+```
+
+```{r read DCM_RV_integrated_low_quality}
+rm(DCM_RV_not_integrated)
+DCM_RV_integrated <- readRDS(here::here(output_dir_data, "DCM_RV_integrated_low_quality.rds"))
+```
+
+```{r Elbow_integrated_low_quality, fig.width=4, fig.height=4}
+ElbowPlot(DCM_RV_integrated, ndims = 50)
+```
+
+Clustering after integration
+
+```{r clustering integrated, eval=FALSE}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+DCM_RV_integrated <- RunUMAP(DCM_RV_integrated, dims = 1:30, reduction = "harmony")
+DCM_RV_integrated <- FindNeighbors(DCM_RV_integrated, dims = 1:30, reduction = "harmony")
+DCM_RV_integrated <- FindClusters(DCM_RV_integrated, resolution = seq(0.1, 0.8, by=0.1))
+```
+
+```{r Clustree_integrated_low_quality, fig.width=6, fig.height=9}
+clustree::clustree(DCM_RV_integrated@meta.data[,grep("SCT_snn_res", colnames(DCM_RV_integrated@meta.data))],
+                   prefix = "SCT_snn_res.")
+```
+
+```{r UMAPs_integrated_low_quality, fig.width=12, fig.height=10}
+DCM_RV_integrated$SCT_snn_res.0.2 <- factor(DCM_RV_integrated$SCT_snn_res.0.2, levels = c("0", "1", "2", "3", "4", "5","6", "7", "8", "9", "10", "11", "12", "13", "14"))
+
+DimPlot(DCM_RV_integrated, reduction = "umap", shuffle = T,
+        group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
+```
+
+```{r save DCM_RV_integrated_low_quality 2, eval=FALSE}
+saveRDS(DCM_RV_integrated, 
+        here::here(output_dir_data, "DCM_RV_integrated_low_quality.rds"))
+```
+
+```{r read DCM_RV_integrated_low_quality_2, eval=FALSE}
+DCM_RV_integrated <- readRDS(here::here(output_dir_data, "DCM_RV_integrated_low_quality.rds"))
+```
+
+Find the markers that characterize each cell population
+
+```{r FindAllMarkers}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+DCM_RV_integrated <- PrepSCTFindMarkers(DCM_RV_integrated)
+Idents(DCM_RV_integrated) <- "SCT_snn_res.0.2"
+Markers <- FindAllMarkers(DCM_RV_integrated, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.5)
+write.csv(Markers, here::here(output_dir_data, "DCM_RV_Markers_all_low_quality.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "DCM_RV_Markers_top10_low_quality.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "DCM_RV_Markers_top3_low_quality.csv"))
+```
+
+```{r Heatmap_low_quality, fig.width=15, fig.height=10}
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(9,"RdBu"))(256)
+mapal <- rev(mapal[1:256])
+Heatmap <- DoHeatmap(subset(DCM_RV_integrated, cells = sample(colnames(DCM_RV_integrated), 10000)), label = FALSE, draw.line = F, features = Markers_top10$gene) +
+  scale_fill_gradientn(colours = mapal) +
+  theme(axis.text.y = element_text(size = 5)) +
+  theme(plot.margin = unit(c(0.1, 0, 0, 0), 
+                           "inches"))
+Heatmap
+```
+
+Check QC parameters in each cluster
+
+```{r QC_VlnPlots_low_quality, fig.width=8, fig.height=6}
+VlnPlot(DCM_RV_integrated, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp"), ncol = 2, pt.size = 0) + theme(axis.title.x = element_blank())
+```
+
+Remove low quality cells (clusters with low number of count and features and higher percentage of mt genes)
+
+```{r remove low quality}
+DCM_RV_integrated <- subset(DCM_RV_integrated, subset = SCT_snn_res.0.2 != "9")
+```
+
+```{r save DCM_RV_integrated, eval=FALSE}
+saveRDS(DCM_RV_integrated, 
+        here::here(output_dir_data, "DCM_RV_integrated.rds"))
+```
+
+```{r read DCM_RV_integrated}
+rm(DCM_RV_integrated)
+DCM_RV_integrated <- readRDS(here::here(output_dir_data, "DCM_RV_integrated.rds"))
+```
+
+```{r Elbow_integrated, fig.width=4, fig.height=4}
+ElbowPlot(DCM_RV_integrated, ndims = 50)
+```
+
+Recluster
+
+```{r recluster, eval=FALSE}
+DCM_RV_integrated <- RunUMAP(DCM_RV_integrated, dims = 1:30, reduction = "harmony")
+DCM_RV_integrated <- FindNeighbors(DCM_RV_integrated, dims = 1:30, reduction = "harmony")
+DCM_RV_integrated <- FindClusters(DCM_RV_integrated, resolution = seq(0.1, 0.8, by=0.1))
+```
+
+```{r Clustree_integrated, fig.width=6, fig.height=9}
+clustree::clustree(DCM_RV_integrated@meta.data[,grep("SCT_snn_res", colnames(DCM_RV_integrated@meta.data))],
+                   prefix = "SCT_snn_res.")
+```
+
+```{r UMAPs_integrated, fig.width=12, fig.height=10}
+DCM_RV_integrated$SCT_snn_res.0.2 <- factor(DCM_RV_integrated$SCT_snn_res.0.2, levels = c("0", "1", "2", "3", "4", "5","6", "7", "8", "9", "10", "11", "12", "13"))
+DimPlot(DCM_RV_integrated, reduction = "umap", shuffle = T,
+        group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
+```
+
+Find the markers that characterize each cell population
+
+```{r FindAllMarkers 2}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+#DCM_RV_integrated <- PrepSCTFindMarkers(DCM_RV_integrated)
+Idents(DCM_RV_integrated) <- "SCT_snn_res.0.2"
+Markers <- FindAllMarkers(DCM_RV_integrated, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.5, recorrect_umi=F)
+write.csv(Markers, here::here(output_dir_data, "DCM_RV_Markers_all.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "DCM_RV_Markers_top10.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "DCM_RV_Markers_top3.csv"))
+```
+
+Check cell cycle genes
+```{r Cell_cycle_UMAP, fig.width=5, fig.height=4}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+s.genes <- cc.genes$s.genes
+g2m.genes <- cc.genes$g2m.genes
+DCM_RV_integrated <- CellCycleScoring(DCM_RV_integrated, s.features = s.genes, g2m.features = g2m.genes)
+DimPlot(DCM_RV_integrated, reduction = "umap", shuffle = T,
+        group.by = "Phase")
+```
+
+
+## Cell type annotation
+
+Annotate the clusters based on the characteristic markers
+
+```{r annotation}
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("0", "5"), "cell_type"] = "Cardiomyocytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("1"), "cell_type"] = "Fibroblasts"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("2", "7"), "cell_type"] = "Endothelial cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_type"] = "Pericytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_type"] = "Macrophages"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("6"), "cell_type"] = "Lymphocytes"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("8"), "cell_type"] = "Smooth muscle cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("9"), "cell_type"] = "Neuronal cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("10"), "cell_type"] = "Endocardial cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("11"), "cell_type"] = "Lymphatic cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("12"), "cell_type"] = "Mast cells"
+DCM_RV_integrated@meta.data[DCM_RV_integrated@meta.data$SCT_snn_res.0.2 %in% c("13"), "cell_type"] = "Adipocytes"
+
+DCM_RV_integrated$cell_type <- factor(DCM_RV_integrated$cell_type, levels = c("Cardiomyocytes", 
+                                                                        "Fibroblasts",
+                                                                        "Endothelial cells",
+                                                                        "Pericytes",
+                                                                        "Macrophages",
+                                                                        "Lymphocytes",
+                                                                        "Smooth muscle cells",
+                                                                        "Neuronal cells",
+                                                                        "Endocardial cells",
+                                                                        "Lymphatic cells",
+                                                                        "Mast cells",
+                                                                        "Adipocytes"))
+Idents(DCM_RV_integrated) <- DCM_RV_integrated$cell_type
+```
+
+```{r FindAllMarkers cell_type}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+Idents(DCM_RV_integrated) <- "cell_type"
+Markers <- FindAllMarkers(DCM_RV_integrated, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.5, recorrect_umi = F)
+write.csv(Markers, here::here(output_dir_data, "DCM_RV_Markers_all_cell_type.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "DCM_RV_Markers_top10_cell_type.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "DCM_RV_Markers_top3_cell_type.csv"))
+```
+
+```{r Heatmap, fig.width=12, fig.height=8}
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+Heatmap <- DoHeatmap(subset(DCM_RV_integrated, cells = sample(colnames(DCM_RV_integrated), 10000)), label = FALSE, draw.line = F, features = Markers_top10$gene) + 
+  scale_fill_gradientn(colours = mapal) +
+  theme(text = element_text(size = 12), 
+        axis.text.y = element_text(size = 4.5)) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "inches")) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4))
+Heatmap
+```
+
+```{r UMAP_cell_type, fig.width=6.5, fig.height=6}
+p <- DimPlot(DCM_RV_integrated, group.by = "cell_type", reduction = "umap", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p, id = "cell_type", fontface = "bold", size = 5, repel = T)
+```
+
+```{r DotPlot_markers, fig.width=8, fig.height=12}
+Markers_top3 <- Markers_top3[-c(28),]
+DotPlot(DCM_RV_integrated, assay = "SCT", features = rev(Markers_top3$gene), dot.scale = 5, cluster.idents = FALSE) +
+  RotatedAxis() +
+  coord_flip() +
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 13), legend.text = element_text(size = 9), legend.title = element_text(size = 11), plot.margin = unit(c(0, 0, 0, 0.1), 
+                           "inches"))
+```
+
+```{r FeatPlot_markers, fig.width=12, fig.height=8}
+FeaturePlot(DCM_RV_integrated, features = c("RYR2", "COL6A3", "VWF", "RGS5", "MRC1", "PTPRC", "RGS6", "NRXN1", "PKHD1L1", "MMRN1", "IL18R1", "GPAM"), ncol = 4)
+```
+
+```{r Barplot_Sample, fig.height=6, fig.width=15, message=FALSE}
+color_palette_all <- c("#F8766D", "#00C1AB", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
+                   "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
+color_palette <- c("#F8766D", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
+                   "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
+
+props <- getTransformedProps(DCM_RV_integrated$cell_type, DCM_RV_integrated$Sample, transform="logit")
+
+par(mar = c(7, 5, 1, 18), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = color_palette, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-0.34, -0.065), legend = rownames(props$Proportions), fill = color_palette, bty = "n", cex = 2)
+```
+
+```{r Barplot_cell_type, fig.height=6, fig.width=12, message=FALSE}
+color_palette_all <- c("#F8766D", "#00C1AB", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
+                   "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
+base_palette <- brewer.pal(n = 12, name = "Paired")
+color_palette <- colorRampPalette(base_palette)(25)
+
+props <- getTransformedProps(DCM_RV_integrated$Sample, DCM_RV_integrated$cell_type, transform="logit")
+
+par(mar = c(13, 5, 1, 12), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = color_palette, 
+        cex.names = 1.4, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1, cex.lab = 1.4)
+legend("topright", inset = c(-0.27, -0.065), legend = rownames(props$Proportions), fill = color_palette, bty = "n", cex = 1.4, ncol = 2)
+```
+
+```{r save DCM_RV_integrated final, eval = FALSE}
+saveRDS(DCM_RV_integrated, 
+        here::here(output_dir_data, "DCM_RV_integrated.rds"))
+```
+
+```{r save DCM_RV_integrated_RNA, eval = FALSE}
+DCM_RV_integrated_RNA <-DCM_RV_integrated
+DCM_RV_integrated_RNA@assays[["RAW"]] <- NULL
+DCM_RV_integrated_RNA@assays[["SCT"]] <- NULL
+saveRDS(DCM_RV_integrated_RNA, 
+        here::here(output_dir_data, "DCM_RV_integrated_RNA.rds"))
+rm(DCM_RV_integrated_RNA)
+```
