@@ -1,0 +1,349 @@
+---
+title: "Cardiomyocytes subclustering including HC"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Cardiomyocytes_subclustering_26"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(speckle)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+Load dataset and subset cardiomyocytes
+
+```{r Load data, echo = TRUE, results= "hide"}
+DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation_26", "DCM_RV_integrated_RNA.rds"))
+DefaultAssay(DCM_RV_integrated) <- "RNA"
+CM <- subset(DCM_RV_integrated, cell_type == "Cardiomyocytes")
+```
+
+## Integration and clustering
+
+Re-normalize and re-scale the subsetted object using SCTransform
+
+```{r SCTransform, eval=FALSE, message=FALSE}
+CM <- SplitObject(CM, split.by = "Sample")
+for (i in 1:length(CM)) {
+CM[[i]] <- SCTransform(CM[[i]], vst.flavor = "v2", vars.to.regress = c("percent.mt", "percent.rp"), return.only.var.genes = FALSE)
+}
+```
+
+PCA
+
+```{r PCA, eval=FALSE}
+features <- SelectIntegrationFeatures(object.list = CM, nfeatures = 3000)
+CM <- merge(x = CM[[1]], y = CM[2:length(CM)], merge.data=TRUE)
+VariableFeatures(CM) <- features
+CM <- RunPCA(CM)
+```
+
+```{r save CM, eval=FALSE}
+saveRDS(CM, 
+        here::here(output_dir_data, "CM.rds"))
+```
+
+```{r read CM}
+CM <- readRDS(here::here(output_dir_data, "CM.rds"))
+```
+
+
+```{r Elbow_CM, fig.width=4, fig.height=4}
+ElbowPlot(CM, ndims = 50)
+```
+
+Reintegrate the samples using Harmony
+
+```{r RunHarmony, eval=FALSE}
+CM <- RunHarmony(CM, assay.use="SCT", group.by.vars = "Sample", dims.use = 1:50)
+```
+
+Clustering after integration
+
+```{r clustering integrated, eval=FALSE}
+DefaultAssay(CM) <- "SCT"
+CM <- RunUMAP(CM, dims = 1:30, reduction = "harmony")
+CM <- FindNeighbors(CM, dims = 1:30, reduction = "harmony")
+CM <- FindClusters(CM, resolution = seq(0.1, 0.8, by=0.1))
+```
+
+```{r Clustree_CM, fig.width=6, fig.height=9}
+clustree::clustree(CM@meta.data[,grep("SCT_snn_res", colnames(CM@meta.data))], prefix = "SCT_snn_res.")
+```
+
+```{r UMAPs_CM, fig.width=12, fig.height=10}
+DimPlot(CM, reduction = "umap", shuffle = T,
+        group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
+```
+
+```{r save CM 2, eval=FALSE}
+saveRDS(CM, 
+        here::here(output_dir_data, "CM.rds"))
+```
+
+Find the markers that characterize each cell population
+
+```{r FindAllMarkers}
+DefaultAssay(CM) <- "SCT"
+CM <- PrepSCTFindMarkers(CM)
+Idents(CM) <- "SCT_snn_res.0.2"
+Markers <- FindAllMarkers(CM, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.25)
+write.csv(Markers, here::here(output_dir_data, "CM_Markers_all.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "CM_Markers_top10.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "CM_Markers_top3.csv"))
+```
+
+```{r Heatmap_CM, fig.width=15, fig.height=10}
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(9,"RdBu"))(256)
+mapal <- rev(mapal[1:256])
+Heatmap <- DoHeatmap(subset(CM, cells = sample(colnames(CM), 20000)), label = FALSE, draw.line = F, features = Markers_top10$gene) +
+  scale_fill_gradientn(colours = mapal) +
+  theme(axis.text.y = element_text(size = 5)) +
+  theme(plot.margin = unit(c(0.1, 0, 0, 0), 
+                           "inches"))
+Heatmap
+```
+
+Check QC parameters in each cluster
+
+```{r QC_VlnPlots_CM, fig.width=8, fig.height=6}
+VlnPlot(CM, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp"), ncol = 2, pt.size = 0) + theme(axis.title.x = element_blank())
+```
+
+Check cell cycle genes
+
+```{r Cell_cycle_UMAP, fig.width=5, fig.height=4}
+DimPlot(CM, reduction = "umap", shuffle = T,
+        group.by = "Phase")
+```
+
+## Cell type annotation
+
+Annotate the clusters
+
+```{r, eval=FALSE}
+CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("0"), "cell_state"] = "CM1"
+CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("1"), "cell_state"] = "CM2"
+CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("2"), "cell_state"] = "CM3"
+CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_state"] = "CM4"
+CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_state"] = "CM5"
+
+CM$cell_state <- factor(CM$cell_state, levels = c("CM1", "CM2", "CM3","CM4","CM5"))
+Idents(CM) <- CM$cell_state
+```
+
+```{r FindAllMarkers cell_state}
+DefaultAssay(CM) <- "SCT"
+Idents(CM) <- "cell_state"
+Markers <- FindAllMarkers(CM, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.25)
+write.csv(Markers, here::here(output_dir_data, "CM_Markers_all_cell_state.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "CM_Markers_top10_cell_state.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "CM_Markers_top3_cell_state.csv"))
+```
+
+```{r Heatmap_cell_state, fig.width=12, fig.height=8}
+Heatmap <- DoHeatmap(subset(CM, cells = sample(colnames(CM), 20000)), label = TRUE, draw.line = F, features = Markers_top10$gene) + 
+  scale_fill_gradientn(colours = mapal) +
+  theme(text = element_text(size = 12), 
+        axis.text.y = element_text(size = 8)) +
+  theme(plot.margin = unit(c(0.2, 0, 0, 0), "inches")) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4))
+Heatmap
+```
+
+```{r UMAP_cell_state, fig.width=6.5, fig.height=6}
+p <- DimPlot(CM, group.by = "cell_state", reduction = "umap", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p, id = "cell_state", fontface = "bold", size = 7, repel = T)
+```
+
+```{r DotPlot_markers, fig.width=6, fig.height=8}
+DotPlot(CM, assay = "SCT", features = rev(Markers_top3$gene), dot.scale = 5, cluster.idents = FALSE) +
+  RotatedAxis() +
+  coord_flip() +
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 13), legend.text = element_text(size = 9), legend.title = element_text(size = 11), plot.margin = unit(c(0, 0, 0, 0.1), 
+                           "inches"))
+```
+
+```{r VlnPlot_markers_CM, fig.width=12, fig.height=4}
+VlnPlot(CM, features = c("LINC02388", "LDB3", "ARHGAP24", "NRAP"), ncol = 4)
+```
+
+```{r FeatPlot_markers_CM, fig.width=12, fig.height=3}
+FeaturePlot(CM, features = c("LINC02388", "LDB3", "ARHGAP24", "NRAP"), ncol = 4)
+```
+
+```{r Barplot_CM_Sample, fig.height=6, fig.width=15, message=FALSE}
+color_palette_all <- c("#F8766D", "#00C1AB", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
+                   "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
+color_palette <- c("#F8766D", "#24B700", "#E18A00", "#00ACFC", "#D575FE")
+
+props <- getTransformedProps(CM$cell_state, CM$Sample, transform="logit")
+
+par(mar = c(7, 5, 1, 8), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = color_palette, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-0.1, 0.1), legend = rownames(props$Proportions), fill = color_palette, bty = "n", cex = 2)
+```
+
+```{r Barplot_CM_Group, fig.height=6, fig.width=6, message=FALSE}
+color_palette_all <- c("#F8766D", "#00C1AB", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
+                   "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
+color_palette <- c("#F8766D", "#24B700", "#E18A00", "#00ACFC", "#D575FE")
+
+props <- getTransformedProps(CM$cell_state, CM$Group, transform="logit")
+
+par(mar = c(7, 5, 1, 8), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = color_palette, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-0.45, 0.15), legend = rownames(props$Proportions), fill = color_palette, bty = "n", cex = 2)
+```
+
+```{r Barplot_FB_Cell_cycle, fig.height=6, fig.width=8, message=FALSE}
+color_palette_all <- c("#F8766D", "#00C1AB", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
+                   "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
+color_palette <- c("#F8766D", "#24B700", "#00ACFC")
+
+props <- getTransformedProps(CM$Phase, CM$cell_state, transform="logit")
+
+par(mar = c(5, 5, 3, 11), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = color_palette, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-0.35, 0.3), legend = rownames(props$Proportions), fill = color_palette, bty = "n", cex = 2)
+```
+
+```{r}
+df <- Markers[,7:6]
+dfsample <- split(df$gene,df$cluster)
+length(dfsample)
+
+dfsample$CM1 = bitr(dfsample$CM1, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+dfsample$CM2 = bitr(dfsample$CM2, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+dfsample$CM3 = bitr(dfsample$CM3, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+dfsample$CM4 = bitr(dfsample$CM4, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+dfsample$CM5 = bitr(dfsample$CM5, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+
+#do the same here, a line like below for each cluster
+genelist <- list("CM1" = dfsample$CM1$ENTREZID, 
+                 "CM2" = dfsample$CM2$ENTREZID,
+                 "CM3" = dfsample$CM3$ENTREZID,
+                 "CM4" = dfsample$CM4$ENTREZID,
+                 "CM5" = dfsample$CM5$ENTREZID
+)
+
+# Calculate gene counts across cells
+gene_counts <- rowSums(CM@assays$RNA@counts > 0)
+
+# Filter genes to include only those expressed in at least 3 cells
+universe_genes <- names(gene_counts[gene_counts >= 3])
+write.csv(as.data.frame(universe_genes), here::here(output_dir_data, "CM_universe_genes.csv"))
+
+# Convert universe gene symbols to Entrez IDs
+universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, "CM_universe_entrez.csv"))
+
+```
+
+```{r Pathways_GO, fig.height=8, fig.width=6}
+GO <- compareCluster(geneCluster = genelist, fun = "enrichGO", ont = "ALL",  OrgDb = "org.Hs.eg.db", universe = universe_entrez)
+GO <- gsfilter(GO, by = 'Count', min = 3)
+dotplot(GO, label_format = 35, title = "GO - Over-representation analysis")
+```
+
+```{r Pathways_GO_simplified, fig.height=8, fig.width=6}
+GO_simplified <- simplify(
+  GO,
+  cutoff = 0.5,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+dotplot(GO_simplified, label_format = 35, title = "GO - Over-representation analysis")
+```
+
+```{r Pathways_KEGG, fig.height=8, fig.width=6}
+KEGG <- compareCluster(geneCluster = genelist, fun = "enrichKEGG", organism = 'hsa', universe = universe_entrez)
+KEGG <- gsfilter(KEGG, by = 'Count', min = 3)
+dotplot(KEGG, label_format = 35, title = "KEGG Pathways")
+```
+
+```{r Pathways_REACTOME, fig.height=8, fig.width=6}
+REACTOME <- compareCluster(geneCluster = genelist, fun = "enrichPathway", organism = 'human', universe = universe_entrez)
+REACTOME <- gsfilter(REACTOME, by = 'Count', min = 3)
+dotplot(REACTOME, label_format = 40, title = "REACTOME", showCategory = 4)
+```
+
+```{r save CM final, eval = FALSE}
+saveRDS(CM, 
+        here::here(output_dir_data, "CM.rds"))
+```
