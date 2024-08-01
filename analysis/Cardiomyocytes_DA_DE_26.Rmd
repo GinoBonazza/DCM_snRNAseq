@@ -1,0 +1,1416 @@
+---
+title: "Differential abundance and differential expression analysis in cardiomyocytes"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center", results = "asis")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Cardiomyocytes_DA_DE_26"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+Load cardiomyocytes dataset
+
+```{r read CM}
+CM <- readRDS(here::here("output", "Cardiomyocytes_subclustering_26", "CM.rds"))
+```
+
+```{r NormalizeData}
+DefaultAssay(CM) <- "RNA"
+CM <- NormalizeData(CM)
+```
+
+## Differential abundance analysis
+
+```{r metadata}
+#Prepare matadata for differential abundance and differential expression testing
+metadata <- CM@meta.data %>%
+  dplyr::select(Sample:CO_l.min) %>%
+  unique() %>%
+  dplyr::select(-LVID_mm, -RVIT_mm) 
+metadata <- metadata %>%
+  dplyr::select(1:3, 5, 6, 4, 7:ncol(metadata)) %>%
+  dplyr::arrange(match(Sample, names(table(CM$Sample))))
+
+rownames(metadata) <- metadata$Sample
+
+# Check if metadata$Sample matches names(table(CM$Sample))
+all.equal(metadata$Sample, names(table(CM$Sample)))
+
+head(metadata)
+
+# Filter for Group == "DCM"
+metadata_DCM <- metadata %>%
+  dplyr::filter(Group == "DCM")
+
+head(metadata_DCM)
+```
+
+```{r Speckle_all}
+# Initialize an empty data frame for storing differential abundance results
+differential_abundance <- data.frame()
+props <- getTransformedProps(CM$cell_state, CM$Sample, transform="logit")
+
+# Loop through each metadata column from Age_years to CO_l.min
+for (i in 6:(length(metadata_DCM))) {
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  props_subset <- props
+  props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+  props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+  props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+  metadata_subset <- metadata_subset %>% 
+    arrange(Sample, colnames(props_subset$Proportions))
+  design <- model.matrix(~ metadata_subset[[i]])
+  fit <- lmFit(props_subset$TransformedProps, design)
+  fit <- eBayes(fit, robust=TRUE)
+  differential_abundance_temp <- topTable(fit, n = Inf, coef = 2)
+  differential_abundance_temp$metadata <- colnames(metadata_subset[i])
+  differential_abundance_temp$cell_state <- rownames(differential_abundance_temp)
+  differential_abundance <- rbind(differential_abundance, differential_abundance_temp)
+}
+
+# Clean up the environment
+rm(metadata_subset, props_subset, design, fit, differential_abundance_temp)
+
+# Reset row names and arrange the results by adjusted p-value
+rownames(differential_abundance) <- NULL
+differential_abundance <- dplyr::arrange(differential_abundance, adj.P.Val)
+
+head(differential_abundance, 10)
+```
+
+```{r Speckle_LVEDD_mm, fig.height=4, fig.width=20}
+metadata_subset <- metadata[complete.cases(metadata[["LVEDD_mm"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$LVEDD_mm)
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$LVEDD_mm, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab="Proportions", xlab="LVEDD_mm", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+```{r Speckle_LVEF_percent, fig.height=4, fig.width=20}
+metadata_subset <- metadata[complete.cases(metadata[["LVEF_percent"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$LVEF_percent)
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$LVEF_percent, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab="Proportions", xlab="LVEF_percent", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+```{r Speckle_Age_years, fig.height=4, fig.width=20}
+metadata_subset <- metadata[complete.cases(metadata[["Age_years"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$Age_years)
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$Age_years, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab="Proportions", xlab="Age_years", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+```{r Speckle_RVSP_mmHg, fig.height=4, fig.width=20}
+metadata_subset <- metadata[complete.cases(metadata[["RVSP_mmHg"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$RVSP_mmHg)
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$RVSP_mmHg, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab="Proportions", xlab="RVSP_mmHg", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+```{r Speckle_Group, fig.height=4, fig.width=20}
+design <- model.matrix(~ 0 + metadata$Group)
+colnames(design) <- c("DCM", "HC")
+mycontr <- makeContrasts(DCM-HC, levels=design)
+differential_abundance_HC <- propeller.ttest(props, design, contrasts = mycontr, robust=TRUE, trend=FALSE, sort=TRUE)
+
+differential_abundance_HC
+
+par(mfrow = c(1, 5), mar = c(3, 5, 3, 1))
+for (i in seq(1, 5, 1)) {
+  stripchart(props$Proportions[i,] ~ metadata$Group,
+             vertical = TRUE, pch = 16, method = "jitter", 
+             col = c("orange", "purple"),
+             cex = 2, ylab = "Proportions", cex.lab = 2, cex.axis = 2)
+  title(rownames(props$Proportions)[i], cex.main = 2.5)
+}
+rm(design, mycontr)
+```
+
+
+## Differential expression analysis
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r percent_stats}
+percent_stats <- Percent_Expressing(seurat_object = CM, features = rownames(CM), assay = "RNA", entire_object = TRUE)
+percent_stats$gene <- rownames(percent_stats)
+keep_genes <- rownames(dplyr::filter(percent_stats, All_Cells > 1))
+data <- CM[which(rownames(CM) %in% keep_genes),]
+rm(keep_genes)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r DE_all}
+pseudocounts_DCM <- pseudocounts[, metadata_DCM$Sample]
+all.equal(metadata_DCM$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 6:(length(metadata_DCM))) {
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-5]] <- topTags(fit, n = Inf)$table
+  results[[i-5]] <- merge(results[[i-5]], percent_stats[, c("gene", "All_Cells")], by = "gene", all.x = FALSE)
+  signif[[i-5]] <- results[[i-5]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-5] <- colnames(metadata_subset[i])
+  names(signif)[i-5] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-5]], file = here::here(output_dir_data, paste0("CM_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-5]], file = here::here(output_dir_data, paste0("CM_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-5]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-5]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-5]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  volcano[[i-5]] <- EnhancedVolcano(results[[i-5]],
+                  lab = results[[i-5]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  col = c("black", "black", "black", "red"),
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Cardiomyocytes", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-5] <- colnames(metadata_subset[i])
+}
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+
+## Over-representation analysis
+
+```{r universe}
+# Calculate gene counts across cells
+gene_counts <- rowSums(CM@assays$RNA@counts > 0)
+
+# Filter genes to include only those expressed in at least 3 cells
+universe_genes <- names(gene_counts[gene_counts >= 3])
+write.csv(as.data.frame(universe_genes), here::here(output_dir_data, "CM_universe_genes.csv"))
+
+# Convert universe gene symbols to Entrez IDs
+universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, "CM_universe_entrez.csv"))
+
+rm(gene_counts)
+```
+
+```{r ENTREZID}
+up_genes <- filter(signif[["mPAP_mmHg"]], logFC > 0.5)$gene
+up_genes <- bitr(up_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+down_genes <- filter(signif[["mPAP_mmHg"]], logFC < -0.5)$gene
+down_genes <- bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+```
+
+```{r mPAP_GO, fig.height=8, fig.width=12}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+mPAP_GO_up <- enrichGO(up_genes, OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+mPAP_GO_up <- gsfilter(mPAP_GO_up, by = 'Count', min = 3)
+mPAP_GO_up <- reorder_GO_by_pvalue(mPAP_GO_up)
+
+mPAP_GO_down <- enrichGO(down_genes, OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+mPAP_GO_down <- gsfilter(mPAP_GO_down, by = 'Count', min = 3)
+mPAP_GO_down <- reorder_GO_by_pvalue(mPAP_GO_down)
+
+p1 <- dotplot(mPAP_GO_up, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(mPAP_GO_down, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nLow mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1|p2)
+```
+
+```{r mPAP_GO_simplified, fig.height=8, fig.width=12}
+mPAP_GO_simplified_up <- simplify(
+  mPAP_GO_up,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+mPAP_GO_simplified_down <- simplify(
+  mPAP_GO_down,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+p1 <- dotplot(mPAP_GO_simplified_up, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(mPAP_GO_simplified_down, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nLow mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1 | p2)
+```
+
+```{r mPAP_KEGG, fig.height=8, fig.width=6}
+mPAP_KEGG_up <- enrichKEGG(up_genes, organism = 'hsa', universe = universe_entrez)
+mPAP_KEGG_up <- gsfilter(mPAP_KEGG_up, by = 'Count', min = 3)
+mPAP_KEGG_down <- enrichKEGG(down_genes,  organism = 'hsa', universe = universe_entrez)
+mPAP_KEGG_down <- gsfilter(mPAP_KEGG_down, by = 'Count', min = 3)
+p1 <- dotplot(mPAP_KEGG_up, showCategory = 10, title = paste0("KEGG Pathways", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1)
+```
+
+```{r mPAP_REACTOME, fig.height=8, fig.width=6}
+mPAP_REACTOME_up <- enrichPathway(up_genes, organism = 'human', universe = universe_entrez, readable = TRUE, pvalueCutoff = 0.1)
+mPAP_REACTOME_up <- gsfilter(mPAP_REACTOME_up, by = 'Count', min = 3)
+mPAP_REACTOME_down <- enrichPathway(down_genes, organism = 'human', universe = universe_entrez, readable = TRUE, pvalueCutoff = 0.1)
+mPAP_REACTOME_down <- gsfilter(mPAP_REACTOME_down, by = 'Count', min = 3)
+p1 <- dotplot(mPAP_REACTOME_up, showCategory = 10, title = paste0("REACTOME", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1)
+```
+
+```{r rm_GO}
+rm(mPAP_GO_up, mPAP_GO_down, mPAP_GO_simplified_up, mPAP_GO_simplified_down, mPAP_KEGG_up, mPAP_KEGG_down, mPAP_REACTOME_up, mPAP_REACTOME_down)
+```
+
+
+## Gene set enrichment analysis
+
+```{r ranked_genes}
+ranked_genes <- results[["mPAP_mmHg"]]
+ranked_genes$metric <- ranked_genes$logFC*-log10(ranked_genes$PValue)
+entrezid <- bitr(ranked_genes$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+ranked_genes <- merge(ranked_genes, entrezid, by.x = "gene", by.y = "SYMBOL")
+ranked_genes <- ranked_genes[!duplicated(ranked_genes$metric), ]
+genelist <- ranked_genes$metric
+names(genelist) <- ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+```
+
+```{r gseaGO_all}
+gseaGO_all <- gseGO(geneList = genelist,
+                OrgDb = org.Hs.eg.db,
+                ont = "ALL",
+                keyType = "ENTREZID",
+                nPermSimple = 1000000,
+                minGSSize = 10)
+gseaGO_all <- reorder_GO_by_pvalue(gseaGO_all)
+```
+
+```{r mPAP_gseaGO_all_simplified, fig.height=8, fig.width=8}
+gseaGO_all_simplified <- simplify(
+  gseaGO_all,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+p1 <- dotplot(gseaGO_all_simplified, showCategory = 10, split=".sign", title = paste0("GO Enrichment Analysis", "\n mPAP-associated genes"), label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+print(p1)
+```
+
+```{r mPAP_gseaGO_emapplot, fig.height=10, fig.width=20}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+gseaGO_all_simplified@result <- classify_terms(gseaGO_all_simplified@result)
+# Split the GSEA results
+activated_terms <- subset(gseaGO_all_simplified@result, sign == "activated")
+suppressed_terms <- subset(gseaGO_all_simplified@result, sign == "suppressed")
+
+# Create two separate enrichResult objects
+gseaGO_all_activated <- gseaGO_all_simplified
+gseaGO_all_activated@result <- activated_terms
+gseaGO_all_activated <- pairwise_termsim(gseaGO_all_activated)
+
+gseaGO_all_suppressed <- gseaGO_all_simplified
+gseaGO_all_suppressed@result <- suppressed_terms
+gseaGO_all_suppressed <- pairwise_termsim(gseaGO_all_suppressed)
+
+# Plot activated terms
+p1 <- emapplot(gseaGO_all_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 <- emapplot(gseaGO_all_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r mPAP_gseaGO_BP_ridgeplot, fig.height=8, fig.width=12}
+p1 <- ridgeplot(gseaGO_all_simplified, showCategory = 20) + labs(x = "enrichment distribution")
+print(p1)
+```
+
+```{r gseKEGG}
+gseaKEGG <- gseKEGG(geneList = genelist,
+                organism = "hsa",
+                keyType = "kegg",
+                nPermSimple = 100000)
+```
+
+```{r gseaKEGG, fig.height=8, fig.width=8}
+p1 <- dotplot(gseaKEGG, showCategory = 10, split=".sign", title = paste0("GSEA\nKEGG Pathways", "\n mPAP-associated genes"), label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+print(p1)
+```
+
+```{r mPAP_gseaKEGG_emapplot, fig.height=6, fig.width=15}
+gseaKEGG@result <- classify_terms(gseaKEGG@result)
+# Split the GSEA results
+activated_terms <- subset(gseaKEGG@result, sign == "activated")
+suppressed_terms <- subset(gseaKEGG@result, sign == "suppressed")
+
+# Create two separate enrichResult objects
+gseaKEGG_activated <- gseaKEGG
+gseaKEGG_activated@result <- activated_terms
+
+gseaKEGG_suppressed <- gseaKEGG
+gseaKEGG_suppressed@result <- suppressed_terms
+
+# Plot activated terms
+p1 <- emapplot(pairwise_termsim(gseaKEGG_activated), showCategory = 20, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 <- emapplot(pairwise_termsim(gseaKEGG_suppressed), showCategory = 20, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r mPAP_gseaKEGG_ridgeplot, fig.height=8, fig.width=12}
+p1 <- ridgeplot(gseaKEGG, showCategory = 20) + labs(x = "enrichment distribution")
+print(p1)
+```
+
+```{r gseaGO_all_activated_df}
+gseaGO_all_activated_df <- setReadable(gseaGO_all_activated, OrgDb = org.Hs.eg.db)
+gseaGO_all_activated_df <- gseaGO_all_activated_df@result
+```
+
+## Heatmaps
+
+```{r pseudocounts_mPAP}
+metadata_mPAP <- metadata[complete.cases(metadata[["mPAP_mmHg"]]),]
+
+pseudocounts_mPAP <- pseudocounts[, metadata_mPAP$Sample]
+pseudocounts_mPAP <- normLibSizes(pseudocounts_mPAP)
+
+counts_mPAP <- cpm(pseudocounts_mPAP, log = TRUE)
+```
+
+```{r Heatmap_DEGs_mPAP, fig.width=10, fig.height=12}
+## Set a color-blind friendly palette
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+
+metadata_heatmap <- metadata_mPAP %>% dplyr::select(Sample, mPAP_mmHg, Batch_processing, Age_years) %>% dplyr::arrange(mPAP_mmHg)
+
+DEGs_mPAP <- signif[["mPAP_mmHg"]]
+
+sig_counts <- counts_mPAP[rownames(counts_mPAP) %in% DEGs_mPAP$gene, ]
+sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 10, 
+         height = 20) 
+rm(metadata_heatmap, sig_counts)
+```
+
+```{r Heatmap_top_DEGs_mPAP, fig.width=10, fig.height=10}
+metadata_heatmap <- metadata_mPAP %>% dplyr::select(Sample, mPAP_mmHg, Batch_processing, Age_years) %>% dplyr::arrange(mPAP_mmHg)
+
+DEGs_mPAP_top <- DEGs_mPAP
+DEGs_mPAP_top <- DEGs_mPAP_top %>% 
+  dplyr::filter(All_Cells > 5) 
+DEGs_mPAP_top_up <- DEGs_mPAP_top %>% 
+  dplyr::filter(logFC > 2) %>% 
+  dplyr::arrange(FDR)
+DEGs_mPAP_top_down <- DEGs_mPAP_top %>% 
+  dplyr::filter(logFC < -2) %>% 
+  dplyr::arrange(FDR)
+
+DEGs_mPAP_top <- dplyr::bind_rows(head(DEGs_mPAP_top_up, 20), head(DEGs_mPAP_top_down, 20))
+rm(DEGs_mPAP_top_up, DEGs_mPAP_top_down)
+
+sig_counts <- counts_mPAP[rownames(counts_mPAP) %in% DEGs_mPAP_top$gene, ]
+sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 15, 
+         height = 20,
+         show_rownames = T) 
+rm(metadata_heatmap, sig_counts)
+```
+
+```{r Heatmap_DEGs_HC, fig.width=10, fig.height=12}
+metadata_heatmap <- metadata %>% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == "HC")
+metadata_heatmap <- metadata_heatmap %>% 
+  mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  arrange(Group, mPAP_mmHg) %>%
+  dplyr::select(Sample, Group, mPAP_mmHg, Batch_processing, Age_years)
+
+pseudocounts_mPAP_HC <- pseudocounts[, metadata_heatmap$Sample]
+pseudocounts_mPAP_HC <- normLibSizes(pseudocounts_mPAP_HC)
+
+counts_mPAP_HC <- cpm(pseudocounts_mPAP_HC, log = TRUE)
+
+sig_counts <- counts_mPAP_HC[rownames(counts_mPAP_HC) %in% DEGs_mPAP$gene, ]
+sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 10, 
+         height = 20) 
+rm(metadata_heatmap, sig_counts)
+```
+
+
+```{r Heatmap_top_DEGs_HC, fig.width=10, fig.height=12}
+metadata_heatmap <- metadata %>% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == "HC")
+metadata_heatmap <- metadata_heatmap %>% 
+  mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  arrange(Group, mPAP_mmHg) %>%
+  dplyr::select(Sample, Group, mPAP_mmHg, Batch_processing, Age_years)
+
+pseudocounts_mPAP_HC <- pseudocounts[, metadata_heatmap$Sample]
+pseudocounts_mPAP_HC <- normLibSizes(pseudocounts_mPAP_HC)
+
+counts_mPAP_HC <- cpm(pseudocounts_mPAP_HC, log = TRUE)
+
+sig_counts <- counts_mPAP_HC[rownames(counts_mPAP_HC) %in% DEGs_mPAP_top$gene, ]
+sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 15, 
+         height = 20,
+         show_rownames = T) 
+```
+
+
+## DEGs hierarchical clustering
+
+```{r Dendrogram, fig.height=4, fig.width=6}
+# Filter and arrange metadata
+metadata_mPAP_HC <- metadata %>% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == "HC") %>%
+  dplyr::mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  dplyr::arrange(Group, mPAP_mmHg) %>%
+  dplyr::select(Sample, Group, mPAP_mmHg, Batch_processing, Age_years)
+
+# Normalize pseudocounts and calculate log CPM
+pseudocounts_mPAP_HC <- pseudocounts[, metadata_mPAP_HC$Sample]
+pseudocounts_mPAP_HC <- normLibSizes(pseudocounts_mPAP_HC)
+counts_mPAP_HC <- edgeR::cpm(pseudocounts_mPAP_HC, log = TRUE)
+
+# Filter counts matrix by DEGs
+counts_matrix <- counts_mPAP_HC[rownames(counts_mPAP_HC) %in% DEGs_mPAP$gene, ]
+
+# Convert to long format and add Condition dividing DCM samples in 3 groups based on mPAP
+counts_tibble <- counts_matrix %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column(var = "gene") %>%
+  tidyr::pivot_longer(-gene, names_to = "sample", values_to = "log_pseudocounts") %>%
+  dplyr::mutate(Condition = dplyr::case_when(
+    sample %in% c("CZD4", "CZD5", "CZD6", "CZD7") ~ "HC",
+    sample %in% c("PK439", "PK375", "PK229", "P5", "P8", "PK153") ~ "DCM - Mild PH",
+    sample %in% c("PK385", "PK437", "PK323", "PK403", "PK213", "PK461") ~ "DCM - Moderate PH",
+    sample %in% c("PK369", "PK357", "PK337", "PK345", "PK401", "PK463") ~ "DCM - Severe PH"
+  ))
+
+# Compute the mean log counts for each gene and condition
+mean_tibble <- counts_tibble %>%
+  dplyr::group_by(gene, Condition) %>%
+  dplyr::summarise(mean_log_counts = mean(log_pseudocounts, na.rm = TRUE), .groups = 'drop')
+
+# Convert to wide format
+wide_mean_tibble <- mean_tibble %>%
+  tidyr::pivot_wider(names_from = Condition, values_from = mean_log_counts)
+
+# Convert the wide tibble to a matrix and transpose
+mean_matrix <- wide_mean_tibble %>%
+  tibble::column_to_rownames(var = "gene") %>%
+  as.matrix()
+
+mean_matrix  <- mean_matrix %>%
+  t() %>% 
+  scale() %>% 
+  t()
+
+# Perform hierarchical clustering
+gene_dist <- dist(mean_matrix)
+gene_hclust <- hclust(gene_dist, method = "complete")
+
+# Plot the dendrogram
+plot(gene_hclust, labels = FALSE)
+abline(h = 3, col = "brown", lwd = 2) # Add horizontal line to illustrate cutting dendrogram
+```
+
+```{r Clustering_DEGs, fig.height=3, fig.width=9}
+# Cut the dendrogram into 4 clusters
+gene_cluster <- cutree(gene_hclust, k = 4) %>%
+  tibble::enframe() %>%
+  dplyr::rename(gene = name, cluster = value)
+
+# Convert scaled matrix to long format and join with gene_cluster
+mean_tibble_cluster <- mean_matrix %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column(var = "gene") %>%
+  tidyr::pivot_longer(-gene, names_to = "Condition", values_to = "scaled_log_pseudocounts") %>%
+  dplyr::inner_join(gene_cluster, by = "gene")
+
+# Set factor levels for Condition
+mean_tibble_cluster$Condition <- factor(mean_tibble_cluster$Condition, levels = c("HC", "DCM - Mild PH", "DCM - Moderate PH", "DCM - Severe PH"))
+
+# Calculate the number of genes per cluster
+cluster_counts <- mean_tibble_cluster %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::summarise(gene_count = dplyr::n_distinct(gene))
+
+# Create a named vector for custom facet labels
+custom_labels <- setNames(paste("Cluster", cluster_counts$cluster, "-", cluster_counts$gene_count, "genes"), cluster_counts$cluster)
+
+# Plot the data with custom facet labels
+mean_tibble_cluster %>%
+  ggplot(aes(Condition, scaled_log_pseudocounts)) +
+  geom_line(aes(group = gene), alpha = 0.2) +
+  geom_line(stat = "summary", fun = "median", colour = "brown", size = 1.5, aes(group = 1)) +
+  facet_grid(cols = vars(cluster), labeller = as_labeller(custom_labels)) +
+  theme(
+    strip.text = element_text(face = "bold", size = 12),       # Make facet labels bold
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10) # Rotate x-axis labels by 45 degrees
+  )
+```
+
+## Over-representation DEGs clusters
+
+```{r DEGs_clusters}
+DEGs_clusters <- list()
+DEGs_clusters[["cluster1"]] <- unique(dplyr::filter(mean_tibble_cluster, cluster == "1")$gene)
+DEGs_clusters[["cluster2"]] <- unique(dplyr::filter(mean_tibble_cluster, cluster == "2")$gene)
+DEGs_clusters[["cluster3"]] <- unique(dplyr::filter(mean_tibble_cluster, cluster == "3")$gene)
+DEGs_clusters[["cluster4"]] <- unique(dplyr::filter(mean_tibble_cluster, cluster == "4")$gene)
+```
+
+```{r DEGs_clusters_entrez}
+DEGs_clusters_entrez <- list()
+DEGs_clusters_entrez[["cluster1"]] <- bitr(DEGs_clusters[["cluster1"]], fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+DEGs_clusters_entrez[["cluster2"]] <- bitr(DEGs_clusters[["cluster2"]], fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+DEGs_clusters_entrez[["cluster3"]] <- bitr(DEGs_clusters[["cluster3"]], fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+DEGs_clusters_entrez[["cluster4"]] <- bitr(DEGs_clusters[["cluster4"]], fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+```
+
+```{r cluster1_GO, fig.height=8, fig.width=6, eval=FALSE}
+cluster1_GO <- enrichGO(DEGs_clusters_entrez[["cluster1"]], OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+cluster1_GO <- gsfilter(cluster1_GO, by = 'Count', min = 3)
+```
+
+```{r cluster2_GO, fig.height=8, fig.width=6, eval=FALSE}
+cluster2_GO <- enrichGO(DEGs_clusters_entrez[["cluster2"]], OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+cluster2_GO <- gsfilter(cluster2_GO, by = 'Count', min = 3)
+```
+
+```{r cluster3_GO, fig.height=8, fig.width=6}
+cluster3_GO <- enrichGO(DEGs_clusters_entrez[["cluster3"]], OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+cluster3_GO <- gsfilter(cluster3_GO, by = 'Count', min = 10)
+cluster3_GO <- simplify(
+  cluster3_GO,
+  cutoff = 0.7,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+cluster3_GO <- reorder_GO_by_pvalue(cluster3_GO)
+
+# Plot the sorted results
+dotplot(cluster3_GO, 
+        showCategory = 15, 
+        title = paste0("GO - Over-representation analysis", "\nDEGs cluster 3"), 
+        label_format = 27, 
+        font.size = 15) +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+```
+
+```{r cluster4_GO, fig.height=8, fig.width=6}
+cluster4_GO <- enrichGO(DEGs_clusters_entrez[["cluster4"]], OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+cluster4_GO <- gsfilter(cluster4_GO, by = 'Count', min = 10)
+cluster4_GO <- simplify(
+  cluster4_GO,
+  cutoff = 0.7,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+cluster4_GO <- reorder_GO_by_pvalue(cluster4_GO)
+
+# Plot the sorted results
+dotplot(cluster4_GO, 
+        showCategory = 15, 
+        title = paste0("GO - Over-representation analysis", "\nDEGs cluster 4"), 
+        label_format = 27, 
+        font.size = 15) +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+```
+
+
+## Top genes
+
+```{r DEGs_mPAP_cluster}
+DEGs_mPAP_cluster1 <- DEGs_mPAP %>% 
+  filter(gene %in% DEGs_clusters[["cluster1"]])
+top_DEGs_mPAP_cluster1 <- DEGs_mPAP_cluster1 %>% 
+  filter(All_Cells > 5) %>%
+  filter(FDR < 0.01) %>%
+  arrange(logFC) %>%
+  head(20)
+
+DEGs_mPAP_cluster2 <- DEGs_mPAP %>% 
+  filter(gene %in% DEGs_clusters[["cluster2"]])
+top_DEGs_mPAP_cluster2 <- DEGs_mPAP_cluster2 %>% 
+  filter(All_Cells > 5) %>%
+  filter(FDR < 0.01) %>%
+  arrange(logFC) %>%
+  head(20)
+
+DEGs_mPAP_cluster3 <- DEGs_mPAP %>% 
+  filter(gene %in% DEGs_clusters[["cluster3"]])
+top_DEGs_mPAP_cluster3 <- DEGs_mPAP_cluster3 %>% 
+  filter(All_Cells > 5) %>%
+  filter(FDR < 0.01) %>%
+  arrange(desc(logFC)) %>%
+  head(20)
+
+DEGs_mPAP_cluster4 <- DEGs_mPAP %>% 
+  filter(gene %in% DEGs_clusters[["cluster4"]])
+top_DEGs_mPAP_cluster4 <- DEGs_mPAP_cluster4 %>% 
+  filter(All_Cells > 5) %>%
+  filter(FDR < 0.01) %>%
+  arrange(desc(logFC)) %>%
+  head(20)
+```
+
+```{r Heatmap_DEGs_mPAP_cluster_1, fig.width=6.5, fig.height=6.5}
+metadata_heatmap <- metadata %>% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == "HC")
+metadata_heatmap <- metadata_heatmap %>% 
+  mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  arrange(Group, mPAP_mmHg) %>%
+  dplyr::select(Sample, Group, mPAP_mmHg, Age_years)
+
+sig_counts <- counts_mPAP_HC[top_DEGs_mPAP_cluster1$gene, ]
+sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 7, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 11, 
+         cellheight = 17,
+         show_rownames = T,
+         main = "Top cluster 1 DEGs") 
+
+print(top_DEGs_mPAP_cluster1)
+```
+
+```{r Heatmap_DEGs_mPAP_cluster_2, fig.width=6.5, fig.height=6.5}
+metadata_heatmap <- metadata %>% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == "HC")
+metadata_heatmap <- metadata_heatmap %>% 
+  mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  arrange(Group, mPAP_mmHg) %>%
+  dplyr::select(Sample, Group, mPAP_mmHg, Age_years)
+
+sig_counts <- counts_mPAP_HC[top_DEGs_mPAP_cluster2$gene, ]
+sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 7, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 11, 
+         cellheight = 17,
+         show_rownames = T,
+         main = "Top cluster 2 DEGs") 
+
+print(top_DEGs_mPAP_cluster2)
+```
+
+```{r Heatmap_DEGs_mPAP_cluster_3, fig.width=6.5, fig.height=6.5}
+metadata_heatmap <- metadata %>% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == "HC")
+metadata_heatmap <- metadata_heatmap %>% 
+  mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  arrange(Group, mPAP_mmHg) %>%
+  dplyr::select(Sample, Group, mPAP_mmHg, Age_years)
+
+sig_counts <- counts_mPAP_HC[top_DEGs_mPAP_cluster3$gene, ]
+sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 7, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 11, 
+         cellheight = 17,
+         show_rownames = T,
+         main = "Top cluster 3 DEGs") 
+
+print(top_DEGs_mPAP_cluster3)
+```
+
+```{r Heatmap_DEGs_mPAP_cluster_4, fig.width=6.5, fig.height=6.5}
+metadata_heatmap <- metadata %>% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == "HC")
+metadata_heatmap <- metadata_heatmap %>% 
+  mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  arrange(Group, mPAP_mmHg) %>%
+  dplyr::select(Sample, Group, mPAP_mmHg, Age_years)
+
+sig_counts <- counts_mPAP_HC[top_DEGs_mPAP_cluster4$gene, ]
+sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 7, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 11, 
+         cellheight = 17,
+         show_rownames = T,
+         main = "Top cluster 4 DEGs") 
+
+print(top_DEGs_mPAP_cluster4)
+```
+
+## Scores
+
+```{r genes_of_interest}
+terms <- list(
+  muscle_structure_development = c("actin", "muscle", "sarcomere", "cardiac", "fibril", "fiber", "actomyosin"),
+  autophagy = c("autophag", "disassembly", "catabolic", "starvation"),
+  transcription = c("transcription", "receptor"),
+  vesicular_transport = c("transport", "Golgi", "vacuo", "vesicle", "endosom")
+)
+
+get_unique_genes <- function(df, terms) {
+  filtered_df <- df %>%
+    filter(grepl(paste(terms, collapse = "|"), Description, ignore.case = TRUE))
+  unique(unlist(strsplit(filtered_df$core_enrichment, split = "/")))
+}
+
+genes_of_interest <- lapply(terms, get_unique_genes, df = gseaGO_all_activated_df)
+names(genes_of_interest) <- names(terms)
+```
+
+```{r AddModuleScore}
+for (i in 1:length(genes_of_interest)) {
+  score_genes <- list(genes_of_interest[[i]])
+  score_name <- paste0(names(genes_of_interest)[i], "_score")
+  CM <- AddModuleScore(object = CM, features = score_genes, name = score_name)
+}
+metadata_CM <- CM@meta.data
+colnames(metadata_CM) <- gsub("_score1", "_score", colnames(metadata_CM))
+CM@meta.data <- metadata_CM
+rm(metadata_CM)
+```
+
+```{r FeaturePlot_scores_1, fig.width=18, fig.height=4}
+plot_list <- lapply(paste0(names(genes_of_interest), "_score"), function(feature) {
+  p <- FeaturePlot(CM, features = feature, order = FALSE)
+  p + scale_color_viridis(discrete = FALSE, option = "turbo")
+})
+
+CombinePlots(plots = plot_list, ncol = 4)
+```
+
+```{r FeaturePlot_scores_2, fig.width=18, fig.height=4}
+plot_list <- lapply(paste0(names(genes_of_interest), "_score"), function(feature) {
+  p <- FeaturePlot(CM, features = feature, order = TRUE)
+  p + scale_color_viridis(discrete = FALSE, option = "turbo")
+})
+
+CombinePlots(plots = plot_list, ncol = 4)
+```
+
+```{r VlnPlot_scores_cell_state, fig.width=18, fig.height=4}
+VlnPlot(CM, features = paste0(names(genes_of_interest), "_score"), ncol = 4, group.by = "cell_state", pt.size = 0)
+```
+
+```{r Condition}
+CM@meta.data[CM@meta.data$Sample %in% c("CZD4", "CZD5", "CZD6", "CZD7"), "Condition"] = "HC"
+CM@meta.data[CM@meta.data$Sample %in% c("PK439", "PK375", "PK229", "P5", "P8", "PK153"), "Condition"] = "DCM - Mild PH"
+CM@meta.data[CM@meta.data$Sample %in% c("PK385", "PK437", "PK323", "PK403", "PK213", "PK461"), "Condition"] = "DCM - Moderate PH"
+CM@meta.data[CM@meta.data$Sample %in% c("PK369", "PK357", "PK337", "PK345", "PK401", "PK463"), "Condition"] = "DCM - Severe PH"
+CM@meta.data[CM@meta.data$Sample %in% c("P3", "PK415", "PK441"), "Condition"] = "DCM - no mPAP data"
+
+CM$Condition <- factor(CM$Condition, levels = c("HC", "DCM - Mild PH", "DCM - Moderate PH", "DCM - Severe PH", "DCM - no mPAP data"))
+```
+
+```{r VlnPlot_scores_Condition, fig.width=15, fig.height=5}
+VlnPlot(CM, features = paste0(names(genes_of_interest), "_score"), ncol = 4, group.by = "Condition", pt.size = 0)
+```
+
+
+## Transcription factor inference analysis
+
+```{r net}
+net <- get_collectri(organism='human', split_complexes=FALSE)
+net
+```
+
+```{r ranked_genes_TF}
+ranked_genes_TF <- ranked_genes %>%
+  dplyr::select(gene, logFC, metric, PValue) %>% 
+  remove_rownames() %>%
+  column_to_rownames(var = "gene") %>%
+  as.matrix()
+head(ranked_genes_TF)
+```
+
+
+```{r contrast_acts}
+# Run ulm
+contrast_acts <- run_ulm(mat=ranked_genes_TF[, 'metric', drop=FALSE], net=net, .source='source', .target='target',
+                  .mor='mor', minsize = 5)
+head(contrast_acts)
+```
+
+```{r mPAP_TF_barplot, fig.height=6, fig.width=12}
+n_tfs <- 40
+
+# Filter top TFs in both signs
+f_contrast_acts <- contrast_acts %>%
+  mutate(rnk = NA)
+msk <- f_contrast_acts$score > 0
+f_contrast_acts[msk, 'rnk'] <- rank(-f_contrast_acts[msk, 'score'])
+f_contrast_acts[!msk, 'rnk'] <- rank(-abs(f_contrast_acts[!msk, 'score']))
+tfs <- f_contrast_acts %>%
+  arrange(rnk) %>%
+  head(n_tfs) %>%
+  pull(source)
+f_contrast_acts <- f_contrast_acts %>%
+  filter(source %in% tfs)
+
+# Plot
+ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) + 
+    geom_bar(aes(fill = score), stat = "identity") +
+    scale_fill_gradient2(low = "darkblue", high = "indianred", 
+        mid = "whitesmoke", midpoint = 0) + 
+    theme_minimal() +
+    theme(axis.title = element_text(face = "bold", size = 12),
+        axis.text.x = 
+            element_text(angle = 45, hjust = 1, size =10, face= "bold"),
+        axis.text.y = element_text(size =10, face= "bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+    xlab("TFs")
+```
+
+```{r FeaturePlot_TF, fig.width=24, fig.height=15}
+FeaturePlot(CM, features = f_contrast_acts$source, ncol = 8)
+```
+```{r contrast_acts_filtered}
+contrast_acts_filtered <- contrast_acts %>%
+  filter(source %in% filter(percent_stats, All_Cells > 2)$gene)
+```
+
+```{r mPAP_TF_barplot_filtered, fig.height=5, fig.width=8}
+n_tfs <- 40
+
+# Filter top TFs in both signs
+f_contrast_acts <- contrast_acts_filtered %>%
+  mutate(rnk = NA) %>%
+  filter(p_value < 0.05)
+msk <- f_contrast_acts$score > 0
+f_contrast_acts[msk, 'rnk'] <- rank(-f_contrast_acts[msk, 'score'])
+f_contrast_acts[!msk, 'rnk'] <- rank(-abs(f_contrast_acts[!msk, 'score']))
+tfs <- f_contrast_acts %>%
+  arrange(rnk) %>%
+  head(n_tfs) %>%
+  pull(source)
+f_contrast_acts <- f_contrast_acts %>%
+  filter(source %in% tfs) 
+
+# Plot
+ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) + 
+    geom_bar(aes(fill = score), stat = "identity") +
+    scale_fill_gradient2(low = "darkblue", high = "indianred", 
+        mid = "whitesmoke", midpoint = 0) + 
+    theme_minimal() +
+    theme(axis.title = element_text(face = "bold", size = 12),
+        axis.text.x = 
+            element_text(angle = 45, hjust = 1, size =10, face= "bold"),
+        axis.text.y = element_text(size =10, face= "bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+    xlab("TFs")
+```
+
+```{r FeaturePlot_TF_filtered, fig.width=21, fig.height=12}
+FeaturePlot(CM, features = f_contrast_acts$source, ncol = 7)
+```
+
+```{r TF_MYOCD, fig.height=6, fig.width=9}
+tf <- 'MYOCD'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c("red","royalblue3","grey")) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = 'dotted') +
+  geom_hline(yintercept = 0, linetype = 'dotted') +
+  ggtitle(tf)
+```
+
+```{r TF_HIF1A, fig.height=6, fig.width=9}
+tf <- 'HIF1A'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c("red","royalblue3","grey")) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = 'dotted') +
+  geom_hline(yintercept = 0, linetype = 'dotted') +
+  ggtitle(tf)
+```
+
+```{r TF_MEF2A, fig.height=6, fig.width=9}
+tf <- 'MEF2A'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c("red","royalblue3","grey")) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = 'dotted') +
+  geom_hline(yintercept = 0, linetype = 'dotted') +
+  ggtitle(tf)
+```
+
+https://www.nature.com/articles/s41419-023-05665-8
+
+```{r TF_MEF2C, fig.height=6, fig.width=9}
+tf <- 'MEF2C'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c("red","royalblue3","grey")) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = 'dotted') +
+  geom_hline(yintercept = 0, linetype = 'dotted') +
+  ggtitle(tf)
+```
+
+```{r TF_NFATC3, fig.height=6, fig.width=9}
+tf <- 'NFATC3'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c("red","royalblue3","grey")) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = 'dotted') +
+  geom_hline(yintercept = 0, linetype = 'dotted') +
+  ggtitle(tf)
+```
+
+````{r TF_heatmap_Sample, fig.height=9, fig.width=9}
+# Run ulm
+sample_acts <- run_ulm(mat=counts_mPAP_HC, net=net, .source='source', .target='target',
+                  .mor='mor', minsize = 5)
+
+# Transform to wide matrix
+sample_acts_mat <- sample_acts %>%
+  pivot_wider(id_cols = 'condition', names_from = 'source',
+              values_from = 'score') %>%
+  column_to_rownames('condition') %>%
+  as.matrix()
+
+# Get top tfs with more variable means across clusters
+tfs <- arrange(f_contrast_acts, desc(score))$source
+sample_acts_mat <- sample_acts_mat[,tfs]
+
+# Scale per sample
+sample_acts_mat <- scale(sample_acts_mat)
+sample_acts_mat <- t(sample_acts_mat)
+sample_acts_mat <- sample_acts_mat[, metadata_mPAP_HC$Sample, drop = FALSE]
+
+
+# Choose color palette
+palette_length = 100
+my_color = colorRampPalette(c("Darkblue", "white","red"))(palette_length)
+
+my_breaks <- c(seq(-3, 0, length.out=ceiling(palette_length/2) + 1),
+               seq(0.05, 3, length.out=floor(palette_length/2)))
+
+# Plot
+pheatmap(sample_acts_mat, 
+         border_color = NA, 
+         color=my_color, 
+         breaks = my_breaks,
+         cluster_rows = F,
+         cluster_cols = F,
+         annotation_col = dplyr::select(metadata_mPAP_HC, -Batch_processing)) 
+```
+
+
+```{r save CM final, eval = FALSE}
+saveRDS(CM, 
+        here::here(output_dir_data, "CM.rds"))
+```
