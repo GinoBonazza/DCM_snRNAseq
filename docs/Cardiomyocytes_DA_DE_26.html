@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Differential abundance and differential expression analysis in cardiomyocytes</title>
+
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_DA_DE.html">Cardiomyocytes differential expression</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Differential abundance and differential
+expression analysis in cardiomyocytes</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">01 August, 2024</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2024-08-01
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.1). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree9e4b48229540bcdbda339eaef0ad9c0d0389a2b8targetblank9e4b482a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/9e4b48229540bcdbda339eaef0ad9c0d0389a2b8" target="_blank">9e4b482</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree9e4b48229540bcdbda339eaef0ad9c0d0389a2b8targetblank9e4b482a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/9e4b48229540bcdbda339eaef0ad9c0d0389a2b8" target="_blank">9e4b482</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+
+Untracked files:
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/old.R
+    Untracked:  core
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/Raw/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_DA_DE_26/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_26/
+
+Unstaged changes:
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/Cardiomyocytes_DA_DE_26.Rmd</code>) and HTML
+(<code>docs/Cardiomyocytes_DA_DE_26.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9e4b48229540bcdbda339eaef0ad9c0d0389a2b8/analysis/Cardiomyocytes_DA_DE_26.Rmd" target="_blank">9e4b482</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-08-01
+</td>
+<td>
+wflow_publish("analysis/Cardiomyocytes_DA_DE_26.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code># Get current file name to make folder
+current_file &lt;- &quot;Cardiomyocytes_DA_DE_26&quot;
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+
+
+#Output paths
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;))
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
+<p>Load cardiomyocytes dataset</p>
+<pre class="r"><code>CM &lt;- readRDS(here::here(&quot;output&quot;, &quot;Cardiomyocytes_subclustering_26&quot;, &quot;CM.rds&quot;))</code></pre>
+<pre class="r"><code>DefaultAssay(CM) &lt;- &quot;RNA&quot;
+CM &lt;- NormalizeData(CM)</code></pre>
+</div>
+<div id="differential-abundance-analysis" class="section level2">
+<h2>Differential abundance analysis</h2>
+<pre class="r"><code>#Prepare matadata for differential abundance and differential expression testing
+metadata &lt;- CM@meta.data %&gt;%
+  dplyr::select(Sample:CO_l.min) %&gt;%
+  unique() %&gt;%
+  dplyr::select(-LVID_mm, -RVIT_mm) 
+metadata &lt;- metadata %&gt;%
+  dplyr::select(1:3, 5, 6, 4, 7:ncol(metadata)) %&gt;%
+  dplyr::arrange(match(Sample, names(table(CM$Sample))))
+
+rownames(metadata) &lt;- metadata$Sample
+
+# Check if metadata$Sample matches names(table(CM$Sample))
+all.equal(metadata$Sample, names(table(CM$Sample)))</code></pre>
+<p>[1] TRUE</p>
+<pre class="r"><code>head(metadata)</code></pre>
+<pre><code> Sample Batch_processing Batch_sequencing Sex Group Age_years LVEF_percent</code></pre>
+<p>CZD4 CZD4 Batch8 Batch7_seq M HC 46 NA CZD5 CZD5 Batch8 Batch7_seq M
+HC 55 NA CZD6 CZD6 Batch8 Batch7_seq M HC 33 NA CZD7 CZD7 Batch8
+Batch7_seq M HC 37 NA P3 P3 Batch6 Batch5_seq M DCM 19 10 P5 P5 Batch7
+Batch6_seq M DCM 36 15 LVEDD_mm RVID_mm TAPSE_mm RAA_cm2 RVS_cm.s
+RVSP_mmHg sPAP_mmHg mPAP_mmHg CZD4 NA NA NA NA NA NA NA NA CZD5 NA NA NA
+NA NA NA NA NA CZD6 NA NA NA NA NA NA NA NA CZD7 NA NA NA NA NA NA NA NA
+P3 76 39 13 25 7 35 NA NA P5 80 41 9 19 6 24 35 25 PCW_mmHg PVR_WU
+TPG_mmHg CO_l.min CZD4 NA NA NA NA CZD5 NA NA NA NA CZD6 NA NA NA NA
+CZD7 NA NA NA NA P3 NA NA NA NA P5 22 0.68 3 4.4</p>
+<pre class="r"><code># Filter for Group == &quot;DCM&quot;
+metadata_DCM &lt;- metadata %&gt;%
+  dplyr::filter(Group == &quot;DCM&quot;)
+
+head(metadata_DCM)</code></pre>
+<pre><code>  Sample Batch_processing Batch_sequencing Sex Group Age_years LVEF_percent</code></pre>
+<p>P3 P3 Batch6 Batch5_seq M DCM 19 10 P5 P5 Batch7 Batch6_seq M DCM 36
+15 P8 P8 Batch6 Batch5_seq M DCM 37 10 PK153 PK153 Batch7 Batch6_seq M
+DCM 28 18 PK213 PK213 Batch6 Batch5_seq M DCM 49 10 PK229 PK229 Batch6
+Batch5_seq M DCM 49 30 LVEDD_mm RVID_mm TAPSE_mm RAA_cm2 RVS_cm.s
+RVSP_mmHg sPAP_mmHg mPAP_mmHg P3 76 39 13 25 7 35 NA NA P5 80 41 9 19 6
+24 35 25 P8 98 45 13 30 6 28 37 26 PK153 72 28 24 12 NA 37 41 27 PK213
+92 54 9 26 9 61 48 33 PK229 69 30 20 23 11 33 33 22 PCW_mmHg PVR_WU
+TPG_mmHg CO_l.min P3 NA NA NA NA P5 22 0.68 3 4.4 P8 20 1.50 6 4.0 PK153
+23 1.27 4 3.1 PK213 20 4.80 13 2.7 PK229 15 1.39 7 5.0</p>
+<pre class="r"><code># Initialize an empty data frame for storing differential abundance results
+differential_abundance &lt;- data.frame()
+props &lt;- getTransformedProps(CM$cell_state, CM$Sample, transform=&quot;logit&quot;)
+
+# Loop through each metadata column from Age_years to CO_l.min
+for (i in 6:(length(metadata_DCM))) {
+  metadata_subset &lt;- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  props_subset &lt;- props
+  props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+  props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+  props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+  metadata_subset &lt;- metadata_subset %&gt;% 
+    arrange(Sample, colnames(props_subset$Proportions))
+  design &lt;- model.matrix(~ metadata_subset[[i]])
+  fit &lt;- lmFit(props_subset$TransformedProps, design)
+  fit &lt;- eBayes(fit, robust=TRUE)
+  differential_abundance_temp &lt;- topTable(fit, n = Inf, coef = 2)
+  differential_abundance_temp$metadata &lt;- colnames(metadata_subset[i])
+  differential_abundance_temp$cell_state &lt;- rownames(differential_abundance_temp)
+  differential_abundance &lt;- rbind(differential_abundance, differential_abundance_temp)
+}
+
+# Clean up the environment
+rm(metadata_subset, props_subset, design, fit, differential_abundance_temp)
+
+# Reset row names and arrange the results by adjusted p-value
+rownames(differential_abundance) &lt;- NULL
+differential_abundance &lt;- dplyr::arrange(differential_abundance, adj.P.Val)
+
+head(differential_abundance, 10)</code></pre>
+<pre><code>     logFC     AveExpr         t     P.Value  adj.P.Val         B</code></pre>
+<p>1 -0.03733780 -3.09372076 -3.800660 0.000784868 0.00392434 -1.104509
+2 0.05164398 -3.09372076 2.727156 0.011504506 0.05752253 -3.153784 3
+0.02064891 -1.22887005 2.620690 0.014741573 0.07370786 -4.047930 4
+-0.02099043 -1.11737052 -2.553624 0.019177416 0.09588708 -4.264893 5
+0.02072336 -1.22887005 2.110358 0.044606428 0.11151607 -4.893359 6
+-0.09458635 -2.59521451 -2.202226 0.040434842 0.12531843 -3.774735 7
+-0.08210370 -3.27080446 -2.094281 0.050127373 0.12531843 -3.950492 8
+-0.02828231 -1.15033073 -2.250622 0.035607611 0.17803806 -4.429379 9
+0.03061490 0.07673019 1.613590 0.123395678 0.20565946 -4.664097 10
+-0.02965728 -1.15033073 -2.073388 0.050974137 0.25487068 -4.642614
+metadata cell_state 1 LVEDD_mm CM5 2 LVEF_percent CM5 3 Age_years CM2 4
+RVSP_mmHg CM2 5 LVEDD_mm CM2 6 TPG_mmHg CM4 7 TPG_mmHg CM5 8 sPAP_mmHg
+CM2 9 TPG_mmHg CM1 10 mPAP_mmHg CM2</p>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;LVEDD_mm&quot;]]),]
+
+props_subset &lt;- props
+props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset &lt;- metadata_subset %&gt;% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design &lt;- model.matrix(~ metadata_subset$LVEDD_mm)
+fit.prop &lt;- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$LVEDD_mm, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;LVEDD_mm&quot;, cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Speckle_LVEDD_mm-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_subset, props_subset, design, fit.prop)</code></pre>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;LVEF_percent&quot;]]),]
+
+props_subset &lt;- props
+props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset &lt;- metadata_subset %&gt;% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design &lt;- model.matrix(~ metadata_subset$LVEF_percent)
+fit.prop &lt;- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$LVEF_percent, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;LVEF_percent&quot;, cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Speckle_LVEF_percent-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_subset, props_subset, design, fit.prop)</code></pre>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;Age_years&quot;]]),]
+
+props_subset &lt;- props
+props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset &lt;- metadata_subset %&gt;% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design &lt;- model.matrix(~ metadata_subset$Age_years)
+fit.prop &lt;- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$Age_years, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;Age_years&quot;, cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Speckle_Age_years-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_subset, props_subset, design, fit.prop)</code></pre>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;RVSP_mmHg&quot;]]),]
+
+props_subset &lt;- props
+props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset &lt;- metadata_subset %&gt;% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design &lt;- model.matrix(~ metadata_subset$RVSP_mmHg)
+fit.prop &lt;- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$RVSP_mmHg, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;RVSP_mmHg&quot;, cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Speckle_RVSP_mmHg-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_subset, props_subset, design, fit.prop)</code></pre>
+<pre class="r"><code>design &lt;- model.matrix(~ 0 + metadata$Group)
+colnames(design) &lt;- c(&quot;DCM&quot;, &quot;HC&quot;)
+mycontr &lt;- makeContrasts(DCM-HC, levels=design)
+differential_abundance_HC &lt;- propeller.ttest(props, design, contrasts = mycontr, robust=TRUE, trend=FALSE, sort=TRUE)
+
+differential_abundance_HC</code></pre>
+<pre><code>PropMean.DCM PropMean.HC PropRatio Tstatistic      P.Value         FDR</code></pre>
+<p>CM3 0.11135354 0.03836732 2.9023016 3.800582 0.0006739595 0.003369797
+CM4 0.08662428 0.02831785 3.0589987 3.202724 0.0032613900 0.008153475
+CM1 0.50911696 0.57790022 0.8809773 -1.527054 0.1374288591 0.229048098
+CM2 0.24032230 0.29095689 0.8259722 -1.002228 0.3244063073 0.405507884
+CM5 0.05258291 0.06445772 0.8157738 -0.479165 0.6353640356
+0.635364036</p>
+<pre class="r"><code>par(mfrow = c(1, 5), mar = c(3, 5, 3, 1))
+for (i in seq(1, 5, 1)) {
+  stripchart(props$Proportions[i,] ~ metadata$Group,
+             vertical = TRUE, pch = 16, method = &quot;jitter&quot;, 
+             col = c(&quot;orange&quot;, &quot;purple&quot;),
+             cex = 2, ylab = &quot;Proportions&quot;, cex.lab = 2, cex.axis = 2)
+  title(rownames(props$Proportions)[i], cex.main = 2.5)
+}</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Speckle_Group-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(design, mycontr)</code></pre>
+</div>
+<div id="differential-expression-analysis" class="section level2">
+<h2>Differential expression analysis</h2>
+<p>Remove genes expressed in &lt;1% of cells and MT and RP genes</p>
+<pre class="r"><code>percent_stats &lt;- Percent_Expressing(seurat_object = CM, features = rownames(CM), assay = &quot;RNA&quot;, entire_object = TRUE)
+percent_stats$gene &lt;- rownames(percent_stats)
+keep_genes &lt;- rownames(dplyr::filter(percent_stats, All_Cells &gt; 1))
+data &lt;- CM[which(rownames(CM) %in% keep_genes),]
+rm(keep_genes)</code></pre>
+<p>Create and prepare pseudobulk object for differential expression
+analysis</p>
+<pre class="r"><code>pseudocounts &lt;- Seurat2PB(data, sample=&quot;Sample&quot;, cluster = &quot;cell_type&quot;)
+colnames(pseudocounts) &lt;- pseudocounts$samples$sample
+keep_samples &lt;- pseudocounts$samples$lib.size &gt; 5e4
+pseudocounts &lt;- pseudocounts[, keep_samples]
+keep_genes &lt;- filterByExpr(pseudocounts)
+pseudocounts &lt;- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)</code></pre>
+<p>Create empty objects for the DE output</p>
+<pre class="r"><code>results &lt;- list()
+signif &lt;- list()
+volcano &lt;- list()
+n_de_genes &lt;- data.frame()</code></pre>
+<pre class="r"><code>pseudocounts_DCM &lt;- pseudocounts[, metadata_DCM$Sample]
+all.equal(metadata_DCM$Sample, colnames(pseudocounts_DCM$counts))</code></pre>
+<p>[1] TRUE</p>
+<pre class="r"><code>for (i in 6:(length(metadata_DCM))) {
+  metadata_subset &lt;- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  metadata_subset[,i] &lt;- rescale(metadata_subset[,i])
+  design &lt;- model.matrix(~ metadata_subset[[i]])
+  colnames(design)[2] &lt;- colnames(metadata_subset[i])
+  
+  pseudocounts_subset &lt;- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset &lt;- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset &lt;- estimateDisp(pseudocounts_subset, design)
+  
+  fit &lt;- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit &lt;- glmQLFTest(fit, coef = 2)
+  
+  results[[i-5]] &lt;- topTags(fit, n = Inf)$table
+  results[[i-5]] &lt;- merge(results[[i-5]], percent_stats[, c(&quot;gene&quot;, &quot;All_Cells&quot;)], by = &quot;gene&quot;, all.x = FALSE)
+  signif[[i-5]] &lt;- results[[i-5]] %&gt;% dplyr::filter(FDR &lt; 0.05, abs(logFC) &gt; 0.5) %&gt;% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-5] &lt;- colnames(metadata_subset[i])
+  names(signif)[i-5] &lt;- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-5]], file = here::here(output_dir_data, paste0(&quot;CM_Results_&quot;, colnames(metadata[i]), &quot;.csv&quot;)), quote=F, row.names = F)
+  write.csv(signif[[i-5]], file = here::here(output_dir_data, paste0(&quot;CM_Significant_&quot;, colnames(metadata[i]), &quot;.csv&quot;)), quote=F, row.names = F)
+  
+  n_de_genes_temp &lt;- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-5]]$logFC &gt; 0.5),
+                                n_downregulated = sum(signif[[i-5]]$logFC &lt; -0.5),
+                                n_tot = nrow(signif[[i-5]])
+                                )
+  n_de_genes &lt;- rbind(n_de_genes, n_de_genes_temp)
+  
+  volcano[[i-5]] &lt;- EnhancedVolcano(results[[i-5]],
+                  lab = results[[i-5]]$gene,
+                  x = &quot;logFC&quot;,
+                  y = &quot;FDR&quot;,
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  col = c(&quot;black&quot;, &quot;black&quot;, &quot;black&quot;, &quot;red&quot;),
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0(&quot;Cardiomyocytes&quot;, &quot;\n&quot;, colnames(metadata_subset[i]), &quot;\nn = &quot;, nrow(metadata_subset))
+  ) + theme(legend.position = &quot;none&quot;)
+  names(volcano)[i-5] &lt;- colnames(metadata_subset[i])
+}
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)</code></pre>
+<pre class="r"><code>print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Volcano_all_metadata-1.png" width="6300" style="display: block; margin: auto;" /></p>
+</div>
+<div id="over-representation-analysis" class="section level2">
+<h2>Over-representation analysis</h2>
+<pre class="r"><code># Calculate gene counts across cells
+gene_counts &lt;- rowSums(CM@assays$RNA@counts &gt; 0)
+
+# Filter genes to include only those expressed in at least 3 cells
+universe_genes &lt;- names(gene_counts[gene_counts &gt;= 3])
+write.csv(as.data.frame(universe_genes), here::here(output_dir_data, &quot;CM_universe_genes.csv&quot;))
+
+# Convert universe gene symbols to Entrez IDs
+universe_entrez &lt;- bitr(universe_genes, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db)$ENTREZID
+write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, &quot;CM_universe_entrez.csv&quot;))
+
+rm(gene_counts)</code></pre>
+<pre class="r"><code>up_genes &lt;- filter(signif[[&quot;mPAP_mmHg&quot;]], logFC &gt; 0.5)$gene
+up_genes &lt;- bitr(up_genes, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)$ENTREZID
+down_genes &lt;- filter(signif[[&quot;mPAP_mmHg&quot;]], logFC &lt; -0.5)$gene
+down_genes &lt;- bitr(down_genes, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)$ENTREZID</code></pre>
+<pre class="r"><code>reorder_GO_by_pvalue &lt;- function(enrichGO_result) {
+  go_results &lt;- enrichGO_result@result
+  go_results_sorted &lt;- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result &lt;- go_results_sorted
+  return(enrichGO_result)
+}
+mPAP_GO_up &lt;- enrichGO(up_genes, OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;ALL&quot;, readable = TRUE)
+mPAP_GO_up &lt;- gsfilter(mPAP_GO_up, by = &#39;Count&#39;, min = 3)
+mPAP_GO_up &lt;- reorder_GO_by_pvalue(mPAP_GO_up)
+
+mPAP_GO_down &lt;- enrichGO(down_genes, OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;ALL&quot;, readable = TRUE)
+mPAP_GO_down &lt;- gsfilter(mPAP_GO_down, by = &#39;Count&#39;, min = 3)
+mPAP_GO_down &lt;- reorder_GO_by_pvalue(mPAP_GO_down)
+
+p1 &lt;- dotplot(mPAP_GO_up, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+p2 &lt;- dotplot(mPAP_GO_down, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nLow mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1|p2)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_GO-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mPAP_GO_simplified_up &lt;- simplify(
+  mPAP_GO_up,
+  cutoff = 0.75,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+mPAP_GO_simplified_down &lt;- simplify(
+  mPAP_GO_down,
+  cutoff = 0.75,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+p1 &lt;- dotplot(mPAP_GO_simplified_up, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+p2 &lt;- dotplot(mPAP_GO_simplified_down, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nLow mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1 | p2)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_GO_simplified-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mPAP_KEGG_up &lt;- enrichKEGG(up_genes, organism = &#39;hsa&#39;, universe = universe_entrez)
+mPAP_KEGG_up &lt;- gsfilter(mPAP_KEGG_up, by = &#39;Count&#39;, min = 3)
+mPAP_KEGG_down &lt;- enrichKEGG(down_genes,  organism = &#39;hsa&#39;, universe = universe_entrez)
+mPAP_KEGG_down &lt;- gsfilter(mPAP_KEGG_down, by = &#39;Count&#39;, min = 3)
+p1 &lt;- dotplot(mPAP_KEGG_up, showCategory = 10, title = paste0(&quot;KEGG Pathways&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_KEGG-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mPAP_REACTOME_up &lt;- enrichPathway(up_genes, organism = &#39;human&#39;, universe = universe_entrez, readable = TRUE, pvalueCutoff = 0.1)
+mPAP_REACTOME_up &lt;- gsfilter(mPAP_REACTOME_up, by = &#39;Count&#39;, min = 3)
+mPAP_REACTOME_down &lt;- enrichPathway(down_genes, organism = &#39;human&#39;, universe = universe_entrez, readable = TRUE, pvalueCutoff = 0.1)
+mPAP_REACTOME_down &lt;- gsfilter(mPAP_REACTOME_down, by = &#39;Count&#39;, min = 3)
+p1 &lt;- dotplot(mPAP_REACTOME_up, showCategory = 10, title = paste0(&quot;REACTOME&quot;, &quot;\nHigh mPAP - associated genes&quot;), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_REACTOME-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(mPAP_GO_up, mPAP_GO_down, mPAP_GO_simplified_up, mPAP_GO_simplified_down, mPAP_KEGG_up, mPAP_KEGG_down, mPAP_REACTOME_up, mPAP_REACTOME_down)</code></pre>
+</div>
+<div id="gene-set-enrichment-analysis" class="section level2">
+<h2>Gene set enrichment analysis</h2>
+<pre class="r"><code>ranked_genes &lt;- results[[&quot;mPAP_mmHg&quot;]]
+ranked_genes$metric &lt;- ranked_genes$logFC*-log10(ranked_genes$PValue)
+entrezid &lt;- bitr(ranked_genes$gene, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)
+ranked_genes &lt;- merge(ranked_genes, entrezid, by.x = &quot;gene&quot;, by.y = &quot;SYMBOL&quot;)
+ranked_genes &lt;- ranked_genes[!duplicated(ranked_genes$metric), ]
+genelist &lt;- ranked_genes$metric
+names(genelist) &lt;- ranked_genes$ENTREZID
+genelist &lt;- genelist[order(genelist, decreasing = T)]</code></pre>
+<pre class="r"><code>gseaGO_all &lt;- gseGO(geneList = genelist,
+                OrgDb = org.Hs.eg.db,
+                ont = &quot;ALL&quot;,
+                keyType = &quot;ENTREZID&quot;,
+                nPermSimple = 1000000,
+                minGSSize = 10)
+gseaGO_all &lt;- reorder_GO_by_pvalue(gseaGO_all)</code></pre>
+<pre class="r"><code>gseaGO_all_simplified &lt;- simplify(
+  gseaGO_all,
+  cutoff = 0.75,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+p1 &lt;- dotplot(gseaGO_all_simplified, showCategory = 10, split=&quot;.sign&quot;, title = paste0(&quot;GO Enrichment Analysis&quot;, &quot;\n mPAP-associated genes&quot;), label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_gseaGO_all_simplified-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>classify_terms &lt;- function(df) {
+  df$sign &lt;- ifelse(df$NES &gt; 0, &quot;activated&quot;, &quot;suppressed&quot;)
+  return(df)
+}
+gseaGO_all_simplified@result &lt;- classify_terms(gseaGO_all_simplified@result)
+# Split the GSEA results
+activated_terms &lt;- subset(gseaGO_all_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(gseaGO_all_simplified@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gseaGO_all_activated &lt;- gseaGO_all_simplified
+gseaGO_all_activated@result &lt;- activated_terms
+gseaGO_all_activated &lt;- pairwise_termsim(gseaGO_all_activated)
+
+gseaGO_all_suppressed &lt;- gseaGO_all_simplified
+gseaGO_all_suppressed@result &lt;- suppressed_terms
+gseaGO_all_suppressed &lt;- pairwise_termsim(gseaGO_all_suppressed)
+
+# Plot activated terms
+p1 &lt;- emapplot(gseaGO_all_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(gseaGO_all_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_gseaGO_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- ridgeplot(gseaGO_all_simplified, showCategory = 20) + labs(x = &quot;enrichment distribution&quot;)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_gseaGO_BP_ridgeplot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaKEGG &lt;- gseKEGG(geneList = genelist,
+                organism = &quot;hsa&quot;,
+                keyType = &quot;kegg&quot;,
+                nPermSimple = 100000)</code></pre>
+<pre class="r"><code>p1 &lt;- dotplot(gseaKEGG, showCategory = 10, split=&quot;.sign&quot;, title = paste0(&quot;GSEA\nKEGG Pathways&quot;, &quot;\n mPAP-associated genes&quot;), label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/gseaKEGG-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaKEGG@result &lt;- classify_terms(gseaKEGG@result)
+# Split the GSEA results
+activated_terms &lt;- subset(gseaKEGG@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(gseaKEGG@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gseaKEGG_activated &lt;- gseaKEGG
+gseaKEGG_activated@result &lt;- activated_terms
+
+gseaKEGG_suppressed &lt;- gseaKEGG
+gseaKEGG_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gseaKEGG_activated), showCategory = 20, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gseaKEGG_suppressed), showCategory = 20, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_gseaKEGG_emapplot-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- ridgeplot(gseaKEGG, showCategory = 20) + labs(x = &quot;enrichment distribution&quot;)
+print(p1)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_gseaKEGG_ridgeplot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaGO_all_activated_df &lt;- setReadable(gseaGO_all_activated, OrgDb = org.Hs.eg.db)
+gseaGO_all_activated_df &lt;- gseaGO_all_activated_df@result</code></pre>
+</div>
+<div id="heatmaps" class="section level2">
+<h2>Heatmaps</h2>
+<pre class="r"><code>metadata_mPAP &lt;- metadata[complete.cases(metadata[[&quot;mPAP_mmHg&quot;]]),]
+
+pseudocounts_mPAP &lt;- pseudocounts[, metadata_mPAP$Sample]
+pseudocounts_mPAP &lt;- normLibSizes(pseudocounts_mPAP)
+
+counts_mPAP &lt;- cpm(pseudocounts_mPAP, log = TRUE)</code></pre>
+<pre class="r"><code>## Set a color-blind friendly palette
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+
+metadata_heatmap &lt;- metadata_mPAP %&gt;% dplyr::select(Sample, mPAP_mmHg, Batch_processing, Age_years) %&gt;% dplyr::arrange(mPAP_mmHg)
+
+DEGs_mPAP &lt;- signif[[&quot;mPAP_mmHg&quot;]]
+
+sig_counts &lt;- counts_mPAP[rownames(counts_mPAP) %in% DEGs_mPAP$gene, ]
+sig_counts &lt;- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = &quot;row&quot;,
+         cluster_cols=F,
+         fontsize_row = 10, 
+         height = 20) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Heatmap_DEGs_mPAP-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_heatmap, sig_counts)</code></pre>
+<pre class="r"><code>metadata_heatmap &lt;- metadata_mPAP %&gt;% dplyr::select(Sample, mPAP_mmHg, Batch_processing, Age_years) %&gt;% dplyr::arrange(mPAP_mmHg)
+
+DEGs_mPAP_top &lt;- DEGs_mPAP
+DEGs_mPAP_top &lt;- DEGs_mPAP_top %&gt;% 
+  dplyr::filter(All_Cells &gt; 5) 
+DEGs_mPAP_top_up &lt;- DEGs_mPAP_top %&gt;% 
+  dplyr::filter(logFC &gt; 2) %&gt;% 
+  dplyr::arrange(FDR)
+DEGs_mPAP_top_down &lt;- DEGs_mPAP_top %&gt;% 
+  dplyr::filter(logFC &lt; -2) %&gt;% 
+  dplyr::arrange(FDR)
+
+DEGs_mPAP_top &lt;- dplyr::bind_rows(head(DEGs_mPAP_top_up, 20), head(DEGs_mPAP_top_down, 20))
+rm(DEGs_mPAP_top_up, DEGs_mPAP_top_down)
+
+sig_counts &lt;- counts_mPAP[rownames(counts_mPAP) %in% DEGs_mPAP_top$gene, ]
+sig_counts &lt;- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = &quot;row&quot;,
+         cluster_cols=F,
+         fontsize_row = 15, 
+         height = 20,
+         show_rownames = T) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Heatmap_top_DEGs_mPAP-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_heatmap, sig_counts)</code></pre>
+<pre class="r"><code>metadata_heatmap &lt;- metadata %&gt;% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == &quot;HC&quot;)
+metadata_heatmap &lt;- metadata_heatmap %&gt;% 
+  mutate(Group = factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))) %&gt;%
+  arrange(Group, mPAP_mmHg) %&gt;%
+  dplyr::select(Sample, Group, mPAP_mmHg, Batch_processing, Age_years)
+
+pseudocounts_mPAP_HC &lt;- pseudocounts[, metadata_heatmap$Sample]
+pseudocounts_mPAP_HC &lt;- normLibSizes(pseudocounts_mPAP_HC)
+
+counts_mPAP_HC &lt;- cpm(pseudocounts_mPAP_HC, log = TRUE)
+
+sig_counts &lt;- counts_mPAP_HC[rownames(counts_mPAP_HC) %in% DEGs_mPAP$gene, ]
+sig_counts &lt;- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = &quot;row&quot;,
+         cluster_cols=F,
+         fontsize_row = 10, 
+         height = 20) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Heatmap_DEGs_HC-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_heatmap, sig_counts)</code></pre>
+<pre class="r"><code>metadata_heatmap &lt;- metadata %&gt;% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == &quot;HC&quot;)
+metadata_heatmap &lt;- metadata_heatmap %&gt;% 
+  mutate(Group = factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))) %&gt;%
+  arrange(Group, mPAP_mmHg) %&gt;%
+  dplyr::select(Sample, Group, mPAP_mmHg, Batch_processing, Age_years)
+
+pseudocounts_mPAP_HC &lt;- pseudocounts[, metadata_heatmap$Sample]
+pseudocounts_mPAP_HC &lt;- normLibSizes(pseudocounts_mPAP_HC)
+
+counts_mPAP_HC &lt;- cpm(pseudocounts_mPAP_HC, log = TRUE)
+
+sig_counts &lt;- counts_mPAP_HC[rownames(counts_mPAP_HC) %in% DEGs_mPAP_top$gene, ]
+sig_counts &lt;- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = &quot;row&quot;,
+         cluster_cols=F,
+         fontsize_row = 15, 
+         height = 20,
+         show_rownames = T) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Heatmap_top_DEGs_HC-1.png" width="3000" style="display: block; margin: auto;" /></p>
+</div>
+<div id="degs-hierarchical-clustering" class="section level2">
+<h2>DEGs hierarchical clustering</h2>
+<pre class="r"><code># Filter and arrange metadata
+metadata_mPAP_HC &lt;- metadata %&gt;% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == &quot;HC&quot;) %&gt;%
+  dplyr::mutate(Group = factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))) %&gt;%
+  dplyr::arrange(Group, mPAP_mmHg) %&gt;%
+  dplyr::select(Sample, Group, mPAP_mmHg, Batch_processing, Age_years)
+
+# Normalize pseudocounts and calculate log CPM
+pseudocounts_mPAP_HC &lt;- pseudocounts[, metadata_mPAP_HC$Sample]
+pseudocounts_mPAP_HC &lt;- normLibSizes(pseudocounts_mPAP_HC)
+counts_mPAP_HC &lt;- edgeR::cpm(pseudocounts_mPAP_HC, log = TRUE)
+
+# Filter counts matrix by DEGs
+counts_matrix &lt;- counts_mPAP_HC[rownames(counts_mPAP_HC) %in% DEGs_mPAP$gene, ]
+
+# Convert to long format and add Condition dividing DCM samples in 3 groups based on mPAP
+counts_tibble &lt;- counts_matrix %&gt;%
+  as.data.frame() %&gt;%
+  tibble::rownames_to_column(var = &quot;gene&quot;) %&gt;%
+  tidyr::pivot_longer(-gene, names_to = &quot;sample&quot;, values_to = &quot;log_pseudocounts&quot;) %&gt;%
+  dplyr::mutate(Condition = dplyr::case_when(
+    sample %in% c(&quot;CZD4&quot;, &quot;CZD5&quot;, &quot;CZD6&quot;, &quot;CZD7&quot;) ~ &quot;HC&quot;,
+    sample %in% c(&quot;PK439&quot;, &quot;PK375&quot;, &quot;PK229&quot;, &quot;P5&quot;, &quot;P8&quot;, &quot;PK153&quot;) ~ &quot;DCM - Mild PH&quot;,
+    sample %in% c(&quot;PK385&quot;, &quot;PK437&quot;, &quot;PK323&quot;, &quot;PK403&quot;, &quot;PK213&quot;, &quot;PK461&quot;) ~ &quot;DCM - Moderate PH&quot;,
+    sample %in% c(&quot;PK369&quot;, &quot;PK357&quot;, &quot;PK337&quot;, &quot;PK345&quot;, &quot;PK401&quot;, &quot;PK463&quot;) ~ &quot;DCM - Severe PH&quot;
+  ))
+
+# Compute the mean log counts for each gene and condition
+mean_tibble &lt;- counts_tibble %&gt;%
+  dplyr::group_by(gene, Condition) %&gt;%
+  dplyr::summarise(mean_log_counts = mean(log_pseudocounts, na.rm = TRUE), .groups = &#39;drop&#39;)
+
+# Convert to wide format
+wide_mean_tibble &lt;- mean_tibble %&gt;%
+  tidyr::pivot_wider(names_from = Condition, values_from = mean_log_counts)
+
+# Convert the wide tibble to a matrix and transpose
+mean_matrix &lt;- wide_mean_tibble %&gt;%
+  tibble::column_to_rownames(var = &quot;gene&quot;) %&gt;%
+  as.matrix()
+
+mean_matrix  &lt;- mean_matrix %&gt;%
+  t() %&gt;% 
+  scale() %&gt;% 
+  t()
+
+# Perform hierarchical clustering
+gene_dist &lt;- dist(mean_matrix)
+gene_hclust &lt;- hclust(gene_dist, method = &quot;complete&quot;)
+
+# Plot the dendrogram
+plot(gene_hclust, labels = FALSE)
+abline(h = 3, col = &quot;brown&quot;, lwd = 2) # Add horizontal line to illustrate cutting dendrogram</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Dendrogram-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Cut the dendrogram into 4 clusters
+gene_cluster &lt;- cutree(gene_hclust, k = 4) %&gt;%
+  tibble::enframe() %&gt;%
+  dplyr::rename(gene = name, cluster = value)
+
+# Convert scaled matrix to long format and join with gene_cluster
+mean_tibble_cluster &lt;- mean_matrix %&gt;%
+  as.data.frame() %&gt;%
+  tibble::rownames_to_column(var = &quot;gene&quot;) %&gt;%
+  tidyr::pivot_longer(-gene, names_to = &quot;Condition&quot;, values_to = &quot;scaled_log_pseudocounts&quot;) %&gt;%
+  dplyr::inner_join(gene_cluster, by = &quot;gene&quot;)
+
+# Set factor levels for Condition
+mean_tibble_cluster$Condition &lt;- factor(mean_tibble_cluster$Condition, levels = c(&quot;HC&quot;, &quot;DCM - Mild PH&quot;, &quot;DCM - Moderate PH&quot;, &quot;DCM - Severe PH&quot;))
+
+# Calculate the number of genes per cluster
+cluster_counts &lt;- mean_tibble_cluster %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::summarise(gene_count = dplyr::n_distinct(gene))
+
+# Create a named vector for custom facet labels
+custom_labels &lt;- setNames(paste(&quot;Cluster&quot;, cluster_counts$cluster, &quot;-&quot;, cluster_counts$gene_count, &quot;genes&quot;), cluster_counts$cluster)
+
+# Plot the data with custom facet labels
+mean_tibble_cluster %&gt;%
+  ggplot(aes(Condition, scaled_log_pseudocounts)) +
+  geom_line(aes(group = gene), alpha = 0.2) +
+  geom_line(stat = &quot;summary&quot;, fun = &quot;median&quot;, colour = &quot;brown&quot;, size = 1.5, aes(group = 1)) +
+  facet_grid(cols = vars(cluster), labeller = as_labeller(custom_labels)) +
+  theme(
+    strip.text = element_text(face = &quot;bold&quot;, size = 12),       # Make facet labels bold
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10) # Rotate x-axis labels by 45 degrees
+  )</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Clustering_DEGs-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="over-representation-degs-clusters" class="section level2">
+<h2>Over-representation DEGs clusters</h2>
+<pre class="r"><code>DEGs_clusters &lt;- list()
+DEGs_clusters[[&quot;cluster1&quot;]] &lt;- unique(dplyr::filter(mean_tibble_cluster, cluster == &quot;1&quot;)$gene)
+DEGs_clusters[[&quot;cluster2&quot;]] &lt;- unique(dplyr::filter(mean_tibble_cluster, cluster == &quot;2&quot;)$gene)
+DEGs_clusters[[&quot;cluster3&quot;]] &lt;- unique(dplyr::filter(mean_tibble_cluster, cluster == &quot;3&quot;)$gene)
+DEGs_clusters[[&quot;cluster4&quot;]] &lt;- unique(dplyr::filter(mean_tibble_cluster, cluster == &quot;4&quot;)$gene)</code></pre>
+<pre class="r"><code>DEGs_clusters_entrez &lt;- list()
+DEGs_clusters_entrez[[&quot;cluster1&quot;]] &lt;- bitr(DEGs_clusters[[&quot;cluster1&quot;]], fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)$ENTREZID
+DEGs_clusters_entrez[[&quot;cluster2&quot;]] &lt;- bitr(DEGs_clusters[[&quot;cluster2&quot;]], fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)$ENTREZID
+DEGs_clusters_entrez[[&quot;cluster3&quot;]] &lt;- bitr(DEGs_clusters[[&quot;cluster3&quot;]], fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)$ENTREZID
+DEGs_clusters_entrez[[&quot;cluster4&quot;]] &lt;- bitr(DEGs_clusters[[&quot;cluster4&quot;]], fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)$ENTREZID</code></pre>
+<pre class="r"><code>cluster1_GO &lt;- enrichGO(DEGs_clusters_entrez[[&quot;cluster1&quot;]], OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;ALL&quot;, readable = TRUE)
+cluster1_GO &lt;- gsfilter(cluster1_GO, by = &#39;Count&#39;, min = 3)</code></pre>
+<pre class="r"><code>cluster2_GO &lt;- enrichGO(DEGs_clusters_entrez[[&quot;cluster2&quot;]], OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;ALL&quot;, readable = TRUE)
+cluster2_GO &lt;- gsfilter(cluster2_GO, by = &#39;Count&#39;, min = 3)</code></pre>
+<pre class="r"><code>cluster3_GO &lt;- enrichGO(DEGs_clusters_entrez[[&quot;cluster3&quot;]], OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;ALL&quot;, readable = TRUE)
+cluster3_GO &lt;- gsfilter(cluster3_GO, by = &#39;Count&#39;, min = 10)
+cluster3_GO &lt;- simplify(
+  cluster3_GO,
+  cutoff = 0.7,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+cluster3_GO &lt;- reorder_GO_by_pvalue(cluster3_GO)
+
+# Plot the sorted results
+dotplot(cluster3_GO, 
+        showCategory = 15, 
+        title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nDEGs cluster 3&quot;), 
+        label_format = 27, 
+        font.size = 15) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/cluster3_GO-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>cluster4_GO &lt;- enrichGO(DEGs_clusters_entrez[[&quot;cluster4&quot;]], OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez, ont = &quot;ALL&quot;, readable = TRUE)
+cluster4_GO &lt;- gsfilter(cluster4_GO, by = &#39;Count&#39;, min = 10)
+cluster4_GO &lt;- simplify(
+  cluster4_GO,
+  cutoff = 0.7,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+cluster4_GO &lt;- reorder_GO_by_pvalue(cluster4_GO)
+
+# Plot the sorted results
+dotplot(cluster4_GO, 
+        showCategory = 15, 
+        title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nDEGs cluster 4&quot;), 
+        label_format = 27, 
+        font.size = 15) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/cluster4_GO-1.png" width="1800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="top-genes" class="section level2">
+<h2>Top genes</h2>
+<pre class="r"><code>DEGs_mPAP_cluster1 &lt;- DEGs_mPAP %&gt;% 
+  filter(gene %in% DEGs_clusters[[&quot;cluster1&quot;]])
+top_DEGs_mPAP_cluster1 &lt;- DEGs_mPAP_cluster1 %&gt;% 
+  filter(All_Cells &gt; 5) %&gt;%
+  filter(FDR &lt; 0.01) %&gt;%
+  arrange(logFC) %&gt;%
+  head(20)
+
+DEGs_mPAP_cluster2 &lt;- DEGs_mPAP %&gt;% 
+  filter(gene %in% DEGs_clusters[[&quot;cluster2&quot;]])
+top_DEGs_mPAP_cluster2 &lt;- DEGs_mPAP_cluster2 %&gt;% 
+  filter(All_Cells &gt; 5) %&gt;%
+  filter(FDR &lt; 0.01) %&gt;%
+  arrange(logFC) %&gt;%
+  head(20)
+
+DEGs_mPAP_cluster3 &lt;- DEGs_mPAP %&gt;% 
+  filter(gene %in% DEGs_clusters[[&quot;cluster3&quot;]])
+top_DEGs_mPAP_cluster3 &lt;- DEGs_mPAP_cluster3 %&gt;% 
+  filter(All_Cells &gt; 5) %&gt;%
+  filter(FDR &lt; 0.01) %&gt;%
+  arrange(desc(logFC)) %&gt;%
+  head(20)
+
+DEGs_mPAP_cluster4 &lt;- DEGs_mPAP %&gt;% 
+  filter(gene %in% DEGs_clusters[[&quot;cluster4&quot;]])
+top_DEGs_mPAP_cluster4 &lt;- DEGs_mPAP_cluster4 %&gt;% 
+  filter(All_Cells &gt; 5) %&gt;%
+  filter(FDR &lt; 0.01) %&gt;%
+  arrange(desc(logFC)) %&gt;%
+  head(20)</code></pre>
+<pre class="r"><code>metadata_heatmap &lt;- metadata %&gt;% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == &quot;HC&quot;)
+metadata_heatmap &lt;- metadata_heatmap %&gt;% 
+  mutate(Group = factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))) %&gt;%
+  arrange(Group, mPAP_mmHg) %&gt;%
+  dplyr::select(Sample, Group, mPAP_mmHg, Age_years)
+
+sig_counts &lt;- counts_mPAP_HC[top_DEGs_mPAP_cluster1$gene, ]
+sig_counts &lt;- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 7, 
+         scale = &quot;row&quot;,
+         cluster_cols=F,
+         fontsize_row = 11, 
+         cellheight = 17,
+         show_rownames = T,
+         main = &quot;Top cluster 1 DEGs&quot;) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Heatmap_DEGs_mPAP_cluster_1-1.png" width="1950" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(top_DEGs_mPAP_cluster1)</code></pre>
+<pre><code>     gene     logFC   logCPM        F       PValue         FDR All_Cells</code></pre>
+<p>1 LINC00499 -5.323974 2.788816 22.71527 1.357282e-04 0.002771069
+5.882965 2 AL360093.1 -4.811906 2.389355 19.18167 3.249806e-04
+0.004352412 8.626684 3 AC091906.1 -4.689396 3.837253 39.97432
+4.643358e-06 0.001577455 21.366863 4 LINC00623 -4.601022 2.244943
+17.48665 5.098059e-04 0.005687420 9.707101 5 AC105114.2 -4.536132
+1.893288 31.53685 2.078447e-05 0.001704842 7.319358 6 AC055840.1
+-4.498846 3.309008 58.40142 3.346911e-07 0.001577455 19.505798 7
+AL450163.1 -4.475843 3.234046 31.81477 1.970391e-05 0.001682296
+16.414431 8 AC097658.3 -4.463468 4.012324 22.33331 1.485827e-04
+0.002883540 26.375502 9 AL024497.2 -4.347580 2.321797 31.50677
+2.090530e-05 0.001704842 9.575952 10 AC117834.1 -4.340675 6.002931
+49.04533 1.165621e-06 0.001577455 52.900889 11 PDC -4.309187 1.344888
+30.99303 2.299936e-05 0.001773908 5.356288 12 AC009264.1 -4.301892
+8.989891 21.89254 1.651205e-04 0.003024227 85.142703 13 DMD-AS3
+-4.266124 2.331712 17.17886 5.545899e-04 0.005983264 9.498928 14 LPAR6
+-4.137530 3.744066 24.09359 9.862278e-05 0.002429625 20.840186 15
+AC007193.1 -4.083021 1.848711 32.06329 1.871054e-05 0.001682296 7.408872
+16 AC068308.1 -4.046046 3.447652 25.54161 7.132552e-05 0.002213337
+14.016279 17 COL10A1 -4.034597 5.748890 26.51644 5.770269e-05
+0.002131367 54.372671 18 AC078955.1 -4.031187 5.183796 24.52593
+8.942130e-05 0.002337392 41.028790 19 NT5C1B -4.026498 2.611111 19.82195
+2.756917e-04 0.003952984 10.868705 20 AL158166.2 -4.016010 2.344840
+21.93827 1.633131e-04 0.003004144 10.312884</p>
+<pre class="r"><code>metadata_heatmap &lt;- metadata %&gt;% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == &quot;HC&quot;)
+metadata_heatmap &lt;- metadata_heatmap %&gt;% 
+  mutate(Group = factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))) %&gt;%
+  arrange(Group, mPAP_mmHg) %&gt;%
+  dplyr::select(Sample, Group, mPAP_mmHg, Age_years)
+
+sig_counts &lt;- counts_mPAP_HC[top_DEGs_mPAP_cluster2$gene, ]
+sig_counts &lt;- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 7, 
+         scale = &quot;row&quot;,
+         cluster_cols=F,
+         fontsize_row = 11, 
+         cellheight = 17,
+         show_rownames = T,
+         main = &quot;Top cluster 2 DEGs&quot;) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Heatmap_DEGs_mPAP_cluster_2-1.png" width="1950" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(top_DEGs_mPAP_cluster2)</code></pre>
+<pre><code>     gene     logFC   logCPM        F       PValue         FDR All_Cells</code></pre>
+<p>1 AC016598.2 -5.254883 4.338816 39.05681 5.404733e-06 0.001577455
+17.767554 2 MAMDC2 -4.998989 2.487449 19.64788 2.882156e-04 0.004051368
+7.975103 3 AC008696.2 -4.995615 6.124419 34.25288 1.249196e-05
+0.001616893 34.945979 4 AL162719.1 -4.592250 2.278052 27.61116
+4.573709e-05 0.001975152 6.544955 5 TMPRSS11D -4.212863 2.384818
+15.35821 9.279050e-04 0.008255913 6.828070 6 SORCS1 -4.199856 4.839949
+18.97972 3.424963e-04 0.004484818 22.278660 7 AC117473.1 -4.130680
+3.338213 19.99068 2.641258e-04 0.003866143 9.072174 8 AL023581.1
+-4.039744 3.150695 24.56629 8.861202e-05 0.002337392 14.376418 9
+AC130650.1 -4.031270 3.825314 21.98999 1.612955e-04 0.002983261
+20.752753 10 AL033519.5 -4.012381 3.626554 17.87973 4.583430e-04
+0.005336287 18.013198 11 AC026353.1 -3.941370 4.358005 15.42813
+9.092444e-04 0.008175207 23.309116 12 AC022447.1 -3.891537 1.789236
+20.02846 2.616108e-04 0.003852378 6.213960 13 SCGB3A2 -3.883521 2.050824
+19.83482 2.747905e-04 0.003943406 5.849658 14 AC119868.2 -3.846589
+2.522841 16.61052 6.492295e-04 0.006552373 8.809876 15 AC060809.1
+-3.831826 2.012810 25.78228 6.765869e-05 0.002203293 5.564461 16
+PCDH9-AS4 -3.806857 3.250335 20.52005 2.311917e-04 0.003641567 15.209110
+17 AC019127.1 -3.786810 4.568916 15.37973 9.221150e-04 0.008243445
+28.197015 18 AP000897.2 -3.741608 4.199874 25.27323 7.567636e-05
+0.002213337 25.336720 19 KCNAB1 -3.672418 2.411128 34.65081 1.158973e-05
+0.001616893 9.788288 20 CABYR -3.639343 3.181923 37.27072 7.316203e-06
+0.001577455 15.179965</p>
+<pre class="r"><code>metadata_heatmap &lt;- metadata %&gt;% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == &quot;HC&quot;)
+metadata_heatmap &lt;- metadata_heatmap %&gt;% 
+  mutate(Group = factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))) %&gt;%
+  arrange(Group, mPAP_mmHg) %&gt;%
+  dplyr::select(Sample, Group, mPAP_mmHg, Age_years)
+
+sig_counts &lt;- counts_mPAP_HC[top_DEGs_mPAP_cluster3$gene, ]
+sig_counts &lt;- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 7, 
+         scale = &quot;row&quot;,
+         cluster_cols=F,
+         fontsize_row = 11, 
+         cellheight = 17,
+         show_rownames = T,
+         main = &quot;Top cluster 3 DEGs&quot;) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Heatmap_DEGs_mPAP_cluster_3-1.png" width="1950" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(top_DEGs_mPAP_cluster3)</code></pre>
+<pre><code>     gene    logFC   logCPM        F       PValue         FDR All_Cells</code></pre>
+<p>1 ATP1B3 6.285662 6.870092 17.40931 5.206693e-04 0.005764187
+34.281908 2 CNN1 5.923135 3.764214 17.37008 5.262771e-04 0.005788363
+10.148427 3 AC114321.1 4.774360 1.889200 26.16256 6.228298e-05
+0.002179832 6.867623 4 HOPX 4.746360 4.747642 15.25228 9.569943e-04
+0.008418282 21.150363 5 PIM1 3.775051 2.332042 15.17453 9.789881e-04
+0.008543893 8.814039 6 NID1 3.600062 7.353022 17.61229 4.926914e-04
+0.005567478 65.580698 7 FAM122C 2.736632 3.609901 15.65754 8.508807e-04
+0.007809527 18.029852 8 C3orf52 2.654039 4.664361 16.75688 6.232510e-04
+0.006397732 31.700564 9 TANGO2 2.618514 5.939831 16.23725 7.210947e-04
+0.007021950 53.587859 10 ACTN4 2.501478 7.503670 15.86335 8.020476e-04
+0.007556722 79.967525 11 WDR1 2.499910 4.127003 15.39410 9.182744e-04
+0.008217802 24.705956 12 A4GALT 2.031954 4.928680 15.13637 9.899886e-04
+0.008595663 40.437579 13 HSDL1 1.966406 3.814630 15.16870 9.806592e-04
+0.008545383 24.337490 14 SLC45A4 1.862119 5.089339 15.59161 8.672155e-04
+0.007903365 42.281991 15 LPIN1 1.814925 6.612404 19.36989 3.095460e-04
+0.004247463 65.786789 16 AFF4 1.783747 7.663681 15.70616 8.390540e-04
+0.007746700 85.644399 17 MED25 1.754908 4.339921 19.32214 3.113416e-04
+0.004265178 32.310511 18 NXN 1.558644 5.526179 26.07768 6.266776e-05
+0.002179832 45.327560 19 PLIN5 1.508439 6.849382 18.56535 3.809353e-04
+0.004773692 75.583404 20 USP36 1.473227 4.655366 15.19657 9.691647e-04
+0.008492271 35.149989</p>
+<pre class="r"><code>metadata_heatmap &lt;- metadata %&gt;% 
+  dplyr::filter(Sample %in% metadata_mPAP$Sample | Group == &quot;HC&quot;)
+metadata_heatmap &lt;- metadata_heatmap %&gt;% 
+  mutate(Group = factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))) %&gt;%
+  arrange(Group, mPAP_mmHg) %&gt;%
+  dplyr::select(Sample, Group, mPAP_mmHg, Age_years)
+
+sig_counts &lt;- counts_mPAP_HC[top_DEGs_mPAP_cluster4$gene, ]
+sig_counts &lt;- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 7, 
+         scale = &quot;row&quot;,
+         cluster_cols=F,
+         fontsize_row = 11, 
+         cellheight = 17,
+         show_rownames = T,
+         main = &quot;Top cluster 4 DEGs&quot;) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/Heatmap_DEGs_mPAP_cluster_4-1.png" width="1950" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(top_DEGs_mPAP_cluster4)</code></pre>
+<pre><code>     gene    logFC   logCPM        F       PValue         FDR All_Cells</code></pre>
+<p>1 MIR1-1HG 3.172470 8.039428 16.99759 5.829996e-04 0.006142207
+79.336761 2 AC005865.2 2.656442 2.781549 15.96552 7.789682e-04
+0.007406332 9.496846 3 PCSK6 2.443491 7.511716 19.38621 3.082464e-04
+0.004243409 70.912005 4 ZYX 2.401168 2.233781 14.59975 1.160155e-03
+0.009515975 7.966776 5 AC004951.1 2.393334 4.625274 20.12495
+2.553061e-04 0.003822808 33.638654 6 GPT 2.375547 2.528309 17.48013
+5.096223e-04 0.005687420 9.944418 7 PLEC 2.249503 5.271957 18.81920
+3.571678e-04 0.004622435 43.776672 8 GAS7 2.107987 6.255910 17.82772
+4.648082e-04 0.005385595 49.495181 9 GTF2IRD1 2.086373 7.877573 21.30378
+1.904808e-04 0.003233009 86.148177 10 AP3D1 2.028677 5.193889 17.74748
+4.749843e-04 0.005440268 43.605970 11 GOLGA6L4 2.027427 2.079443
+32.35774 1.729222e-05 0.001682296 7.989675 12 PNMT 2.016175 3.735232
+18.91500 3.483297e-04 0.004545204 18.864625 13 CARNS1 2.000038 2.117440
+25.73852 6.687410e-05 0.002203293 7.895997 14 MKNK2 1.995467 4.678043
+20.91577 2.095449e-04 0.003452589 32.027396 15 AC092428.1 1.983342
+1.750097 20.35070 2.373210e-04 0.003690488 6.417969 16 COL7A1 1.888879
+3.250407 16.96194 5.848484e-04 0.006147899 14.992610 17 MYO18B 1.853237
+9.917121 14.89760 1.062018e-03 0.009017288 95.944793 18 MAPK8IP3
+1.824382 5.960619 18.28075 4.117097e-04 0.004989214 57.230885 19
+AC067852.3 1.817599 1.422288 19.85138 2.693564e-04 0.003915279 5.295918
+20 OPLAH 1.808096 4.125813 14.88410 1.066261e-03 0.009035150
+28.380207</p>
+</div>
+<div id="scores" class="section level2">
+<h2>Scores</h2>
+<pre class="r"><code>terms &lt;- list(
+  muscle_structure_development = c(&quot;actin&quot;, &quot;muscle&quot;, &quot;sarcomere&quot;, &quot;cardiac&quot;, &quot;fibril&quot;, &quot;fiber&quot;, &quot;actomyosin&quot;),
+  autophagy = c(&quot;autophag&quot;, &quot;disassembly&quot;, &quot;catabolic&quot;, &quot;starvation&quot;),
+  transcription = c(&quot;transcription&quot;, &quot;receptor&quot;),
+  vesicular_transport = c(&quot;transport&quot;, &quot;Golgi&quot;, &quot;vacuo&quot;, &quot;vesicle&quot;, &quot;endosom&quot;)
+)
+
+get_unique_genes &lt;- function(df, terms) {
+  filtered_df &lt;- df %&gt;%
+    filter(grepl(paste(terms, collapse = &quot;|&quot;), Description, ignore.case = TRUE))
+  unique(unlist(strsplit(filtered_df$core_enrichment, split = &quot;/&quot;)))
+}
+
+genes_of_interest &lt;- lapply(terms, get_unique_genes, df = gseaGO_all_activated_df)
+names(genes_of_interest) &lt;- names(terms)</code></pre>
+<pre class="r"><code>for (i in 1:length(genes_of_interest)) {
+  score_genes &lt;- list(genes_of_interest[[i]])
+  score_name &lt;- paste0(names(genes_of_interest)[i], &quot;_score&quot;)
+  CM &lt;- AddModuleScore(object = CM, features = score_genes, name = score_name)
+}
+metadata_CM &lt;- CM@meta.data
+colnames(metadata_CM) &lt;- gsub(&quot;_score1&quot;, &quot;_score&quot;, colnames(metadata_CM))
+CM@meta.data &lt;- metadata_CM
+rm(metadata_CM)</code></pre>
+<pre class="r"><code>plot_list &lt;- lapply(paste0(names(genes_of_interest), &quot;_score&quot;), function(feature) {
+  p &lt;- FeaturePlot(CM, features = feature, order = FALSE)
+  p + scale_color_viridis(discrete = FALSE, option = &quot;turbo&quot;)
+})
+
+CombinePlots(plots = plot_list, ncol = 4)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/FeaturePlot_scores_1-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plot_list &lt;- lapply(paste0(names(genes_of_interest), &quot;_score&quot;), function(feature) {
+  p &lt;- FeaturePlot(CM, features = feature, order = TRUE)
+  p + scale_color_viridis(discrete = FALSE, option = &quot;turbo&quot;)
+})
+
+CombinePlots(plots = plot_list, ncol = 4)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/FeaturePlot_scores_2-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>VlnPlot(CM, features = paste0(names(genes_of_interest), &quot;_score&quot;), ncol = 4, group.by = &quot;cell_state&quot;, pt.size = 0)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/VlnPlot_scores_cell_state-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>CM@meta.data[CM@meta.data$Sample %in% c(&quot;CZD4&quot;, &quot;CZD5&quot;, &quot;CZD6&quot;, &quot;CZD7&quot;), &quot;Condition&quot;] = &quot;HC&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK439&quot;, &quot;PK375&quot;, &quot;PK229&quot;, &quot;P5&quot;, &quot;P8&quot;, &quot;PK153&quot;), &quot;Condition&quot;] = &quot;DCM - Mild PH&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK385&quot;, &quot;PK437&quot;, &quot;PK323&quot;, &quot;PK403&quot;, &quot;PK213&quot;, &quot;PK461&quot;), &quot;Condition&quot;] = &quot;DCM - Moderate PH&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK369&quot;, &quot;PK357&quot;, &quot;PK337&quot;, &quot;PK345&quot;, &quot;PK401&quot;, &quot;PK463&quot;), &quot;Condition&quot;] = &quot;DCM - Severe PH&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;P3&quot;, &quot;PK415&quot;, &quot;PK441&quot;), &quot;Condition&quot;] = &quot;DCM - no mPAP data&quot;
+
+CM$Condition &lt;- factor(CM$Condition, levels = c(&quot;HC&quot;, &quot;DCM - Mild PH&quot;, &quot;DCM - Moderate PH&quot;, &quot;DCM - Severe PH&quot;, &quot;DCM - no mPAP data&quot;))</code></pre>
+<pre class="r"><code>VlnPlot(CM, features = paste0(names(genes_of_interest), &quot;_score&quot;), ncol = 4, group.by = &quot;Condition&quot;, pt.size = 0)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/VlnPlot_scores_Condition-1.png" width="4500" style="display: block; margin: auto;" /></p>
+</div>
+<div id="transcription-factor-inference-analysis"
+class="section level2">
+<h2>Transcription factor inference analysis</h2>
+<pre class="r"><code>net &lt;- get_collectri(organism=&#39;human&#39;, split_complexes=FALSE)
+net</code></pre>
+</div>
+<div id="a-tibble-43178-3" class="section level1">
+<h1>A tibble: 43,178 × 3</h1>
+<p>source target mor <chr> <chr> <dbl> 1 MYC TERT 1 2 SPI1 BGLAP 1 3
+SMAD3 JUN 1 4 SMAD4 JUN 1 5 STAT5A IL2 1 6 STAT5B IL2 1 7 RELA FAS 1 8
+WT1 NR0B1 1 9 NR0B2 CASP1 1 10 SP1 ALDOA 1 # ℹ 43,168 more rows</p>
+<pre class="r"><code>ranked_genes_TF &lt;- ranked_genes %&gt;%
+  dplyr::select(gene, logFC, metric, PValue) %&gt;% 
+  remove_rownames() %&gt;%
+  column_to_rownames(var = &quot;gene&quot;) %&gt;%
+  as.matrix()
+head(ranked_genes_TF)</code></pre>
+<pre><code>           logFC      metric       PValue</code></pre>
+<p>A1CF -4.4846666 -20.7823457 2.322259e-05 A2M -1.6943794 -6.0929917
+2.535118e-04 A2M-AS1 0.2481086 0.1532492 2.411737e-01 A2ML1 -0.4535097
+-0.1800881 4.007756e-01 A2ML1-AS1 -2.5607983 -8.7931153 3.683495e-04
+A4GALT 2.0319539 6.1047409 9.899886e-04</p>
+<pre class="r"><code># Run ulm
+contrast_acts &lt;- run_ulm(mat=ranked_genes_TF[, &#39;metric&#39;, drop=FALSE], net=net, .source=&#39;source&#39;, .target=&#39;target&#39;,
+                  .mor=&#39;mor&#39;, minsize = 5)
+head(contrast_acts)</code></pre>
+</div>
+<div id="a-tibble-6-5" class="section level1">
+<h1>A tibble: 6 × 5</h1>
+<p>statistic source condition score p_value <chr> <chr> <chr> <dbl>
+<dbl> 1 ulm ABL1 metric 1.49 0.137 2 ulm AHR metric 1.06 0.287 3 ulm AIP
+metric 0.893 0.372 4 ulm AIRE metric -0.730 0.465 5 ulm AP1 metric 0.776
+0.438 6 ulm APEX1 metric 0.458 0.647</p>
+<pre class="r"><code>n_tfs &lt;- 40
+
+# Filter top TFs in both signs
+f_contrast_acts &lt;- contrast_acts %&gt;%
+  mutate(rnk = NA)
+msk &lt;- f_contrast_acts$score &gt; 0
+f_contrast_acts[msk, &#39;rnk&#39;] &lt;- rank(-f_contrast_acts[msk, &#39;score&#39;])
+f_contrast_acts[!msk, &#39;rnk&#39;] &lt;- rank(-abs(f_contrast_acts[!msk, &#39;score&#39;]))
+tfs &lt;- f_contrast_acts %&gt;%
+  arrange(rnk) %&gt;%
+  head(n_tfs) %&gt;%
+  pull(source)
+f_contrast_acts &lt;- f_contrast_acts %&gt;%
+  filter(source %in% tfs)
+
+# Plot
+ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) + 
+    geom_bar(aes(fill = score), stat = &quot;identity&quot;) +
+    scale_fill_gradient2(low = &quot;darkblue&quot;, high = &quot;indianred&quot;, 
+        mid = &quot;whitesmoke&quot;, midpoint = 0) + 
+    theme_minimal() +
+    theme(axis.title = element_text(face = &quot;bold&quot;, size = 12),
+        axis.text.x = 
+            element_text(angle = 45, hjust = 1, size =10, face= &quot;bold&quot;),
+        axis.text.y = element_text(size =10, face= &quot;bold&quot;),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+    xlab(&quot;TFs&quot;)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_TF_barplot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot(CM, features = f_contrast_acts$source, ncol = 8)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/FeaturePlot_TF-1.png" width="7200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>contrast_acts_filtered &lt;- contrast_acts %&gt;%
+  filter(source %in% filter(percent_stats, All_Cells &gt; 2)$gene)</code></pre>
+<pre class="r"><code>n_tfs &lt;- 40
+
+# Filter top TFs in both signs
+f_contrast_acts &lt;- contrast_acts_filtered %&gt;%
+  mutate(rnk = NA) %&gt;%
+  filter(p_value &lt; 0.05)
+msk &lt;- f_contrast_acts$score &gt; 0
+f_contrast_acts[msk, &#39;rnk&#39;] &lt;- rank(-f_contrast_acts[msk, &#39;score&#39;])
+f_contrast_acts[!msk, &#39;rnk&#39;] &lt;- rank(-abs(f_contrast_acts[!msk, &#39;score&#39;]))
+tfs &lt;- f_contrast_acts %&gt;%
+  arrange(rnk) %&gt;%
+  head(n_tfs) %&gt;%
+  pull(source)
+f_contrast_acts &lt;- f_contrast_acts %&gt;%
+  filter(source %in% tfs) 
+
+# Plot
+ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) + 
+    geom_bar(aes(fill = score), stat = &quot;identity&quot;) +
+    scale_fill_gradient2(low = &quot;darkblue&quot;, high = &quot;indianred&quot;, 
+        mid = &quot;whitesmoke&quot;, midpoint = 0) + 
+    theme_minimal() +
+    theme(axis.title = element_text(face = &quot;bold&quot;, size = 12),
+        axis.text.x = 
+            element_text(angle = 45, hjust = 1, size =10, face= &quot;bold&quot;),
+        axis.text.y = element_text(size =10, face= &quot;bold&quot;),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+    xlab(&quot;TFs&quot;)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/mPAP_TF_barplot_filtered-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot(CM, features = f_contrast_acts$source, ncol = 7)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/FeaturePlot_TF_filtered-1.png" width="6300" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tf &lt;- &#39;MYOCD&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- ranked_genes_TF[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/TF_MYOCD-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tf &lt;- &#39;HIF1A&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- ranked_genes_TF[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/TF_HIF1A-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tf &lt;- &#39;MEF2A&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- ranked_genes_TF[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/TF_MEF2A-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<p><a href="https://www.nature.com/articles/s41419-023-05665-8"
+class="uri">https://www.nature.com/articles/s41419-023-05665-8</a></p>
+<pre class="r"><code>tf &lt;- &#39;MEF2C&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- ranked_genes_TF[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/TF_MEF2C-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tf &lt;- &#39;NFATC3&#39;
+
+df &lt;- net %&gt;%
+  filter(source == tf) %&gt;%
+  arrange(target) %&gt;%
+  mutate(ID = target, color = &quot;3&quot;) %&gt;%
+  column_to_rownames(&#39;target&#39;)
+
+inter &lt;- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df &lt;- df[inter, ]
+df[,c(&#39;logfc&#39;, &#39;t_value&#39;, &#39;p_value&#39;)] &lt;- ranked_genes_TF[inter, ]
+df &lt;- df %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &gt; 0, &#39;1&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &gt; 0 &amp; t_value &lt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &gt; 0, &#39;2&#39;, color)) %&gt;%
+  mutate(color = if_else(mor &lt; 0 &amp; t_value &lt; 0, &#39;1&#39;, color))
+
+ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
+  geom_point() +
+  scale_colour_manual(values = c(&quot;red&quot;,&quot;royalblue3&quot;,&quot;grey&quot;)) +
+  geom_label_repel(aes(label = ID, size=1)) + 
+  theme_minimal() +
+  theme(legend.position = &quot;none&quot;) +
+  geom_vline(xintercept = 0, linetype = &#39;dotted&#39;) +
+  geom_hline(yintercept = 0, linetype = &#39;dotted&#39;) +
+  ggtitle(tf)</code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/TF_NFATC3-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Run ulm
+sample_acts &lt;- run_ulm(mat=counts_mPAP_HC, net=net, .source=&#39;source&#39;, .target=&#39;target&#39;,
+                  .mor=&#39;mor&#39;, minsize = 5)
+
+# Transform to wide matrix
+sample_acts_mat &lt;- sample_acts %&gt;%
+  pivot_wider(id_cols = &#39;condition&#39;, names_from = &#39;source&#39;,
+              values_from = &#39;score&#39;) %&gt;%
+  column_to_rownames(&#39;condition&#39;) %&gt;%
+  as.matrix()
+
+# Get top tfs with more variable means across clusters
+tfs &lt;- arrange(f_contrast_acts, desc(score))$source
+sample_acts_mat &lt;- sample_acts_mat[,tfs]
+
+# Scale per sample
+sample_acts_mat &lt;- scale(sample_acts_mat)
+sample_acts_mat &lt;- t(sample_acts_mat)
+sample_acts_mat &lt;- sample_acts_mat[, metadata_mPAP_HC$Sample, drop = FALSE]
+
+
+# Choose color palette
+palette_length = 100
+my_color = colorRampPalette(c(&quot;Darkblue&quot;, &quot;white&quot;,&quot;red&quot;))(palette_length)
+
+my_breaks &lt;- c(seq(-3, 0, length.out=ceiling(palette_length/2) + 1),
+               seq(0.05, 3, length.out=floor(palette_length/2)))
+
+# Plot
+pheatmap(sample_acts_mat, 
+         border_color = NA, 
+         color=my_color, 
+         breaks = my_breaks,
+         cluster_rows = F,
+         cluster_cols = F,
+         annotation_col = dplyr::select(metadata_mPAP_HC, -Batch_processing)) </code></pre>
+<p><img src="figure/Cardiomyocytes_DA_DE_26.Rmd/TF_heatmap_Sample-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>saveRDS(CM, 
+        here::here(output_dir_data, &quot;CM.rds&quot;))</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<p>R version 4.3.1 (2023-06-16) Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 22.04.3 LTS</p>
+<p>Matrix products: default BLAS:
+/usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 LAPACK:
+/usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;
+LAPACK version 3.10.0</p>
+<p>locale: [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C<br />
+[3] LC_TIME=en_US.UTF-8 LC_COLLATE=en_US.UTF-8<br />
+[5] LC_MONETARY=en_US.UTF-8 LC_MESSAGES=en_US.UTF-8<br />
+[7] LC_PAPER=en_US.UTF-8 LC_NAME=en_US.UTF-8<br />
+[9] LC_ADDRESS=en_US.UTF-8 LC_TELEPHONE=en_US.UTF-8<br />
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=en_US.UTF-8</p>
+<p>time zone: Etc/UTC tzcode source: system (glibc)</p>
+<p>attached base packages: [1] grid stats4 stats graphics grDevices
+utils datasets [8] methods base</p>
+<p>other attached packages: [1] enrichplot_1.22.0 dorothea_1.14.1<br />
+[3] OmnipathR_3.10.1 decoupleR_2.9.7<br />
+[5] EnhancedVolcano_1.20.0 ggrepel_0.9.5<br />
+[7] speckle_1.2.0 edgeR_4.0.16<br />
+[9] limma_3.58.1 ReactomePA_1.46.0<br />
+[11] AnnotationHub_3.10.0 BiocFileCache_2.10.1<br />
+[13] dbplyr_2.4.0 org.Hs.eg.db_3.18.0<br />
+[15] AnnotationDbi_1.64.1 clusterProfiler_4.10.1<br />
+[17] gprofiler2_0.2.3 harmony_1.2.0<br />
+[19] clustree_0.5.1 ggraph_2.2.1<br />
+[21] rhdf5_2.46.1 Rcpp_1.0.12<br />
+[23] data.table_1.15.2 plyr_1.8.9<br />
+[25] gtable_0.3.4 gtools_3.9.5<br />
+[27] ArchR_1.0.2 statmod_1.5.0<br />
+[29] patchwork_1.2.0 scater_1.30.1<br />
+[31] scuttle_1.12.0 Matrix.utils_0.9.7<br />
+[33] RColorBrewer_1.1-3 scales_1.3.0<br />
+[35] knitr_1.45 gridExtra_2.3<br />
+[37] png_0.1-8 pheatmap_1.0.12<br />
+[39] reshape2_1.4.4 lubridate_1.9.3<br />
+[41] forcats_1.0.0 stringr_1.5.1<br />
+[43] purrr_1.0.2 tidyr_1.3.1<br />
+[45] tibble_3.2.1 tidyverse_2.0.0<br />
+[47] magrittr_2.0.3 ggplot2_3.5.0<br />
+[49] dplyr_1.1.4 scCustomize_2.1.2<br />
+[51] scDblFinder_1.16.0 Matrix_1.6-5<br />
+[53] DropletUtils_1.22.0 SingleCellExperiment_1.24.0 [55]
+SummarizedExperiment_1.32.0 Biobase_2.62.0<br />
+[57] GenomicRanges_1.54.1 GenomeInfoDb_1.38.7<br />
+[59] IRanges_2.36.0 S4Vectors_0.40.2<br />
+[61] BiocGenerics_0.48.1 MatrixGenerics_1.14.0<br />
+[63] matrixStats_1.2.0 SeuratObject_5.0.2<br />
+[65] Seurat_4.4.0 xlsx_0.6.5<br />
+[67] readxl_1.4.3 readr_2.1.5<br />
+[69] here_1.0.1</p>
+<p>loaded via a namespace (and not attached): [1] R.methodsS3_1.8.2
+vroom_1.6.5<br />
+[3] progress_1.2.3 goftest_1.2-3<br />
+[5] Biostrings_2.70.2 HDF5Array_1.30.1<br />
+[7] vctrs_0.6.5 spatstat.random_3.2-3<br />
+[9] digest_0.6.35 shape_1.4.6.1<br />
+[11] git2r_0.33.0 deldir_2.0-4<br />
+[13] parallelly_1.37.1 bcellViper_1.38.0<br />
+[15] MASS_7.3-60.0.1 httpuv_1.6.14<br />
+[17] qvalue_2.34.0 withr_3.0.0<br />
+[19] ggrastr_1.0.2 ggfun_0.1.4<br />
+[21] xfun_0.42 ellipsis_0.3.2<br />
+[23] survival_3.5-8 memoise_2.0.1<br />
+[25] ggbeeswarm_0.7.2 gson_0.1.0<br />
+[27] janitor_2.2.0 tidytree_0.4.6<br />
+[29] zoo_1.8-12 GlobalOptions_0.1.2<br />
+[31] pbapply_1.7-2 R.oo_1.26.0<br />
+[33] prettyunits_1.2.0 rematch2_2.1.2<br />
+[35] KEGGREST_1.42.0 promises_1.2.1<br />
+[37] httr_1.4.7 restfulr_0.0.15<br />
+[39] globals_0.16.3 fitdistrplus_1.1-11<br />
+[41] rhdf5filters_1.14.1 rstudioapi_0.15.0<br />
+[43] miniUI_0.1.1.1 generics_0.1.3<br />
+[45] DOSE_3.28.2 reactome.db_1.86.2<br />
+[47] curl_5.2.1 zlibbioc_1.48.0<br />
+[49] ScaledMatrix_1.10.0 polyclip_1.10-6<br />
+[51] GenomeInfoDbData_1.2.11 SparseArray_1.2.4<br />
+[53] interactiveDisplayBase_1.40.0 xtable_1.8-4<br />
+[55] evaluate_0.23 S4Arrays_1.2.1<br />
+[57] hms_1.1.3 irlba_2.3.5.1<br />
+[59] filelock_1.0.3 colorspace_2.1-0<br />
+[61] ROCR_1.0-11 reticulate_1.35.0<br />
+[63] spatstat.data_3.0-4 lmtest_0.9-40<br />
+[65] snakecase_0.11.1 ggtree_3.10.1<br />
+[67] later_1.3.2 viridis_0.6.5<br />
+[69] lattice_0.22-5 spatstat.geom_3.2-9<br />
+[71] future.apply_1.11.1 shadowtext_0.1.3<br />
+[73] scattermore_1.2 XML_3.99-0.16.1<br />
+[75] cowplot_1.1.3 RcppAnnoy_0.0.22<br />
+[77] pillar_1.9.0 nlme_3.1-164<br />
+[79] compiler_4.3.1 beachmat_2.18.1<br />
+[81] stringi_1.8.3 tensor_1.5<br />
+[83] GenomicAlignments_1.38.2 crayon_1.5.2<br />
+[85] abind_1.4-5 BiocIO_1.12.0<br />
+[87] gridGraphics_0.5-1 locfit_1.5-9.9<br />
+[89] sp_2.1-3 graphlayouts_1.1.1<br />
+[91] bit_4.0.5 fastmatch_1.1-4<br />
+[93] whisker_0.4.1 codetools_0.2-19<br />
+[95] BiocSingular_1.18.0 bslib_0.6.1<br />
+[97] paletteer_1.6.0 plotly_4.10.4<br />
+[99] mime_0.12 splines_4.3.1<br />
+[101] circlize_0.4.16 sparseMatrixStats_1.14.0<br />
+[103] HDO.db_0.99.1 cellranger_1.1.0<br />
+[105] grr_0.9.5 blob_1.2.4<br />
+[107] utf8_1.2.4 BiocVersion_3.18.1<br />
+[109] fs_1.6.3 checkmate_2.3.1<br />
+[111] listenv_0.9.1 DelayedMatrixStats_1.24.0<br />
+[113] logger_0.3.0 ggplotify_0.1.2<br />
+[115] tzdb_0.4.0 tweenr_2.0.3<br />
+[117] pkgconfig_2.0.3 tools_4.3.1<br />
+[119] cachem_1.0.8 RSQLite_2.3.5<br />
+[121] rvest_1.0.4 viridisLite_0.4.2<br />
+[123] DBI_1.2.2 graphite_1.48.0<br />
+[125] fastmap_1.1.1 rmarkdown_2.26<br />
+[127] ica_1.0-3 Rsamtools_2.18.0<br />
+[129] sass_0.4.9 BiocManager_1.30.22<br />
+[131] ggprism_1.0.4 dotCall64_1.1-1<br />
+[133] graph_1.80.0 selectr_0.4-2<br />
+[135] RANN_2.6.1 farver_2.1.1<br />
+[137] scatterpie_0.2.1 tidygraph_1.3.1<br />
+[139] yaml_2.3.8 workflowr_1.7.1<br />
+[141] rtracklayer_1.62.0 cli_3.6.2<br />
+[143] leiden_0.4.3.1 lifecycle_1.0.4<br />
+[145] uwot_0.1.16 backports_1.4.1<br />
+[147] bluster_1.12.0 BiocParallel_1.36.0<br />
+[149] timechange_0.3.0 rjson_0.2.21<br />
+[151] ggridges_0.5.6 progressr_0.14.0<br />
+[153] ape_5.7-1 parallel_4.3.1<br />
+[155] jsonlite_1.8.8 bitops_1.0-7<br />
+[157] bit64_4.0.5 xgboost_1.7.7.1<br />
+[159] Rtsne_0.17 yulab.utils_0.1.4<br />
+[161] spatstat.utils_3.0-4 BiocNeighbors_1.20.2<br />
+[163] highr_0.10 jquerylib_0.1.4<br />
+[165] metapod_1.10.1 GOSemSim_2.28.1<br />
+[167] dqrng_0.3.2 R.utils_2.12.3<br />
+[169] lazyeval_0.2.2 shiny_1.8.0<br />
+[171] htmltools_0.5.8.1 rJava_1.0-11<br />
+[173] GO.db_3.18.0 sctransform_0.4.1<br />
+[175] rappdirs_0.3.3 glue_1.7.0<br />
+[177] spam_2.10-0 XVector_0.42.0<br />
+[179] RCurl_1.98-1.14 treeio_1.26.0<br />
+[181] rprojroot_2.0.4 scran_1.30.2<br />
+[183] igraph_2.0.3 R6_2.5.1<br />
+[185] labeling_0.4.3 xlsxjars_0.6.1<br />
+[187] cluster_2.1.6 Rhdf5lib_1.24.2<br />
+[189] aplot_0.2.2 DelayedArray_0.28.0<br />
+[191] tidyselect_1.2.1 vipor_0.4.7<br />
+[193] xml2_1.3.6 ggforce_0.4.2<br />
+[195] future_1.33.1 rsvd_1.0.5<br />
+[197] munsell_0.5.0 KernSmooth_2.23-22<br />
+[199] htmlwidgets_1.6.4 fgsea_1.28.0<br />
+[201] rlang_1.1.4 spatstat.sparse_3.0-3<br />
+[203] spatstat.explore_3.2-6 ggnewscale_0.4.10<br />
+[205] fansi_1.0.6 beeswarm_0.4.0</p>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
