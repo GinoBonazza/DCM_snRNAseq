@@ -404,10 +404,9 @@ for (i in 1:length(signif)) {
 m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
 m <- m[comb_degree(m) >= 2]
 m <- m[comb_size(m) >= 10]
-upset_plot <- UpSet(m, column_title = "Cardiomyocytes", comb_order = order(comb_size(m)), 
+UpSet(m, column_title = "Cardiomyocytes", comb_order = order(comb_size(m)), 
                     top_annotation = upset_top_annotation(m, add_numbers = TRUE),
                     right_annotation = upset_right_annotation(m, add_numbers = TRUE))
-draw(upset_plot)
 ```
 
 
