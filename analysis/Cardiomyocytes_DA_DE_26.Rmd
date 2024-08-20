@@ -114,7 +114,8 @@ all.equal(metadata$Sample, names(table(CM$Sample)))
 
 reactable(metadata, 
           filterable = TRUE,
-          searchable = TRUE)
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
 
 # Filter for Group == "DCM"
 metadata_DCM <- metadata %>%
@@ -155,7 +156,8 @@ write.csv(differential_abundance, file = here::here(output_dir_data, "CM_Differe
 
 reactable(differential_abundance, 
           filterable = TRUE,
-          searchable = TRUE)
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
 ```
 
 ```{r Speckle_LVEDD_mm, fig.height=4, fig.width=20}
@@ -268,7 +270,8 @@ write.csv(differential_abundance_HC, file = here::here(output_dir_data, "CM_Diff
 
 reactable(differential_abundance_HC, 
           filterable = TRUE,
-          searchable = TRUE)
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
 
 par(mfrow = c(1, 5), mar = c(3, 5, 3, 1))
 for (i in seq(1, 5, 1)) {
@@ -304,7 +307,8 @@ rm(keep_genes)
 
 reactable(percent_stats, 
           filterable = TRUE,
-          searchable = TRUE)
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
 ```
 
 
@@ -551,7 +555,8 @@ genelist <- genelist[order(genelist, decreasing = T)]
 write.csv(ranked_genes, file = here::here(output_dir_data, "CM_ranked_genes.csv"), quote=F, row.names = F)
 reactable(ranked_genes, 
           filterable = TRUE,
-          searchable = TRUE)
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
 ```
 
 ```{r save GSEA_GO_mPAP, eval=FALSE}
@@ -1075,7 +1080,7 @@ pheatmap::pheatmap(sig_counts,
 reactable(top_DEGs_mPAP_cluster1, 
           filterable = TRUE,
           searchable = TRUE,
-          minRows = 20)
+          showPageSizeOptions = TRUE)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_2, fig.width=6.5, fig.height=6.5}
@@ -1106,7 +1111,7 @@ pheatmap::pheatmap(sig_counts,
 reactable(top_DEGs_mPAP_cluster2, 
           filterable = TRUE,
           searchable = TRUE,
-          minRows = 20)
+          showPageSizeOptions = TRUE)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_3, fig.width=6.5, fig.height=6.5}
@@ -1137,7 +1142,7 @@ pheatmap::pheatmap(sig_counts,
 reactable(top_DEGs_mPAP_cluster3, 
           filterable = TRUE,
           searchable = TRUE,
-          minRows = 20)
+          showPageSizeOptions = TRUE)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_4, fig.width=6.5, fig.height=6.5}
@@ -1168,7 +1173,7 @@ pheatmap::pheatmap(sig_counts,
 reactable(top_DEGs_mPAP_cluster4, 
           filterable = TRUE,
           searchable = TRUE,
-          minRows = 20)
+          showPageSizeOptions = TRUE)
 ```
 
 ```{r signif_cluster}
@@ -1178,7 +1183,8 @@ signif_cluster <- signif[["mPAP_mmHg"]] %>%
 write.csv(signif_cluster, file = here::here(output_dir_data, "CM_signif_cluster.csv"), quote=F, row.names = F)
 reactable(signif_cluster, 
           filterable = TRUE,
-          searchable = TRUE)
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
 ```
 
 
