@@ -69,7 +69,7 @@ library(OmnipathR)
 library(dorothea)
 library(enrichplot)
 library(png)
-library(ezRun)
+library(reactable)
 library(UpSetR)
 library(ComplexHeatmap)
 
@@ -112,7 +112,9 @@ rownames(metadata) <- metadata$Sample
 # Check if metadata$Sample matches names(table(CM$Sample))
 all.equal(metadata$Sample, names(table(CM$Sample)))
 
-ezInteractiveTableRmd(metadata)
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE)
 
 # Filter for Group == "DCM"
 metadata_DCM <- metadata %>%
@@ -151,9 +153,9 @@ differential_abundance <- dplyr::arrange(differential_abundance, adj.P.Val)
 
 write.csv(differential_abundance, file = here::here(output_dir_data, "CM_Differential_Abundance.csv"), quote=F, row.names = F)
 
-t <- ezInteractiveTableRmd(differential_abundance)
-t[["x"]][["options"]][["pageLength"]] <- 10
-t
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE)
 ```
 
 ```{r Speckle_LVEDD_mm, fig.height=4, fig.width=20}
@@ -264,7 +266,9 @@ differential_abundance_HC <- propeller.ttest(props, design, contrasts = mycontr,
 
 write.csv(differential_abundance_HC, file = here::here(output_dir_data, "CM_Differential_Abundance_HC.csv"), quote=F, row.names = F)
 
-ezInteractiveTableRmd(differential_abundance_HC)
+reactable(differential_abundance_HC, 
+          filterable = TRUE,
+          searchable = TRUE)
 
 par(mfrow = c(1, 5), mar = c(3, 5, 3, 1))
 for (i in seq(1, 5, 1)) {
@@ -298,9 +302,9 @@ keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
 data <- CM[which(rownames(CM) %in% keep_genes),]
 rm(keep_genes)
 
-t <- ezInteractiveTableRmd(percent_stats)
-t[["x"]][["options"]][["pageLength"]] <- 10
-t
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE)
 ```
 
 
@@ -545,9 +549,9 @@ genelist <- ranked_genes$metric
 names(genelist) <- ranked_genes$ENTREZID
 genelist <- genelist[order(genelist, decreasing = T)]
 write.csv(ranked_genes, file = here::here(output_dir_data, "CM_ranked_genes.csv"), quote=F, row.names = F)
-t <- ezInteractiveTableRmd(ranked_genes)
-t[["x"]][["options"]][["pageLength"]] <- 10
-t
+reactable(ranked_genes, 
+          filterable = TRUE,
+          searchable = TRUE)
 ```
 
 ```{r save GSEA_GO_mPAP, eval=FALSE}
@@ -1068,7 +1072,10 @@ pheatmap::pheatmap(sig_counts,
          show_rownames = T,
          main = "Top cluster 1 DEGs") 
 
-ezInteractiveTableRmd(top_DEGs_mPAP_cluster1)
+reactable(top_DEGs_mPAP_cluster1, 
+          filterable = TRUE,
+          searchable = TRUE,
+          minRows = 20)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_2, fig.width=6.5, fig.height=6.5}
@@ -1096,7 +1103,10 @@ pheatmap::pheatmap(sig_counts,
          show_rownames = T,
          main = "Top cluster 2 DEGs") 
 
-ezInteractiveTableRmd(top_DEGs_mPAP_cluster2)
+reactable(top_DEGs_mPAP_cluster2, 
+          filterable = TRUE,
+          searchable = TRUE,
+          minRows = 20)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_3, fig.width=6.5, fig.height=6.5}
@@ -1124,7 +1134,10 @@ pheatmap::pheatmap(sig_counts,
          show_rownames = T,
          main = "Top cluster 3 DEGs") 
 
-ezInteractiveTableRmd(top_DEGs_mPAP_cluster3)
+reactable(top_DEGs_mPAP_cluster3, 
+          filterable = TRUE,
+          searchable = TRUE,
+          minRows = 20)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_4, fig.width=6.5, fig.height=6.5}
@@ -1152,7 +1165,10 @@ pheatmap::pheatmap(sig_counts,
          show_rownames = T,
          main = "Top cluster 4 DEGs") 
 
-ezInteractiveTableRmd(top_DEGs_mPAP_cluster4)
+reactable(top_DEGs_mPAP_cluster4, 
+          filterable = TRUE,
+          searchable = TRUE,
+          minRows = 20)
 ```
 
 ```{r signif_cluster}
@@ -1160,7 +1176,9 @@ signif_cluster <- signif[["mPAP_mmHg"]] %>%
   left_join(gene_cluster) %>%
   left_join(ranked_genes)
 write.csv(signif_cluster, file = here::here(output_dir_data, "CM_signif_cluster.csv"), quote=F, row.names = F)
-ezInteractiveTableRmd(signif_cluster)
+reactable(signif_cluster, 
+          filterable = TRUE,
+          searchable = TRUE)
 ```
 
 
