@@ -69,7 +69,9 @@ library(OmnipathR)
 library(dorothea)
 library(enrichplot)
 library(png)
-
+library(ezRun)
+library(UpSetR)
+library(ComplexHeatmap)
 
 #Output paths
 output_dir_data <- here::here("output", current_file)
@@ -110,13 +112,11 @@ rownames(metadata) <- metadata$Sample
 # Check if metadata$Sample matches names(table(CM$Sample))
 all.equal(metadata$Sample, names(table(CM$Sample)))
 
-head(metadata)
+ezInteractiveTableRmd(metadata)
 
 # Filter for Group == "DCM"
 metadata_DCM <- metadata %>%
   dplyr::filter(Group == "DCM")
-
-head(metadata_DCM)
 ```
 
 ```{r Speckle_all}
@@ -149,7 +149,11 @@ rm(metadata_subset, props_subset, design, fit, differential_abundance_temp)
 rownames(differential_abundance) <- NULL
 differential_abundance <- dplyr::arrange(differential_abundance, adj.P.Val)
 
-head(differential_abundance, 10)
+write.csv(differential_abundance, file = here::here(output_dir_data, "CM_Differential_Abundance.csv"), quote=F, row.names = F)
+
+t <- ezInteractiveTableRmd(differential_abundance)
+t[["x"]][["options"]][["pageLength"]] <- 10
+t
 ```
 
 ```{r Speckle_LVEDD_mm, fig.height=4, fig.width=20}
@@ -276,19 +280,41 @@ rm(design, mycontr)
 
 Remove genes expressed in <1% of cells and MT and RP genes
 
-```{r percent_stats}
+```{r save percent_stats, eval=FALSE}
 percent_stats <- Percent_Expressing(seurat_object = CM, features = rownames(CM), assay = "RNA", entire_object = TRUE)
+percent_stats <- percent_stats %>%
+  dplyr::rename(percentCells = All_Cells)
 percent_stats$gene <- rownames(percent_stats)
-keep_genes <- rownames(dplyr::filter(percent_stats, All_Cells > 1))
+
+write.csv(percent_stats, file = here::here(output_dir_data, "CM_percent_stats.csv"), quote=F, row.names = T)
+```
+```{r percent_stats}
+percent_stats <- read.csv(here::here(output_dir_data, "CM_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
 data <- CM[which(rownames(CM) %in% keep_genes),]
 rm(keep_genes)
+
+t <- ezInteractiveTableRmd(percent_stats)
+t[["x"]][["options"]][["pageLength"]] <- 10
+t
 ```
+
 
 Create and prepare pseudobulk object for differential expression analysis
 
 ```{r pseudocounts}
 pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
 colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r save CM_pseudocounts, eval=FALSE}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "CM_pseudocounts.rds"))
+```
+
+```{r filter pseudocounts}
 keep_samples <- pseudocounts$samples$lib.size > 5e4
 pseudocounts <- pseudocounts[, keep_samples]
 keep_genes <- filterByExpr(pseudocounts)
@@ -323,15 +349,15 @@ for (i in 6:(length(metadata_DCM))) {
   fit <- glmQLFTest(fit, coef = 2)
   
   results[[i-5]] <- topTags(fit, n = Inf)$table
-  results[[i-5]] <- merge(results[[i-5]], percent_stats[, c("gene", "All_Cells")], by = "gene", all.x = FALSE)
+  results[[i-5]] <- merge(results[[i-5]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
   signif[[i-5]] <- results[[i-5]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
     dplyr::arrange(FDR)
 
   names(results)[i-5] <- colnames(metadata_subset[i])
   names(signif)[i-5] <- colnames(metadata_subset[i])
   
-  write.csv(results[[i-5]], file = here::here(output_dir_data, paste0("CM_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
-  write.csv(signif[[i-5]], file = here::here(output_dir_data, paste0("CM_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(results[[i-5]], file = here::here(output_dir_data, paste0("CM_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-5]], file = here::here(output_dir_data, paste0("CM_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
   
   n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
                                 n_upregulated = sum(signif[[i-5]]$logFC > 0.5),
@@ -369,6 +395,21 @@ print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] 
   (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
 ```
 
+```{r UpSet plot DE, fig.height=5, fig.width=9}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- signif[[i]]$gene
+  names(gene_sets)[i] <- names(signif)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+upset_plot <- UpSet(m, column_title = "Cardiomyocytes", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+draw(upset_plot)
+```
+
 
 ## Over-representation analysis
 
@@ -378,11 +419,11 @@ gene_counts <- rowSums(CM@assays$RNA@counts > 0)
 
 # Filter genes to include only those expressed in at least 3 cells
 universe_genes <- names(gene_counts[gene_counts >= 3])
-write.csv(as.data.frame(universe_genes), here::here(output_dir_data, "CM_universe_genes.csv"))
+write.csv(as.data.frame(universe_genes), here::here(output_dir_data, "CM_universe_genes.csv"), quote=F, row.names = F)
 
 # Convert universe gene symbols to Entrez IDs
 universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
-write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, "CM_universe_entrez.csv"))
+write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, "CM_universe_entrez.csv"), quote=F, row.names = F)
 
 rm(gene_counts)
 ```
@@ -394,21 +435,30 @@ down_genes <- filter(signif[["mPAP_mmHg"]], logFC < -0.5)$gene
 down_genes <- bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
 ```
 
-```{r mPAP_GO, fig.height=8, fig.width=12}
+```{r reorder_GO_by_pvalue}
 reorder_GO_by_pvalue <- function(enrichGO_result) {
   go_results <- enrichGO_result@result
   go_results_sorted <- go_results[order(go_results$p.adjust), ]
   enrichGO_result@result <- go_results_sorted
   return(enrichGO_result)
 }
+```
+
+```{r save ORA_GO_mPAP, eval=FALSE}
 mPAP_GO_up <- enrichGO(up_genes, OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
 mPAP_GO_up <- gsfilter(mPAP_GO_up, by = 'Count', min = 3)
 mPAP_GO_up <- reorder_GO_by_pvalue(mPAP_GO_up)
+saveRDS(mPAP_GO_up, here::here(output_dir_data, "CM_ORA_GO_mPAP_up.rds"))
 
 mPAP_GO_down <- enrichGO(down_genes, OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
 mPAP_GO_down <- gsfilter(mPAP_GO_down, by = 'Count', min = 3)
 mPAP_GO_down <- reorder_GO_by_pvalue(mPAP_GO_down)
+saveRDS(mPAP_GO_down, here::here(output_dir_data, "CM_ORA_GO_mPAP_down.rds"))
+```
 
+```{r ORA_GO_mPAP, fig.height=8, fig.width=12}
+mPAP_GO_up <- readRDS(here::here(output_dir_data, "CM_ORA_GO_mPAP_up.rds"))
+mPAP_GO_down <- readRDS(here::here(output_dir_data, "CM_ORA_GO_mPAP_down.rds"))
 p1 <- dotplot(mPAP_GO_up, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
   theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
         axis.text.y = element_text(face = "bold"))
@@ -418,7 +468,7 @@ p2 <- dotplot(mPAP_GO_down, showCategory = 10, title = paste0("GO - Over-represe
 print(p1|p2)
 ```
 
-```{r mPAP_GO_simplified, fig.height=8, fig.width=12}
+```{r ORA_GO_mPAP_simplified, fig.height=8, fig.width=12}
 mPAP_GO_simplified_up <- simplify(
   mPAP_GO_up,
   cutoff = 0.75,
@@ -444,22 +494,32 @@ p2 <- dotplot(mPAP_GO_simplified_down, showCategory = 10, title = paste0("GO - O
 print(p1 | p2)
 ```
 
-```{r mPAP_KEGG, fig.height=8, fig.width=6}
+```{r save ORA_KEGG_mPAP, eval=FALSE}
 mPAP_KEGG_up <- enrichKEGG(up_genes, organism = 'hsa', universe = universe_entrez)
 mPAP_KEGG_up <- gsfilter(mPAP_KEGG_up, by = 'Count', min = 3)
+saveRDS(mPAP_KEGG_up, here::here(output_dir_data, "CM_ORA_KEGG_mPAP_up.rds"))
 mPAP_KEGG_down <- enrichKEGG(down_genes,  organism = 'hsa', universe = universe_entrez)
 mPAP_KEGG_down <- gsfilter(mPAP_KEGG_down, by = 'Count', min = 3)
+```
+
+```{r ORA_KEGG_mPAP, fig.height=8, fig.width=6}
+mPAP_KEGG_up <- readRDS(here::here(output_dir_data, "CM_ORA_KEGG_mPAP_up.rds"))
 p1 <- dotplot(mPAP_KEGG_up, showCategory = 10, title = paste0("KEGG Pathways", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
   theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
         axis.text.y = element_text(face = "bold"))
 print(p1)
 ```
 
-```{r mPAP_REACTOME, fig.height=8, fig.width=6}
+```{r save ORA_REACTOME_mPAP, eval=FALSE}
 mPAP_REACTOME_up <- enrichPathway(up_genes, organism = 'human', universe = universe_entrez, readable = TRUE, pvalueCutoff = 0.1)
 mPAP_REACTOME_up <- gsfilter(mPAP_REACTOME_up, by = 'Count', min = 3)
+saveRDS(mPAP_REACTOME_up, here::here(output_dir_data, "CM_ORA_REACTOME_mPAP_up.rds"))
 mPAP_REACTOME_down <- enrichPathway(down_genes, organism = 'human', universe = universe_entrez, readable = TRUE, pvalueCutoff = 0.1)
 mPAP_REACTOME_down <- gsfilter(mPAP_REACTOME_down, by = 'Count', min = 3)
+```
+
+```{r ORA_REACTOME_mPAP, fig.height=8, fig.width=6}
+mPAP_REACTOME_up <- readRDS(here::here(output_dir_data, "CM_ORA_REACTOME_mPAP_up.rds"))
 p1 <- dotplot(mPAP_REACTOME_up, showCategory = 10, title = paste0("REACTOME", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
   theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
         axis.text.y = element_text(face = "bold"))
@@ -482,9 +542,13 @@ ranked_genes <- ranked_genes[!duplicated(ranked_genes$metric), ]
 genelist <- ranked_genes$metric
 names(genelist) <- ranked_genes$ENTREZID
 genelist <- genelist[order(genelist, decreasing = T)]
+write.csv(ranked_genes, file = here::here(output_dir_data, "CM_ranked_genes.csv"), quote=F, row.names = F)
+t <- ezInteractiveTableRmd(ranked_genes)
+t[["x"]][["options"]][["pageLength"]] <- 10
+t
 ```
 
-```{r gseaGO_all}
+```{r save GSEA_GO_mPAP, eval=FALSE}
 gseaGO_all <- gseGO(geneList = genelist,
                 OrgDb = org.Hs.eg.db,
                 ont = "ALL",
@@ -492,9 +556,12 @@ gseaGO_all <- gseGO(geneList = genelist,
                 nPermSimple = 1000000,
                 minGSSize = 10)
 gseaGO_all <- reorder_GO_by_pvalue(gseaGO_all)
+
+saveRDS(gseaGO_all, here::here(output_dir_data, "CM_GSEA_GO_mPAP.rds"))
 ```
 
-```{r mPAP_gseaGO_all_simplified, fig.height=8, fig.width=8}
+```{r GSEA_GO_mPAP_simplified, fig.height=8, fig.width=8}
+gseaGO_all <- readRDS(here::here(output_dir_data, "CM_GSEA_GO_mPAP.rds"))
 gseaGO_all_simplified <- simplify(
   gseaGO_all,
   cutoff = 0.75,
@@ -511,7 +578,7 @@ p1 <- dotplot(gseaGO_all_simplified, showCategory = 10, split=".sign", title = p
 print(p1)
 ```
 
-```{r mPAP_gseaGO_emapplot, fig.height=10, fig.width=20}
+```{r GSEA_GO_mPAP_emapplot, fig.height=10, fig.width=20}
 classify_terms <- function(df) {
   df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
   return(df)
@@ -545,19 +612,21 @@ combined_plot <- p1 | p2
 print(combined_plot)
 ```
 
-```{r mPAP_gseaGO_BP_ridgeplot, fig.height=8, fig.width=12}
+```{r GSEA_GO_mPAP_ridgeplot, fig.height=8, fig.width=12}
 p1 <- ridgeplot(gseaGO_all_simplified, showCategory = 20) + labs(x = "enrichment distribution")
 print(p1)
 ```
 
-```{r gseKEGG}
+```{r save GSEA_KEGG_mPAP, eval=FALSE}
 gseaKEGG <- gseKEGG(geneList = genelist,
                 organism = "hsa",
                 keyType = "kegg",
                 nPermSimple = 100000)
+saveRDS(gseaKEGG, here::here(output_dir_data, "CM_GSEA_KEGG_mPAP.rds"))
 ```
 
-```{r gseaKEGG, fig.height=8, fig.width=8}
+```{r GSEA_KEGG_mPAP, fig.height=8, fig.width=8}
+gseaKEGG <- readRDS(here::here(output_dir_data, "CM_GSEA_KEGG_mPAP.rds"))
 p1 <- dotplot(gseaKEGG, showCategory = 10, split=".sign", title = paste0("GSEA\nKEGG Pathways", "\n mPAP-associated genes"), label_format = 30, font.size = 15) +
   theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
         axis.text.y = element_text(face = "bold"),
@@ -566,7 +635,7 @@ p1 <- dotplot(gseaKEGG, showCategory = 10, split=".sign", title = paste0("GSEA\n
 print(p1)
 ```
 
-```{r mPAP_gseaKEGG_emapplot, fig.height=6, fig.width=15}
+```{r GSEA_KEGG_mPAP_emapplot, fig.height=6, fig.width=15}
 gseaKEGG@result <- classify_terms(gseaKEGG@result)
 # Split the GSEA results
 activated_terms <- subset(gseaKEGG@result, sign == "activated")
@@ -594,7 +663,7 @@ combined_plot <- p1 | p2
 print(combined_plot)
 ```
 
-```{r mPAP_gseaKEGG_ridgeplot, fig.height=8, fig.width=12}
+```{r GSEA_KEGG_mPAP_ridgeplot, fig.height=8, fig.width=12}
 p1 <- ridgeplot(gseaKEGG, showCategory = 20) + labs(x = "enrichment distribution")
 print(p1)
 ```
@@ -603,6 +672,7 @@ print(p1)
 gseaGO_all_activated_df <- setReadable(gseaGO_all_activated, OrgDb = org.Hs.eg.db)
 gseaGO_all_activated_df <- gseaGO_all_activated_df@result
 ```
+
 
 ## Heatmaps
 
@@ -627,7 +697,7 @@ sig_counts <- counts_mPAP[rownames(counts_mPAP) %in% DEGs_mPAP$gene, ]
 sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 
 ## Run pheatmap using the metadata data frame for the annotation
-pheatmap(sig_counts, 
+pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
          cluster_rows = TRUE, 
          show_rownames = FALSE,
@@ -646,7 +716,7 @@ metadata_heatmap <- metadata_mPAP %>% dplyr::select(Sample, mPAP_mmHg, Batch_pro
 
 DEGs_mPAP_top <- DEGs_mPAP
 DEGs_mPAP_top <- DEGs_mPAP_top %>% 
-  dplyr::filter(All_Cells > 5) 
+  dplyr::filter(percentCells > 5) 
 DEGs_mPAP_top_up <- DEGs_mPAP_top %>% 
   dplyr::filter(logFC > 2) %>% 
   dplyr::arrange(FDR)
@@ -661,7 +731,7 @@ sig_counts <- counts_mPAP[rownames(counts_mPAP) %in% DEGs_mPAP_top$gene, ]
 sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 
 ## Run pheatmap using the metadata data frame for the annotation
-pheatmap(sig_counts, 
+pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
          cluster_rows = TRUE, 
          annotation_col = metadata_heatmap, 
@@ -692,7 +762,7 @@ sig_counts <- counts_mPAP_HC[rownames(counts_mPAP_HC) %in% DEGs_mPAP$gene, ]
 sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 
 ## Run pheatmap using the metadata data frame for the annotation
-pheatmap(sig_counts, 
+pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
          cluster_rows = TRUE, 
          show_rownames = FALSE,
@@ -724,7 +794,7 @@ sig_counts <- counts_mPAP_HC[rownames(counts_mPAP_HC) %in% DEGs_mPAP_top$gene, ]
 sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 
 ## Run pheatmap using the metadata data frame for the annotation
-pheatmap(sig_counts, 
+pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
          cluster_rows = TRUE, 
          annotation_col = metadata_heatmap, 
@@ -850,19 +920,22 @@ DEGs_clusters_entrez[["cluster3"]] <- bitr(DEGs_clusters[["cluster3"]], fromType
 DEGs_clusters_entrez[["cluster4"]] <- bitr(DEGs_clusters[["cluster4"]], fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
 ```
 
-```{r cluster1_GO, fig.height=8, fig.width=6, eval=FALSE}
+```{r save cluster1_ORA, eval=FALSE}
 cluster1_GO <- enrichGO(DEGs_clusters_entrez[["cluster1"]], OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
 cluster1_GO <- gsfilter(cluster1_GO, by = 'Count', min = 3)
+nrow(cluster1_GO)
 ```
 
-```{r cluster2_GO, fig.height=8, fig.width=6, eval=FALSE}
+```{r save cluster2_ORA, eval=FALSE}
 cluster2_GO <- enrichGO(DEGs_clusters_entrez[["cluster2"]], OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
 cluster2_GO <- gsfilter(cluster2_GO, by = 'Count', min = 3)
+nrow(cluster2_GO)
 ```
 
-```{r cluster3_GO, fig.height=8, fig.width=6}
+```{r save cluster3_ORA, eval=FALSE}
 cluster3_GO <- enrichGO(DEGs_clusters_entrez[["cluster3"]], OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
 cluster3_GO <- gsfilter(cluster3_GO, by = 'Count', min = 10)
+nrow(cluster3_GO)
 cluster3_GO <- simplify(
   cluster3_GO,
   cutoff = 0.7,
@@ -872,8 +945,11 @@ cluster3_GO <- simplify(
   semData = NULL
 )
 cluster3_GO <- reorder_GO_by_pvalue(cluster3_GO)
+saveRDS(cluster3_GO, here::here(output_dir_data, "CM_cluster3_ORA.rds"))
+```
 
-# Plot the sorted results
+```{r cluster3_ORA, fig.height=8, fig.width=6}
+cluster3_GO <- readRDS(here::here(output_dir_data, "CM_cluster3_ORA.rds"))
 dotplot(cluster3_GO, 
         showCategory = 15, 
         title = paste0("GO - Over-representation analysis", "\nDEGs cluster 3"), 
@@ -883,9 +959,10 @@ dotplot(cluster3_GO,
         axis.text.y = element_text(face = "bold"))
 ```
 
-```{r cluster4_GO, fig.height=8, fig.width=6}
+```{r save cluster4_ORA, eval=FALSE}
 cluster4_GO <- enrichGO(DEGs_clusters_entrez[["cluster4"]], OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
 cluster4_GO <- gsfilter(cluster4_GO, by = 'Count', min = 10)
+nrow(cluster4_GO)
 cluster4_GO <- simplify(
   cluster4_GO,
   cutoff = 0.7,
@@ -895,8 +972,11 @@ cluster4_GO <- simplify(
   semData = NULL
 )
 cluster4_GO <- reorder_GO_by_pvalue(cluster4_GO)
+saveRDS(cluster4_GO, here::here(output_dir_data, "CM_cluster4_ORA.rds"))
+```
 
-# Plot the sorted results
+```{r cluster4_ORA, fig.height=8, fig.width=6}
+cluster4_GO <- readRDS(here::here(output_dir_data, "CM_cluster4_ORA.rds"))
 dotplot(cluster4_GO, 
         showCategory = 15, 
         title = paste0("GO - Over-representation analysis", "\nDEGs cluster 4"), 
@@ -906,6 +986,24 @@ dotplot(cluster4_GO,
         axis.text.y = element_text(face = "bold"))
 ```
 
+```{r clusters_ORA_emapplot, fig.height=8, fig.width=18}
+cluster3_GO <- pairwise_termsim(cluster3_GO)
+cluster4_GO <- pairwise_termsim(cluster4_GO)
+
+p1 <- emapplot(cluster3_GO, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("DEGs cluster 3") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 <- emapplot(cluster4_GO, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("DEGs cluster 4") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
 
 ## Top genes
 
@@ -913,7 +1011,7 @@ dotplot(cluster4_GO,
 DEGs_mPAP_cluster1 <- DEGs_mPAP %>% 
   filter(gene %in% DEGs_clusters[["cluster1"]])
 top_DEGs_mPAP_cluster1 <- DEGs_mPAP_cluster1 %>% 
-  filter(All_Cells > 5) %>%
+  filter(percentCells > 5) %>%
   filter(FDR < 0.01) %>%
   arrange(logFC) %>%
   head(20)
@@ -921,7 +1019,7 @@ top_DEGs_mPAP_cluster1 <- DEGs_mPAP_cluster1 %>%
 DEGs_mPAP_cluster2 <- DEGs_mPAP %>% 
   filter(gene %in% DEGs_clusters[["cluster2"]])
 top_DEGs_mPAP_cluster2 <- DEGs_mPAP_cluster2 %>% 
-  filter(All_Cells > 5) %>%
+  filter(percentCells > 5) %>%
   filter(FDR < 0.01) %>%
   arrange(logFC) %>%
   head(20)
@@ -929,7 +1027,7 @@ top_DEGs_mPAP_cluster2 <- DEGs_mPAP_cluster2 %>%
 DEGs_mPAP_cluster3 <- DEGs_mPAP %>% 
   filter(gene %in% DEGs_clusters[["cluster3"]])
 top_DEGs_mPAP_cluster3 <- DEGs_mPAP_cluster3 %>% 
-  filter(All_Cells > 5) %>%
+  filter(percentCells > 5) %>%
   filter(FDR < 0.01) %>%
   arrange(desc(logFC)) %>%
   head(20)
@@ -937,7 +1035,7 @@ top_DEGs_mPAP_cluster3 <- DEGs_mPAP_cluster3 %>%
 DEGs_mPAP_cluster4 <- DEGs_mPAP %>% 
   filter(gene %in% DEGs_clusters[["cluster4"]])
 top_DEGs_mPAP_cluster4 <- DEGs_mPAP_cluster4 %>% 
-  filter(All_Cells > 5) %>%
+  filter(percentCells > 5) %>%
   filter(FDR < 0.01) %>%
   arrange(desc(logFC)) %>%
   head(20)
@@ -955,7 +1053,7 @@ sig_counts <- counts_mPAP_HC[top_DEGs_mPAP_cluster1$gene, ]
 sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 
 ## Run pheatmap using the metadata data frame for the annotation
-pheatmap(sig_counts, 
+pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
          cluster_rows = F, 
          annotation_col = metadata_heatmap, 
@@ -968,7 +1066,7 @@ pheatmap(sig_counts,
          show_rownames = T,
          main = "Top cluster 1 DEGs") 
 
-print(top_DEGs_mPAP_cluster1)
+ezInteractiveTableRmd(top_DEGs_mPAP_cluster1)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_2, fig.width=6.5, fig.height=6.5}
@@ -983,7 +1081,7 @@ sig_counts <- counts_mPAP_HC[top_DEGs_mPAP_cluster2$gene, ]
 sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 
 ## Run pheatmap using the metadata data frame for the annotation
-pheatmap(sig_counts, 
+pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
          cluster_rows = F, 
          annotation_col = metadata_heatmap, 
@@ -996,7 +1094,7 @@ pheatmap(sig_counts,
          show_rownames = T,
          main = "Top cluster 2 DEGs") 
 
-print(top_DEGs_mPAP_cluster2)
+ezInteractiveTableRmd(top_DEGs_mPAP_cluster2)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_3, fig.width=6.5, fig.height=6.5}
@@ -1011,7 +1109,7 @@ sig_counts <- counts_mPAP_HC[top_DEGs_mPAP_cluster3$gene, ]
 sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 
 ## Run pheatmap using the metadata data frame for the annotation
-pheatmap(sig_counts, 
+pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
          cluster_rows = F, 
          annotation_col = metadata_heatmap, 
@@ -1024,7 +1122,7 @@ pheatmap(sig_counts,
          show_rownames = T,
          main = "Top cluster 3 DEGs") 
 
-print(top_DEGs_mPAP_cluster3)
+ezInteractiveTableRmd(top_DEGs_mPAP_cluster3)
 ```
 
 ```{r Heatmap_DEGs_mPAP_cluster_4, fig.width=6.5, fig.height=6.5}
@@ -1039,7 +1137,7 @@ sig_counts <- counts_mPAP_HC[top_DEGs_mPAP_cluster4$gene, ]
 sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 
 ## Run pheatmap using the metadata data frame for the annotation
-pheatmap(sig_counts, 
+pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
          cluster_rows = F, 
          annotation_col = metadata_heatmap, 
@@ -1052,8 +1150,17 @@ pheatmap(sig_counts,
          show_rownames = T,
          main = "Top cluster 4 DEGs") 
 
-print(top_DEGs_mPAP_cluster4)
+ezInteractiveTableRmd(top_DEGs_mPAP_cluster4)
 ```
+
+```{r signif_cluster}
+signif_cluster <- signif[["mPAP_mmHg"]] %>%
+  left_join(gene_cluster) %>%
+  left_join(ranked_genes)
+write.csv(signif_cluster, file = here::here(output_dir_data, "CM_signif_cluster.csv"), quote=F, row.names = F)
+ezInteractiveTableRmd(signif_cluster)
+```
+
 
 ## Scores
 
@@ -1073,6 +1180,7 @@ get_unique_genes <- function(df, terms) {
 
 genes_of_interest <- lapply(terms, get_unique_genes, df = gseaGO_all_activated_df)
 names(genes_of_interest) <- names(terms)
+saveRDS(genes_of_interest, here::here(output_dir_data, "CM_genes_of_interest.rds"))
 ```
 
 ```{r AddModuleScore}
@@ -1182,9 +1290,10 @@ ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) +
 ```{r FeaturePlot_TF, fig.width=24, fig.height=15}
 FeaturePlot(CM, features = f_contrast_acts$source, ncol = 8)
 ```
+
 ```{r contrast_acts_filtered}
 contrast_acts_filtered <- contrast_acts %>%
-  filter(source %in% filter(percent_stats, All_Cells > 2)$gene)
+  filter(source %in% filter(percent_stats, percentCells > 5)$gene)
 ```
 
 ```{r mPAP_TF_barplot_filtered, fig.height=5, fig.width=8}
@@ -1219,8 +1328,8 @@ ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) +
     xlab("TFs")
 ```
 
-```{r FeaturePlot_TF_filtered, fig.width=21, fig.height=12}
-FeaturePlot(CM, features = f_contrast_acts$source, ncol = 7)
+```{r FeaturePlot_TF_filtered, fig.width=18, fig.height=12}
+FeaturePlot(CM, features = f_contrast_acts$source, ncol = 6)
 ```
 
 ```{r TF_MYOCD, fig.height=6, fig.width=9}
@@ -1252,8 +1361,8 @@ ggplot(df, aes(x = logfc, y = -log10(p_value), color = color, size=abs(mor))) +
   ggtitle(tf)
 ```
 
-```{r TF_HIF1A, fig.height=6, fig.width=9}
-tf <- 'HIF1A'
+```{r TF_SRF, fig.height=6, fig.width=9}
+tf <- 'SRF'
 
 df <- net %>%
   filter(source == tf) %>%
@@ -1400,7 +1509,7 @@ my_breaks <- c(seq(-3, 0, length.out=ceiling(palette_length/2) + 1),
                seq(0.05, 3, length.out=floor(palette_length/2)))
 
 # Plot
-pheatmap(sample_acts_mat, 
+pheatmap::pheatmap(sample_acts_mat, 
          border_color = NA, 
          color=my_color, 
          breaks = my_breaks,
