@@ -1,0 +1,611 @@
+---
+title: "Differential expression analysis of LV Cardiomyocytes from Reichart et al (Science 2022)"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Reichart_DE_DCMvsHC"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+## DE Reichart DCM vs HC
+
+Load dataset
+
+```{r Load}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/DCM_ACM_heart_cell_atlas.rds")
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+
+Idents(Reichart) <- Reichart$cell_type
+write.csv(Reichart_gene_names, file = here::here(output_dir_data, "CM_Reichart_gene_names.csv"), quote=F, row.names = F)
+```
+
+Explore the dataset
+
+```{r Metadata Reichart}
+reactable(head(Reichart@meta.data), 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r UMAP_Reichart, fig.width=6.5, fig.height=6}
+table(Reichart$cell_type)
+p <- DimPlot(Reichart, group.by = "cell_type", reduction = "umap", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p, id = "cell_type", fontface = "bold", size = 5, repel = T)
+```
+
+Subset cells of interest: LV cardiomyocytes from DCM and HC 
+
+```{r subset CM_Reichart}
+table(Reichart$disease)
+table(Reichart$Region_x)
+CM_Reichart <- subset(Reichart, cell_type == "cardiac muscle cell" & disease %in% c("dilated cardiomyopathy", "normal") & Region_x == "LV")
+table(CM_Reichart$cell_type, CM_Reichart$disease)
+table(CM_Reichart$Sample)
+sum(table(CM_Reichart$Sample) > 0)
+table(CM_Reichart$Sample, CM_Reichart$donor_id)
+```
+
+```{r UMAP_CM_Reichart, fig.width=7, fig.height=5}
+DimPlot(CM_Reichart, group.by = c("disease"), reduction = "umap", label = F, shuffle = TRUE) + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+```
+
+Prepare matadata for differential expression testing
+
+```{r DE metadata}
+metadata <- CM_Reichart@meta.data %>%
+  dplyr::select(donor_id, Primary.Genetic.Diagnosis, disease, sex) %>%
+  unique()
+
+rownames(metadata) <- metadata$donor_id
+table(CM_Reichart$donor_id)[table(CM_Reichart$donor_id) > 0]
+# Check if metadata$Sample matches names(table(CM$Sample))
+all.equal(rownames(metadata), names(table(CM_Reichart$donor_id)[table(CM_Reichart$donor_id) > 0]))
+
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Remove genes expressed in <1% of cells
+
+```{r save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = CM_Reichart, assay = "RNA", slot = "counts")
+
+# Calculate the number of cells where each gene is expressed (non-zero counts)
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+# Calculate the total number of cells
+total_cells <- ncol(expr_matrix)
+
+# Calculate the percentage of cells expressing each gene
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+# Create a dataframe to store the results
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+write.csv(percent_stats, file = here::here(output_dir_data, "CM_Reichart_percent_stats.csv"), quote=F, row.names = F)
+```
+
+```{r percent_stats}
+percent_stats <- read.csv(here::here(output_dir_data, "CM_Reichart_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- CM_Reichart[which(rownames(CM_Reichart) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(metadata$donor_id, pseudocounts$samples$sample)]
+all(metadata$donor_id == pseudocounts$samples$sample)
+```
+
+```{r save CM_pseudocounts, eval=FALSE}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "CM_Reichart_pseudocounts.rds"))
+```
+
+```{r filter pseudocounts}
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+DE analysis
+
+```{r DE}
+metadata$disease <- factor(metadata$disease, levels = c("normal", "dilated cardiomyopathy"))
+design<- model.matrix(~ disease, data = metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Reichart <- topTags(fit, n = Inf)$table
+results_Reichart <- merge(results_Reichart, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Reichart <- results_Reichart %>%
+  dplyr::select(-feature_biotype, -feature_is_filtered, -feature_name, -feature_reference, -feature_length)
+results_Reichart$up_down <- ifelse(
+  results_Reichart$logFC > 0.5 & results_Reichart$FDR < 0.05, "Increased",
+  ifelse(results_Reichart$logFC < -0.5 & results_Reichart$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_Reichart <- results_Reichart %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_Reichart, file = here::here(output_dir_data, "CM_Reichart_DE_Results.csv"), quote=F, row.names = F)
+write.csv(signif_Reichart, file = here::here(output_dir_data, "CM_Reichart_DE_Significant.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_up_down, fig.height=8, fig.width=6}
+keyvals <- rep("grey", nrow(results_Reichart))
+names(keyvals) <- rep("Not significant", nrow(results_Reichart))
+
+keyvals[results_Reichart$up_down == "Increased"] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[results_Reichart$up_down == "Decreased"] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_Reichart,
+                lab = results_Reichart$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 14,
+                titleLabSize = 16,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 1,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 16),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "Differential expression in LV Cardiomyocytes\nfrom Reichart et al (Science 2022)\nDCM (n = 52) vs HC (n = 18)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r GSEA, eval=FALSE}
+gene_counts <- rowSums(CM_Reichart@assays$RNA@counts > 0)
+universe_genes <- names(gene_counts[gene_counts >= 3])
+write.csv(as.data.frame(universe_genes), here::here(output_dir_data, "CM_Reichart_universe_genes.csv"), quote=F, row.names = F)
+universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, "CM_Reichart_universe_entrez.csv"), quote=F, row.names = F)
+rm(gene_counts)
+
+up_genes <- filter(signif_Reichart, logFC > 0.5)$gene
+up_genes <- bitr(up_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+down_genes <- filter(signif_Reichart, logFC < -0.5)$gene
+down_genes <- bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+
+ranked_genes <- results_Reichart
+ranked_genes$metric <- ranked_genes$logFC*-log10(ranked_genes$PValue)
+entrezid <- bitr(ranked_genes$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+ranked_genes <- merge(ranked_genes, entrezid, by.x = "gene", by.y = "SYMBOL")
+ranked_genes <- ranked_genes[!duplicated(ranked_genes$metric), ]
+write.csv(ranked_genes, file = here::here(output_dir_data, "CM_Reichart_ranked_genes.csv"), quote=F, row.names = F)
+
+genelist <- ranked_genes$metric
+names(genelist) <- ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+
+GSEA <- gseGO(geneList = genelist,
+              OrgDb = org.Hs.eg.db,
+              ont = "ALL",
+              keyType = "ENTREZID",
+              nPermSimple = 100000,
+              minGSSize = 10,
+              eps = 0)
+GSEA <- reorder_GO_by_pvalue(GSEA)
+
+rm(universe_genes, universe_entrez, up_genes, down_genes, genelist)
+
+saveRDS(GSEA, here::here(output_dir_data, "CM_Reichart_GSEA.rds"))
+```
+
+```{r load GSEA}
+GSEA <- readRDS(here::here(output_dir_data, "CM_Reichart_GSEA.rds"))
+```
+
+```{r GSEA_dotplot, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("LV Cardiomyocytes", "\nGO Enrichment Analysis", "\nDCM vs HC"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Cardiomyocytes_emapplot, fig.height=5, fig.width=8}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+emapplot(GSEA_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+rm(activated_terms, suppressed_terms, GSEA_suppressed)
+```
+
+
+## DE Reichart DCM vs HC (only males)
+
+Subset samples from males
+
+```{r subset M_CM_Reichart}
+M_CM_Reichart <- subset(CM_Reichart, sex == "male")
+table(M_CM_Reichart$cell_type, M_CM_Reichart$disease)
+table(M_CM_Reichart$Sample)
+sum(table(M_CM_Reichart$Sample) > 0)
+table(M_CM_Reichart$Sample, M_CM_Reichart$donor_id)
+```
+
+```{r M_UMAP_CM_Reichart, fig.width=7, fig.height=5}
+DimPlot(M_CM_Reichart, group.by = c("disease"), reduction = "umap", label = F, shuffle = TRUE) + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+```
+
+Prepare matadata for differential expression testing
+
+```{r M_DE metadata}
+M_metadata <- M_CM_Reichart@meta.data %>%
+  dplyr::select(donor_id, Primary.Genetic.Diagnosis, disease, sex) %>%
+  unique()
+
+rownames(M_metadata) <- M_metadata$donor_id
+table(M_CM_Reichart$donor_id)[table(M_CM_Reichart$donor_id) > 0]
+
+all.equal(rownames(M_metadata), names(table(M_CM_Reichart$donor_id)[table(M_CM_Reichart$donor_id) > 0]))
+
+reactable(M_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Remove genes expressed in <1% of cells
+
+```{r M_save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = M_CM_Reichart, assay = "RNA", slot = "counts")
+
+# Calculate the number of cells where each gene is expressed (non-zero counts)
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+# Calculate the total number of cells
+total_cells <- ncol(expr_matrix)
+
+# Calculate the percentage of cells expressing each gene
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+# Create a dataframe to store the results
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+write.csv(percent_stats, file = here::here(output_dir_data, "M_CM_Reichart_percent_stats.csv"), quote=F, row.names = F)
+```
+
+```{r M_percent_stats}
+percent_stats <- read.csv(here::here(output_dir_data, "M_CM_Reichart_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- M_CM_Reichart[which(rownames(M_CM_Reichart) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r M_pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(M_metadata$donor_id, pseudocounts$samples$sample)]
+all(M_metadata$donor_id == pseudocounts$samples$sample)
+```
+
+```{r M_save CM_pseudocounts, eval=FALSE}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "M_CM_Reichart_pseudocounts.rds"))
+```
+
+```{r M_filter pseudocounts}
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+DE analysis
+
+```{r M_DE}
+M_metadata$disease <- factor(M_metadata$disease, levels = c("normal", "dilated cardiomyopathy"))
+design<- model.matrix(~ disease, data = M_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_M_Reichart <- topTags(fit, n = Inf)$table
+results_M_Reichart <- merge(results_M_Reichart, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_M_Reichart <- results_M_Reichart %>%
+  dplyr::select(-feature_biotype, -feature_is_filtered, -feature_name, -feature_reference, -feature_length)
+results_M_Reichart$up_down <- ifelse(
+  results_M_Reichart$logFC > 0.5 & results_M_Reichart$FDR < 0.05, "Increased",
+  ifelse(results_M_Reichart$logFC < -0.5 & results_M_Reichart$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_M_Reichart <- results_M_Reichart %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_M_Reichart, file = here::here(output_dir_data, "M_CM_Reichart_DE_Results.csv"), quote=F, row.names = F)
+write.csv(signif_M_Reichart, file = here::here(output_dir_data, "M_CM_Reichart_DE_Significant.csv"), quote=F, row.names = F)
+```
+
+```{r M_Volcano_up_down, fig.height=8, fig.width=6}
+keyvals <- rep("grey", nrow(results_M_Reichart))
+names(keyvals) <- rep("Not significant", nrow(results_M_Reichart))
+
+keyvals[results_M_Reichart$up_down == "Increased"] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[results_M_Reichart$up_down == "Decreased"] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_M_Reichart,
+                lab = results_M_Reichart$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 14,
+                titleLabSize = 16,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 1,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 16),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "Differential expression in LV Cardiomyocytes\nfrom Reichart et al (Science 2022)\nDCM (n = 39) vs HC (n = 11) males",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r M_GSEA, eval=FALSE}
+gene_counts <- rowSums(M_CM_Reichart@assays$RNA@counts > 0)
+universe_genes <- names(gene_counts[gene_counts >= 3])
+write.csv(as.data.frame(universe_genes), here::here(output_dir_data, "M_CM_Reichart_universe_genes.csv"), quote=F, row.names = F)
+universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, "M_CM_Reichart_universe_entrez.csv"), quote=F, row.names = F)
+rm(gene_counts)
+
+up_genes <- filter(signif_M_Reichart, logFC > 0.5)$gene
+up_genes <- bitr(up_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+down_genes <- filter(signif_M_Reichart, logFC < -0.5)$gene
+down_genes <- bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+
+ranked_genes <- results_M_Reichart
+ranked_genes$metric <- ranked_genes$logFC*-log10(ranked_genes$PValue)
+entrezid <- bitr(ranked_genes$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+ranked_genes <- merge(ranked_genes, entrezid, by.x = "gene", by.y = "SYMBOL")
+ranked_genes <- ranked_genes[!duplicated(ranked_genes$metric), ]
+write.csv(ranked_genes, file = here::here(output_dir_data, "M_CM_Reichart_ranked_genes.csv"), quote=F, row.names = F)
+
+genelist <- ranked_genes$metric
+names(genelist) <- ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+
+GSEA <- gseGO(geneList = genelist,
+              OrgDb = org.Hs.eg.db,
+              ont = "ALL",
+              keyType = "ENTREZID",
+              nPermSimple = 100000,
+              minGSSize = 10,
+              eps = 0)
+GSEA <- reorder_GO_by_pvalue(GSEA)
+
+rm(universe_genes, universe_entrez, up_genes, down_genes, genelist)
+
+saveRDS(GSEA, here::here(output_dir_data, "M_CM_Reichart_GSEA.rds"))
+```
+
+```{r M_load GSEA}
+GSEA <- readRDS(here::here(output_dir_data, "M_CM_Reichart_GSEA.rds"))
+```
+
+```{r M_GSEA_dotplot, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("LV Cardiomyocytes", "\nGO Enrichment Analysis", "\nDCM vs HC"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r M_GSEA_Cardiomyocytes_emapplot, fig.height=5, fig.width=8}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+emapplot(GSEA_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+rm(activated_terms, suppressed_terms, GSEA_suppressed)
+```
+
+
+
+
+
+
