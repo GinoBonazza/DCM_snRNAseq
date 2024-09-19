@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Comparison with SSc-PAH proteomics dataset</title>
+
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.umd.cjs"></script>
+<link href="site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.4/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.4/reactable.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_DA_DE.html">Cardiomyocytes differential expression</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Comparison with SSc-PAH proteomics
+dataset</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">19 September, 2024</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2024-09-19
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.1). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree1a5eaa2f56983fb13fec20dfa89dd3dda3ada50etargetblank1a5eaa2a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/1a5eaa2f56983fb13fec20dfa89dd3dda3ada50e" target="_blank">1a5eaa2</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree1a5eaa2f56983fb13fec20dfa89dd3dda3ada50etargetblank1a5eaa2a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/1a5eaa2f56983fb13fec20dfa89dd3dda3ada50e" target="_blank">1a5eaa2</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/SSc_PAH/
+
+Untracked files:
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  analysis/Comparison_LV.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DA_DE_all_cell_types_and_parameters.Rmd
+    Untracked:  analysis/DE_all_cell_types_mPAP.Rmd
+    Untracked:  analysis/DE_mPAP_all_cell_types.Rmd
+    Untracked:  analysis/VennDiagram.2024-09-16_14-12-56.160498.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-17.340014.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-57.942673.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-22-50.621507.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-24-47.010131.log
+    Untracked:  analysis/VennDiagram.2024-09-18_11-22-29.278827.log
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  core
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_DA_DE_26/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_26/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/UntitledR.R
+    Untracked:  reference_sources/
+
+Unstaged changes:
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE_26.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown (<code>analysis/SSc_PAH.Rmd</code>) and HTML
+(<code>docs/SSc_PAH.html</code>) files. If you’ve configured a remote
+Git repository (see <code>?wflow_git_remote</code>), click on the
+hyperlinks in the table below to view the files as they were in that
+past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1a5eaa2f56983fb13fec20dfa89dd3dda3ada50e/analysis/SSc_PAH.Rmd" target="_blank">1a5eaa2</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-09-19
+</td>
+<td>
+wflow_publish("analysis/SSc_PAH.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code># Get current file name to make folder
+current_file &lt;- &quot;SSc_PAH&quot;
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(biomaRt)
+library(rtracklayer)
+library(cowplot)
+library(UniProt.ws)
+library(ggpubr)
+
+#Output paths
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;))
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
+<p>Load proteomics dataset and patients clinical data</p>
+<pre class="r"><code>norm_abundances &lt;- read_excel(path = here::here(&quot;data&quot;, &quot;SSc-PAH&quot;, &quot;DE_Groups_vs_Controls.xlsx&quot;), sheet = &quot;normalized_abundances_matrix&quot;)
+clinical_data &lt;- read_excel(path = here::here(&quot;data&quot;, &quot;SSc-PAH&quot;, &quot;Zurich_47_PAH_RHC_sample_list_CB040723_CLINICAL DATA_update20240109.xlsx&quot;))</code></pre>
+<p>Convert protein ids to gene names</p>
+<pre class="r"><code>norm_abundances &lt;- norm_abundances %&gt;%
+  mutate(gene_name = str_extract(description, &quot;(?&lt;=GN=)[^ ]+&quot;)) %&gt;%
+  dplyr::select(gene_name, everything())</code></pre>
+<p>Load output of RV DE analysis</p>
+<pre class="r"><code>cluster_names &lt;- c(&quot;Cardiomyocytes&quot;, &quot;Fibroblasts&quot;, &quot;Endothelial_cells&quot;, &quot;Pericytes&quot;, &quot;Macrophages&quot;, &quot;Lymphocytes&quot;, &quot;Smooth_muscle_cells&quot;, &quot;Neuronal_cells&quot;, &quot;Endocardial_cells&quot;)</code></pre>
+<pre class="r"><code>signif &lt;- list()
+for (i in seq_along(cluster_names)) {
+  signif[[i]] &lt;- read.csv(here::here(&quot;output&quot;, &quot;DA_DE_all_cell_types_and_parameters&quot;, paste0(cluster_names[i], &quot;_DE_Significant_mPAP_mmHg.csv&quot;)))
+  names(signif)[i] &lt;- cluster_names[i]
+}</code></pre>
+<pre class="r"><code>CM_signif_cluster &lt;- read.csv(here::here(&quot;output&quot;, &quot;Cardiomyocytes_DA_DE_26&quot;, &quot;CM_signif_cluster.csv&quot;))</code></pre>
+<p>Add info about overlap with SSc serum proteomics dataset</p>
+<pre class="r"><code>CM_signif_cluster$SSc_plasma &lt;- ifelse(CM_signif_cluster$gene %in% norm_abundances$gene_name, &quot;Yes&quot;, &quot;No&quot;)
+table(CM_signif_cluster$SSc_plasma)</code></pre>
+<pre><code>
+  No  Yes 
+4025   54 </code></pre>
+<pre class="r"><code>CM_signif_SSc &lt;- dplyr::filter(CM_signif_cluster, SSc_plasma == &quot;Yes&quot;)</code></pre>
+<p>Join the clinical data and norm_abundances data frames</p>
+<pre class="r"><code>df_proteins &lt;- norm_abundances %&gt;%
+  dplyr::select(-gene_name, -description, -IDcolumn, -REV, -CON) %&gt;%
+  column_to_rownames(&quot;protein_Id&quot;) %&gt;%
+  t() %&gt;%
+  as.data.frame()
+  
+df_proteins$Barcode &lt;- rownames(df_proteins)
+
+clinical_data &lt;- as.data.frame(clinical_data)
+rownames(clinical_data) &lt;- clinical_data$Barcode
+
+proteomics_combined &lt;- merge(df_proteins, clinical_data, by = &quot;Barcode&quot;)</code></pre>
+<p>Correlation with mPAP</p>
+<pre class="r"><code>protein_id_of_interest &lt;- norm_abundances %&gt;%
+  dplyr::filter(gene_name %in% CM_signif_SSc$gene) %&gt;%
+  pull(protein_Id)
+
+proteins_of_interest &lt;- proteomics_combined[, colnames(proteomics_combined) %in% protein_id_of_interest]
+
+mpap &lt;- proteomics_combined$`PAP mean (mmHg)`
+
+cor_results &lt;- list()
+p_values &lt;- list()
+
+for (protein in colnames(proteins_of_interest)) {
+  test &lt;- cor.test(proteins_of_interest[[protein]], mpap, method = &quot;pearson&quot;)
+  cor_results[[protein]] &lt;- test$estimate
+  p_values[[protein]] &lt;- test$p.value
+}
+
+cor_results_df &lt;- data.frame(
+  Protein = colnames(proteins_of_interest),
+  Correlation_with_mPAP = unlist(cor_results),
+  P_value = unlist(p_values)
+)
+
+protein_to_gene &lt;- setNames(norm_abundances$gene_name, norm_abundances$protein_Id)
+
+cor_results_df$gene_name &lt;- protein_to_gene[cor_results_df$Protein]
+CM_signif_SSc_mPAP &lt;- left_join(CM_signif_SSc, cor_results_df, by = c(&quot;gene&quot; = &quot;gene_name&quot;))
+CM_signif_SSc_mPAP_signif &lt;- dplyr::filter(CM_signif_SSc_mPAP, P_value &lt; 0.05 &amp; sign(Correlation_with_mPAP) == sign(logFC))</code></pre>
+<pre class="r"><code>significant_proteins &lt;- CM_signif_SSc_mPAP_signif$Protein
+plot_data &lt;- proteomics_combined %&gt;%
+  dplyr::select(Barcode, `PAP mean (mmHg)`, all_of(protein_id_of_interest)) %&gt;%
+  gather(key = &quot;protein&quot;, value = &quot;abundance&quot;, -Barcode, -`PAP mean (mmHg)`) %&gt;%
+  dplyr::filter(protein %in% significant_proteins)
+
+# Add gene names to the plot_data for better labels
+plot_data &lt;- plot_data %&gt;%
+  mutate(gene_name = protein_to_gene[protein])
+
+ggplot(plot_data, aes(x = `PAP mean (mmHg)`, y = abundance)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = &quot;lm&quot;, color = &quot;blue&quot;, se = FALSE) +  # line of best fit
+  facet_wrap(~ gene_name, scales = &quot;free_y&quot;) +  # create a subplot for each protein
+  theme_minimal() +
+  labs(x = &quot;mPAP&quot;, y = &quot;Protein Abundance&quot;, 
+       title = &quot;Protein Abundances vs mPAP&quot;) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))</code></pre>
+<p><img src="figure/SSc_PAH.Rmd/Cor_mPAP-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>reactable(CM_signif_SSc_mPAP_signif, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-17918e35a6b062eaef1d" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-17918e35a6b062eaef1d">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"gene":["PON1","MASP2","ENG","F10","SERPINB1","PRKCSH"],"logFC":[-3.38405690110843,-2.39053790610074,-2.85927248959147,-3.2237368034483,-1.0376148339588,0.93897717901377],"logCPM":[0.902886992745038,1.01068067365779,2.39658112954372,1.68477659507189,2.99431574800035,1.97835063390446],"F":[34.7924153800477,22.2179108548248,20.6913551091293,20.4577076294793,16.9399723254095,9.40242703087553],"PValue":[1.1000640036575e-05,0.000150005551149501,0.000220244725051288,0.000234217443286541,0.000584714000918073,0.00633696659412053],"FDR":[0.00161680465656324,0.00289479890660082,0.00352913467013462,0.00365599804132869,0.00614789933617166,0.0308100144589035],"percentCells":[3.85952494951808,4.65058184316256,8.7599142327789,6.06199387971772,15.2819701480109,7.3693194828986],"cluster":[1,1,2,1,1,4],"metric":[-16.7801237927842,-9.14116037414762,-10.4566296508438,-11.7033920797095,-3.35466739058691,2.06398318553685],"ENTREZID":[5444,10747,2022,2159,1992,5589],"SSc_plasma":["Yes","Yes","Yes","Yes","Yes","Yes"],"Protein":["P27169","O00187","P17813","P00742","P30740","P14314"],"Correlation_with_mPAP":[-0.290793057520727,-0.315335967525595,-0.291457020441628,-0.289296384233619,-0.336055798434545,0.29771811126152],"P_value":[0.0473699996914622,0.0308470561146938,0.0468435651785576,0.0485743001571984,0.0257292160729664,0.0421095118230407]},"columns":[{"id":"gene","name":"gene","type":"character"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"percentCells","name":"percentCells","type":"numeric"},{"id":"cluster","name":"cluster","type":"numeric"},{"id":"metric","name":"metric","type":"numeric"},{"id":"ENTREZID","name":"ENTREZID","type":"numeric"},{"id":"SSc_plasma","name":"SSc_plasma","type":"character"},{"id":"Protein","name":"Protein","type":"character"},{"id":"Correlation_with_mPAP","name":"Correlation_with_mPAP","type":"numeric"},{"id":"P_value","name":"P_value","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"ac11ff45a080a329944d73f62d48243f"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<p>Correlation with mPAP</p>
+<pre class="r"><code>proteomics_combined$TAPSE_sPAP &lt;- proteomics_combined$`TAPSE: tricuspid annular plane systolic excursion in cm`/proteomics_combined$sPAP_ECHO*10
+
+TAPSE_sPAP &lt;- proteomics_combined$TAPSE_sPAP
+
+cor_results &lt;- list()
+p_values &lt;- list()
+
+for (protein in colnames(proteins_of_interest)) {
+  test &lt;- cor.test(proteins_of_interest[[protein]], TAPSE_sPAP, method = &quot;pearson&quot;)
+  cor_results[[protein]] &lt;- test$estimate
+  p_values[[protein]] &lt;- test$p.value
+}
+
+cor_results_df &lt;- data.frame(
+  Protein = colnames(proteins_of_interest),
+  Correlation_with_TAPSE_sPAP = unlist(cor_results),
+  P_value = unlist(p_values)
+)
+
+protein_to_gene &lt;- setNames(norm_abundances$gene_name, norm_abundances$protein_Id)
+
+cor_results_df$gene_name &lt;- protein_to_gene[cor_results_df$Protein]
+
+CM_signif_SSc_TAPSE_sPAP &lt;- left_join(CM_signif_SSc, cor_results_df, by = c(&quot;gene&quot; = &quot;gene_name&quot;))
+CM_signif_SSc_TAPSE_sPAP_signif &lt;- dplyr::filter(CM_signif_SSc_TAPSE_sPAP, P_value &lt; 0.05 &amp; !sign(Correlation_with_TAPSE_sPAP) == sign(logFC))</code></pre>
+<pre class="r"><code>significant_proteins &lt;- CM_signif_SSc_TAPSE_sPAP_signif$Protein
+plot_data &lt;- proteomics_combined %&gt;%
+  dplyr::select(Barcode, TAPSE_sPAP, all_of(protein_id_of_interest)) %&gt;%
+  gather(key = &quot;protein&quot;, value = &quot;abundance&quot;, -Barcode, -TAPSE_sPAP) %&gt;%
+  dplyr::filter(protein %in% significant_proteins)
+
+# Add gene names to the plot_data for better labels
+plot_data &lt;- plot_data %&gt;%
+  mutate(gene_name = protein_to_gene[protein])
+
+ggplot(plot_data, aes(x = TAPSE_sPAP, y = abundance)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = &quot;lm&quot;, color = &quot;blue&quot;, se = FALSE) +  # line of best fit
+  facet_wrap(~ gene_name, scales = &quot;free_y&quot;) +  # create a subplot for each protein
+  theme_minimal() +
+  labs(x = &quot;TAPSE/sPAP&quot;, y = &quot;Protein Abundance&quot;, 
+       title = &quot;Protein Abundances vs TAPSE/sPAP&quot;) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))</code></pre>
+<p><img src="figure/SSc_PAH.Rmd/Cor_TAPSE_sPAP-1.png" width="1650" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>reactable(CM_signif_SSc_TAPSE_sPAP_signif, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-03fe6736972e78e75b06" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-03fe6736972e78e75b06">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"gene":["RAB11A","FAM20C"],"logFC":[-2.16061761095566,1.62475289295161],"logCPM":[6.36988003937104,3.07313223059551],"F":[29.074041554129,8.62650594276196],"PValue":[3.38233473698591e-05,0.00848424535701039],"FDR":[0.00189593282328475,0.0377941554928408],"percentCells":[67.1940379290963,13.837250452776],"cluster":[1,4],"metric":[-9.65965337930527,3.3654916641276],"ENTREZID":[8766,56975],"SSc_plasma":["Yes","Yes"],"Protein":["P62491","Q8IXL6"],"Correlation_with_TAPSE_sPAP":[0.357202049828824,-0.388696802804178],"P_value":[0.0299788396922838,0.0144669649425635]},"columns":[{"id":"gene","name":"gene","type":"character"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"percentCells","name":"percentCells","type":"numeric"},{"id":"cluster","name":"cluster","type":"numeric"},{"id":"metric","name":"metric","type":"numeric"},{"id":"ENTREZID","name":"ENTREZID","type":"numeric"},{"id":"SSc_plasma","name":"SSc_plasma","type":"character"},{"id":"Protein","name":"Protein","type":"character"},{"id":"Correlation_with_TAPSE_sPAP","name":"Correlation_with_TAPSE_sPAP","type":"numeric"},{"id":"P_value","name":"P_value","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"efaf97aa2b9ee3e1d83dcd3fca1b3b6d"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>proteomics_combined &lt;- proteomics_combined %&gt;%
+  mutate(TAPSE_sPAP_group = ifelse(TAPSE_sPAP &lt; 0.36, &quot;&lt; 0.36&quot;, &quot;&gt;= 0.36&quot;))
+
+gene_to_protein &lt;- setNames(norm_abundances$protein_Id, norm_abundances$gene_name)
+
+CM_signif_SSc$protein &lt;- gene_to_protein[CM_signif_SSc$gene]
+
+significant_proteins &lt;- CM_signif_SSc$protein
+
+# Create a dataframe to store p-values, test results, and mean differences
+test_results &lt;- data.frame(
+  Protein = character(),
+  p_value = numeric(),
+  mean_diff = numeric(),  # Column for mean differences
+  stringsAsFactors = FALSE
+)
+
+# Loop through each significant protein and perform a Wilcoxon test
+for (protein in significant_proteins) {
+  # Extract protein abundances for the current protein
+  protein_abundance &lt;- proteomics_combined[[protein]]
+  
+  # Exclude rows with missing values (NA)
+  data_for_test &lt;- proteomics_combined %&gt;%
+    dplyr::select(TAPSE_sPAP_group, all_of(protein)) %&gt;%
+    dplyr::filter(!is.na(protein_abundance), !is.na(TAPSE_sPAP_group))
+  
+  # Ensure that the grouping factor still has two levels after filtering
+  if (length(unique(data_for_test$TAPSE_sPAP_group)) == 2) {
+    # Perform Wilcoxon test
+    wilcox_test &lt;- wilcox.test(data_for_test[[protein]] ~ data_for_test$TAPSE_sPAP_group)
+    
+    # Calculate means for each group
+    group_means &lt;- data_for_test %&gt;%
+      group_by(TAPSE_sPAP_group) %&gt;%
+      summarise(mean_abundance = mean(!!sym(protein), na.rm = TRUE))  # Calculate means
+    
+    mean_diff &lt;- diff(group_means$mean_abundance)  # Difference between group means
+    
+    # Store the results
+    test_results &lt;- test_results %&gt;%
+      add_row(Protein = protein, p_value = wilcox_test$p.value, mean_diff = mean_diff)
+  } else {
+    # If there are not enough levels (i.e., only one group after filtering), skip this protein
+    test_results &lt;- test_results %&gt;%
+      add_row(Protein = protein, p_value = NA, mean_diff = NA)  # Add NA for proteins that couldn&#39;t be tested
+  }
+}
+
+CM_signif_SSc_TAPSE_sPAP_group &lt;- left_join(CM_signif_SSc, test_results, by = c(&quot;protein&quot; = &quot;Protein&quot;))
+CM_signif_SSc_TAPSE_sPAP_group_signif &lt;- dplyr::filter(CM_signif_SSc_TAPSE_sPAP_group, p_value &lt; 0.05 &amp; !sign(mean_diff) == sign(logFC))
+
+# Filter significant proteins (p-value &lt; 0.05)
+significant_proteins_filtered &lt;- test_results %&gt;%
+  filter(!is.na(p_value), p_value &lt; 0.05)</code></pre>
+<pre class="r"><code># Reshape data for plotting
+plot_data &lt;- proteomics_combined %&gt;%
+  dplyr::select(Barcode, TAPSE_sPAP_group, all_of(CM_signif_SSc_TAPSE_sPAP_group_signif$protein)) %&gt;%
+  gather(key = &quot;protein&quot;, value = &quot;abundance&quot;, -Barcode, -TAPSE_sPAP_group) %&gt;%
+  mutate(gene_name = protein_to_gene[protein])
+
+plot_data_clean &lt;- plot_data %&gt;%
+  dplyr::filter(!is.na(abundance), !is.na(TAPSE_sPAP_group))
+
+y_max &lt;- plot_data_clean %&gt;%
+  dplyr::group_by(gene_name) %&gt;%
+  dplyr::summarize(max_abundance = max(abundance, na.rm = TRUE))
+
+# Plot boxplots for significant proteins with cleaned data
+ggplot(plot_data_clean, aes(x = TAPSE_sPAP_group, y = abundance, fill = TAPSE_sPAP_group)) +
+  geom_boxplot(alpha = 0.6) +  # Boxplot for distribution of protein abundances
+  geom_jitter(width = 0.2, alpha = 0.5) +  # Jitter points for individual patients
+  facet_wrap(~ gene_name, scales = &quot;free_y&quot;, ncol = 4) +  # Create separate plots for each significant protein with 4 columns
+  theme_minimal() +
+  labs(x = &quot;TAPSE/sPAP Group&quot;, y = &quot;Protein Abundance&quot;, 
+       title = &quot;Comparison of Protein Abundances by TAPSE/sPAP Groups (Significant Proteins)&quot;) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = &quot;wilcox.test&quot;
+           #          , label.y = y_max$max_abundance + 0.4* y_max$max_abundance
+                     )  # Move p-values above the dots</code></pre>
+<p><img src="figure/SSc_PAH.Rmd/boxplots-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.3.1 (2023-06-16)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 22.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;  LAPACK version 3.10.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8          LC_NUMERIC=C                 
+ [3] LC_TIME=en_US.UTF-8           LC_COLLATE=en_US.UTF-8       
+ [5] LC_MONETARY=en_US.UTF-8       LC_MESSAGES=en_US.UTF-8      
+ [7] LC_PAPER=en_US.UTF-8          LC_NAME=en_US.UTF-8          
+ [9] LC_ADDRESS=en_US.UTF-8        LC_TELEPHONE=en_US.UTF-8     
+[11] LC_MEASUREMENT=en_US.UTF-8    LC_IDENTIFICATION=en_US.UTF-8
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] ggpubr_0.6.0                UniProt.ws_2.42.0          
+ [3] RSQLite_2.3.5               cowplot_1.1.3              
+ [5] rtracklayer_1.62.0          biomaRt_2.58.2             
+ [7] ComplexHeatmap_2.18.0       UpSetR_1.4.0               
+ [9] reactable_0.4.4             enrichplot_1.22.0          
+[11] dorothea_1.14.1             OmnipathR_3.10.1           
+[13] decoupleR_2.9.7             EnhancedVolcano_1.20.0     
+[15] ggrepel_0.9.5               speckle_1.2.0              
+[17] edgeR_4.0.16                limma_3.58.1               
+[19] ReactomePA_1.46.0           AnnotationHub_3.10.0       
+[21] BiocFileCache_2.10.1        dbplyr_2.4.0               
+[23] org.Hs.eg.db_3.18.0         AnnotationDbi_1.64.1       
+[25] clusterProfiler_4.10.1      gprofiler2_0.2.3           
+[27] harmony_1.2.0               clustree_0.5.1             
+[29] ggraph_2.2.1                rhdf5_2.46.1               
+[31] Rcpp_1.0.12                 data.table_1.15.2          
+[33] plyr_1.8.9                  gtable_0.3.4               
+[35] gtools_3.9.5                ArchR_1.0.2                
+[37] statmod_1.5.0               patchwork_1.2.0            
+[39] scater_1.30.1               scuttle_1.12.0             
+[41] Matrix.utils_0.9.7          RColorBrewer_1.1-3         
+[43] scales_1.3.0                knitr_1.45                 
+[45] gridExtra_2.3               png_0.1-8                  
+[47] pheatmap_1.0.12             reshape2_1.4.4             
+[49] lubridate_1.9.3             forcats_1.0.0              
+[51] stringr_1.5.1               purrr_1.0.2                
+[53] tidyr_1.3.1                 tibble_3.2.1               
+[55] tidyverse_2.0.0             magrittr_2.0.3             
+[57] ggplot2_3.5.0               dplyr_1.1.4                
+[59] scCustomize_2.1.2           scDblFinder_1.16.0         
+[61] Matrix_1.6-5                DropletUtils_1.22.0        
+[63] SingleCellExperiment_1.24.0 SummarizedExperiment_1.32.0
+[65] Biobase_2.62.0              GenomicRanges_1.54.1       
+[67] GenomeInfoDb_1.38.7         IRanges_2.36.0             
+[69] S4Vectors_0.40.2            BiocGenerics_0.48.1        
+[71] MatrixGenerics_1.14.0       matrixStats_1.2.0          
+[73] SeuratObject_5.0.2          Seurat_4.4.0               
+[75] xlsx_0.6.5                  readxl_1.4.3               
+[77] readr_2.1.5                 here_1.0.1                 
+
+loaded via a namespace (and not attached):
+  [1] igraph_2.0.3                  graph_1.80.0                 
+  [3] ica_1.0-3                     plotly_4.10.4                
+  [5] rematch2_2.1.2                BiocBaseUtils_1.4.0          
+  [7] zlibbioc_1.48.0               tidyselect_1.2.1             
+  [9] rvest_1.0.4                   bit_4.0.5                    
+ [11] doParallel_1.0.17             clue_0.3-65                  
+ [13] lattice_0.22-5                rjson_0.2.21                 
+ [15] blob_1.2.4                    S4Arrays_1.2.1               
+ [17] parallel_4.3.1                cli_3.6.2                    
+ [19] ggplotify_0.1.2               goftest_1.2-3                
+ [21] BiocIO_1.12.0                 bluster_1.12.0               
+ [23] grr_0.9.5                     BiocNeighbors_1.20.2         
+ [25] uwot_0.1.16                   shadowtext_0.1.3             
+ [27] curl_5.2.1                    mime_0.12                    
+ [29] evaluate_0.23                 tidytree_0.4.6               
+ [31] leiden_0.4.3.1                stringi_1.8.3                
+ [33] backports_1.4.1               XML_3.99-0.16.1              
+ [35] httpuv_1.6.14                 paletteer_1.6.0              
+ [37] rappdirs_0.3.3                splines_4.3.1                
+ [39] logger_0.3.0                  bcellViper_1.38.0            
+ [41] sctransform_0.4.1             ggbeeswarm_0.7.2             
+ [43] DBI_1.2.2                     HDF5Array_1.30.1             
+ [45] jquerylib_0.1.4               reactome.db_1.86.2           
+ [47] withr_3.0.0                   git2r_0.33.0                 
+ [49] rprojroot_2.0.4               xgboost_1.7.7.1              
+ [51] lmtest_0.9-40                 tidygraph_1.3.1              
+ [53] BiocManager_1.30.22           htmlwidgets_1.6.4            
+ [55] fs_1.6.3                      labeling_0.4.3               
+ [57] SparseArray_1.2.4             cellranger_1.1.0             
+ [59] reticulate_1.35.0             zoo_1.8-12                   
+ [61] XVector_0.42.0                timechange_0.3.0             
+ [63] foreach_1.5.2                 fansi_1.0.6                  
+ [65] ggtree_3.10.1                 R.oo_1.26.0                  
+ [67] irlba_2.3.5.1                 ggrastr_1.0.2                
+ [69] gridGraphics_0.5-1            ellipsis_0.3.2               
+ [71] lazyeval_0.2.2                yaml_2.3.8                   
+ [73] survival_3.5-8                scattermore_1.2              
+ [75] BiocVersion_3.18.1            crayon_1.5.2                 
+ [77] RcppAnnoy_0.0.22              progressr_0.14.0             
+ [79] tweenr_2.0.3                  later_1.3.2                  
+ [81] ggridges_0.5.6                codetools_0.2-19             
+ [83] GlobalOptions_0.1.2           KEGGREST_1.42.0              
+ [85] Rtsne_0.17                    shape_1.4.6.1                
+ [87] reactR_0.6.0                  Rsamtools_2.18.0             
+ [89] filelock_1.0.3                pkgconfig_2.0.3              
+ [91] xml2_1.3.6                    GenomicAlignments_1.38.2     
+ [93] aplot_0.2.2                   spatstat.sparse_3.0-3        
+ [95] ape_5.7-1                     viridisLite_0.4.2            
+ [97] xtable_1.8-4                  highr_0.10                   
+ [99] car_3.1-2                     httr_1.4.7                   
+[101] tools_4.3.1                   globals_0.16.3               
+[103] broom_1.0.5                   beeswarm_0.4.0               
+[105] checkmate_2.3.1               nlme_3.1-164                 
+[107] HDO.db_0.99.1                 crosstalk_1.2.1              
+[109] digest_0.6.35                 farver_2.1.1                 
+[111] tzdb_0.4.0                    yulab.utils_0.1.4            
+[113] viridis_0.6.5                 glue_1.7.0                   
+[115] cachem_1.0.8                  polyclip_1.10-6              
+[117] rjsoncons_1.3.1               generics_0.1.3               
+[119] Biostrings_2.70.2             parallelly_1.37.1            
+[121] ScaledMatrix_1.10.0           carData_3.0-5                
+[123] pbapply_1.7-2                 spam_2.10-0                  
+[125] gson_0.1.0                    dqrng_0.3.2                  
+[127] utf8_1.2.4                    graphlayouts_1.1.1           
+[129] ggsignif_0.6.4                shiny_1.8.0                  
+[131] GenomeInfoDbData_1.2.11       R.utils_2.12.3               
+[133] rhdf5filters_1.14.1           RCurl_1.98-1.14              
+[135] memoise_2.0.1                 rmarkdown_2.26               
+[137] R.methodsS3_1.8.2             future_1.33.1                
+[139] RANN_2.6.1                    spatstat.data_3.0-4          
+[141] rstudioapi_0.15.0             cluster_2.1.6                
+[143] whisker_0.4.1                 janitor_2.2.0                
+[145] spatstat.utils_3.0-4          hms_1.1.3                    
+[147] fitdistrplus_1.1-11           munsell_0.5.0                
+[149] colorspace_2.1-0              rlang_1.1.4                  
+[151] DelayedMatrixStats_1.24.0     sparseMatrixStats_1.14.0     
+[153] dotCall64_1.1-1               ggforce_0.4.2                
+[155] circlize_0.4.16               mgcv_1.9-1                   
+[157] xfun_0.42                     iterators_1.0.14             
+[159] abind_1.4-5                   GOSemSim_2.28.1              
+[161] interactiveDisplayBase_1.40.0 treeio_1.26.0                
+[163] rJava_1.0-11                  Rhdf5lib_1.24.2              
+[165] bitops_1.0-7                  promises_1.2.1               
+[167] scatterpie_0.2.1              qvalue_2.34.0                
+[169] fgsea_1.28.0                  DelayedArray_0.28.0          
+[171] GO.db_3.18.0                  compiler_4.3.1               
+[173] prettyunits_1.2.0             beachmat_2.18.1              
+[175] graphite_1.48.0               listenv_0.9.1                
+[177] workflowr_1.7.1               BiocSingular_1.18.0          
+[179] tensor_1.5                    MASS_7.3-60.0.1              
+[181] progress_1.2.3                BiocParallel_1.36.0          
+[183] spatstat.random_3.2-3         R6_2.5.1                     
+[185] rstatix_0.7.2                 fastmap_1.1.1                
+[187] fastmatch_1.1-4               vipor_0.4.7                  
+[189] ROCR_1.0-11                   rsvd_1.0.5                   
+[191] KernSmooth_2.23-22            miniUI_0.1.1.1               
+[193] deldir_2.0-4                  htmltools_0.5.8.1            
+[195] bit64_4.0.5                   spatstat.explore_3.2-6       
+[197] lifecycle_1.0.4               ggprism_1.0.4                
+[199] restfulr_0.0.15               xlsxjars_0.6.1               
+[201] sass_0.4.9                    vctrs_0.6.5                  
+[203] spatstat.geom_3.2-9           snakecase_0.11.1             
+[205] DOSE_3.28.2                   scran_1.30.2                 
+[207] ggfun_0.1.4                   sp_2.1-3                     
+[209] future.apply_1.11.1           bslib_0.6.1                  
+[211] pillar_1.9.0                  metapod_1.10.1               
+[213] locfit_1.5-9.9                jsonlite_1.8.8               
+[215] GetoptLong_1.0.5             </code></pre>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
