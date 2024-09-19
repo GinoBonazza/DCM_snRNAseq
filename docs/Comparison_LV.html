@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Comparison with published DCM LV datasets</title>
+
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.umd.cjs"></script>
+<link href="site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.4/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.4/reactable.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_DA_DE.html">Cardiomyocytes differential expression</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Comparison with published DCM LV
+datasets</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">19 September, 2024</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2024-09-19
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.1). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree22e3f3a3dd13720d28096360ae4fddd4818e0388targetblank22e3f3aa">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/22e3f3a3dd13720d28096360ae4fddd4818e0388" target="_blank">22e3f3a</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree22e3f3a3dd13720d28096360ae4fddd4818e0388targetblank22e3f3aa"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/22e3f3a3dd13720d28096360ae4fddd4818e0388" target="_blank">22e3f3a</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/SSc_PAH/
+
+Untracked files:
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DA_DE_all_cell_types_and_parameters.Rmd
+    Untracked:  analysis/DE_all_cell_types_mPAP.Rmd
+    Untracked:  analysis/DE_mPAP_all_cell_types.Rmd
+    Untracked:  analysis/VennDiagram.2024-09-16_14-12-56.160498.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-17.340014.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-57.942673.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-22-50.621507.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-24-47.010131.log
+    Untracked:  analysis/VennDiagram.2024-09-18_11-22-29.278827.log
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  core
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_DA_DE_26/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_26/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/UntitledR.R
+    Untracked:  reference_sources/
+
+Unstaged changes:
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE_26.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown (<code>analysis/Comparison_LV.Rmd</code>) and
+HTML (<code>docs/Comparison_LV.html</code>) files. If you’ve configured
+a remote Git repository (see <code>?wflow_git_remote</code>), click on
+the hyperlinks in the table below to view the files as they were in that
+past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/22e3f3a3dd13720d28096360ae4fddd4818e0388/analysis/Comparison_LV.Rmd" target="_blank">22e3f3a</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2024-09-19
+</td>
+<td>
+wflow_publish("analysis/Comparison_LV.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code># Get current file name to make folder
+current_file &lt;- &quot;Comparison_LV&quot;
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(biomaRt)
+library(rtracklayer)
+library(cowplot)
+
+#Output paths
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;))
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
+<p>Load results of the DE analysis</p>
+<pre class="r"><code>cluster_names &lt;- c(&quot;Cardiomyocytes&quot;, &quot;Fibroblasts&quot;, &quot;Endothelial_cells&quot;, &quot;Pericytes&quot;, &quot;Macrophages&quot;, &quot;Lymphocytes&quot;, &quot;Smooth_muscle_cells&quot;, &quot;Neuronal_cells&quot;, &quot;Endocardial_cells&quot;)</code></pre>
+<pre class="r"><code>results &lt;- list()
+for (i in seq_along(cluster_names)) {
+  results[[i]] &lt;- read.csv(here::here(&quot;output&quot;, &quot;DA_DE_all_cell_types_and_parameters&quot;, paste0(cluster_names[i], &quot;_DE_Results_mPAP_mmHg.csv&quot;)))
+  names(results)[i] &lt;- cluster_names[i]
+}</code></pre>
+<pre class="r"><code>signif &lt;- list()
+for (i in seq_along(cluster_names)) {
+  signif[[i]] &lt;- read.csv(here::here(&quot;output&quot;, &quot;DA_DE_all_cell_types_and_parameters&quot;, paste0(cluster_names[i], &quot;_DE_Significant_mPAP_mmHg.csv&quot;)))
+  names(signif)[i] &lt;- cluster_names[i]
+}</code></pre>
+<pre class="r"><code>CM_signif_cluster &lt;- read.csv(here::here(&quot;output&quot;, &quot;Cardiomyocytes_DA_DE_26&quot;, &quot;CM_signif_cluster.csv&quot;))</code></pre>
+<p>Load seurat object</p>
+<pre class="r"><code>DCM_RV_integrated &lt;- readRDS(here::here(&quot;output&quot;, &quot;QC_integration_annotation_26&quot;, &quot;DCM_RV_integrated.rds&quot;))
+DefaultAssay(DCM_RV_integrated) &lt;- &quot;RNA&quot;</code></pre>
+<pre class="r"><code>DE_Chaffin &lt;- read_excel(path = here::here(&quot;data&quot;, &quot;Published_datasets&quot;, &quot;Chaffin_2022_41586_2022_4817_MOESM5_ESM.xlsx&quot;), sheet = 1)
+DE_Chaffin &lt;- dplyr::filter(DE_Chaffin, Comparison == &quot;DCMvsNF&quot;, CellType == &quot;Cardiomyocyte&quot;)
+DE_Chaffin$Compatible_gene_symbol &lt;- ifelse(
+  DE_Chaffin$Gene %in% rownames(DCM_RV_integrated), &quot;TRUE&quot;,
+  &quot;FALSE&quot;
+)
+table(DE_Chaffin$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+    3 16009 </code></pre>
+<pre class="r"><code>DE_Chaffin_signif &lt;- dplyr::filter(DE_Chaffin, Significant == &quot;TRUE&quot; &amp; abs(logFC) &gt; 0.25)
+table(DE_Chaffin_signif$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+    1  2237 </code></pre>
+<pre class="r"><code>print(&quot;Gene symbols don&#39;t have to be converted&quot;)</code></pre>
+<pre><code>[1] &quot;Gene symbols don&#39;t have to be converted&quot;</code></pre>
+<pre class="r"><code>DE_Koenig &lt;- read_excel(path = here::here(&quot;data&quot;, &quot;Published_datasets&quot;, &quot;Koenig_2022_44161_2022_28_MOESM4_ESM.xlsx&quot;), sheet = 1)
+DE_Koenig$Compatible_gene_symbol &lt;- ifelse(
+  DE_Koenig$Gene %in% rownames(DCM_RV_integrated), &quot;TRUE&quot;,
+  &quot;FALSE&quot;
+)
+table(DE_Koenig$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+ 8414 18532 </code></pre>
+<pre class="r"><code>DE_Koenig_signif &lt;- dplyr::filter(DE_Koenig, padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 0.25)
+table(DE_Koenig_signif$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+ 1179  4776 </code></pre>
+<pre class="r"><code>print(&quot;Gene symbols have to be converted&quot;)</code></pre>
+<pre><code>[1] &quot;Gene symbols have to be converted&quot;</code></pre>
+<pre class="r"><code>DE_Reichart &lt;- read.csv(here::here(&quot;output&quot;, &quot;Reichart_DE_DCMvsHC&quot;, &quot;CM_Reichart_DE_Results.csv&quot;))
+DE_Reichart$Compatible_gene_symbol &lt;- ifelse(
+  DE_Reichart$gene %in% rownames(DCM_RV_integrated), &quot;TRUE&quot;,
+  &quot;FALSE&quot;
+)
+table(DE_Reichart$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+ 2098 12605 </code></pre>
+<pre class="r"><code>DE_Reichart_signif &lt;- dplyr::filter(DE_Reichart, FDR &lt; 0.05 &amp; abs(logFC) &gt; 0.25)
+table(DE_Reichart_signif$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+  637  3921 </code></pre>
+<pre class="r"><code>print(&quot;Gene symbols have to be converted&quot;)</code></pre>
+<pre><code>[1] &quot;Gene symbols have to be converted&quot;</code></pre>
+<pre class="r"><code># Step 1: Connect to the Ensembl GRCh37 BioMart database
+grch37 &lt;- useMart(&quot;ENSEMBL_MART_ENSEMBL&quot;, 
+                  dataset = &quot;hsapiens_gene_ensembl&quot;, 
+                  host = &quot;grch37.ensembl.org&quot;)
+
+# Step 2: Convert GRCh37 gene symbols to Ensembl IDs
+gene_list &lt;- DE_Koenig$Gene
+
+# Query BioMart to get Ensembl Gene IDs for the GRCh37 gene symbols
+grch37_gene_ids &lt;- getBM(attributes = c(&quot;ensembl_gene_id&quot;, &quot;external_gene_name&quot;), 
+                         filters = &quot;external_gene_name&quot;, 
+                         values = gene_list, 
+                         mart = grch37)
+
+# Identify unmatched genes
+unmapped_genes &lt;- setdiff(gene_list, grch37_gene_ids$external_gene_name)
+
+# Step 5: Use the GRCh38 reference GTF file (from refdata-gex-GRCh38-2020-A) to match Ensembl IDs
+reference_genes &lt;- readGFF(here::here(&quot;data&quot;, &quot;refdata-gex-GRCh38-2020-A&quot;, &quot;genes&quot;, &quot;genes.gtf&quot;))
+
+# dplyr::filter only gene-level annotations and select relevant columns
+reference_gene_mapping &lt;- reference_genes %&gt;%
+  dplyr::filter(type == &quot;gene&quot;) %&gt;%
+  dplyr::select(gene_id, gene_name)
+
+# Match the Ensembl IDs from GRCh37 with the GRCh38 reference
+matched_genes_grch38 &lt;- reference_gene_mapping %&gt;%
+  dplyr::filter(gene_id %in% grch37_gene_ids$ensembl_gene_id)
+
+unmatched_genes &lt;- setdiff(grch37_gene_ids$ensembl_gene_id, matched_genes_grch38$gene_id) #Contains multiple ensembl gene ids from the same gene symbol
+
+# Join the data with GRCh37 Ensembl IDs and GRCh38 gene names
+DE_Koenig &lt;- DE_Koenig %&gt;%
+  left_join(grch37_gene_ids, by = c(&quot;Gene&quot; = &quot;external_gene_name&quot;)) %&gt;%
+  left_join(reference_gene_mapping, by = c(&quot;ensembl_gene_id&quot; = &quot;gene_id&quot;))
+
+# Prefer rows with non-NA gene_name
+DE_Koenig &lt;- DE_Koenig %&gt;%
+  dplyr::group_by(Gene) %&gt;%
+  dplyr::arrange(desc(!is.na(gene_name))) %&gt;%
+  dplyr::slice(1) %&gt;%
+  dplyr::ungroup()
+
+# Check compatibility again after conversion
+DE_Koenig$Compatible_gene_symbol &lt;- ifelse(DE_Koenig$gene_name %in% rownames(DCM_RV_integrated), &quot;TRUE&quot;, &quot;FALSE&quot;)
+table(DE_Koenig$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+ 3015 23931 </code></pre>
+<pre class="r"><code>DE_Koenig$Gene_name_conversion &lt;- ifelse(DE_Koenig$Gene %in% unmapped_genes, &quot;Unmapped to GRCh37&quot;, 
+                                         ifelse(DE_Koenig$ensembl_gene_id %in% unmatched_genes, &quot;Not matched to GRCh38&quot;, 
+                                                ifelse(DE_Koenig$Compatible_gene_symbol == &quot;TRUE&quot;, &quot;Conversion OK&quot;, 
+                                                       &quot;Not present in DCM_RV&quot;)))
+
+DE_Koenig_signif &lt;- DE_Koenig %&gt;%
+  dplyr::filter(padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 0.25)
+
+table(DE_Koenig_signif$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+  497  5458 </code></pre>
+<pre class="r"><code>table(DE_Koenig_signif$Gene_name_conversion)</code></pre>
+<pre><code>
+        Conversion OK Not matched to GRCh38 Not present in DCM_RV 
+                 5458                   179                     5 
+   Unmapped to GRCh37 
+                  313 </code></pre>
+<pre class="r"><code>print(&quot;Results are acceptable&quot;)</code></pre>
+<pre><code>[1] &quot;Results are acceptable&quot;</code></pre>
+<pre class="r"><code>rm(grch37, gene_list, grch37_gene_ids, unmapped_genes, matched_genes_grch38, unmatched_genes)</code></pre>
+<pre class="r"><code>Reichart_gene_names &lt;- read.csv(here::here(&quot;output&quot;, &quot;Reichart_DE_DCMvsHC&quot;, &quot;CM_Reichart_gene_names.csv&quot;))
+DE_Reichart &lt;- left_join(DE_Reichart, Reichart_gene_names, by = c(&quot;gene&quot; = &quot;gene_symbol&quot;))
+
+unmatched_genes &lt;- setdiff(DE_Reichart$ensembl_id, reference_gene_mapping$gene_id) #Contains multiple ensembl gene ids from the same gene symbol
+
+length(unmatched_genes)</code></pre>
+<pre><code>[1] 156</code></pre>
+<pre class="r"><code>DE_Reichart &lt;- left_join(DE_Reichart, reference_gene_mapping, by = c(&quot;ensembl_id&quot; = &quot;gene_id&quot;))
+  
+# Check compatibility again after conversion
+DE_Reichart$Compatible_gene_symbol &lt;- ifelse(
+  DE_Reichart$gene_name %in% rownames(DCM_RV_integrated), &quot;TRUE&quot;,
+  &quot;FALSE&quot;
+)
+table(DE_Reichart$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+  159 14544 </code></pre>
+<pre class="r"><code>DE_Reichart_signif &lt;- dplyr::filter(DE_Reichart, FDR &lt; 0.05 &amp; abs(logFC) &gt; 0.25)
+table(DE_Reichart_signif$Compatible_gene_symbol)</code></pre>
+<pre><code>
+FALSE  TRUE 
+   51  4507 </code></pre>
+<pre class="r"><code>print(&quot;Results are acceptable&quot;)</code></pre>
+<pre><code>[1] &quot;Results are acceptable&quot;</code></pre>
+<pre class="r"><code>gene_sets_up &lt;- list(
+  DCM_RV = dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC &gt; 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC &gt; 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange &gt; 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC &gt; 0)$gene_name
+)
+gene_sets_up &lt;- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_up, mode = &quot;intersect&quot;, min_set_size = 1)
+p1 &lt;- UpSet(m, column_title = &quot;Upregulated genes - intersect&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down &lt;- list(
+  DCM_RV = dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC &lt; 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC &lt; 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange &lt; 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC &lt; 0)$gene_name
+)
+gene_sets_down &lt;- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_down, mode = &quot;intersect&quot;)
+p2 &lt;- UpSet(m, column_title = &quot;Downregulated genes - intersect&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 &lt;- grid::grid.grabExpr(draw(p1))
+p2 &lt;- grid::grid.grabExpr(draw(p2))
+
+combined_plots &lt;- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/UpSet_plot_intersect-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(m, p1, p2, combined_plots)</code></pre>
+<pre class="r"><code>gene_sets_up &lt;- list(
+  DCM_RV = dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC &gt; 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC &gt; 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange &gt; 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC &gt; 0)$gene_name
+)
+gene_sets_up &lt;- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_up, mode = &quot;distinct&quot;, min_set_size = 1)
+p1 &lt;- UpSet(m, column_title = &quot;Upregulated genes - distinct&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down &lt;- list(
+  DCM_RV = dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC &lt; 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC &lt; 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange &lt; 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC &lt; 0)$gene_name
+)
+gene_sets_down &lt;- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_down, mode = &quot;distinct&quot;)
+p2 &lt;- UpSet(m, column_title = &quot;Downregulated genes - distinct&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 &lt;- grid::grid.grabExpr(draw(p1))
+p2 &lt;- grid::grid.grabExpr(draw(p2))
+
+combined_plots &lt;- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/UpSet_plot_distinct-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(m, p1, p2, combined_plots)</code></pre>
+<pre class="r"><code>keyvals &lt;- rep(&quot;grey&quot;, nrow(DE_Koenig))
+names(keyvals) &lt;- rep(&quot;Not significant in RV&quot;, nrow(DE_Koenig))
+
+keyvals[DE_Koenig$gene_name %in% dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC&gt;0)$gene] &lt;- &quot;#A63A2A&quot;
+names(keyvals)[keyvals == &quot;#A63A2A&quot;] &lt;- &quot;Upregulated in RV&quot;
+keyvals[DE_Koenig$gene_name %in% dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC&lt;0)$gene] &lt;- &quot;#004C8C&quot;
+names(keyvals)[keyvals == &quot;#004C8C&quot;] &lt;- &quot;Downregulated in RV&quot;
+
+volcano &lt;- EnhancedVolcano(DE_Koenig,
+                lab = DE_Koenig$gene_name,
+                x = &quot;log2FoldChange&quot;,
+                y = &quot;padj&quot;,
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                subtitleLabSize = 12,
+                axisLabSize = 12,
+                captionLabSize = 10,
+                pointSize = 0.3,
+                FCcutoff = 0.25,
+                pCutoff  = 0.05,
+                ylim = c(0, 22),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+               # title = names(results)[i],
+                colCustom = keyvals
+) + theme(legend.position = &quot;right&quot;)
+volcano</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/Volcano_Koenig-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DE_Chaffin_p &lt;- DE_Chaffin
+DE_Chaffin_p$P_value &lt;- 10^(-DE_Chaffin_p$`log10(P)`)
+
+keyvals &lt;- rep(&quot;grey&quot;, nrow(DE_Chaffin_p))
+names(keyvals) &lt;- rep(&quot;Not significant in RV&quot;, nrow(DE_Chaffin_p))
+
+keyvals[DE_Chaffin_p$Gene %in% dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC&gt;0)$gene] &lt;- &quot;#A63A2A&quot;
+names(keyvals)[keyvals == &quot;#A63A2A&quot;] &lt;- &quot;Upregulated in RV&quot;
+keyvals[DE_Chaffin_p$Gene %in% dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC&lt;0)$gene] &lt;- &quot;#004C8C&quot;
+names(keyvals)[keyvals == &quot;#004C8C&quot;] &lt;- &quot;Downregulated in RV&quot;
+
+
+volcano &lt;- EnhancedVolcano(DE_Chaffin_p,
+                lab = DE_Chaffin_p$Gene,
+                x = &quot;logFC&quot;,
+                y = &quot;P_value&quot;,
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                subtitleLabSize = 12,
+                axisLabSize = 12,
+                captionLabSize = 7,
+                pointSize = 0.3,
+                FCcutoff = 0.25,
+                pCutoff  = 0.05,
+                ylim = c(0, 12),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+               # title = names(results)[i],
+                colCustom = keyvals
+) + theme(legend.position = &quot;right&quot;)
+volcano</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/Volcano_Chaffin-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>keyvals &lt;- rep(&quot;grey&quot;, nrow(DE_Reichart))
+names(keyvals) &lt;- rep(&quot;Not significant in RV&quot;, nrow(DE_Reichart))
+
+keyvals[DE_Reichart$gene_name %in% dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC&gt;0)$gene] &lt;- &quot;#A63A2A&quot;
+names(keyvals)[keyvals == &quot;#A63A2A&quot;] &lt;- &quot;Upregulated in RV&quot;
+keyvals[DE_Reichart$gene_name %in% dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC&lt;0)$gene] &lt;- &quot;#004C8C&quot;
+names(keyvals)[keyvals == &quot;#004C8C&quot;] &lt;- &quot;Downregulated in RV&quot;
+
+volcano &lt;- EnhancedVolcano(DE_Reichart,
+                lab = DE_Reichart$gene_name,
+                x = &quot;logFC&quot;,
+                y = &quot;FDR&quot;,
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                subtitleLabSize = 12,
+                axisLabSize = 12,
+                captionLabSize = 10,
+                pointSize = 0.3,
+                FCcutoff = 0.25,
+                pCutoff  = 0.05,
+                ylim = c(0, 16),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+               # title = names(results)[i],
+                colCustom = keyvals
+) + theme(legend.position = &quot;right&quot;)
+volcano</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/Volcano_Reichart-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gene_sets_up &lt;- list(
+  DCM_RV = dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC &gt; 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC &lt; 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange &lt; 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC &lt; 0)$gene_name
+)
+gene_sets_up &lt;- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_up, mode = &quot;intersect&quot;, min_set_size = 1)
+p1 &lt;- UpSet(m, column_title = &quot;Upregulated genes vs Downregulated - intersect&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down &lt;- list(
+  DCM_RV = dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC &lt; 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC &gt; 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange &gt; 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC &gt; 0)$gene_name
+)
+gene_sets_down &lt;- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_down, mode = &quot;intersect&quot;)
+p2 &lt;- UpSet(m, column_title = &quot;Downregulated genes vs Upregulated- intersect&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 &lt;- grid::grid.grabExpr(draw(p1))
+p2 &lt;- grid::grid.grabExpr(draw(p2))
+
+combined_plots &lt;- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/UpSet_plot_up_vs_down_intersect-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(m, p1, p2, combined_plots)</code></pre>
+<pre class="r"><code>gene_sets_up &lt;- list(
+  DCM_RV = dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC &gt; 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC &lt; 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange &lt; 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC &lt; 0)$gene_name
+)
+gene_sets_up &lt;- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_up, mode = &quot;distinct&quot;, min_set_size = 1)
+p1 &lt;- UpSet(m, column_title = &quot;Upregulated genes vs Downregulated - distinct&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down &lt;- list(
+  DCM_RV = dplyr::filter(signif[[&quot;Cardiomyocytes&quot;]], logFC &lt; 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC &gt; 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange &gt; 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC &gt; 0)$gene_name
+)
+gene_sets_down &lt;- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_down, mode = &quot;distinct&quot;)
+p2 &lt;- UpSet(m, column_title = &quot;Downregulated genes vs Upregulated- distinct&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 &lt;- grid::grid.grabExpr(draw(p1))
+p2 &lt;- grid::grid.grabExpr(draw(p2))
+
+combined_plots &lt;- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/UpSet_plot_up_vs_down_distinct-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(m, p1, p2, combined_plots)</code></pre>
+<pre class="r"><code>CM_signif_cluster &lt;- read.csv(here::here(&quot;output&quot;, &quot;Cardiomyocytes_DA_DE_26&quot;, &quot;CM_signif_cluster.csv&quot;))
+Plasma_proteome_atlas &lt;- read_excel(path = here::here(&quot;data&quot;, &quot;Human_plasma_proteome.xlsx&quot;), sheet = 1)
+Plasma_proteome_concentration &lt;- read_excel(path = here::here(&quot;data&quot;, &quot;Human_plasma_proteome.xlsx&quot;), sheet = 2)
+
+CM_signif_cluster$Detected_in_plasma &lt;- ifelse(CM_signif_cluster$gene %in% Plasma_proteome_concentration$Gene, &quot;Yes&quot;, &quot;No&quot;)
+
+table(CM_signif_cluster$Detected_in_plasma)</code></pre>
+<pre><code>
+  No  Yes 
+3593  486 </code></pre>
+<pre class="r"><code>CM_signif_cluster$Koenig &lt;- ifelse(CM_signif_cluster$logFC &gt; 0 &amp; CM_signif_cluster$gene %in% dplyr::filter(DE_Koenig_signif, log2FoldChange &gt; 0)$gene_name, &quot;Upregulated&quot;,
+                                   ifelse(CM_signif_cluster$logFC &lt; 0 &amp; CM_signif_cluster$gene %in% dplyr::filter(DE_Koenig_signif, log2FoldChange &lt; 0)$gene_name, &quot;Downregulated&quot;, &quot;Not significant&quot;))
+
+CM_signif_cluster$Chaffin &lt;- ifelse(CM_signif_cluster$logFC &gt; 0 &amp; CM_signif_cluster$gene %in% dplyr::filter(DE_Chaffin_signif, logFC &gt; 0)$Gene, &quot;Upregulated&quot;,
+                                   ifelse(CM_signif_cluster$logFC &lt; 0 &amp; CM_signif_cluster$gene %in% dplyr::filter(DE_Chaffin_signif, logFC &lt; 0)$Gene, &quot;Downregulated&quot;, &quot;Not significant&quot;))
+
+CM_signif_cluster$Reichart &lt;- ifelse(CM_signif_cluster$logFC &gt; 0 &amp; CM_signif_cluster$gene %in% dplyr::filter(DE_Reichart_signif, logFC &gt; 0)$gene_name, &quot;Upregulated&quot;,
+                                   ifelse(CM_signif_cluster$logFC &lt; 0 &amp; CM_signif_cluster$gene %in% dplyr::filter(DE_Reichart_signif, logFC &lt; 0)$gene_name, &quot;Downregulated&quot;, &quot;Not significant&quot;))</code></pre>
+<pre class="r"><code>candidate_biomarkers &lt;- CM_signif_cluster %&gt;%
+  dplyr::filter(cluster == &quot;4&quot;) %&gt;%
+  dplyr::filter(Detected_in_plasma == &quot;Yes&quot;) %&gt;%
+  dplyr::filter(Koenig == &quot;Not significant&quot;) %&gt;%
+  dplyr::filter(Chaffin == &quot;Not significant&quot;) %&gt;%
+  dplyr::filter(Reichart == &quot;Not significant&quot;) %&gt;%
+  arrange(desc(logFC))
+
+nrow(candidate_biomarkers)</code></pre>
+<pre><code>[1] 144</code></pre>
+<pre class="r"><code>reactable(candidate_biomarkers, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-17918e35a6b062eaef1d" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-17918e35a6b062eaef1d">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"gene":["FLNC","MUC20","ATP6V1F","MYL9","TAGLN","PCSK6","CSPG4","ZYX","GPT","PLEC","PDLIM7","CALD1","AP3D1","DPP7","C1QTNF1","ANK1","OPLAH","GPI","ASL","ACTB","SRL","TTYH3","NECTIN2","MAPT","TPM1","PCDHGC3","SEPTIN9","PIPOX","FGFR1","FUCA1","GNL1","PABPC4","DNM2","TPD52L2","LDB3","PYGB","MAPRE2","SH3GL1","SLC9A1","NAPA","MINK1","TNNT2","CAPZB","PRRC2A","NUP210","B4GALT2","HSPBP1","EIF4G1","GLTP","MYBBP1A","CYB5R3","ENTPD6","ARSA","MAVS","MYOM1","CTPS1","MAP2K2","TOM1","ENOSF1","EFEMP2","MEGF8","VASP","SYNE1","COPE","TNS1","NUCB1","CRAT","NAXD","SAFB2","THOP1","TTN","PIN1","BAG6","SNAP29","LUC7L","MYBPC3","GALNS","DMTN","PRKACA","TXNRD2","AP2A1","MAN2B1","RCSD1","SRP68","UBE2L3","STK10","HSPA9","CNDP2","CSK","DYNC1H1","SEC16A","CARM1","RANGAP1","EIF3L","DDB1","CHST12","DFFA","AP2A2","TOLLIP","AKAP8","PTPA","PDHA1","PLD3","SEMA4B","ELAVL1","ILF3","ECHDC2","PTBP1","SCLY","CHMP4B","PDCD6","NUMA1","ARPC1A","KHSRP","SARNP","SHPK","SAFB","ATP6V1E1","ACO2","COPG1","HNRNPM","RMDN3","HNRNPUL2","EFTUD2","TRAP1","RPN2","UBA2","PSMD9","EPS15L1","PAFAH1B2","XPNPEP1","DNAJC7","GCN1","SDHB","IST1","TTC38","DYNC1LI2","CAP1","COPA","ACTR1A","YWHAE","MTDH","HNRNPUL1","ARPC2"],"logFC":[2.96864845450901,2.71274723728805,2.70424249031087,2.64615490252736,2.56566603102881,2.44349120377286,2.40567863014368,2.4011676870898,2.37554692278177,2.24950257518445,2.07447371435497,2.0466072090463,2.0286769481644,2.01586736537419,1.85069935511477,1.83545997881826,1.80809557114085,1.75895906127601,1.74381374114544,1.6684779170102,1.60867141916494,1.54602953720176,1.52757162669947,1.46970233174742,1.41053604204934,1.38287312803773,1.35850651964419,1.32742594670671,1.3143116543381,1.29423337114635,1.28201609825389,1.28158706229623,1.24705325998924,1.24361256691594,1.22721187331224,1.22356529532463,1.19023063306046,1.18416123155362,1.18306598656832,1.17097690119554,1.15455706369526,1.15373790862265,1.13164530037663,1.11447461189249,1.10011572570428,1.08776842259963,1.058301153476,1.05061375087142,1.04621420153996,1.03384704976367,1.01911486535245,1.01838054047017,1.00494240551088,0.997727647116354,0.994259043357281,0.970715176215915,0.969301548876786,0.969215011172054,0.968510347091712,0.967880907293711,0.957283315127758,0.955618627614073,0.928776115228842,0.924296429614106,0.923460465940234,0.919703165709103,0.915077415398247,0.908929515685737,0.89942549114847,0.88745091120707,0.877094154385373,0.871268680785324,0.868954361936788,0.86315679190531,0.862997267968015,0.857534810317207,0.853123060170439,0.849906561659149,0.842400535929416,0.838365143875136,0.835752118740993,0.828242853660764,0.821752165687385,0.814734893164734,0.80909716867231,0.80441904424175,0.798184156294323,0.787754240151739,0.784353624911829,0.776481947634931,0.772499476855481,0.767364401576649,0.761143808139905,0.760372148249044,0.759959480895944,0.748327897537219,0.748183228458111,0.747681109722237,0.746663206388918,0.731594230595445,0.725273888995232,0.72024309689832,0.717912885003931,0.714507485103251,0.709683213575453,0.698033176964858,0.697366102363057,0.684760754416391,0.683739490925072,0.681206339829631,0.678950081663527,0.677496930204745,0.677209229668657,0.673817456741551,0.673647866301514,0.672972223481762,0.659966123564744,0.659014978460182,0.658209177724144,0.657475309362485,0.655170082038038,0.653097788772256,0.648860287076225,0.644465508317021,0.640267024783107,0.629645364484459,0.617094821197674,0.611103956009845,0.604640340048189,0.595435927924389,0.591735836884961,0.58087737199009,0.580387035105323,0.579851134382596,0.570515750110765,0.56549258983961,0.55920430786247,0.545306695459366,0.543282093834463,0.531911094812854,0.526278926053695,0.505205720066722,0.503919315105242,0.501389212789053],"logCPM":[6.40657232189519,4.68824648721175,3.80137204259426,6.00695932111762,1.24898406856387,7.51171571768626,2.62221809315059,2.23378135527913,2.52830896036736,5.27195700406502,2.33606742999168,9.93961880564269,5.19388886912348,3.49020589381964,4.55787822951,6.04530224342093,4.12581316501136,7.42380111566388,2.49260810371085,6.82335239566132,8.21575509448263,2.06957628073403,3.86089650842956,6.04758275752942,9.79864890375912,2.09314453840763,4.72768047873475,1.92405783646289,6.52336120566666,3.2113452879522,3.14287952874139,5.50851344441274,7.38069988154954,3.83346439279617,11.5403109290723,7.065732910491,8.72992303397435,4.04942835899923,4.48546803985979,4.28291582052635,5.77652049132925,10.219678059789,6.87441364350082,4.00403860646932,3.11822021084108,0.704516094136647,2.06878452150773,4.35595988281506,2.74906463992974,1.95374106002335,4.48428340895589,5.3702490226449,1.45947006313346,5.49238162807152,11.7131233206987,2.5611898003528,3.73537649908617,4.90644603516024,6.92955302906727,1.73073226656144,3.92753583095684,3.37063178944517,8.60944625692431,3.13714127223923,8.69077969168308,4.0026949356958,2.14667488165125,3.62244378239918,5.8802820548025,2.28467717928866,14.3897309524322,2.98533201203916,2.85018495423638,3.08106730620789,6.33544821726689,11.1914660816393,2.82035016116302,2.83858258698427,4.98907617726349,4.45351123931245,4.1769135791001,2.81610258469239,6.15646560510163,3.67581368795973,5.2519966848665,3.70945069445555,5.53506832515434,2.74224907824521,2.69746658072011,6.24103031662496,3.93417105349601,3.59706514654119,3.83407797971222,4.5978097335153,5.12061796048801,3.92179468728453,3.527766288645,5.04366223499164,2.96118451872731,4.6808079605103,4.16641572400473,5.66284396795835,5.87101806440961,6.193325880632,4.94315566830747,4.81323237038802,7.65925152081918,3.0280731969544,3.76003316699789,5.06620521407744,5.05646934531998,5.08214913120751,5.71494234915071,2.95726747284599,6.17011312731689,5.08665211522735,5.73876986329282,4.86723338180663,8.07042817202186,3.6340761189226,6.06713840987511,3.86973301350217,3.97973450584299,4.68009338943632,5.01643270259696,4.65675430252904,5.44711257770731,4.16843481270149,7.44305627826884,6.02035702236686,4.53071833810374,5.94489674291579,4.43048505910315,5.93821239350385,6.14935735044928,4.81214487062092,5.15291817139909,4.29637437317364,6.11201181096169,4.1495555655328,7.00675750139586,7.04986644592827,4.69849877807364,4.74755645433991],"F":[13.8429103212258,12.8109639432722,9.60552362607143,13.9828294404273,9.57367837359593,19.3862090944491,9.50105418681796,14.5997523486093,17.4801266973508,18.8191954123182,10.2505634154329,9.91143960000688,17.7474766657614,12.8571799951223,11.0367554273826,9.95911225578505,14.884096425749,16.3533654483465,23.7934783937981,7.66076595284918,17.1745830552614,16.6403487491367,18.1718599742347,8.03270734994975,13.349886940605,10.7179870279408,9.30117547241604,13.5539166372999,11.9900725494849,7.8114595917673,15.8418581047066,8.73485375220094,21.7260208635942,23.8141520365153,18.8512145695945,10.3231851035012,9.88912994219959,17.6690228985291,7.89373350911942,13.5330421772012,21.3510085867386,10.6837225916561,37.1902856035361,19.3800235533881,14.5478781738148,7.99372737166015,15.3369461799821,16.9958637435505,20.616626391049,10.1147980801241,8.95626728480799,12.486496963298,7.99230750372418,11.762594945803,10.0337547090405,8.54343266455799,13.9922322329826,9.38841571913179,12.2022897915248,8.73405270557439,13.2033806976433,9.21562540769421,14.9496778497316,11.6416422088477,7.67057022388686,10.3920692329184,10.6134456917117,11.5810732074706,23.0783918613603,9.96677160263963,13.0306009884748,13.041773514823,8.84553137414567,16.6758840274761,20.2739518163779,7.9551625552457,9.30957951294092,13.130386893983,9.96638437147737,14.4782298364175,14.2512727937394,8.81834408477125,7.99666848644949,18.0232147460645,22.2532770382605,9.09515534215798,12.3469989639209,8.67326716153022,11.0140043365768,15.2129677924202,11.2775694988226,10.3045346608592,8.14503654638805,19.7186242703735,25.2450040244444,8.04721269226483,10.1328957573093,11.3791435317501,10.6660737080694,9.02406209270571,8.01491691997723,9.01663402160153,9.33994634215516,9.4845525507291,23.0814670316022,11.3021586724666,11.084157042049,7.96050216069658,7.73670893059769,18.0310689879679,11.7846044948599,11.7037975885575,10.9253043645457,9.17460400867104,20.0091836822029,9.33032026361238,25.0238501071019,10.3988212613536,14.9153197473726,11.1156391115227,24.2753482986622,14.3826148180668,9.11715162301311,14.556320767134,9.32617164879898,11.0751008865475,14.3981268069438,18.4151581792375,11.4328875731135,13.8613635518758,17.0872693035888,15.564092803242,10.5735909127569,12.4238372084086,11.7868150347824,10.0977902409105,10.634246253558,10.9613714215697,8.49231365032155,13.7949489550055,11.8397411454325,16.8708764296076,7.99303208681657,9.96612233868678],"PValue":[0.00145810595489756,0.00201083669566678,0.00592486025708606,0.00139715401929552,0.00599304586629041,0.00030824644077487,0.00615185016132523,0.00116015527078806,0.000509622316721981,0.000357167760844641,0.00471438573406704,0.0053122204834933,0.000474984283756556,0.00198160084378358,0.00359674488278075,0.00522328061911766,0.00106626101112853,0.000697834658978996,0.000103591588707832,0.0122828474966606,0.000555242648861898,0.000635704164007193,0.000420238519577093,0.0106305673575771,0.00169068581173951,0.00398106778596235,0.00661375026990269,0.001578049337619,0.00261906322797633,0.0115580013688173,0.000797407320217731,0.00814750950832972,0.000169159486542694,0.000103099534943608,0.000348978917143364,0.00459636483771496,0.00533968771177579,0.000478575108403362,0.0112084997629472,0.00159047621358425,0.00018508910533784,0.00404072868311969,7.19036864146812e-06,0.000304046583462852,0.0011656796080809,0.010739947495997,0.000923008533252801,0.000575713685692927,0.000221999953989273,0.00491152880607278,0.00747965130000202,0.00221226659976824,0.0107458441796787,0.0028068679782896,0.00505408619807323,0.00870714123169961,0.00137901118909427,0.00638454093002932,0.00243174761590872,0.00810591892274745,0.00176030658248553,0.00678349646429665,0.00103426715686462,0.00291365696795415,0.0122073883159832,0.00445668815089937,0.00412716422162146,0.0029729106982969,0.000122322384480311,0.00517540067913486,0.0018586605887247,0.00185211915816464,0.0077759154605269,0.000629406349135386,0.00024195783085793,0.0109014032303351,0.00655466343117115,0.00180113398630009,0.0051761113827722,0.00119029312151046,0.00127459283364122,0.00785498804174167,0.010748272881323,0.000434872918236468,0.000148739807585735,0.00709008105879507,0.00231236336754677,0.00829244000321165,0.00359771325538359,0.000957109636895133,0.00329077149890558,0.00459499612079057,0.0101318578496708,0.000278660938404076,7.45842170114561e-05,0.0105204434103241,0.00488031084786876,0.00318036252369395,0.00405288301245317,0.00727825692120265,0.0106523772679351,0.0072982382242489,0.00648255705524208,0.00615112549351271,0.000122234205571333,0.00326365717584169,0.00351301197370601,0.0108788869690824,0.0118689749627921,0.000433955348826295,0.00277894438701352,0.00285421491940421,0.00370808311751139,0.00688619625937055,0.00025874188085317,0.00650531789636081,7.83544490823601e-05,0.00444621410966913,0.00104483561099113,0.00347572515987665,9.27683902738321e-05,0.00122502858398232,0.00703296580699305,0.00116273463351367,0.00651515480735653,0.00352382030539716,0.00121931760226158,0.000391598924529201,0.00312361725328615,0.0014353515164524,0.000561323749653696,0.000863974127692165,0.00418442697011824,0.00225567900497329,0.00277691658663861,0.00494107001455974,0.0040976256275069,0.00366275585768442,0.0088767464633878,0.00146491850516213,0.00272885417941056,0.000596057102552422,0.010742834547015,0.00517659236571087],"FDR":[0.0111434363325241,0.0138058300696165,0.0292608129260999,0.010829385005131,0.0295199418326455,0.00424340886099281,0.0301091566233941,0.00951597518324704,0.00568741965366437,0.00462243487511514,0.0247736061033271,0.027000326901219,0.00544026798707432,0.0136919179612959,0.0204641125781493,0.0266765406885443,0.00903514982885632,0.00685467455551419,0.00248064533703639,0.0491342964815541,0.00598620980804234,0.00646605228191432,0.00504196747583446,0.0443428321986694,0.0122455199860568,0.0220006377645288,0.0317537732901123,0.011758494174207,0.0165515005117532,0.0470296542892334,0.00754768798895898,0.0366898370373772,0.0030729557902512,0.00247668633177008,0.00454520435672463,0.0243197332023698,0.0270829345237233,0.00545905007257681,0.0459344699376053,0.0118242905877597,0.00319604834089497,0.0222503317225206,0.00157745479041883,0.0042095884467154,0.00955201831052232,0.0446309765043827,0.00824608514767973,0.00610184317030654,0.00354717317787208,0.0255673214899804,0.0345156513983118,0.0147761228246077,0.0446326585749854,0.0173746258414448,0.0260485753592768,0.0385276165531704,0.0107034821632868,0.0309789507526251,0.0157083276449893,0.0366000425718605,0.012598637924182,0.0323210281084935,0.00885774314698339,0.017813877411669,0.0489250591469169,0.0238042063794483,0.0225668383748101,0.0181143615464062,0.00266476792479338,0.0265071317635455,0.0130973977709008,0.0130676437265331,0.035489160599408,0.0064251898140904,0.00371845193695755,0.0450032287201012,0.0315598363155649,0.0127987263717541,0.0265071317635455,0.00966469991312885,0.0101349914641132,0.035699945581367,0.0446326585749854,0.00515810610258075,0.00288353950371198,0.0332753526648891,0.0151984847310957,0.0371840048419875,0.0204641125781493,0.00841828221212915,0.0193699485337739,0.0243197332023698,0.0428948301900037,0.00398541722819028,0.00221333711241901,0.0440905497538719,0.025455617057458,0.018969850229348,0.022273727999194,0.0338577141587591,0.0444199402354325,0.0339319904237975,0.0313018072033326,0.0301091566233941,0.00266476792479338,0.0192807597933846,0.0201381713853849,0.0449212467543572,0.0479826340291524,0.00515810610258075,0.0172459819612568,0.0175711956345696,0.020911402401027,0.0326355895050909,0.00382885713632871,0.0313758627783108,0.00222618817098705,0.0237632783825345,0.00891519161059828,0.0200276781426023,0.00236895715646395,0.00985209715138971,0.0331176286816762,0.00953250677960647,0.0314143445574336,0.0201659384775691,0.00981550669820573,0.00483659712524477,0.0188040674661821,0.0110647115429016,0.00602392422104172,0.00789377386746029,0.0227750781138058,0.0149629302459198,0.0172397263669209,0.025661686204649,0.0224601963353812,0.0207294569046385,0.0391192385202218,0.0111585582690286,0.0170414776146788,0.00619701434111236,0.0446320024618553,0.0265071317635455],"percentCells":[50.1280263130504,31.2967087869767,14.630389075088,54.4559402127527,4.13639486229365,70.9120053292254,10.8770322876116,7.96677561046693,9.94441784457814,43.7766721485522,8.27487145325478,95.4597497762142,43.6059703978184,17.4323958615234,24.4186772696047,54.5225555301122,28.3802069238295,84.807544184691,10.1130378666445,69.3132377125965,91.3400087432604,7.92097757978225,22.4930782521806,48.3377396590128,98.0993817265858,8.23115515123759,33.1307117430314,6.92799300539168,68.2848637508587,13.5770343693403,15.2944605200158,51.0481503840789,82.4843349917772,23.3944667652018,99.6523513125299,79.4283573079085,90.9049274517559,25.3554551699731,29.6604700543331,30.8741178674772,55.7466119865937,99.1215105023211,79.1244249224556,25.8259258488249,15.3985469533901,3.24125153527489,7.99591981181173,30.6638632720611,11.7388679559506,7.2111081041697,33.9176051793409,50.5027374731977,5.33755230343277,53.2880904302933,99.2734766950476,10.462768282782,23.1488227824385,42.4651830880363,76.1100818119366,6.50332035722464,24.3749609675875,17.7550638049837,93.9234340196099,15.908570476924,95.4909757062265,26.2152091096447,8.49345296334076,22.8865249703354,59.2064450319545,10.0006245186002,99.8209713345963,14.9676291192206,13.3855153319316,14.3014759456252,70.7350583924891,99.5774090805004,13.408414347274,12.9421071257572,44.307512958761,32.7934716988988,28.8777400753586,12.7027083289964,58.7214022524304,22.3598476174615,48.3564752170202,20.6174407227762,53.8834648291942,12.5819680662822,13.0711743031413,67.599975019256,25.5719549513916,21.2398775943544,24.2250765035285,35.9826800174865,44.513604096842,24.5789703770011,19.5370235443512,43.1396631763016,14.3243749609676,36.0867664508608,29.4960134896018,56.4023565168516,60.4825447051231,66.3322022607573,42.155005516581,40.9684201761142,90.1326061161188,15.3881383100527,20.6674022107958,42.146678601911,43.4727397630993,45.4961800278952,58.0864750088474,14.1807356829111,65.7742989778712,42.7524616441493,57.6055956866582,38.6306388825281,90.4448654162417,20.4238399567,65.6452318004871,23.9419614047505,25.8071902908175,36.3927805649812,40.8393529987301,35.7162187480484,49.1974935986843,28.3156733351375,86.6748547994254,63.7050606823907,34.2111289214564,61.6941107895997,33.2993317650977,60.8655827799405,68.2702916501863,39.5278639382143,47.6445240127402,30.1975560505444,63.8195557591024,29.6667152403356,81.5080042467265,79.3513333472115,38.2517642650457,37.6772071528197],"cluster":[4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],"metric":[8.41971315356667,7.31525713024988,6.0232184902246,7.5541258322055,5.70181405787273,8.57934667995495,5.3189416211253,7.04858904476238,7.82208584105367,7.75432274810721,4.82641844570242,4.6554663484803,6.74194421724897,5.4488568748875,4.52327646347536,4.18862363432087,5.37390678986558,5.55171007727932,6.94853190211041,3.18796232490357,5.23705744622582,4.94226210606523,5.15785192496895,2.90037459639859,3.9099171744642,3.31889609858741,2.96093588411508,3.71928744526627,3.39336082427829,2.50708179969141,3.97209583783414,2.67720349241671,4.70351532216568,4.95796406112137,4.24271788156394,2.86018850045111,2.70478023855263,3.93147437083985,2.30751402658458,3.27694703273172,4.30952179857321,2.76151819090125,5.82033338218306,3.91967393623098,3.22710235310299,2.14181367642401,3.21172629119758,3.40377154488029,3.82249749971365,2.38692880787662,2.16675912008161,2.70396585995472,1.97848986882791,2.54597947390197,2.28317406739257,1.99979403078031,2.77262137161801,2.12730126609328,2.53176498208775,2.0240303702629,2.63675235098018,2.07230333184431,2.77273781194959,2.34361051557216,1.76692823788088,2.16221087976957,2.18186323403438,2.29669958471038,3.51899689299984,2.028762499371,2.39516863768064,2.38059449199632,1.8328406581457,2.76302434552225,3.12082277433228,1.6829271544363,1.86275120751066,2.33252944477579,1.92572458139074,2.45166981883395,2.41919192495711,1.74333067425077,1.61775169997897,2.73884348123031,3.09687830295924,1.72897710713929,2.10396867329296,1.639566813319,1.91693943760622,2.34422874766856,1.91788620687758,1.79387915763297,1.51795740217915,2.7030651262901,3.13662109286952,1.48016710478411,1.72946482345569,1.86735104690394,1.78619455150295,1.56412843247026,1.43064151980248,1.53900245971519,1.57097549254603,1.5798084971583,2.77685362023852,1.73551672376848,1.71155983035036,1.34446990333017,1.31659972898837,2.29059375286539,1.73547798075112,1.72389996863176,1.64619442136934,1.45680722473402,2.41646467292971,1.4716095434598,2.70977888899441,1.55000957398198,1.96208998701349,1.61670191816182,2.64203885923667,1.90172526341115,1.39690632705986,1.89119653120238,1.39967190299661,1.54451141907676,1.79814220551895,2.08212804396632,1.51483095189253,1.69284918915888,1.92360691884518,1.77951740073962,1.38037163464749,1.53470516155008,1.45848766705477,1.30412713090435,1.33508223540979,1.32847182452564,1.11467696297537,1.50753526266192,1.34938951878954,1.62914301498328,0.992157221931656,1.14615369559868],"ENTREZID":[2318,200958,9296,10398,6876,5046,1464,7791,2875,5339,9260,800,8943,29952,114897,286,26873,2821,435,60,6345,80727,5819,4137,7168,5098,10801,51268,2260,2517,2794,8761,1785,7165,11155,5834,10982,6455,6548,8775,50488,7139,832,7916,23225,8704,23640,1981,51228,10514,1727,955,410,57506,8736,1503,5605,10043,55556,30008,1954,7408,23345,11316,7145,4924,1384,55739,9667,7064,7273,5300,7917,9342,55692,4607,2588,2039,5566,10587,160,4125,92241,6730,7332,6793,3313,55748,1445,1778,9919,10498,5905,51386,1642,55501,1676,161,54472,10270,5524,5160,23646,10509,1994,3609,55268,5725,51540,128866,10016,4926,10552,8570,84324,23729,6294,529,50,22820,4670,55177,221092,9343,10131,6185,10054,5715,58513,5049,7511,7266,10985,6390,9798,55020,1783,10487,1314,10121,7531,92140,11100,10109],"Detected_in_plasma":["Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes"],"Koenig":["Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant"],"Chaffin":["Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant"],"Reichart":["Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant","Not significant"]},"columns":[{"id":"gene","name":"gene","type":"character"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"percentCells","name":"percentCells","type":"numeric"},{"id":"cluster","name":"cluster","type":"numeric"},{"id":"metric","name":"metric","type":"numeric"},{"id":"ENTREZID","name":"ENTREZID","type":"numeric"},{"id":"Detected_in_plasma","name":"Detected_in_plasma","type":"character"},{"id":"Koenig","name":"Koenig","type":"character"},{"id":"Chaffin","name":"Chaffin","type":"character"},{"id":"Reichart","name":"Reichart","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"e71c304582dae73bd77d160724f8fa1d"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>CM &lt;- readRDS(here::here(&quot;output&quot;, &quot;Cardiomyocytes_subclustering_26&quot;, &quot;CM.rds&quot;))
+DefaultAssay(CM) &lt;- &quot;RNA&quot;
+CM &lt;- NormalizeData(CM)</code></pre>
+<pre class="r"><code>VlnPlot(CM, group.by = &quot;mPAP_mmHg&quot;, features = candidate_biomarkers$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/VlnPlot_mPAP_mmHg-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>candidate_biomarkers_filtered &lt;- candidate_biomarkers %&gt;%
+  dplyr::filter(percentCells &gt; 25)
+VlnPlot(CM, group.by = &quot;mPAP_mmHg&quot;, features = candidate_biomarkers_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/VlnPlot_mPAP_mmHg_filtered-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>CM@meta.data[CM@meta.data$Sample %in% c(&quot;CZD4&quot;), &quot;Sample2&quot;] = &quot;HC1&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;CZD5&quot;), &quot;Sample2&quot;] = &quot;HC2&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;CZD6&quot;), &quot;Sample2&quot;] = &quot;HC3&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;CZD7&quot;), &quot;Sample2&quot;] = &quot;HC4&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK337&quot;), &quot;Sample2&quot;] = &quot;DCM_41&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK345&quot;), &quot;Sample2&quot;] = &quot;DCM_43_a&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK357&quot;), &quot;Sample2&quot;] = &quot;DCM_39&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK369&quot;), &quot;Sample2&quot;] = &quot;DCM_36&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK375&quot;), &quot;Sample2&quot;] = &quot;DCM_21&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK385&quot;), &quot;Sample2&quot;] = &quot;DCM_29_a&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK401&quot;), &quot;Sample2&quot;] = &quot;DCM_43_b&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK403&quot;), &quot;Sample2&quot;] = &quot;DCM_30_a&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK415&quot;), &quot;Sample2&quot;] = &quot;DCM_no_mPAP_a&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK437&quot;), &quot;Sample2&quot;] = &quot;DCM_29_b&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK439&quot;), &quot;Sample2&quot;] = &quot;DCM_19&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK441&quot;), &quot;Sample2&quot;] = &quot;DCM_no_mPAP_b&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK461&quot;), &quot;Sample2&quot;] = &quot;DCM_34&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK463&quot;), &quot;Sample2&quot;] = &quot;DCM_48&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;P3&quot;), &quot;Sample2&quot;] = &quot;DCM_no_mPAP_c&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;P5&quot;), &quot;Sample2&quot;] = &quot;DCM_25&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;P8&quot;), &quot;Sample2&quot;] = &quot;DCM_26&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK323&quot;), &quot;Sample2&quot;] = &quot;DCM_30_b&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK213&quot;), &quot;Sample2&quot;] = &quot;DCM_33&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK229&quot;), &quot;Sample2&quot;] = &quot;DCM_22&quot;
+CM@meta.data[CM@meta.data$Sample %in% c(&quot;PK153&quot;), &quot;Sample2&quot;] = &quot;DCM_27&quot;</code></pre>
+<pre class="r"><code>CM$Sample2 &lt;- factor(CM$Sample2, levels = c(&quot;HC1&quot;, &quot;HC2&quot;, &quot;HC3&quot;, &quot;HC4&quot;, &quot;DCM_19&quot;, &quot;DCM_21&quot;, &quot;DCM_22&quot;, &quot;DCM_25&quot;, &quot;DCM_26&quot;, &quot;DCM_27&quot;, &quot;DCM_29_a&quot;, &quot;DCM_29_b&quot;, &quot;DCM_30_a&quot;, &quot;DCM_30_b&quot;, &quot;DCM_33&quot;, &quot;DCM_34&quot;, &quot;DCM_36&quot;, &quot;DCM_39&quot;, &quot;DCM_41&quot;, &quot;DCM_43_a&quot;, &quot;DCM_43_b&quot;, &quot;DCM_48&quot;, &quot;DCM_no_mPAP_a&quot;, &quot;DCM_no_mPAP_b&quot;, &quot;DCM_no_mPAP_c&quot;))</code></pre>
+<pre class="r"><code>VlnPlot(CM, group.by = &quot;Sample2&quot;, features = candidate_biomarkers$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/VlnPlot_Sample2-1.png" width="7500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>VlnPlot(CM, group.by = &quot;Sample2&quot;, features = candidate_biomarkers_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/VlnPlot_Sample2_filtered-1.png" width="7500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot(CM, features = candidate_biomarkers$gene[1:20], ncol = 5)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/FeaturePlot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>VlnPlot(CM, group.by = &quot;cell_state&quot;, features = candidate_biomarkers$gene[1:20], ncol = 5, add.noise = F, pt.size = 0)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/VlnPlot_cell_state-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>VlnPlot(DCM_RV_integrated, group.by = &quot;cell_type&quot;, features = candidate_biomarkers$gene[1:20], ncol = 5, add.noise = F, pt.size = 0.001, assay=&quot;SCT&quot;)</code></pre>
+<p><img src="figure/Comparison_LV.Rmd/VlnPlot_cell_type_SCT-1.png" width="7500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>write.csv(CM_signif_cluster, here::here(output_dir_data, &quot;CM_signif_cluster_snLV.csv&quot;))</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.3.1 (2023-06-16)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 22.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;  LAPACK version 3.10.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8          LC_NUMERIC=C                 
+ [3] LC_TIME=en_US.UTF-8           LC_COLLATE=en_US.UTF-8       
+ [5] LC_MONETARY=en_US.UTF-8       LC_MESSAGES=en_US.UTF-8      
+ [7] LC_PAPER=en_US.UTF-8          LC_NAME=en_US.UTF-8          
+ [9] LC_ADDRESS=en_US.UTF-8        LC_TELEPHONE=en_US.UTF-8     
+[11] LC_MEASUREMENT=en_US.UTF-8    LC_IDENTIFICATION=en_US.UTF-8
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] cowplot_1.1.3               rtracklayer_1.62.0         
+ [3] biomaRt_2.58.2              ComplexHeatmap_2.18.0      
+ [5] UpSetR_1.4.0                reactable_0.4.4            
+ [7] enrichplot_1.22.0           dorothea_1.14.1            
+ [9] OmnipathR_3.10.1            decoupleR_2.9.7            
+[11] EnhancedVolcano_1.20.0      ggrepel_0.9.5              
+[13] speckle_1.2.0               edgeR_4.0.16               
+[15] limma_3.58.1                ReactomePA_1.46.0          
+[17] AnnotationHub_3.10.0        BiocFileCache_2.10.1       
+[19] dbplyr_2.4.0                org.Hs.eg.db_3.18.0        
+[21] AnnotationDbi_1.64.1        clusterProfiler_4.10.1     
+[23] gprofiler2_0.2.3            harmony_1.2.0              
+[25] clustree_0.5.1              ggraph_2.2.1               
+[27] rhdf5_2.46.1                Rcpp_1.0.12                
+[29] data.table_1.15.2           plyr_1.8.9                 
+[31] gtable_0.3.4                gtools_3.9.5               
+[33] ArchR_1.0.2                 statmod_1.5.0              
+[35] patchwork_1.2.0             scater_1.30.1              
+[37] scuttle_1.12.0              Matrix.utils_0.9.7         
+[39] RColorBrewer_1.1-3          scales_1.3.0               
+[41] knitr_1.45                  gridExtra_2.3              
+[43] png_0.1-8                   pheatmap_1.0.12            
+[45] reshape2_1.4.4              lubridate_1.9.3            
+[47] forcats_1.0.0               stringr_1.5.1              
+[49] purrr_1.0.2                 tidyr_1.3.1                
+[51] tibble_3.2.1                tidyverse_2.0.0            
+[53] magrittr_2.0.3              ggplot2_3.5.0              
+[55] dplyr_1.1.4                 scCustomize_2.1.2          
+[57] scDblFinder_1.16.0          Matrix_1.6-5               
+[59] DropletUtils_1.22.0         SingleCellExperiment_1.24.0
+[61] SummarizedExperiment_1.32.0 Biobase_2.62.0             
+[63] GenomicRanges_1.54.1        GenomeInfoDb_1.38.7        
+[65] IRanges_2.36.0              S4Vectors_0.40.2           
+[67] BiocGenerics_0.48.1         MatrixGenerics_1.14.0      
+[69] matrixStats_1.2.0           SeuratObject_5.0.2         
+[71] Seurat_4.4.0                xlsx_0.6.5                 
+[73] readxl_1.4.3                readr_2.1.5                
+[75] here_1.0.1                 
+
+loaded via a namespace (and not attached):
+  [1] igraph_2.0.3                  graph_1.80.0                 
+  [3] ica_1.0-3                     plotly_4.10.4                
+  [5] rematch2_2.1.2                zlibbioc_1.48.0              
+  [7] tidyselect_1.2.1              rvest_1.0.4                  
+  [9] bit_4.0.5                     doParallel_1.0.17            
+ [11] clue_0.3-65                   lattice_0.22-5               
+ [13] rjson_0.2.21                  blob_1.2.4                   
+ [15] S4Arrays_1.2.1                parallel_4.3.1               
+ [17] cli_3.6.2                     ggplotify_0.1.2              
+ [19] goftest_1.2-3                 BiocIO_1.12.0                
+ [21] bluster_1.12.0                grr_0.9.5                    
+ [23] BiocNeighbors_1.20.2          uwot_0.1.16                  
+ [25] shadowtext_0.1.3              curl_5.2.1                   
+ [27] mime_0.12                     evaluate_0.23                
+ [29] tidytree_0.4.6                leiden_0.4.3.1               
+ [31] stringi_1.8.3                 backports_1.4.1              
+ [33] XML_3.99-0.16.1               httpuv_1.6.14                
+ [35] paletteer_1.6.0               rappdirs_0.3.3               
+ [37] splines_4.3.1                 logger_0.3.0                 
+ [39] bcellViper_1.38.0             sctransform_0.4.1            
+ [41] ggbeeswarm_0.7.2              DBI_1.2.2                    
+ [43] HDF5Array_1.30.1              jquerylib_0.1.4              
+ [45] reactome.db_1.86.2            withr_3.0.0                  
+ [47] git2r_0.33.0                  rprojroot_2.0.4              
+ [49] xgboost_1.7.7.1               lmtest_0.9-40                
+ [51] tidygraph_1.3.1               BiocManager_1.30.22          
+ [53] htmlwidgets_1.6.4             fs_1.6.3                     
+ [55] labeling_0.4.3                SparseArray_1.2.4            
+ [57] cellranger_1.1.0              reticulate_1.35.0            
+ [59] zoo_1.8-12                    XVector_0.42.0               
+ [61] timechange_0.3.0              foreach_1.5.2                
+ [63] fansi_1.0.6                   ggtree_3.10.1                
+ [65] R.oo_1.26.0                   irlba_2.3.5.1                
+ [67] ggrastr_1.0.2                 gridGraphics_0.5-1           
+ [69] ellipsis_0.3.2                lazyeval_0.2.2               
+ [71] yaml_2.3.8                    survival_3.5-8               
+ [73] scattermore_1.2               BiocVersion_3.18.1           
+ [75] crayon_1.5.2                  RcppAnnoy_0.0.22             
+ [77] progressr_0.14.0              tweenr_2.0.3                 
+ [79] later_1.3.2                   ggridges_0.5.6               
+ [81] codetools_0.2-19              GlobalOptions_0.1.2          
+ [83] KEGGREST_1.42.0               Rtsne_0.17                   
+ [85] shape_1.4.6.1                 reactR_0.6.0                 
+ [87] Rsamtools_2.18.0              filelock_1.0.3               
+ [89] pkgconfig_2.0.3               xml2_1.3.6                   
+ [91] GenomicAlignments_1.38.2      aplot_0.2.2                  
+ [93] spatstat.sparse_3.0-3         ape_5.7-1                    
+ [95] viridisLite_0.4.2             xtable_1.8-4                 
+ [97] highr_0.10                    httr_1.4.7                   
+ [99] tools_4.3.1                   globals_0.16.3               
+[101] beeswarm_0.4.0                checkmate_2.3.1              
+[103] nlme_3.1-164                  HDO.db_0.99.1                
+[105] crosstalk_1.2.1               digest_0.6.35                
+[107] farver_2.1.1                  tzdb_0.4.0                   
+[109] yulab.utils_0.1.4             viridis_0.6.5                
+[111] glue_1.7.0                    cachem_1.0.8                 
+[113] polyclip_1.10-6               generics_0.1.3               
+[115] Biostrings_2.70.2             parallelly_1.37.1            
+[117] ScaledMatrix_1.10.0           pbapply_1.7-2                
+[119] spam_2.10-0                   gson_0.1.0                   
+[121] dqrng_0.3.2                   utf8_1.2.4                   
+[123] graphlayouts_1.1.1            shiny_1.8.0                  
+[125] GenomeInfoDbData_1.2.11       R.utils_2.12.3               
+[127] rhdf5filters_1.14.1           RCurl_1.98-1.14              
+[129] memoise_2.0.1                 rmarkdown_2.26               
+[131] R.methodsS3_1.8.2             future_1.33.1                
+[133] RANN_2.6.1                    Cairo_1.6-2                  
+[135] spatstat.data_3.0-4           rstudioapi_0.15.0            
+[137] cluster_2.1.6                 whisker_0.4.1                
+[139] janitor_2.2.0                 spatstat.utils_3.0-4         
+[141] hms_1.1.3                     fitdistrplus_1.1-11          
+[143] munsell_0.5.0                 colorspace_2.1-0             
+[145] rlang_1.1.4                   DelayedMatrixStats_1.24.0    
+[147] sparseMatrixStats_1.14.0      dotCall64_1.1-1              
+[149] ggforce_0.4.2                 circlize_0.4.16              
+[151] xfun_0.42                     iterators_1.0.14             
+[153] abind_1.4-5                   GOSemSim_2.28.1              
+[155] interactiveDisplayBase_1.40.0 treeio_1.26.0                
+[157] rJava_1.0-11                  Rhdf5lib_1.24.2              
+[159] bitops_1.0-7                  promises_1.2.1               
+[161] scatterpie_0.2.1              RSQLite_2.3.5                
+[163] qvalue_2.34.0                 fgsea_1.28.0                 
+[165] DelayedArray_0.28.0           GO.db_3.18.0                 
+[167] compiler_4.3.1                prettyunits_1.2.0            
+[169] beachmat_2.18.1               graphite_1.48.0              
+[171] listenv_0.9.1                 workflowr_1.7.1              
+[173] BiocSingular_1.18.0           tensor_1.5                   
+[175] MASS_7.3-60.0.1               progress_1.2.3               
+[177] BiocParallel_1.36.0           spatstat.random_3.2-3        
+[179] R6_2.5.1                      fastmap_1.1.1                
+[181] fastmatch_1.1-4               vipor_0.4.7                  
+[183] ROCR_1.0-11                   rsvd_1.0.5                   
+[185] KernSmooth_2.23-22            miniUI_0.1.1.1               
+[187] deldir_2.0-4                  htmltools_0.5.8.1            
+[189] bit64_4.0.5                   spatstat.explore_3.2-6       
+[191] lifecycle_1.0.4               ggprism_1.0.4                
+[193] restfulr_0.0.15               xlsxjars_0.6.1               
+[195] sass_0.4.9                    vctrs_0.6.5                  
+[197] spatstat.geom_3.2-9           snakecase_0.11.1             
+[199] DOSE_3.28.2                   scran_1.30.2                 
+[201] ggfun_0.1.4                   sp_2.1-3                     
+[203] future.apply_1.11.1           bslib_0.6.1                  
+[205] pillar_1.9.0                  metapod_1.10.1               
+[207] locfit_1.5-9.9                jsonlite_1.8.8               
+[209] GetoptLong_1.0.5             </code></pre>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
