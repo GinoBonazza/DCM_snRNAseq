@@ -1,0 +1,599 @@
+---
+title: "Comparison with published DCM LV datasets"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Comparison_LV"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(biomaRt)
+library(rtracklayer)
+library(cowplot)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+Load results of the DE analysis
+
+```{r cluster_names}
+cluster_names <- c("Cardiomyocytes", "Fibroblasts", "Endothelial_cells", "Pericytes", "Macrophages", "Lymphocytes", "Smooth_muscle_cells", "Neuronal_cells", "Endocardial_cells")
+```
+
+```{r Load results}
+results <- list()
+for (i in seq_along(cluster_names)) {
+  results[[i]] <- read.csv(here::here("output", "DA_DE_all_cell_types_and_parameters", paste0(cluster_names[i], "_DE_Results_mPAP_mmHg.csv")))
+  names(results)[i] <- cluster_names[i]
+}
+```
+
+```{r Load signif}
+signif <- list()
+for (i in seq_along(cluster_names)) {
+  signif[[i]] <- read.csv(here::here("output", "DA_DE_all_cell_types_and_parameters", paste0(cluster_names[i], "_DE_Significant_mPAP_mmHg.csv")))
+  names(signif)[i] <- cluster_names[i]
+}
+```
+
+```{r CM_signif_clusterr}
+CM_signif_cluster <- read.csv(here::here("output", "Cardiomyocytes_DA_DE_26", "CM_signif_cluster.csv"))
+```
+
+Load seurat object
+
+```{r read DCM_RV_integrated}
+DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation_26", "DCM_RV_integrated.rds"))
+DefaultAssay(DCM_RV_integrated) <- "RNA"
+```
+
+```{r DE_Chaffin}
+DE_Chaffin <- read_excel(path = here::here("data", "Published_datasets", "Chaffin_2022_41586_2022_4817_MOESM5_ESM.xlsx"), sheet = 1)
+DE_Chaffin <- dplyr::filter(DE_Chaffin, Comparison == "DCMvsNF", CellType == "Cardiomyocyte")
+DE_Chaffin$Compatible_gene_symbol <- ifelse(
+  DE_Chaffin$Gene %in% rownames(DCM_RV_integrated), "TRUE",
+  "FALSE"
+)
+table(DE_Chaffin$Compatible_gene_symbol)
+DE_Chaffin_signif <- dplyr::filter(DE_Chaffin, Significant == "TRUE" & abs(logFC) > 0.25)
+table(DE_Chaffin_signif$Compatible_gene_symbol)
+print("Gene symbols don't have to be converted")
+```
+
+```{r DE_Koenig}
+DE_Koenig <- read_excel(path = here::here("data", "Published_datasets", "Koenig_2022_44161_2022_28_MOESM4_ESM.xlsx"), sheet = 1)
+DE_Koenig$Compatible_gene_symbol <- ifelse(
+  DE_Koenig$Gene %in% rownames(DCM_RV_integrated), "TRUE",
+  "FALSE"
+)
+table(DE_Koenig$Compatible_gene_symbol)
+DE_Koenig_signif <- dplyr::filter(DE_Koenig, padj < 0.05 & abs(log2FoldChange) > 0.25)
+table(DE_Koenig_signif$Compatible_gene_symbol)
+print("Gene symbols have to be converted")
+```
+
+
+```{r DE_Reichart}
+DE_Reichart <- read.csv(here::here("output", "Reichart_DE_DCMvsHC", "CM_Reichart_DE_Results.csv"))
+DE_Reichart$Compatible_gene_symbol <- ifelse(
+  DE_Reichart$gene %in% rownames(DCM_RV_integrated), "TRUE",
+  "FALSE"
+)
+table(DE_Reichart$Compatible_gene_symbol)
+DE_Reichart_signif <- dplyr::filter(DE_Reichart, FDR < 0.05 & abs(logFC) > 0.25)
+table(DE_Reichart_signif$Compatible_gene_symbol)
+print("Gene symbols have to be converted")
+```
+
+```{r DE_Koenig convert gene_names}
+# Step 1: Connect to the Ensembl GRCh37 BioMart database
+grch37 <- useMart("ENSEMBL_MART_ENSEMBL", 
+                  dataset = "hsapiens_gene_ensembl", 
+                  host = "grch37.ensembl.org")
+
+# Step 2: Convert GRCh37 gene symbols to Ensembl IDs
+gene_list <- DE_Koenig$Gene
+
+# Query BioMart to get Ensembl Gene IDs for the GRCh37 gene symbols
+grch37_gene_ids <- getBM(attributes = c("ensembl_gene_id", "external_gene_name"), 
+                         filters = "external_gene_name", 
+                         values = gene_list, 
+                         mart = grch37)
+
+# Identify unmatched genes
+unmapped_genes <- setdiff(gene_list, grch37_gene_ids$external_gene_name)
+
+# Step 5: Use the GRCh38 reference GTF file (from refdata-gex-GRCh38-2020-A) to match Ensembl IDs
+reference_genes <- readGFF(here::here("data", "refdata-gex-GRCh38-2020-A", "genes", "genes.gtf"))
+
+# dplyr::filter only gene-level annotations and select relevant columns
+reference_gene_mapping <- reference_genes %>%
+  dplyr::filter(type == "gene") %>%
+  dplyr::select(gene_id, gene_name)
+
+# Match the Ensembl IDs from GRCh37 with the GRCh38 reference
+matched_genes_grch38 <- reference_gene_mapping %>%
+  dplyr::filter(gene_id %in% grch37_gene_ids$ensembl_gene_id)
+
+unmatched_genes <- setdiff(grch37_gene_ids$ensembl_gene_id, matched_genes_grch38$gene_id) #Contains multiple ensembl gene ids from the same gene symbol
+
+# Join the data with GRCh37 Ensembl IDs and GRCh38 gene names
+DE_Koenig <- DE_Koenig %>%
+  left_join(grch37_gene_ids, by = c("Gene" = "external_gene_name")) %>%
+  left_join(reference_gene_mapping, by = c("ensembl_gene_id" = "gene_id"))
+
+# Prefer rows with non-NA gene_name
+DE_Koenig <- DE_Koenig %>%
+  dplyr::group_by(Gene) %>%
+  dplyr::arrange(desc(!is.na(gene_name))) %>%
+  dplyr::slice(1) %>%
+  dplyr::ungroup()
+
+# Check compatibility again after conversion
+DE_Koenig$Compatible_gene_symbol <- ifelse(DE_Koenig$gene_name %in% rownames(DCM_RV_integrated), "TRUE", "FALSE")
+table(DE_Koenig$Compatible_gene_symbol)
+
+DE_Koenig$Gene_name_conversion <- ifelse(DE_Koenig$Gene %in% unmapped_genes, "Unmapped to GRCh37", 
+                                         ifelse(DE_Koenig$ensembl_gene_id %in% unmatched_genes, "Not matched to GRCh38", 
+                                                ifelse(DE_Koenig$Compatible_gene_symbol == "TRUE", "Conversion OK", 
+                                                       "Not present in DCM_RV")))
+
+DE_Koenig_signif <- DE_Koenig %>%
+  dplyr::filter(padj < 0.05 & abs(log2FoldChange) > 0.25)
+
+table(DE_Koenig_signif$Compatible_gene_symbol)
+
+table(DE_Koenig_signif$Gene_name_conversion)
+
+print("Results are acceptable")
+
+rm(grch37, gene_list, grch37_gene_ids, unmapped_genes, matched_genes_grch38, unmatched_genes)
+```
+
+```{r DE_Reichart convert gene_names}
+Reichart_gene_names <- read.csv(here::here("output", "Reichart_DE_DCMvsHC", "CM_Reichart_gene_names.csv"))
+DE_Reichart <- left_join(DE_Reichart, Reichart_gene_names, by = c("gene" = "gene_symbol"))
+
+unmatched_genes <- setdiff(DE_Reichart$ensembl_id, reference_gene_mapping$gene_id) #Contains multiple ensembl gene ids from the same gene symbol
+
+length(unmatched_genes)
+
+DE_Reichart <- left_join(DE_Reichart, reference_gene_mapping, by = c("ensembl_id" = "gene_id"))
+  
+# Check compatibility again after conversion
+DE_Reichart$Compatible_gene_symbol <- ifelse(
+  DE_Reichart$gene_name %in% rownames(DCM_RV_integrated), "TRUE",
+  "FALSE"
+)
+table(DE_Reichart$Compatible_gene_symbol)
+DE_Reichart_signif <- dplyr::filter(DE_Reichart, FDR < 0.05 & abs(logFC) > 0.25)
+table(DE_Reichart_signif$Compatible_gene_symbol)
+print("Results are acceptable")
+```
+
+```{r UpSet_plot_intersect, fig.height=8, fig.width=12}
+gene_sets_up <- list(
+  DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC > 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC > 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange > 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC > 0)$gene_name
+)
+gene_sets_up <- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_up, mode = "intersect", min_set_size = 1)
+p1 <- UpSet(m, column_title = "Upregulated genes - intersect", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down <- list(
+  DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC < 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC < 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange < 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC < 0)$gene_name
+)
+gene_sets_down <- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_down, mode = "intersect")
+p2 <- UpSet(m, column_title = "Downregulated genes - intersect", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(m, p1, p2, combined_plots)
+```
+
+```{r UpSet_plot_distinct, fig.height=8, fig.width=12}
+gene_sets_up <- list(
+  DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC > 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC > 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange > 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC > 0)$gene_name
+)
+gene_sets_up <- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_up, mode = "distinct", min_set_size = 1)
+p1 <- UpSet(m, column_title = "Upregulated genes - distinct", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down <- list(
+  DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC < 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC < 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange < 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC < 0)$gene_name
+)
+gene_sets_down <- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_down, mode = "distinct")
+p2 <- UpSet(m, column_title = "Downregulated genes - distinct", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(m, p1, p2, combined_plots)
+```
+
+
+```{r Volcano_Koenig, fig.height=6, fig.width=8}
+keyvals <- rep("grey", nrow(DE_Koenig))
+names(keyvals) <- rep("Not significant in RV", nrow(DE_Koenig))
+
+keyvals[DE_Koenig$gene_name %in% dplyr::filter(signif[["Cardiomyocytes"]], logFC>0)$gene] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Upregulated in RV"
+keyvals[DE_Koenig$gene_name %in% dplyr::filter(signif[["Cardiomyocytes"]], logFC<0)$gene] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Downregulated in RV"
+
+volcano <- EnhancedVolcano(DE_Koenig,
+                lab = DE_Koenig$gene_name,
+                x = "log2FoldChange",
+                y = "padj",
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                subtitleLabSize = 12,
+                axisLabSize = 12,
+                captionLabSize = 10,
+                pointSize = 0.3,
+                FCcutoff = 0.25,
+                pCutoff  = 0.05,
+                ylim = c(0, 22),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+               # title = names(results)[i],
+                colCustom = keyvals
+) + theme(legend.position = "right")
+volcano
+```
+
+```{r Volcano_Chaffin, fig.height=6, fig.width=8}
+DE_Chaffin_p <- DE_Chaffin
+DE_Chaffin_p$P_value <- 10^(-DE_Chaffin_p$`log10(P)`)
+
+keyvals <- rep("grey", nrow(DE_Chaffin_p))
+names(keyvals) <- rep("Not significant in RV", nrow(DE_Chaffin_p))
+
+keyvals[DE_Chaffin_p$Gene %in% dplyr::filter(signif[["Cardiomyocytes"]], logFC>0)$gene] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Upregulated in RV"
+keyvals[DE_Chaffin_p$Gene %in% dplyr::filter(signif[["Cardiomyocytes"]], logFC<0)$gene] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Downregulated in RV"
+
+
+volcano <- EnhancedVolcano(DE_Chaffin_p,
+                lab = DE_Chaffin_p$Gene,
+                x = "logFC",
+                y = "P_value",
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                subtitleLabSize = 12,
+                axisLabSize = 12,
+                captionLabSize = 7,
+                pointSize = 0.3,
+                FCcutoff = 0.25,
+                pCutoff  = 0.05,
+                ylim = c(0, 12),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+               # title = names(results)[i],
+                colCustom = keyvals
+) + theme(legend.position = "right")
+volcano
+```
+
+```{r Volcano_Reichart, fig.height=6, fig.width=8}
+keyvals <- rep("grey", nrow(DE_Reichart))
+names(keyvals) <- rep("Not significant in RV", nrow(DE_Reichart))
+
+keyvals[DE_Reichart$gene_name %in% dplyr::filter(signif[["Cardiomyocytes"]], logFC>0)$gene] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Upregulated in RV"
+keyvals[DE_Reichart$gene_name %in% dplyr::filter(signif[["Cardiomyocytes"]], logFC<0)$gene] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Downregulated in RV"
+
+volcano <- EnhancedVolcano(DE_Reichart,
+                lab = DE_Reichart$gene_name,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                subtitleLabSize = 12,
+                axisLabSize = 12,
+                captionLabSize = 10,
+                pointSize = 0.3,
+                FCcutoff = 0.25,
+                pCutoff  = 0.05,
+                ylim = c(0, 16),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+               # title = names(results)[i],
+                colCustom = keyvals
+) + theme(legend.position = "right")
+volcano
+```
+
+```{r UpSet_plot_up_vs_down_intersect, fig.height=8, fig.width=12}
+gene_sets_up <- list(
+  DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC > 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC < 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange < 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC < 0)$gene_name
+)
+gene_sets_up <- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_up, mode = "intersect", min_set_size = 1)
+p1 <- UpSet(m, column_title = "Upregulated genes vs Downregulated - intersect", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down <- list(
+  DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC < 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC > 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange > 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC > 0)$gene_name
+)
+gene_sets_down <- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_down, mode = "intersect")
+p2 <- UpSet(m, column_title = "Downregulated genes vs Upregulated- intersect", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(m, p1, p2, combined_plots)
+```
+
+```{r UpSet_plot_up_vs_down_distinct, fig.height=8, fig.width=12}
+gene_sets_up <- list(
+  DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC > 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC < 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange < 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC < 0)$gene_name
+)
+gene_sets_up <- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_up, mode = "distinct", min_set_size = 1)
+p1 <- UpSet(m, column_title = "Upregulated genes vs Downregulated - distinct", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down <- list(
+  DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC < 0)$gene,
+  Chaffin = dplyr::filter(DE_Chaffin_signif, logFC > 0)$Gene,
+  Koenig = dplyr::filter(DE_Koenig_signif, log2FoldChange > 0)$gene_name,
+  Reichart = dplyr::filter(DE_Reichart_signif, logFC > 0)$gene_name
+)
+gene_sets_down <- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_down, mode = "distinct")
+p2 <- UpSet(m, column_title = "Downregulated genes vs Upregulated- distinct", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(m, p1, p2, combined_plots)
+```
+
+```{r CM_signif_cluster add info}
+CM_signif_cluster <- read.csv(here::here("output", "Cardiomyocytes_DA_DE_26", "CM_signif_cluster.csv"))
+Plasma_proteome_atlas <- read_excel(path = here::here("data", "Human_plasma_proteome.xlsx"), sheet = 1)
+Plasma_proteome_concentration <- read_excel(path = here::here("data", "Human_plasma_proteome.xlsx"), sheet = 2)
+
+CM_signif_cluster$Detected_in_plasma <- ifelse(CM_signif_cluster$gene %in% Plasma_proteome_concentration$Gene, "Yes", "No")
+
+table(CM_signif_cluster$Detected_in_plasma)
+
+CM_signif_cluster$Koenig <- ifelse(CM_signif_cluster$logFC > 0 & CM_signif_cluster$gene %in% dplyr::filter(DE_Koenig_signif, log2FoldChange > 0)$gene_name, "Upregulated",
+                                   ifelse(CM_signif_cluster$logFC < 0 & CM_signif_cluster$gene %in% dplyr::filter(DE_Koenig_signif, log2FoldChange < 0)$gene_name, "Downregulated", "Not significant"))
+
+CM_signif_cluster$Chaffin <- ifelse(CM_signif_cluster$logFC > 0 & CM_signif_cluster$gene %in% dplyr::filter(DE_Chaffin_signif, logFC > 0)$Gene, "Upregulated",
+                                   ifelse(CM_signif_cluster$logFC < 0 & CM_signif_cluster$gene %in% dplyr::filter(DE_Chaffin_signif, logFC < 0)$Gene, "Downregulated", "Not significant"))
+
+CM_signif_cluster$Reichart <- ifelse(CM_signif_cluster$logFC > 0 & CM_signif_cluster$gene %in% dplyr::filter(DE_Reichart_signif, logFC > 0)$gene_name, "Upregulated",
+                                   ifelse(CM_signif_cluster$logFC < 0 & CM_signif_cluster$gene %in% dplyr::filter(DE_Reichart_signif, logFC < 0)$gene_name, "Downregulated", "Not significant"))
+```
+
+```{r candidate_biomarkers}
+candidate_biomarkers <- CM_signif_cluster %>%
+  dplyr::filter(cluster == "4") %>%
+  dplyr::filter(Detected_in_plasma == "Yes") %>%
+  dplyr::filter(Koenig == "Not significant") %>%
+  dplyr::filter(Chaffin == "Not significant") %>%
+  dplyr::filter(Reichart == "Not significant") %>%
+  arrange(desc(logFC))
+
+nrow(candidate_biomarkers)
+reactable(candidate_biomarkers, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r read CM}
+CM <- readRDS(here::here("output", "Cardiomyocytes_subclustering_26", "CM.rds"))
+DefaultAssay(CM) <- "RNA"
+CM <- NormalizeData(CM)
+```
+
+```{r VlnPlot_mPAP_mmHg, fig.width=20, fig.height=15}
+VlnPlot(CM, group.by = "mPAP_mmHg", features = candidate_biomarkers$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+```
+
+
+```{r VlnPlot_mPAP_mmHg_filtered, fig.width=20, fig.height=15}
+candidate_biomarkers_filtered <- candidate_biomarkers %>%
+  dplyr::filter(percentCells > 25)
+VlnPlot(CM, group.by = "mPAP_mmHg", features = candidate_biomarkers_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+```
+
+```{r}
+CM@meta.data[CM@meta.data$Sample %in% c("CZD4"), "Sample2"] = "HC1"
+CM@meta.data[CM@meta.data$Sample %in% c("CZD5"), "Sample2"] = "HC2"
+CM@meta.data[CM@meta.data$Sample %in% c("CZD6"), "Sample2"] = "HC3"
+CM@meta.data[CM@meta.data$Sample %in% c("CZD7"), "Sample2"] = "HC4"
+CM@meta.data[CM@meta.data$Sample %in% c("PK337"), "Sample2"] = "DCM_41"
+CM@meta.data[CM@meta.data$Sample %in% c("PK345"), "Sample2"] = "DCM_43_a"
+CM@meta.data[CM@meta.data$Sample %in% c("PK357"), "Sample2"] = "DCM_39"
+CM@meta.data[CM@meta.data$Sample %in% c("PK369"), "Sample2"] = "DCM_36"
+CM@meta.data[CM@meta.data$Sample %in% c("PK375"), "Sample2"] = "DCM_21"
+CM@meta.data[CM@meta.data$Sample %in% c("PK385"), "Sample2"] = "DCM_29_a"
+CM@meta.data[CM@meta.data$Sample %in% c("PK401"), "Sample2"] = "DCM_43_b"
+CM@meta.data[CM@meta.data$Sample %in% c("PK403"), "Sample2"] = "DCM_30_a"
+CM@meta.data[CM@meta.data$Sample %in% c("PK415"), "Sample2"] = "DCM_no_mPAP_a"
+CM@meta.data[CM@meta.data$Sample %in% c("PK437"), "Sample2"] = "DCM_29_b"
+CM@meta.data[CM@meta.data$Sample %in% c("PK439"), "Sample2"] = "DCM_19"
+CM@meta.data[CM@meta.data$Sample %in% c("PK441"), "Sample2"] = "DCM_no_mPAP_b"
+CM@meta.data[CM@meta.data$Sample %in% c("PK461"), "Sample2"] = "DCM_34"
+CM@meta.data[CM@meta.data$Sample %in% c("PK463"), "Sample2"] = "DCM_48"
+CM@meta.data[CM@meta.data$Sample %in% c("P3"), "Sample2"] = "DCM_no_mPAP_c"
+CM@meta.data[CM@meta.data$Sample %in% c("P5"), "Sample2"] = "DCM_25"
+CM@meta.data[CM@meta.data$Sample %in% c("P8"), "Sample2"] = "DCM_26"
+CM@meta.data[CM@meta.data$Sample %in% c("PK323"), "Sample2"] = "DCM_30_b"
+CM@meta.data[CM@meta.data$Sample %in% c("PK213"), "Sample2"] = "DCM_33"
+CM@meta.data[CM@meta.data$Sample %in% c("PK229"), "Sample2"] = "DCM_22"
+CM@meta.data[CM@meta.data$Sample %in% c("PK153"), "Sample2"] = "DCM_27"
+```
+
+```{r}
+CM$Sample2 <- factor(CM$Sample2, levels = c("HC1", "HC2", "HC3", "HC4", "DCM_19", "DCM_21", "DCM_22", "DCM_25", "DCM_26", "DCM_27", "DCM_29_a", "DCM_29_b", "DCM_30_a", "DCM_30_b", "DCM_33", "DCM_34", "DCM_36", "DCM_39", "DCM_41", "DCM_43_a", "DCM_43_b", "DCM_48", "DCM_no_mPAP_a", "DCM_no_mPAP_b", "DCM_no_mPAP_c"))
+```
+
+```{r VlnPlot_Sample2, fig.width=25, fig.height=15}
+VlnPlot(CM, group.by = "Sample2", features = candidate_biomarkers$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+```
+
+```{r VlnPlot_Sample2_filtered, fig.width=25, fig.height=15}
+VlnPlot(CM, group.by = "Sample2", features = candidate_biomarkers_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+```
+
+```{r FeaturePlot, fig.width=20, fig.height=15}
+FeaturePlot(CM, features = candidate_biomarkers$gene[1:20], ncol = 5)
+```
+
+```{r VlnPlot_cell_state, fig.width=20, fig.height=15}
+VlnPlot(CM, group.by = "cell_state", features = candidate_biomarkers$gene[1:20], ncol = 5, add.noise = F, pt.size = 0)
+```
+
+```{r VlnPlot_cell_type_SCT, fig.width=25, fig.height=15}
+VlnPlot(DCM_RV_integrated, group.by = "cell_type", features = candidate_biomarkers$gene[1:20], ncol = 5, add.noise = F, pt.size = 0.001, assay="SCT")
+```
+
+```{r}
+write.csv(CM_signif_cluster, here::here(output_dir_data, "CM_signif_cluster_snLV.csv"))
+```
+
