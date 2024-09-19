@@ -1,0 +1,356 @@
+---
+title: "Comparison with SSc-PAH proteomics dataset"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "SSc_PAH"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(biomaRt)
+library(rtracklayer)
+library(cowplot)
+library(UniProt.ws)
+library(ggpubr)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+Load proteomics dataset and patients clinical data
+
+```{r Load}
+norm_abundances <- read_excel(path = here::here("data", "SSc-PAH", "DE_Groups_vs_Controls.xlsx"), sheet = "normalized_abundances_matrix")
+clinical_data <- read_excel(path = here::here("data", "SSc-PAH", "Zurich_47_PAH_RHC_sample_list_CB040723_CLINICAL DATA_update20240109.xlsx"))
+```
+
+Convert protein ids to gene names
+
+```{r gene names} 
+norm_abundances <- norm_abundances %>%
+  mutate(gene_name = str_extract(description, "(?<=GN=)[^ ]+")) %>%
+  dplyr::select(gene_name, everything())
+```
+
+Load output of RV DE analysis
+
+```{r cluster_names}
+cluster_names <- c("Cardiomyocytes", "Fibroblasts", "Endothelial_cells", "Pericytes", "Macrophages", "Lymphocytes", "Smooth_muscle_cells", "Neuronal_cells", "Endocardial_cells")
+```
+
+```{r Load signif}
+signif <- list()
+for (i in seq_along(cluster_names)) {
+  signif[[i]] <- read.csv(here::here("output", "DA_DE_all_cell_types_and_parameters", paste0(cluster_names[i], "_DE_Significant_mPAP_mmHg.csv")))
+  names(signif)[i] <- cluster_names[i]
+}
+```
+
+```{r CM_signif_cluster}
+CM_signif_cluster <- read.csv(here::here("output", "Cardiomyocytes_DA_DE_26", "CM_signif_cluster.csv"))
+```
+
+Add info about overlap with SSc serum proteomics dataset
+
+```{r SSc_plasma}
+CM_signif_cluster$SSc_plasma <- ifelse(CM_signif_cluster$gene %in% norm_abundances$gene_name, "Yes", "No")
+table(CM_signif_cluster$SSc_plasma)
+```
+
+```{r CM_signif_SSc}
+CM_signif_SSc <- dplyr::filter(CM_signif_cluster, SSc_plasma == "Yes")
+```
+
+Join the clinical data and norm_abundances data frames
+
+```{r proteomics_combined}
+df_proteins <- norm_abundances %>%
+  dplyr::select(-gene_name, -description, -IDcolumn, -REV, -CON) %>%
+  column_to_rownames("protein_Id") %>%
+  t() %>%
+  as.data.frame()
+  
+df_proteins$Barcode <- rownames(df_proteins)
+
+clinical_data <- as.data.frame(clinical_data)
+rownames(clinical_data) <- clinical_data$Barcode
+
+proteomics_combined <- merge(df_proteins, clinical_data, by = "Barcode")
+```
+
+Correlation with mPAP
+
+```{r cor mPAP}
+protein_id_of_interest <- norm_abundances %>%
+  dplyr::filter(gene_name %in% CM_signif_SSc$gene) %>%
+  pull(protein_Id)
+
+proteins_of_interest <- proteomics_combined[, colnames(proteomics_combined) %in% protein_id_of_interest]
+
+mpap <- proteomics_combined$`PAP mean (mmHg)`
+
+cor_results <- list()
+p_values <- list()
+
+for (protein in colnames(proteins_of_interest)) {
+  test <- cor.test(proteins_of_interest[[protein]], mpap, method = "pearson")
+  cor_results[[protein]] <- test$estimate
+  p_values[[protein]] <- test$p.value
+}
+
+cor_results_df <- data.frame(
+  Protein = colnames(proteins_of_interest),
+  Correlation_with_mPAP = unlist(cor_results),
+  P_value = unlist(p_values)
+)
+
+protein_to_gene <- setNames(norm_abundances$gene_name, norm_abundances$protein_Id)
+
+cor_results_df$gene_name <- protein_to_gene[cor_results_df$Protein]
+CM_signif_SSc_mPAP <- left_join(CM_signif_SSc, cor_results_df, by = c("gene" = "gene_name"))
+CM_signif_SSc_mPAP_signif <- dplyr::filter(CM_signif_SSc_mPAP, P_value < 0.05 & sign(Correlation_with_mPAP) == sign(logFC))
+```
+
+```{r Cor_mPAP, fig.height=5, fig.width=8}
+significant_proteins <- CM_signif_SSc_mPAP_signif$Protein
+plot_data <- proteomics_combined %>%
+  dplyr::select(Barcode, `PAP mean (mmHg)`, all_of(protein_id_of_interest)) %>%
+  gather(key = "protein", value = "abundance", -Barcode, -`PAP mean (mmHg)`) %>%
+  dplyr::filter(protein %in% significant_proteins)
+
+# Add gene names to the plot_data for better labels
+plot_data <- plot_data %>%
+  mutate(gene_name = protein_to_gene[protein])
+
+ggplot(plot_data, aes(x = `PAP mean (mmHg)`, y = abundance)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +  # line of best fit
+  facet_wrap(~ gene_name, scales = "free_y") +  # create a subplot for each protein
+  theme_minimal() +
+  labs(x = "mPAP", y = "Protein Abundance", 
+       title = "Protein Abundances vs mPAP") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r Cor_mPAP_table}
+reactable(CM_signif_SSc_mPAP_signif, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Correlation with mPAP
+
+```{r cor TAPSE/sPAP}
+proteomics_combined$TAPSE_sPAP <- proteomics_combined$`TAPSE: tricuspid annular plane systolic excursion in cm`/proteomics_combined$sPAP_ECHO*10
+
+TAPSE_sPAP <- proteomics_combined$TAPSE_sPAP
+
+cor_results <- list()
+p_values <- list()
+
+for (protein in colnames(proteins_of_interest)) {
+  test <- cor.test(proteins_of_interest[[protein]], TAPSE_sPAP, method = "pearson")
+  cor_results[[protein]] <- test$estimate
+  p_values[[protein]] <- test$p.value
+}
+
+cor_results_df <- data.frame(
+  Protein = colnames(proteins_of_interest),
+  Correlation_with_TAPSE_sPAP = unlist(cor_results),
+  P_value = unlist(p_values)
+)
+
+protein_to_gene <- setNames(norm_abundances$gene_name, norm_abundances$protein_Id)
+
+cor_results_df$gene_name <- protein_to_gene[cor_results_df$Protein]
+
+CM_signif_SSc_TAPSE_sPAP <- left_join(CM_signif_SSc, cor_results_df, by = c("gene" = "gene_name"))
+CM_signif_SSc_TAPSE_sPAP_signif <- dplyr::filter(CM_signif_SSc_TAPSE_sPAP, P_value < 0.05 & !sign(Correlation_with_TAPSE_sPAP) == sign(logFC))
+```
+
+```{r Cor_TAPSE_sPAP, fig.height=3, fig.width=5.5}
+significant_proteins <- CM_signif_SSc_TAPSE_sPAP_signif$Protein
+plot_data <- proteomics_combined %>%
+  dplyr::select(Barcode, TAPSE_sPAP, all_of(protein_id_of_interest)) %>%
+  gather(key = "protein", value = "abundance", -Barcode, -TAPSE_sPAP) %>%
+  dplyr::filter(protein %in% significant_proteins)
+
+# Add gene names to the plot_data for better labels
+plot_data <- plot_data %>%
+  mutate(gene_name = protein_to_gene[protein])
+
+ggplot(plot_data, aes(x = TAPSE_sPAP, y = abundance)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +  # line of best fit
+  facet_wrap(~ gene_name, scales = "free_y") +  # create a subplot for each protein
+  theme_minimal() +
+  labs(x = "TAPSE/sPAP", y = "Protein Abundance", 
+       title = "Protein Abundances vs TAPSE/sPAP") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r Cor_TAPSE_sPAP_table}
+reactable(CM_signif_SSc_TAPSE_sPAP_signif, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r wilcox TAPSE/sPAP}
+proteomics_combined <- proteomics_combined %>%
+  mutate(TAPSE_sPAP_group = ifelse(TAPSE_sPAP < 0.36, "< 0.36", ">= 0.36"))
+
+gene_to_protein <- setNames(norm_abundances$protein_Id, norm_abundances$gene_name)
+
+CM_signif_SSc$protein <- gene_to_protein[CM_signif_SSc$gene]
+
+significant_proteins <- CM_signif_SSc$protein
+
+# Create a dataframe to store p-values, test results, and mean differences
+test_results <- data.frame(
+  Protein = character(),
+  p_value = numeric(),
+  mean_diff = numeric(),  # Column for mean differences
+  stringsAsFactors = FALSE
+)
+
+# Loop through each significant protein and perform a Wilcoxon test
+for (protein in significant_proteins) {
+  # Extract protein abundances for the current protein
+  protein_abundance <- proteomics_combined[[protein]]
+  
+  # Exclude rows with missing values (NA)
+  data_for_test <- proteomics_combined %>%
+    dplyr::select(TAPSE_sPAP_group, all_of(protein)) %>%
+    dplyr::filter(!is.na(protein_abundance), !is.na(TAPSE_sPAP_group))
+  
+  # Ensure that the grouping factor still has two levels after filtering
+  if (length(unique(data_for_test$TAPSE_sPAP_group)) == 2) {
+    # Perform Wilcoxon test
+    wilcox_test <- wilcox.test(data_for_test[[protein]] ~ data_for_test$TAPSE_sPAP_group)
+    
+    # Calculate means for each group
+    group_means <- data_for_test %>%
+      group_by(TAPSE_sPAP_group) %>%
+      summarise(mean_abundance = mean(!!sym(protein), na.rm = TRUE))  # Calculate means
+    
+    mean_diff <- diff(group_means$mean_abundance)  # Difference between group means
+    
+    # Store the results
+    test_results <- test_results %>%
+      add_row(Protein = protein, p_value = wilcox_test$p.value, mean_diff = mean_diff)
+  } else {
+    # If there are not enough levels (i.e., only one group after filtering), skip this protein
+    test_results <- test_results %>%
+      add_row(Protein = protein, p_value = NA, mean_diff = NA)  # Add NA for proteins that couldn't be tested
+  }
+}
+
+CM_signif_SSc_TAPSE_sPAP_group <- left_join(CM_signif_SSc, test_results, by = c("protein" = "Protein"))
+CM_signif_SSc_TAPSE_sPAP_group_signif <- dplyr::filter(CM_signif_SSc_TAPSE_sPAP_group, p_value < 0.05 & !sign(mean_diff) == sign(logFC))
+
+# Filter significant proteins (p-value < 0.05)
+significant_proteins_filtered <- test_results %>%
+  filter(!is.na(p_value), p_value < 0.05)
+```
+
+```{r boxplots, fig.height=8, fig.width=10}
+# Reshape data for plotting
+plot_data <- proteomics_combined %>%
+  dplyr::select(Barcode, TAPSE_sPAP_group, all_of(CM_signif_SSc_TAPSE_sPAP_group_signif$protein)) %>%
+  gather(key = "protein", value = "abundance", -Barcode, -TAPSE_sPAP_group) %>%
+  mutate(gene_name = protein_to_gene[protein])
+
+plot_data_clean <- plot_data %>%
+  dplyr::filter(!is.na(abundance), !is.na(TAPSE_sPAP_group))
+
+y_max <- plot_data_clean %>%
+  dplyr::group_by(gene_name) %>%
+  dplyr::summarize(max_abundance = max(abundance, na.rm = TRUE))
+
+# Plot boxplots for significant proteins with cleaned data
+ggplot(plot_data_clean, aes(x = TAPSE_sPAP_group, y = abundance, fill = TAPSE_sPAP_group)) +
+  geom_boxplot(alpha = 0.6) +  # Boxplot for distribution of protein abundances
+  geom_jitter(width = 0.2, alpha = 0.5) +  # Jitter points for individual patients
+  facet_wrap(~ gene_name, scales = "free_y", ncol = 4) +  # Create separate plots for each significant protein with 4 columns
+  theme_minimal() +
+  labs(x = "TAPSE/sPAP Group", y = "Protein Abundance", 
+       title = "Comparison of Protein Abundances by TAPSE/sPAP Groups (Significant Proteins)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(method = "wilcox.test"
+           #          , label.y = y_max$max_abundance + 0.4* y_max$max_abundance
+                     )  # Move p-values above the dots
+```
+
