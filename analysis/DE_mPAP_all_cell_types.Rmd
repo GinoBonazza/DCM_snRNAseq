@@ -1,0 +1,1120 @@
+---
+title: "Differential expression analysis in all cell types using mPAP"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "DE_mPAP_all_cell_types"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(rtracklayer)
+library(cowplot)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+## DE mPAP
+
+Load seurat object
+
+```{r read DCM_RV_integrated}
+DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation_26", "DCM_RV_integrated.rds"))
+```
+
+Load DE results
+
+```{r cluster_names}
+cluster_names <- c("Cardiomyocytes", "Fibroblasts", "Endothelial_cells", "Pericytes", "Macrophages", "Lymphocytes", "Smooth_muscle_cells", "Neuronal_cells", "Endocardial_cells")
+```
+
+```{r Load results}
+results <- list()
+for (i in seq_along(cluster_names)) {
+  results[[i]] <- read.csv(here::here("output", "DA_DE_all_cell_types_and_parameters", paste0(cluster_names[i], "_DE_Results_mPAP_mmHg.csv")))
+  names(results)[i] <- cluster_names[i]
+}
+```
+
+```{r Load signif}
+signif <- list()
+for (i in seq_along(cluster_names)) {
+  signif[[i]] <- read.csv(here::here("output", "DA_DE_all_cell_types_and_parameters", paste0(cluster_names[i], "_DE_Significant_mPAP_mmHg.csv")))
+  names(signif)[i] <- cluster_names[i]
+}
+```
+
+Add info to the results data frame: coding/not coding and unique/overlapping
+
+```{r reference_genes}
+reference_genes <- readGFF(here::here("data", "refdata-gex-GRCh38-2020-A", "genes", "genes.gtf"))
+reference_genes <- unique(dplyr::select(reference_genes, gene_id, gene_type, gene_name))
+```
+
+```{r results add info gene_type}
+for (i in seq_along(results)) {
+  results[[i]] <- left_join(results[[i]], reference_genes, by = c("gene" = "gene_name"))
+}
+```
+
+```{r results add info up_down}
+for (i in seq_along(results)) {
+  results[[i]]$up_down <- ifelse(
+    results[[i]]$logFC > 0.5 & results[[i]]$FDR < 0.05, "Increased",
+    ifelse(results[[i]]$logFC < -0.5 & results[[i]]$FDR < 0.05, "Decreased",
+           "Not significant"
+           )
+  )
+}
+```
+
+```{r results add info unique_overlapping}
+for (i in seq_along(results)) {
+  others_up <- unlist(lapply(signif[-i], function(df) df$gene[df$logFC > 0.5]))
+  others_down <- unlist(lapply(signif[-i], function(df) df$gene[df$logFC < -0.5]))
+  results[[i]]$unique_overlapping <- ifelse(
+    results[[i]]$up_down == "Increased" & results[[i]]$gene %in% others_up, "Overlapping",
+    ifelse(results[[i]]$up_down == "Decreased" & results[[i]]$gene %in% others_down, "Overlapping",
+           ifelse(results[[i]]$up_down == "Increased" & !results[[i]]$gene %in% others_up, "Unique",
+                  ifelse(results[[i]]$up_down == "Decreased" & !results[[i]]$gene %in% others_down, "Unique",
+                         "Not significant"
+                  )
+           )
+    )
+  )
+}
+```
+
+Volcano plots
+
+```{r get_legend}
+get_legend <- function(my_plot) {
+  tmp <- ggplotGrob(my_plot)
+  legend <- tmp$grobs[[which(sapply(tmp$grobs, function(x) x$name) == "guide-box")]]
+  return(legend)
+}
+```
+
+```{r Volcano_up_down, fig.height=9, fig.width=16}
+volcano <- list()
+for (i in seq_along(results)) {
+  keyvals <- rep("grey", nrow(results[[i]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i]]))
+  
+  keyvals[results[[i]]$up_down == "Increased"] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i]]$up_down == "Decreased"] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+  volcano[[i]] <- EnhancedVolcano(results[[i]],
+                  lab = results[[i]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  legendLabSize = 15,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 1,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = names(results)[i],
+                  colCustom = keyvals
+  ) + theme(legend.position = "none")
+  names(volcano)[i] <- names(results)[i]
+}
+
+# Extract the legend from the first plot
+legend <- cowplot::get_legend(volcano[[1]] + theme(legend.position = "right"))
+
+# Combine the individual volcano plots
+combined_plot <- patchwork::wrap_plots(volcano, ncol = 5)
+
+# Use ggdraw and draw_plot to overlay the legend in the bottom-right corner
+final_plot <- cowplot::ggdraw() +
+  cowplot::draw_plot(combined_plot, 0, 0, 1, 1) +    # Place the combined plot to fill the whole canvas
+  cowplot::draw_plot(legend, 0.77, 0.15, 0.25, 0.25)    # Position the legend in the bottom-right
+
+# Print the final plot
+print(final_plot)
+```
+
+```{r Volcano_gene_type, fig.height=9, fig.width=16}
+volcano <- list()
+for (i in seq_along(results)) {
+  keyvals <- rep("grey", nrow(results[[i]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i]]))
+  
+  keyvals[results[[i]]$up_down == "Increased" & results[[i]]$gene_type == "protein_coding"] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased - protein coding"
+  keyvals[results[[i]]$up_down == "Decreased" & results[[i]]$gene_type == "protein_coding"] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased - protein coding"
+  keyvals[results[[i]]$up_down == "Increased" & results[[i]]$gene_type == "lncRNA"] <- "#228B22"
+  names(keyvals)[keyvals == "#228B22"] <- "Increased - non coding"
+  keyvals[results[[i]]$up_down == "Decreased" & results[[i]]$gene_type == "lncRNA"] <- "#FFCC00"
+  names(keyvals)[keyvals == "#FFCC00"] <- "Decreased - non coding"
+
+  volcano[[i]] <- EnhancedVolcano(results[[i]],
+                  lab = results[[i]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  legendLabSize = 15,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 1,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = names(results)[i],
+                  colCustom = keyvals
+  ) + theme(legend.position = "none")
+  names(volcano)[i] <- names(results)[i]
+}
+
+# Extract the legend from the first plot
+legend <- cowplot::get_legend(volcano[[1]] + theme(legend.position = "right"))
+
+# Combine the individual volcano plots
+combined_plot <- patchwork::wrap_plots(volcano, ncol = 5)
+
+# Use ggdraw and draw_plot to overlay the legend in the bottom-right corner
+final_plot <- cowplot::ggdraw() +
+  cowplot::draw_plot(combined_plot, 0, 0, 1, 1) +    # Place the combined plot to fill the whole canvas
+  cowplot::draw_plot(legend, 0.77, 0.15, 0.25, 0.25)    # Position the legend in the bottom-right
+
+# Print the final plot
+print(final_plot)
+```
+
+```{r Volcano_unique_overlapping, fig.height=9, fig.width=16}
+volcano <- list()
+for (i in seq_along(results)) {
+  keyvals <- rep("grey", nrow(results[[i]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i]]))
+  
+  keyvals[results[[i]]$up_down == "Increased" & results[[i]]$unique_overlapping == "Unique"] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased - Unique"
+  keyvals[results[[i]]$up_down == "Decreased" & results[[i]]$unique_overlapping == "Unique"] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased - Unique"
+  keyvals[results[[i]]$up_down == "Increased" & results[[i]]$unique_overlapping == "Overlapping"] <- "#D6A0A0"
+  names(keyvals)[keyvals == "#D6A0A0"] <- "Increased - Overlapping"
+  keyvals[results[[i]]$up_down == "Decreased" & results[[i]]$unique_overlapping == "Overlapping"] <- "#A0C4FF"
+  names(keyvals)[keyvals == "#A0C4FF"] <- "Decreased - Overlapping"
+
+  volcano[[i]] <- EnhancedVolcano(results[[i]],
+                  lab = results[[i]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  legendLabSize = 15,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 1,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = names(results)[i],
+                  colCustom = keyvals
+  ) + theme(legend.position = "none")
+  names(volcano)[i] <- names(results)[i]
+}
+
+# Extract the legend from the first plot
+legend <- cowplot::get_legend(volcano[[1]] + theme(legend.position = "right"))
+
+# Combine the individual volcano plots
+combined_plot <- patchwork::wrap_plots(volcano, ncol = 5)
+
+# Use ggdraw and draw_plot to overlay the legend in the bottom-right corner
+final_plot <- cowplot::ggdraw() +
+  cowplot::draw_plot(combined_plot, 0, 0, 1, 1) +    # Place the combined plot to fill the whole canvas
+  cowplot::draw_plot(legend, 0.77, 0.15, 0.25, 0.25)    # Position the legend in the bottom-right
+
+# Print the final plot
+print(final_plot)
+```
+
+```{r Volcano_up_down_no_lnc, fig.height=9, fig.width=16}
+volcano <- list()
+results_no_lnc <- results
+for (i in seq_along(results)) {
+  results_no_lnc[[i]] <- dplyr::filter(results_no_lnc[[i]], gene_type == "protein_coding")
+  keyvals <- rep("grey", nrow(results_no_lnc[[i]]))
+  names(keyvals) <- rep("Not significant", nrow(results_no_lnc[[i]]))
+  
+  keyvals[results_no_lnc[[i]]$up_down == "Increased" & results_no_lnc[[i]]$gene_type == "protein_coding"] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased - protein coding"
+  keyvals[results_no_lnc[[i]]$up_down == "Decreased" & results_no_lnc[[i]]$gene_type == "protein_coding"] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased - protein coding"
+
+  volcano[[i]] <- EnhancedVolcano(results_no_lnc[[i]],
+                  lab = results_no_lnc[[i]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  legendLabSize = 15,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 1,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = names(results_no_lnc)[i],
+                  colCustom = keyvals
+  ) + theme(legend.position = "none")
+  names(volcano)[i] <- names(results_no_lnc)[i]
+}
+
+# Extract the legend from the first plot
+legend <- cowplot::get_legend(volcano[[1]] + theme(legend.position = "right"))
+
+# Combine the individual volcano plots
+combined_plot <- patchwork::wrap_plots(volcano, ncol = 5)
+
+# Use ggdraw and draw_plot to overlay the legend in the bottom-right corner
+final_plot <- cowplot::ggdraw() +
+  cowplot::draw_plot(combined_plot, 0, 0, 1, 1) +    # Place the combined plot to fill the whole canvas
+  cowplot::draw_plot(legend, 0.77, 0.15, 0.25, 0.25)    # Position the legend in the bottom-right
+
+# Print the final plot
+print(final_plot)
+```
+
+```{r Volcano_up_down_no_overlap, fig.height=9, fig.width=16}
+volcano <- list()
+results_no_overlap <- results
+for (i in seq_along(results)) {
+  results_no_overlap[[i]] <- dplyr::filter(results_no_overlap[[i]], unique_overlapping %in% c("Unique", "Not significant"))
+  keyvals <- rep("grey", nrow(results_no_overlap[[i]]))
+  names(keyvals) <- rep("Not significant", nrow(results_no_overlap[[i]]))
+  
+  keyvals[results_no_overlap[[i]]$up_down == "Increased" & results_no_overlap[[i]]$unique_overlapping == "Unique"] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased - Unique"
+  keyvals[results_no_overlap[[i]]$up_down == "Decreased" & results_no_overlap[[i]]$unique_overlapping == "Unique"] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased - Unique"
+
+  volcano[[i]] <- EnhancedVolcano(results_no_overlap[[i]],
+                  lab = results_no_overlap[[i]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  legendLabSize = 15,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 1,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = names(results_no_overlap)[i],
+                  colCustom = keyvals
+  ) + theme(legend.position = "none")
+  names(volcano)[i] <- names(results_no_overlap)[i]
+}
+
+# Extract the legend from the first plot
+legend <- cowplot::get_legend(volcano[[1]] + theme(legend.position = "right"))
+
+# Combine the individual volcano plots
+combined_plot <- patchwork::wrap_plots(volcano, ncol = 5)
+
+# Use ggdraw and draw_plot to overlay the legend in the bottom-right corner
+final_plot <- cowplot::ggdraw() +
+  cowplot::draw_plot(combined_plot, 0, 0, 1, 1) +    # Place the combined plot to fill the whole canvas
+  cowplot::draw_plot(legend, 0.77, 0.15, 0.25, 0.25)    # Position the legend in the bottom-right
+
+# Print the final plot
+print(final_plot)
+```
+
+Bar plots
+
+```{r signif}
+signif <- results
+for (i in seq_along(results)) {
+  signif[[i]] <- results[[i]] %>%
+    dplyr::filter(FDR < 0.05) %>%
+    dplyr::filter(abs(logFC) > 0.5)
+}
+```
+
+```{r Barplot_up_down, fig.height=4.5, fig.width=9}
+n_de_genes <- data.frame()
+for (i in seq_along(signif)) {
+  cell_type <- c(rep(names(signif)[i], 2))
+  effect <- c("Increased", "Decreased")
+  n <- c(nrow(dplyr::filter(signif[[i]], logFC > 0)), nrow(dplyr::filter(signif[[i]], logFC < 0)))
+  de_tot <- nrow(signif[[i]])
+  n_de_genes <- rbind(n_de_genes, data.frame(cell_type,effect,n, de_tot))
+}
+n_de_genes <- n_de_genes %>%
+  arrange(desc(de_tot))
+n_de_genes$cell_type <- factor(n_de_genes$cell_type, levels = unique(n_de_genes$cell_type))
+
+# Plot with customizations
+ggplot(n_de_genes, aes(fill=effect, y=n, x=cell_type)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Increased" = "#A63A2A", "Decreased" = "#004C8C")) +
+  theme(text = element_text(size = 15), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Cell Type", y = "Number of Genes", fill = "Effect") +
+  guides(fill = guide_legend(title = NULL))
+```
+
+```{r Barplot_gene_type, fig.height=4.5, fig.width=9}
+n_de_genes <- data.frame()
+for (i in seq_along(signif)) {
+  cell_type <- names(signif)[i]
+  effect <- c("Increased - protein coding", "Increased - non coding", "Decreased - protein coding", "Decreased - non coding")
+  n <- c(nrow(dplyr::filter(signif[[i]], logFC > 0 & gene_type == "protein_coding")),
+         nrow(dplyr::filter(signif[[i]], logFC > 0 & gene_type == "lncRNA")),
+         nrow(dplyr::filter(signif[[i]], logFC < 0 & gene_type == "protein_coding")),
+         nrow(dplyr::filter(signif[[i]], logFC < 0 & gene_type == "lncRNA"))
+         )
+  de_tot <- nrow(signif[[i]])
+  n_de_genes <- rbind(n_de_genes, data.frame(cell_type,effect,n, de_tot))
+}
+n_de_genes$cell_type <- factor(n_de_genes$cell_type, levels = unique(n_de_genes$cell_type))
+
+ggplot(n_de_genes, aes(fill=effect, y=n, x=cell_type)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Increased - protein coding" = "#A63A2A", 
+                               "Decreased - protein coding" = "#004C8C", 
+                               "Increased - non coding" = "#D6A0A0", 
+                               "Decreased - non coding" = "#A0C4FF")) +
+  theme(text = element_text(size = 15), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Cell Type", y = "Number of Genes", fill = "Effect") +
+  guides(fill = guide_legend(title = NULL))
+```
+
+```{r Barplot_up_down_unique_overlapping, fig.height=4.5, fig.width=9}
+n_de_genes<- data.frame()
+for (i in seq_along(signif)) {
+  cell_type <- names(signif)[i]
+  effect <- c("Increased - Unique", "Increased - Overlapping", "Decreased - Unique", "Decreased - Overlapping")
+  n <- c(nrow(dplyr::filter(signif[[i]], logFC > 0 & unique_overlapping == "Unique")),
+         nrow(dplyr::filter(signif[[i]], logFC > 0 & unique_overlapping == "Overlapping")),
+         nrow(dplyr::filter(signif[[i]], logFC < 0 & unique_overlapping == "Unique")),
+         nrow(dplyr::filter(signif[[i]], logFC < 0 & unique_overlapping == "Overlapping"))
+         )
+  de_tot <- nrow(signif[[i]])
+  n_de_genes <- rbind(n_de_genes, data.frame(cell_type,effect,n, de_tot))
+}
+n_de_genes$cell_type <- factor(n_de_genes$cell_type, levels = unique(n_de_genes$cell_type))
+
+ggplot(n_de_genes, aes(fill=effect, y=n, x=cell_type)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Increased - Unique" = "#A63A2A", 
+                               "Decreased - Unique" = "#004C8C", 
+                               "Increased - Overlapping" = "#D6A0A0", 
+                               "Decreased - Overlapping" = "#A0C4FF")) +
+  theme(text = element_text(size = 15), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Cell Type", y = "Number of Genes", fill = "Effect") +
+  guides(fill = guide_legend(title = NULL))
+```
+
+```{r Barplot_unique_overlapping, fig.height=4.5, fig.width=9}
+n_de_genes<- data.frame()
+for (i in seq_along(signif)) {
+  cell_type <- names(signif)[i]
+  effect <- c("Unique", "Overlapping")
+  n <- c(nrow(dplyr::filter(signif[[i]], unique_overlapping == "Unique")),
+         nrow(dplyr::filter(signif[[i]], unique_overlapping == "Overlapping"))
+         )
+  de_tot <- nrow(signif[[i]])
+  n_de_genes <- rbind(n_de_genes, data.frame(cell_type,effect,n, de_tot))
+}
+n_de_genes$cell_type <- factor(n_de_genes$cell_type, levels = unique(n_de_genes$cell_type))
+
+ggplot(n_de_genes, aes(fill=effect, y=n, x=cell_type)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Unique" = "#A63A2A", 
+                               "Overlapping" = "#004C8C")) +
+  theme(text = element_text(size = 15), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Cell Type", y = "Number of Genes", fill = "Effect") +
+  guides(fill = guide_legend(title = NULL))
+```
+
+UpSet plots
+
+```{r signif_up_down}
+signif_up <- signif
+for (i in seq_along(signif_up)) {
+  signif_up[[i]] <- filter(signif_up[[i]], logFC > 0)
+}
+
+signif_down <- signif
+for (i in seq_along(signif_down)) {
+  signif_down[[i]] <- filter(signif_down[[i]], logFC < 0)
+}
+
+```
+
+```{r UpSet_plot_mPAP, fig.height=8, fig.width=12}
+gene_sets <- list()
+for (i in seq_along(signif_up)) {
+  gene_sets[[i]] <- signif_up[[i]]$gene
+  names(gene_sets)[i] <- names(signif_up)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "distinct", min_set_size = 10)
+#m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+p1 <- UpSet(m, column_title = "DE mPAP_mmHg - Upregulated", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+gene_sets <- list()
+for (i in seq_along(signif_down)) {
+  gene_sets[[i]] <- signif_down[[i]]$gene
+  names(gene_sets)[i] <- names(signif_down)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "distinct", min_set_size = 10)
+#m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+p2 <- UpSet(m, column_title = "DE mPAP_mmHg - Downregulated", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(gene_sets, m, p1, p2, combined_plots)
+```
+
+
+## GSEA
+
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r classify_terms}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+```
+
+```{r cluster_names_2}
+cluster_names_2 <- c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Pericytes", "Macrophages", "Lymphocytes", "Smooth muscle cells", "Neuronal cells", "Endocardial cells")
+```
+
+
+```{r GSEA_all, eval=FALSE}
+ranked_genes <- list()
+GSEA_all <- list()
+for (i in seq_along(cluster_names)) {
+  gene_counts <- rowSums(subset(DCM_RV_integrated, cell_type == cluster_names_2[i])@assays$RNA@counts > 0)
+  universe_genes <- names(gene_counts[gene_counts >= 3])
+  write.csv(as.data.frame(universe_genes), here::here(output_dir_data, paste0(cluster_names[i], "_universe_genes.csv")), quote=F, row.names = F)
+  universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+  write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, paste0(cluster_names[i], "_universe_entrez.csv")), quote=F, row.names = F)
+  rm(gene_counts)
+  
+  up_genes <- filter(signif[[i]], logFC > 0.5)$gene
+  up_genes <- bitr(up_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+  down_genes <- filter(signif[[i]], logFC < -0.5)$gene
+  down_genes <- bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+  
+  ranked_genes[[i]] <- results[[i]]
+  names(ranked_genes)[i] <- cluster_names[i]
+  ranked_genes[[i]]$metric <- ranked_genes[[i]]$logFC*-log10(ranked_genes[[i]]$PValue)
+  entrezid <- bitr(ranked_genes[[i]]$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+  ranked_genes[[i]] <- merge(ranked_genes[[i]], entrezid, by.x = "gene", by.y = "SYMBOL")
+  ranked_genes[[i]] <- ranked_genes[[i]][!duplicated(ranked_genes[[i]]$metric), ]
+  write.csv(ranked_genes[[i]], file = here::here(output_dir_data, paste0(cluster_names[i], "_ranked_genes.csv")), quote=F, row.names = F)
+  
+  genelist <- ranked_genes[[i]]$metric
+  names(genelist) <- ranked_genes[[i]]$ENTREZID
+  genelist <- genelist[order(genelist, decreasing = T)]
+  
+  GSEA_all[i] <- gseGO(geneList = genelist,
+                       OrgDb = org.Hs.eg.db,
+                       ont = "ALL",
+                       keyType = "ENTREZID",
+                       nPermSimple = 10000000,
+                       minGSSize = 10,
+                       eps = 0)
+  GSEA_all[i] <- reorder_GO_by_pvalue(GSEA_all[i])
+  names(GSEA_all)[i] <- cluster_names[i]
+  saveRDS(GSEA_all[i], here::here(output_dir_data, paste0(cluster_names[i], "_GSEA_GO_mPAP.rds")))
+}
+
+rm(universe_genes, universe_entrez, up_genes, down_genes, genelist)
+
+saveRDS(ranked_genes, here::here(output_dir_data, "ranked_genes_list.rds"))
+saveRDS(GSEA_all, here::here(output_dir_data, "GSEA_all_list.rds"))
+```
+
+```{r load GSEA_all}
+GSEA_all <- readRDS(here::here(output_dir_data, "GSEA_all_list.rds"))
+```
+
+```{r GSEA_Cardiomyocytes, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Cardiomyocytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Cardiomyocytes", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Cardiomyocytes_emapplot, fig.height=10, fig.width=20}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r GSEA_Fibroblasts, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Fibroblasts"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Fibroblasts", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Endothelial_cells, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Endothelial_cells"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Endothelial cells", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Endothelial_cells_emapplot, fig.height=10, fig.width=20}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r GSEA_Pericytes, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Pericytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Pericytes", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Pericytes_emapplot, fig.height=10, fig.width=20}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r GSEA_Macrophages, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Macrophages"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Macrophages", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Lymphocytes, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Lymphocytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Lymphocytes", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Lymphocytes_emapplot, fig.height=10, fig.width=10}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+print(p1)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+
+## Over-representation analysis unique DEGs
+
+```{r ORA_all_unique, eval=FALSE}
+ORA_all_unique_up <- list()
+ORA_all_unique_down <- list()
+empty_enrich_result <- new(
+  "enrichResult",
+  result = data.frame(),  
+  pvalueCutoff = 0.05,    
+  pAdjustMethod = "BH",   
+  qvalueCutoff = 0.2,     
+  gene = character(0),    
+  organism = "Homo sapiens",   
+  keytype = "ENTREZID",    
+  geneSets = list(),      
+  readable = TRUE
+)
+
+for (i in 1:length(cluster_names)) {
+  universe_entrez <- read.csv(here::here(output_dir_data, paste0(cluster_names[i], "_universe_entrez.csv")))
+
+  up_genes <- signif[[i]] %>%
+    filter(logFC > 0.5, unique_overlapping == "Unique") %>%
+    pull(gene) %>%  
+    bitr(fromType = "SYMBOL", toType = "ENTREZID", OrgDb = "org.Hs.eg.db") %>%  
+    pull(ENTREZID)
+  down_genes <- signif[[i]] %>%
+    filter(logFC < 0.5, unique_overlapping == "Unique") %>%
+    pull(gene) %>%  
+    bitr(fromType = "SYMBOL", toType = "ENTREZID", OrgDb = "org.Hs.eg.db") %>%  
+    pull(ENTREZID)
+  
+  ORA_all_unique_up[[i]] <- enrichGO(up_genes, OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+   if (length(ORA_all_unique_up) == i) {
+     ORA_all_unique_up[[i]] <- gsfilter(ORA_all_unique_up[[i]], by = 'Count', min = 3)
+     ORA_all_unique_up[[i]] <- reorder_GO_by_pvalue(ORA_all_unique_up[[i]])
+   }
+  if (length(ORA_all_unique_up) < i) {
+    ORA_all_unique_up[[i]] <- empty_enrich_result
+  }
+  saveRDS(ORA_all_unique_up[[i]], here::here(output_dir_data, paste0(cluster_names[i], "_ORA_Up_Unique_mPAP.rds")))
+  names(ORA_all_unique_up)[i] <- cluster_names[i]
+
+  ORA_all_unique_down[[i]] <- enrichGO(down_genes, OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+   if (length(ORA_all_unique_down) == i) {
+     ORA_all_unique_down[[i]] <- gsfilter(ORA_all_unique_down[[i]], by = 'Count', min = 3)
+     ORA_all_unique_down[[i]] <- reorder_GO_by_pvalue(ORA_all_unique_down[[i]])
+   }
+  if (length(ORA_all_unique_down) < i) {
+    ORA_all_unique_down[[i]] <- empty_enrich_result
+  }
+  saveRDS(ORA_all_unique_down[[i]], here::here(output_dir_data, paste0(cluster_names[i], "_ORA_Down_Unique_mPAP.rds")))
+  names(ORA_all_unique_down)[i] <- cluster_names[i]
+}
+
+rm(universe_entrez, up_genes, down_genes)
+
+saveRDS(ORA_all_unique_up, here::here(output_dir_data, "ORA_Up_Unique_mPAP_list.rds"))
+saveRDS(ORA_all_unique_down, here::here(output_dir_data, "ORA_Down_Unique_mPAP_list.rds"))
+```
+
+```{r load ORA_all_unique}
+ORA_all_unique_up <- readRDS(here::here(output_dir_data, "ORA_Up_Unique_mPAP_list.rds"))
+ORA_all_unique_down <- readRDS(here::here(output_dir_data, "ORA_Down_Unique_mPAP_list.rds"))
+```
+
+```{r ORA_Cardiomyocytes, fig.height=8, fig.width=12}
+ORA_up_simplified <- simplify(
+  ORA_all_unique_up[["Cardiomyocytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_up_simplified <- reorder_GO_by_pvalue(ORA_up_simplified)
+
+ORA_down_simplified <- simplify(
+  ORA_all_unique_down[["Cardiomyocytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_down_simplified <- reorder_GO_by_pvalue(ORA_down_simplified)
+
+p1 <- dotplot(ORA_up_simplified, showCategory = 10, title = paste0("Cardiomyocytes", "\nOver-representation analysis", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(ORA_down_simplified, showCategory = 10, title = paste0("Cardiomyocytes", "\nOver-representation analysis", "\nLow mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1|p2)
+```
+
+```{r ORA_Cardiomyocytes_emapplot, fig.height=10, fig.width=20}
+ORA_up_simplified <- pairwise_termsim(ORA_up_simplified)
+ORA_down_simplified <- pairwise_termsim(ORA_down_simplified)
+
+p1 <- emapplot(ORA_up_simplified, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+p2 <- emapplot(ORA_down_simplified, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+print(p1 + p2)
+rm(p1, p2)
+```
+
+```{r ORA_Fibroblasts, fig.height=8, fig.width=12}
+ORA_up_simplified <- simplify(
+  ORA_all_unique_up[["Fibroblasts"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_up_simplified <- reorder_GO_by_pvalue(ORA_up_simplified)
+
+ORA_down_simplified <- simplify(
+  ORA_all_unique_down[["Fibroblasts"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_down_simplified <- reorder_GO_by_pvalue(ORA_down_simplified)
+
+p1 <- dotplot(ORA_up_simplified, showCategory = 10, title = paste0("Fibroblasts", "\nOver-representation analysis", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(ORA_down_simplified, showCategory = 10, title = paste0("Fibroblasts", "\nOver-representation analysis", "\nLow mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1|p2)
+```
+
+```{r ORA_Fibroblasts_emapplot, fig.height=6, fig.width=12}
+ORA_up_simplified <- pairwise_termsim(ORA_up_simplified)
+ORA_down_simplified <- pairwise_termsim(ORA_down_simplified)
+
+p1 <- emapplot(ORA_up_simplified, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+p2 <- emapplot(ORA_down_simplified, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+print(p1 + p2)
+rm(p1, p2)
+```
+
+```{r ORA_Endothelial_cells, fig.height=8, fig.width=12}
+ORA_up_simplified <- simplify(
+  ORA_all_unique_up[["Endothelial_cells"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_up_simplified <- reorder_GO_by_pvalue(ORA_up_simplified)
+
+ORA_down_simplified <- simplify(
+  ORA_all_unique_down[["Endothelial_cells"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_down_simplified <- reorder_GO_by_pvalue(ORA_down_simplified)
+
+p1 <- dotplot(ORA_up_simplified, showCategory = 10, title = paste0("Endothelial cells", "\nOver-representation analysis", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(ORA_down_simplified, showCategory = 10, title = paste0("Endothelial cells", "\nOver-representation analysis", "\nLow mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1|p2)
+```
+
+```{r ORA_Endothelial_emapplot, fig.height=8, fig.width=16}
+ORA_up_simplified <- pairwise_termsim(ORA_up_simplified)
+ORA_down_simplified <- pairwise_termsim(ORA_down_simplified)
+
+p1 <- emapplot(ORA_up_simplified, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+p2 <- emapplot(ORA_down_simplified, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+print(p1 + p2)
+rm(p1, p2)
+```
+
+```{r ORA_Pericytes, fig.height=8, fig.width=12}
+ORA_up_simplified <- simplify(
+  ORA_all_unique_up[["Pericytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_up_simplified <- reorder_GO_by_pvalue(ORA_up_simplified)
+
+ORA_down_simplified <- simplify(
+  ORA_all_unique_down[["Pericytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_down_simplified <- reorder_GO_by_pvalue(ORA_down_simplified)
+
+p1 <- dotplot(ORA_up_simplified, showCategory = 10, title = paste0("Pericytes", "\nOver-representation analysis", "\nHigh mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(ORA_down_simplified, showCategory = 10, title = paste0("Pericytes", "\nOver-representation analysis", "\nLow mPAP - associated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1|p2)
+```
+
+```{r ORA_Pericytes_emapplot, fig.height=8, fig.width=16}
+ORA_up_simplified <- pairwise_termsim(ORA_up_simplified)
+ORA_down_simplified <- pairwise_termsim(ORA_down_simplified)
+
+p1 <- emapplot(ORA_up_simplified, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+p2 <- emapplot(ORA_down_simplified, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+print(p1 + p2)
+rm(p1, p2)
+```
+
