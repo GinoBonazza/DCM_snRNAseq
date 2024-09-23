@@ -295,8 +295,9 @@ percent_stats <- percent_stats %>%
   dplyr::rename(percentCells = All_Cells)
 percent_stats$gene <- rownames(percent_stats)
 
-write.csv(percent_stats, file = here::here(output_dir_data, "CM_percent_stats.csv"), quote=F, row.names = T)
+write.csv(percent_stats, file = here::here(output_dir_data, "CM_percent_stats.csv"), quote=F, row.names = F)
 ```
+
 ```{r percent_stats}
 percent_stats <- read.csv(here::here(output_dir_data, "CM_percent_stats.csv"))
 rownames(percent_stats) <- percent_stats$gene
@@ -775,12 +776,12 @@ sig_counts <- sig_counts[, metadata_heatmap$Sample, drop = FALSE]
 ## Run pheatmap using the metadata data frame for the annotation
 pheatmap::pheatmap(sig_counts, 
          color = heat_colors, 
-         cluster_rows = TRUE, 
+         cluster_rows = TRUE,
+         scale = "row",
          show_rownames = FALSE,
          annotation_col = metadata_heatmap, 
          border_color = NA, 
          fontsize = 10, 
-         scale = "row",
          cluster_cols=F,
          fontsize_row = 10, 
          height = 20) 
@@ -844,9 +845,9 @@ counts_tibble <- counts_matrix %>%
   tidyr::pivot_longer(-gene, names_to = "sample", values_to = "log_pseudocounts") %>%
   dplyr::mutate(Condition = dplyr::case_when(
     sample %in% c("CZD4", "CZD5", "CZD6", "CZD7") ~ "HC",
-    sample %in% c("PK439", "PK375", "PK229", "P5", "P8", "PK153") ~ "DCM - Mild PH",
-    sample %in% c("PK385", "PK437", "PK323", "PK403", "PK213", "PK461") ~ "DCM - Moderate PH",
-    sample %in% c("PK369", "PK357", "PK337", "PK345", "PK401", "PK463") ~ "DCM - Severe PH"
+    sample %in% c("PK439", "PK375", "PK229", "P5", "P8", "PK153") ~ "DCM - mPAP 19-27 mmHg",
+    sample %in% c("PK385", "PK437", "PK323", "PK403", "PK213", "PK461") ~ "DCM - mPAP 28-35 mmHg",
+    sample %in% c("PK369", "PK357", "PK337", "PK345", "PK401", "PK463") ~ "DCM - mPAP 36-48 mmHg"
   ))
 
 # Compute the mean log counts for each gene and condition
@@ -877,7 +878,7 @@ plot(gene_hclust, labels = FALSE)
 abline(h = 3, col = "brown", lwd = 2) # Add horizontal line to illustrate cutting dendrogram
 ```
 
-```{r Clustering_DEGs, fig.height=3, fig.width=9}
+```{r Clustering_DEGs, fig.height=3.5, fig.width=9}
 # Cut the dendrogram into 4 clusters
 gene_cluster <- cutree(gene_hclust, k = 4) %>%
   tibble::enframe() %>%
@@ -891,7 +892,7 @@ mean_tibble_cluster <- mean_matrix %>%
   dplyr::inner_join(gene_cluster, by = "gene")
 
 # Set factor levels for Condition
-mean_tibble_cluster$Condition <- factor(mean_tibble_cluster$Condition, levels = c("HC", "DCM - Mild PH", "DCM - Moderate PH", "DCM - Severe PH"))
+mean_tibble_cluster$Condition <- factor(mean_tibble_cluster$Condition, levels = c("HC", "DCM - mPAP 19-27 mmHg", "DCM - mPAP 28-35 mmHg", "DCM - mPAP 36-48 mmHg"))
 
 # Calculate the number of genes per cluster
 cluster_counts <- mean_tibble_cluster %>%
@@ -1245,12 +1246,12 @@ VlnPlot(CM, features = paste0(names(genes_of_interest), "_score"), ncol = 4, gro
 
 ```{r Condition}
 CM@meta.data[CM@meta.data$Sample %in% c("CZD4", "CZD5", "CZD6", "CZD7"), "Condition"] = "HC"
-CM@meta.data[CM@meta.data$Sample %in% c("PK439", "PK375", "PK229", "P5", "P8", "PK153"), "Condition"] = "DCM - Mild PH"
-CM@meta.data[CM@meta.data$Sample %in% c("PK385", "PK437", "PK323", "PK403", "PK213", "PK461"), "Condition"] = "DCM - Moderate PH"
-CM@meta.data[CM@meta.data$Sample %in% c("PK369", "PK357", "PK337", "PK345", "PK401", "PK463"), "Condition"] = "DCM - Severe PH"
+CM@meta.data[CM@meta.data$Sample %in% c("PK439", "PK375", "PK229", "P5", "P8", "PK153"), "Condition"] = "DCM - mPAP 19-27 mmHg"
+CM@meta.data[CM@meta.data$Sample %in% c("PK385", "PK437", "PK323", "PK403", "PK213", "PK461"), "Condition"] = "DCM - mPAP 28-35 mmHg"
+CM@meta.data[CM@meta.data$Sample %in% c("PK369", "PK357", "PK337", "PK345", "PK401", "PK463"), "Condition"] = "DCM - mPAP 36-48 mmHg"
 CM@meta.data[CM@meta.data$Sample %in% c("P3", "PK415", "PK441"), "Condition"] = "DCM - no mPAP data"
 
-CM$Condition <- factor(CM$Condition, levels = c("HC", "DCM - Mild PH", "DCM - Moderate PH", "DCM - Severe PH", "DCM - no mPAP data"))
+CM$Condition <- factor(CM$Condition, levels = c("HC", "DCM - mPAP 19-27 mmHg", "DCM - mPAP 28-35 mmHg", "DCM - mPAP 36-48 mmHg", "DCM - no mPAP data"))
 ```
 
 ```{r VlnPlot_scores_Condition, fig.width=15, fig.height=5}
