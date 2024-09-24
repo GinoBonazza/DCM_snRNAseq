@@ -416,6 +416,39 @@ volcano <- EnhancedVolcano(DE_Reichart,
 volcano
 ```
 
+```{r Volcano_Reichart_2, fig.height=6, fig.width=8}
+DE_Reichart_filtered <- dplyr::filter(DE_Reichart, gene_name %in% signif[["Cardiomyocytes"]]$gene)
+keyvals <- rep("grey", nrow(DE_Reichart_filtered))
+names(keyvals) <- rep("Not significant in RV", nrow(DE_Reichart_filtered))
+
+keyvals[DE_Reichart_filtered$gene_name %in% dplyr::filter(signif[["Cardiomyocytes"]], logFC>0)$gene] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Upregulated in RV"
+keyvals[DE_Reichart_filtered$gene_name %in% dplyr::filter(signif[["Cardiomyocytes"]], logFC<0)$gene] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Downregulated in RV"
+
+volcano <- EnhancedVolcano(DE_Reichart_filtered,
+                lab = DE_Reichart_filtered$gene_name,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                subtitleLabSize = 12,
+                axisLabSize = 12,
+                captionLabSize = 10,
+                pointSize = 0.3,
+                FCcutoff = 0.25,
+                pCutoff  = 0.05,
+                ylim = c(0, 16),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+               # title = names(results)[i],
+                colCustom = keyvals
+) + theme(legend.position = "right")
+volcano
+```
+
 ```{r UpSet_plot_up_vs_down_intersect, fig.height=8, fig.width=12}
 gene_sets_up <- list(
   DCM_RV = dplyr::filter(signif[["Cardiomyocytes"]], logFC > 0)$gene,
@@ -507,8 +540,8 @@ CM_signif_cluster$Reichart <- ifelse(CM_signif_cluster$logFC > 0 & CM_signif_clu
                                    ifelse(CM_signif_cluster$logFC < 0 & CM_signif_cluster$gene %in% dplyr::filter(DE_Reichart_signif, logFC < 0)$gene_name, "Downregulated", "Not significant"))
 ```
 
-```{r candidate_biomarkers}
-candidate_biomarkers <- CM_signif_cluster %>%
+```{r candidate_biomarkers_up}
+candidate_biomarkers_up <- CM_signif_cluster %>%
   dplyr::filter(cluster == "4") %>%
   dplyr::filter(Detected_in_plasma == "Yes") %>%
   dplyr::filter(Koenig == "Not significant") %>%
@@ -516,8 +549,8 @@ candidate_biomarkers <- CM_signif_cluster %>%
   dplyr::filter(Reichart == "Not significant") %>%
   arrange(desc(logFC))
 
-nrow(candidate_biomarkers)
-reactable(candidate_biomarkers, 
+nrow(candidate_biomarkers_up)
+reactable(candidate_biomarkers_up, 
           filterable = TRUE,
           searchable = TRUE,
           showPageSizeOptions = TRUE)
@@ -525,20 +558,20 @@ reactable(candidate_biomarkers,
 
 
 ```{r read CM}
-CM <- readRDS(here::here("output", "Cardiomyocytes_subclustering_26", "CM.rds"))
+CM <- readRDS(here::here("output", "Cardiomyocytes_DA_DE_26", "CM.rds"))
 DefaultAssay(CM) <- "RNA"
 CM <- NormalizeData(CM)
 ```
 
 ```{r VlnPlot_mPAP_mmHg, fig.width=20, fig.height=15}
-VlnPlot(CM, group.by = "mPAP_mmHg", features = candidate_biomarkers$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+VlnPlot(CM, group.by = "mPAP_mmHg", features = candidate_biomarkers_up$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
 ```
 
 
 ```{r VlnPlot_mPAP_mmHg_filtered, fig.width=20, fig.height=15}
-candidate_biomarkers_filtered <- candidate_biomarkers %>%
+candidate_biomarkers_up_filtered <- candidate_biomarkers_up %>%
   dplyr::filter(percentCells > 25)
-VlnPlot(CM, group.by = "mPAP_mmHg", features = candidate_biomarkers_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+VlnPlot(CM, group.by = "mPAP_mmHg", features = candidate_biomarkers_up_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
 ```
 
 ```{r}
@@ -574,26 +607,327 @@ CM$Sample2 <- factor(CM$Sample2, levels = c("HC1", "HC2", "HC3", "HC4", "DCM_19"
 ```
 
 ```{r VlnPlot_Sample2, fig.width=25, fig.height=15}
-VlnPlot(CM, group.by = "Sample2", features = candidate_biomarkers$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+VlnPlot(CM, group.by = "Sample2", features = candidate_biomarkers_up$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
 ```
 
 ```{r VlnPlot_Sample2_filtered, fig.width=25, fig.height=15}
-VlnPlot(CM, group.by = "Sample2", features = candidate_biomarkers_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+VlnPlot(CM, group.by = "Sample2", features = candidate_biomarkers_up_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
 ```
 
 ```{r FeaturePlot, fig.width=20, fig.height=15}
-FeaturePlot(CM, features = candidate_biomarkers$gene[1:20], ncol = 5)
+FeaturePlot(CM, features = candidate_biomarkers_up$gene[1:20], ncol = 5)
 ```
 
 ```{r VlnPlot_cell_state, fig.width=20, fig.height=15}
-VlnPlot(CM, group.by = "cell_state", features = candidate_biomarkers$gene[1:20], ncol = 5, add.noise = F, pt.size = 0)
+VlnPlot(CM, group.by = "cell_state", features = candidate_biomarkers_up$gene[1:20], ncol = 5, add.noise = F, pt.size = 0)
 ```
 
 ```{r VlnPlot_cell_type_SCT, fig.width=25, fig.height=15}
-VlnPlot(DCM_RV_integrated, group.by = "cell_type", features = candidate_biomarkers$gene[1:20], ncol = 5, add.noise = F, pt.size = 0.001, assay="SCT")
+VlnPlot(DCM_RV_integrated, group.by = "cell_type", features = candidate_biomarkers_up$gene[1:20], ncol = 5, add.noise = F, pt.size = 0.001, assay="SCT")
 ```
 
 ```{r}
 write.csv(CM_signif_cluster, here::here(output_dir_data, "CM_signif_cluster_snLV.csv"))
 ```
 
+```{r candidate_biomarkers_down}
+candidate_biomarkers_down <- CM_signif_cluster %>%
+  dplyr::filter(cluster == "1") %>%
+  dplyr::filter(Detected_in_plasma == "Yes") %>%
+  dplyr::filter(Koenig == "Not significant") %>%
+  dplyr::filter(Chaffin == "Not significant") %>%
+  dplyr::filter(Reichart == "Not significant") %>%
+  arrange(logFC)
+
+nrow(candidate_biomarkers_down)
+reactable(candidate_biomarkers_down, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r VlnPlot_mPAP_mmHg_down, fig.width=20, fig.height=15}
+VlnPlot(CM, group.by = "mPAP_mmHg", features = candidate_biomarkers_down$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+```
+
+
+```{r VlnPlot_mPAP_mmHg_filtered_down, fig.width=20, fig.height=15}
+candidate_biomarkers_down_filtered <- candidate_biomarkers_down %>%
+  dplyr::filter(percentCells > 25)
+VlnPlot(CM, group.by = "mPAP_mmHg", features = candidate_biomarkers_down_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+```
+
+```{r VlnPlot_Sample2_down, fig.width=25, fig.height=15}
+VlnPlot(CM, group.by = "Sample2", features = candidate_biomarkers_down$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+```
+
+```{r VlnPlot_Sample2_filtered_down, fig.width=25, fig.height=15}
+VlnPlot(CM, group.by = "Sample2", features = candidate_biomarkers_down_filtered$gene[1:20], ncol = 5, pt.size = 0, add.noise = F)
+```
+
+```{r FeaturePlot_down, fig.width=20, fig.height=15}
+FeaturePlot(CM, features = candidate_biomarkers_down$gene[1:20], ncol = 5)
+```
+
+```{r VlnPlot_cell_state_down, fig.width=20, fig.height=15}
+VlnPlot(CM, group.by = "cell_state", features = candidate_biomarkers_down$gene[1:20], ncol = 5, add.noise = F, pt.size = 0)
+```
+
+```{r VlnPlot_cell_type_SCT_down, fig.width=25, fig.height=15}
+VlnPlot(DCM_RV_integrated, group.by = "cell_type", features = candidate_biomarkers_down$gene[1:20], ncol = 5, add.noise = F, pt.size = 0.001, assay="SCT")
+```
+
+```{r Barplot, fig.height=4.5, fig.width=6}
+CM_signif_cluster$up_down <- ifelse(
+  CM_signif_cluster$logFC > 0, "Upregulated in RV",
+           "Downregulated in RV")
+
+CM_signif_cluster$Unique_overlapping_LV <- ifelse(
+  (CM_signif_cluster$logFC > 0 & (CM_signif_cluster$Chaffin == "Upregulated" | CM_signif_cluster$Koenig == "Upregulated" | CM_signif_cluster$Reichart == "Upregulated")) | (CM_signif_cluster$logFC < 0 & (CM_signif_cluster$Chaffin == "Downregulated" | CM_signif_cluster$Koenig == "Downregulated" | CM_signif_cluster$Reichart == "Downregulated")), "Overlapping with at least 1 LV dataset",
+  "Unique in RV")
+
+df <- as.data.frame(table(CM_signif_cluster$up_down, CM_signif_cluster$Unique_overlapping_LV))
+colnames(df) <- c("up_down", "Unique_overlapping_LV", "n")
+
+ggplot(df, aes(fill=Unique_overlapping_LV, y=n, x=up_down)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Overlapping with at least 1 LV dataset" = "#A63A2A", 
+                               "Unique in RV" = "#004C8C")) +
+  theme(text = element_text(size = 15), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = element_blank(), y = "Number of Genes", fill = "Unique_overlapping_LV") +
+  guides(fill = guide_legend(title = NULL))
+```
+
+```{r Barplot_2, fig.height=4.5, fig.width=6}
+CM_signif_cluster$up_down <- ifelse(
+  CM_signif_cluster$logFC > 0, "Upregulated in RV",
+           "Downregulated in RV")
+
+CM_signif_cluster$Unique_overlapping_LV <- ifelse(
+  (CM_signif_cluster$logFC > 0 & (CM_signif_cluster$Chaffin == "Upregulated" | CM_signif_cluster$Koenig == "Upregulated" | CM_signif_cluster$Reichart == "Upregulated")) | (CM_signif_cluster$logFC < 0 & (CM_signif_cluster$Chaffin == "Downregulated" | CM_signif_cluster$Koenig == "Downregulated" | CM_signif_cluster$Reichart == "Downregulated")), "Overlapping with at least 1 LV dataset",
+  "Unique in RV")
+
+df <- as.data.frame(table(CM_signif_cluster$up_down, CM_signif_cluster$Unique_overlapping_LV))
+colnames(df) <- c("up_down", "Unique_overlapping_LV", "n")
+
+ggplot(df, aes(fill=Unique_overlapping_LV, y=n, x=up_down)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Overlapping with at least 1 LV dataset" = "#A63A2A", 
+                               "Unique in RV" = "#004C8C")) +
+  theme(text = element_text(size = 15), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = element_blank(), y = "Number of Genes", fill = "Unique_overlapping_LV") +
+  guides(fill = guide_legend(title = NULL))
+```
+
+```{r}
+CM_signif_cluster$Koenig_up_down <- ifelse(CM_signif_cluster$gene %in% dplyr::filter(DE_Koenig_signif, log2FoldChange > 0)$gene_name, "Upregulated in LV",
+                                   ifelse(CM_signif_cluster$gene %in% dplyr::filter(DE_Koenig_signif, log2FoldChange < 0)$gene_name, "Downregulated in LV", "Not significant in LV"))
+
+CM_signif_cluster$Chaffin_up_down <- ifelse(CM_signif_cluster$gene %in% dplyr::filter(DE_Chaffin_signif, logFC > 0)$Gene, "Upregulated in LV",
+                                   ifelse(CM_signif_cluster$gene %in% dplyr::filter(DE_Chaffin_signif, logFC < 0)$Gene, "Downregulated in LV", "Not significant in LV"))
+
+CM_signif_cluster$Reichart_up_down <- ifelse(CM_signif_cluster$gene %in% dplyr::filter(DE_Reichart_signif, logFC > 0)$gene_name, "Upregulated in LV",
+                                   ifelse(CM_signif_cluster$gene %in% dplyr::filter(DE_Reichart_signif, logFC < 0)$gene_name, "Downregulated in LV", "Not significant in LV"))
+
+table(CM_signif_cluster$up_down, CM_signif_cluster$Koenig_up_down)
+table(CM_signif_cluster$up_down, CM_signif_cluster$Chaffin_up_down)
+table(CM_signif_cluster$up_down, CM_signif_cluster$Reichart_up_down)
+```
+
+```{r, fig.height=5, fig.width=10}
+# Data preparation
+df <- as.data.frame(table(CM_signif_cluster$up_down, CM_signif_cluster$Koenig_up_down))
+colnames(df) <- c("up_down", "LV_up_down", "n")
+df$up_down <- factor(df$up_down, levels = c("Upregulated in RV", "Downregulated in RV"))
+df$LV_up_down <- factor(df$LV_up_down, levels = c("Upregulated in LV", "Downregulated in LV", "Not significant in LV"))
+
+# Define p1
+p1 <- ggplot(df, aes(fill=LV_up_down, y=n, x=up_down)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Upregulated in LV"= "#A63A2A", 
+                               "Downregulated in LV" = "#004C8C",
+                               "Not significant in LV" = "grey50")) +
+  labs(x = element_blank(), y = "Number of Genes", fill = "LV_up_down") +
+  ggtitle("Koenig et al, Nature CVR 2022") +
+  guides(fill = guide_legend(title = NULL))
+
+# Data preparation for p2
+df <- as.data.frame(table(CM_signif_cluster$up_down, CM_signif_cluster$Chaffin_up_down))
+colnames(df) <- c("up_down", "LV_up_down", "n")
+df$up_down <- factor(df$up_down, levels = c("Upregulated in RV", "Downregulated in RV"))
+df$LV_up_down <- factor(df$LV_up_down, levels = c("Upregulated in LV", "Downregulated in LV", "Not significant in LV"))
+
+# Define p2
+p2 <- ggplot(df, aes(fill=LV_up_down, y=n, x=up_down)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Upregulated in LV"= "#A63A2A", 
+                               "Downregulated in LV" = "#004C8C",
+                               "Not significant in LV" = "grey50")) +
+  labs(x = element_blank(), y = "Number of Genes", fill = "LV_up_down") +
+  ggtitle("Chaffin et al, Nature 2022") +
+  guides(fill = guide_legend(title = NULL))
+
+# Data preparation for p3
+df <- as.data.frame(table(CM_signif_cluster$up_down, CM_signif_cluster$Reichart_up_down))
+colnames(df) <- c("up_down", "LV_up_down", "n")
+df$up_down <- factor(df$up_down, levels = c("Upregulated in RV", "Downregulated in RV"))
+df$LV_up_down <- factor(df$LV_up_down, levels = c("Upregulated in LV", "Downregulated in LV", "Not significant in LV"))
+
+# Define p3
+p3 <- ggplot(df, aes(fill=LV_up_down, y=n, x=up_down)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Upregulated in LV"= "#A63A2A", 
+                               "Downregulated in LV" = "#004C8C",
+                               "Not significant in LV" = "grey50")) +
+  labs(x = element_blank(), y = "Number of Genes", fill = "LV_up_down") +
+  ggtitle("Reichart et al, Science 2022") +
+  guides(fill = guide_legend(title = NULL))
+
+# Define the common theme with black text
+common_theme <- theme(
+  text = element_text(size = 14, colour = "black"), 
+  axis.text.x = element_text(angle = 30, hjust = 1, colour = "black"),
+  axis.text.y = element_text(colour = "black"),
+  axis.title.y = element_text(colour = "black", size = 14), 
+  title = element_text(size = 11, colour = "black"),
+  legend.text = element_text(colour = "black"),  # Legend text color
+)
+
+# Apply the common theme to each plot
+p1 <- p1 + common_theme + theme(legend.position = "none")
+p2 <- p2 + common_theme + theme(legend.position = "none")
+p3 <- p3 + common_theme
+
+# Combine the plots with a shared legend from p3
+combined_plot <- p1 + p2 + p3 + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+# Plot the final combined plot with black text and shared legend
+combined_plot
+
+```
+
+```{r}
+pseudocounts <- readRDS(here::here("output", "Cardiomyocytes_DA_DE_26", "CM_pseudocounts.rds"))
+
+metadata <- CM@meta.data %>%
+  dplyr::select(Sample:CO_l.min, Condition) %>%
+  unique() %>%
+  dplyr::select(-LVID_mm, -RVIT_mm) 
+metadata <- metadata %>%
+  dplyr::select(1:3, 5, 6, 4, 7:ncol(metadata)) %>%
+  dplyr::arrange(match(Sample, names(table(CM$Sample))))
+
+```
+
+```{r Heatmap_1, fig.width=8, fig.height=6}
+metadata_heatmap <- metadata %>% 
+  dplyr::filter(!is.na(mPAP_mmHg)  | Group == "HC")
+
+
+metadata_heatmap <- metadata_heatmap %>% 
+  arrange(Condition, mPAP_mmHg) %>%
+  dplyr::select(mPAP_mmHg, Condition, Sample)
+
+rownames(metadata_heatmap) <- metadata_heatmap$Sample
+metadata_heatmap  <- metadata_heatmap %>%
+  dplyr::select(mPAP_mmHg, Condition)
+
+pseudocounts_mPAP_HC <- pseudocounts[, rownames(metadata_heatmap)]
+pseudocounts_mPAP_HC <- normLibSizes(pseudocounts_mPAP_HC)
+
+counts_mPAP_HC <- cpm(pseudocounts_mPAP_HC, log = TRUE)
+
+bm_genes <- candidate_biomarkers_up %>%
+  arrange(desc(metric)) %>%
+  head(20) %>%
+  pull(gene)
+
+bm_counts <- counts_mPAP_HC[match(bm_genes, rownames(counts_mPAP_HC)), ]
+bm_counts <- bm_counts[, rownames(metadata_heatmap), drop = FALSE]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(bm_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         show_colnames = TRUE,
+         fontsize_row = 15, 
+         height = 20,
+         show_rownames = T) 
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+```
+
+```{r Heatmap_2, fig.width=8, fig.height=6}
+bm_genes <- candidate_biomarkers_down %>%
+  arrange(metric) %>%
+  head(20) %>%
+  pull(gene)
+
+bm_counts <- counts_mPAP_HC[match(bm_genes, rownames(counts_mPAP_HC)), ]
+bm_counts <- bm_counts[, rownames(metadata_heatmap), drop = FALSE]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(bm_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         show_colnames = TRUE,
+         fontsize_row = 15, 
+         height = 20,
+         show_rownames = T) 
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+```
+
+```{r Heatmap_3, fig.width=8, fig.height=6}
+DEGs_mPAP_top <- CM_signif_cluster %>% 
+  dplyr::filter(percentCells > 5) 
+DEGs_mPAP_top_up <- DEGs_mPAP_top %>% 
+  dplyr::filter(logFC > 0 & cluster == "4") %>% 
+  dplyr::arrange(desc(logFC)) %>%
+  head(20)
+DEGs_mPAP_top_down <- DEGs_mPAP_top %>% 
+  dplyr::filter(logFC < 0 & cluster == "1") %>% 
+  dplyr::arrange(logFC) %>%
+  head(20) %>%
+  dplyr::arrange(desc(logFC))
+
+DEGs_mPAP_top <- dplyr::bind_rows(DEGs_mPAP_top_up, DEGs_mPAP_top_down)
+rm(DEGs_mPAP_top_up, DEGs_mPAP_top_down)
+
+heatmap_genes <- DEGs_mPAP_top %>%
+  pull(gene)
+
+bm_counts <- counts_mPAP_HC[match(heatmap_genes, rownames(counts_mPAP_HC)), ]
+bm_counts <- bm_counts[, rownames(metadata_heatmap), drop = FALSE]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(bm_counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         show_colnames = TRUE,
+         fontsize_row = 10, 
+         height = 20,
+         show_rownames = T
+         ) 
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+```
