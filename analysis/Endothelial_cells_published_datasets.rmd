@@ -1464,7 +1464,7 @@ common_up_entrez <- bitr(dplyr::filter(common_FC_2, Up_Down == "Up")$gene, fromT
 common_down_entrez <- bitr(dplyr::filter(common_FC_2, Up_Down == "Down")$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)$ENTREZID
 ```
 
-```{r ORA_common_2}
+```{r ORA_common_2, eval=FALSE}
 ORA_up_2 <- enrichGO(common_up_entrez, OrgDb = "org.Hs.eg.db", universe = common_universe_entrez, ont = "ALL", readable = TRUE, pvalueCutoff = 0.05)
 nrow(ORA_up_2)
 ORA_up_2 <- gsfilter(ORA_up_2, by = 'Count', min = 5)
@@ -1494,7 +1494,7 @@ ORA_down_2_simplified <-  clusterProfiler::simplify(
 ORA_down_2_simplified <- reorder_GO_by_pvalue(ORA_down_2_simplified)
 ```
 
-```{r ORA_common_dotplot_2, fig.height=8, fig.width=13}
+```{r ORA_common_dotplot_2, fig.height=8, fig.width=13, eval=FALSE}
 p1 <- dotplot(ORA_up_2_simplified, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nUpregulated terms"), label_format = 32, font.size = 15) +
   theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
         axis.text.y = element_text(face = "bold"))
@@ -1504,7 +1504,7 @@ p2 <- dotplot(ORA_down_2_simplified, showCategory = 10, title = paste0("GO - Ove
 print(p1|p2)
 ```
 
-```{r ORA_common_emapplot_2, fig.height=8, fig.width=20}
+```{r ORA_common_emapplot_2, fig.height=8, fig.width=20, eval=FALSE}
 ORA_up_2_simplified <- pairwise_termsim(ORA_up_2_simplified)
 ORA_down_2_simplified <- pairwise_termsim(ORA_down_2_simplified)
 p1 <- emapplot(ORA_up_2_simplified, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
@@ -1516,7 +1516,7 @@ p2 <- emapplot(ORA_down_2_simplified, showCategory = 50, cex_label_category = 0.
 print(p1|p2)
 ```
 
-```{r ORA_KEGG}
+```{r ORA_KEGG, eval=FALSE}
 ORA_KEGG_up_2 <- enrichKEGG(common_up_entrez, organism = "hsa", universe = common_universe_entrez, pvalueCutoff = 0.05, pAdjustMethod = "BH")
 nrow(ORA_KEGG_up_2)
 ORA_KEGG_up_2 <- gsfilter(ORA_KEGG_up_2, by = 'Count', min = 5)
@@ -1528,7 +1528,7 @@ ORA_KEGG_down_2 <- gsfilter(ORA_KEGG_down_2, by = 'Count', min = 5)
 ORA_KEGG_down_2 <- reorder_GO_by_pvalue(ORA_KEGG_down_2)
 ```
 
-```{r ORA_KEGG_dotplot, fig.height=8, fig.width=13}
+```{r ORA_KEGG_dotplot, fig.height=8, fig.width=13, eval=FALSE}
 p1 <- dotplot(ORA_KEGG_up_2, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nUpregulated terms"), label_format = 32, font.size = 15) +
   theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
         axis.text.y = element_text(face = "bold"))
@@ -1538,7 +1538,7 @@ p2 <- dotplot(ORA_KEGG_down_2, showCategory = 10, title = paste0("GO - Over-repr
 print(p1|p2)
 ```
 
-```{r ORA_KEGG_emapplot, fig.height=8, fig.width=20}
+```{r ORA_KEGG_emapplot, fig.height=8, fig.width=20, eval=FALSE}
 ORA_KEGG_up_2 <- pairwise_termsim(ORA_KEGG_up_2)
 ORA_KEGG_down_2 <- pairwise_termsim(ORA_KEGG_down_2)
 p1 <- emapplot(ORA_KEGG_up_2, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
