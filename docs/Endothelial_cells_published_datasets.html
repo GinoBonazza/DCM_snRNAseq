@@ -1,0 +1,2504 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Endothelial cells DCM vs HC and SGLT2 expression</title>
+
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.umd.cjs"></script>
+<link href="site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.4/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.4/reactable.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_DA_DE.html">Cardiomyocytes differential expression</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Endothelial cells DCM vs HC and SGLT2
+expression</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">24 January, 2025</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2025-01-24
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.1). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree08689d435b0e710b557d1ad13e94d8fc4b0e2921targetblank08689d4a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/08689d435b0e710b557d1ad13e94d8fc4b0e2921" target="_blank">08689d4</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree08689d435b0e710b557d1ad13e94d8fc4b0e2921targetblank08689d4a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/08689d435b0e710b557d1ad13e94d8fc4b0e2921" target="_blank">08689d4</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/figure/
+    Ignored:    output/Chaffin_2022/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/Koenig_2022/
+    Ignored:    output/SSc_PAH/
+
+Untracked files:
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  analysis/Cardiomyocytes_DA_DE_26_2.Rmd
+    Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DA_DE_all_cell_types_and_parameters.Rmd
+    Untracked:  analysis/DE_Group_all_cell_types.Rmd
+    Untracked:  analysis/DE_all_cell_types_mPAP.Rmd
+    Untracked:  analysis/DE_mPAP_all_cell_types.Rmd.Rmd
+    Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
+    Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
+    Untracked:  analysis/Fibroblasts_subclustering.Rmd
+    Untracked:  analysis/Koenig_2022.Rmd
+    Untracked:  analysis/TOM/
+    Untracked:  analysis/VennDiagram.2024-09-16_14-12-56.160498.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-17.340014.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-57.942673.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-22-50.621507.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-24-47.010131.log
+    Untracked:  analysis/VennDiagram.2024-09-18_11-22-29.278827.log
+    Untracked:  analysis/core
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  core
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_DA_DE_26/
+    Untracked:  output/Cardiomyocytes_DA_DE_26_2/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_Group_all_cell_types/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Endothelial_cells_SGLT2_I/
+    Untracked:  output/Endothelial_cells_published_datasets/
+    Untracked:  output/Fibroblasts_DA_DE_26/
+    Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_26/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/UntitledR.R
+    Untracked:  reference_sources/
+
+Unstaged changes:
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE_26.Rmd
+    Modified:   analysis/Comparison_LV.Rmd
+    Modified:   analysis/DE_mPAP_all_cell_types.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+    Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
+    Modified:   analysis/SSc_PAH.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/Endothelial_cells_published_datasets.rmd</code>) and
+HTML (<code>docs/Endothelial_cells_published_datasets.html</code>)
+files. If you’ve configured a remote Git repository (see
+<code>?wflow_git_remote</code>), click on the hyperlinks in the table
+below to view the files as they were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/08689d435b0e710b557d1ad13e94d8fc4b0e2921/analysis/Endothelial_cells_published_datasets.rmd" target="_blank">08689d4</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-01-24
+</td>
+<td>
+wflow_publish("analysis/Endothelial_cells_published_datasets.rmd")
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/70120498b9f4ded933bcc16cb030042114e43c3d/analysis/Endothelial_cells_published_datasets.rmd" target="_blank">7012049</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-01-24
+</td>
+<td>
+wflow_publish("analysis/Endothelial_cells_published_datasets.rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code># Get current file name to make folder
+current_file &lt;- &quot;Endothelial_cells_published_datasets&quot;
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(gprofiler2)
+library(SeuratDisk)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(msigdbr)
+library(simplifyEnrichment)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+library(cowplot)
+
+#Output paths
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;))
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
+</div>
+<div id="koenig-2022" class="section level2">
+<h2>Koenig 2022</h2>
+<pre class="r"><code>load(&quot;/scratch/gbonaz/Heart_datasets/Koenig_2022/GSE183852_DCM_Nuclei.Robj&quot;)</code></pre>
+<pre class="r"><code>Koenig_EC &lt;- subset(nuclei, Names %in% c(&quot;Endothelium&quot;))</code></pre>
+<pre class="r"><code>Clinical_data &lt;- read_excel(&quot;/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx&quot;)
+add_metadata &lt;- left_join(Koenig_EC[[&quot;orig.ident&quot;]], Clinical_data)
+row.names(add_metadata) &lt;- row.names(Koenig_EC[[]])
+Koenig_EC &lt;- AddMetaData(Koenig_EC, metadata = add_metadata)
+rm(add_metadata, Clinical_data)</code></pre>
+<pre class="r"><code>metadata_Koenig &lt;- Koenig_EC@meta.data %&gt;%
+  dplyr::select(orig.ident, Age, Sex, Condition, Pre_Op_EF, Pre_Op_CO_L_min, HTN) %&gt;%
+  unique()
+
+rownames(metadata_Koenig) &lt;- metadata_Koenig$orig.ident
+
+reactable(metadata_Koenig, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-f843a680a1fcd62a0dd1" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-f843a680a1fcd62a0dd1">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["H_ZC-11-292","TWCM-10-5","TWCM-10-68","TWCM-11-74","TWCM-11-93","TWCM-11-103","TWCM-11-264","TWCM-13-198","TWCM-11-3","TWCM-13-17","TWCM-13-84","TWCM-13-181","TWCM-13-235","TWCM-11-82","TWCM-11-104","TWCM-13-192","H_ZC-LVAD","TWCM-11-41","TWCM-11-42","TWCM-11-78","TWCM-11-192","TWCM-11-256","TWCM-13-1","TWCM-13-36","TWCM-13-47","TWCM-13-80","TWCM-13-96","TWCM-13-101","TWCM-13-102","TWCM-13-104","TWCM-13-132","TWCM-13-152","TWCM-13-168","TWCM-13-208","TWCM-13-285","TWCM-14-173","TWCM-LVAD2","TWCM-LVAD3"],"orig.ident":["H_ZC-11-292","TWCM-10-5","TWCM-10-68","TWCM-11-74","TWCM-11-93","TWCM-11-103","TWCM-11-264","TWCM-13-198","TWCM-11-3","TWCM-13-17","TWCM-13-84","TWCM-13-181","TWCM-13-235","TWCM-11-82","TWCM-11-104","TWCM-13-192","H_ZC-LVAD","TWCM-11-41","TWCM-11-42","TWCM-11-78","TWCM-11-192","TWCM-11-256","TWCM-13-1","TWCM-13-36","TWCM-13-47","TWCM-13-80","TWCM-13-96","TWCM-13-101","TWCM-13-102","TWCM-13-104","TWCM-13-132","TWCM-13-152","TWCM-13-168","TWCM-13-208","TWCM-13-285","TWCM-14-173","TWCM-LVAD2","TWCM-LVAD3"],"Age":[68,53,62,65,9,46,71,11,"NA",60,56,8,11,44,75,21,58,60,48,27,63,39,61,73,40,46,20,60,41,48,48,35,66,51,32,63,64,61],"Sex":["male","female","female","male","male","male","female","male","female","female","male","female","female","male","female","male","male","male","female","male","male","female","female","female","male","male","female","female","male","female","female","male","male","male","female","female","female","male"],"Condition":["Donor","DCM","Donor","Donor","DCM","Donor","Donor","Donor","DCM","DCM","DCM","DCM","Donor","Donor","Donor","Donor","DCM","Donor","Donor","Donor","Donor","Donor","Donor","Donor","DCM","Donor","Donor","Donor","DCM","Donor","Donor","Donor","Donor","DCM","DCM","Donor","DCM","DCM"],"Pre_Op_EF":["NA",20,69,55,13,60,"NA",59,27,20,12.5,28.1,60,60,"NA",65,30,62.5,60,47.5,70,65,65,45,7,65,47.5,70,25,50,60,74,66,20,17.5,60,17.5,20],"Pre_Op_CO_L_min":["NA",3.3,7.6,"NA","NA",11.4,"NA",7.5,2.76,"NA",3.16,2.48,10,9.2,4.4,11.9,1.7,"NA",7,6.4,"NA",10.7,"NA","NA",2.7,"NA",10.7,7.7,2.92,5.3,5.4,"NA",7.8,2.4,3.42,7.4,2.91,2.97],"HTN":[1,1,1,1,0,1,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,0,1,0,0,1,0,1,1,0,0,1,1]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"orig.ident","name":"orig.ident","type":"character"},{"id":"Age","name":"Age","type":"numeric"},{"id":"Sex","name":"Sex","type":"character"},{"id":"Condition","name":"Condition","type":"character"},{"id":"Pre_Op_EF","name":"Pre_Op_EF","type":"numeric"},{"id":"Pre_Op_CO_L_min","name":"Pre_Op_CO_L_min","type":"numeric"},{"id":"HTN","name":"HTN","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"1343573aa12d1e79908fb148894b01c9"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>expr_matrix &lt;- GetAssayData(object = Koenig_EC, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+non_zero_cells &lt;- rowSums(expr_matrix &gt; 0)
+total_cells &lt;- ncol(expr_matrix)
+percent_cells &lt;- (non_zero_cells / total_cells) * 100
+percent_stats &lt;- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes &lt;- rownames(dplyr::filter(percent_stats, percentCells &gt; 1))
+data &lt;- Koenig_EC[which(rownames(Koenig_EC) %in% keep_genes),]
+
+pseudocounts_Koenig &lt;- Seurat2PB(data, sample=&quot;orig.ident&quot;, cluster = &quot;Names&quot;)
+colnames(pseudocounts_Koenig) &lt;- pseudocounts_Koenig$samples$sample
+pseudocounts_Koenig &lt;- pseudocounts_Koenig[, match(metadata_Koenig$orig.ident, pseudocounts_Koenig$samples$sample)]
+all(metadata_Koenig$orig.ident == pseudocounts_Koenig$samples$sample)</code></pre>
+<pre><code>[1] TRUE</code></pre>
+<pre class="r"><code>keep_samples &lt;- pseudocounts_Koenig$samples$lib.size &gt; 5e4
+pseudocounts_Koenig &lt;- pseudocounts_Koenig[, keep_samples]
+
+metadata_Koenig$Condition &lt;- factor(metadata_Koenig$Condition, levels = c(&quot;Donor&quot;, &quot;DCM&quot;))
+design&lt;- model.matrix(~ Condition, data = metadata_Koenig)
+
+keep_genes &lt;- filterByExpr(pseudocounts_Koenig, design = design)
+pseudocounts_Koenig &lt;- pseudocounts_Koenig[keep_genes, ]
+
+pseudocounts_Koenig &lt;- normLibSizes(pseudocounts_Koenig)
+counts_Koenig &lt;- edgeR::cpm(pseudocounts_Koenig, log = TRUE)
+
+pseudocounts_Koenig &lt;- estimateDisp(pseudocounts_Koenig, design)
+
+rm(expr_matrix, non_zero_cells, total_cells, percent_cells, keep_genes, data, keep_samples)</code></pre>
+<pre class="r"><code>mds &lt;- plotMDS(pseudocounts_Koenig, plot = FALSE)
+
+mds_df &lt;- cbind(data.frame(mds[c(&quot;x&quot;, &quot;y&quot;)]), metadata_Koenig)</code></pre>
+<pre class="r"><code>ggplot(mds_df, aes(x, y, col = orig.ident, label = orig.ident)) + 
+  geom_point(size = 3, alpha = 0.8) +
+  labs(x = &quot;MDS dim. 1&quot;, y = &quot;MDS dim. 2&quot;) + 
+  geom_text(vjust = -3, hjust = 0.5, size = 1.5) +  
+  ggtitle(&quot;Koenig 2022\nEndothelial cells - Sample&quot;) + 
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5)) +
+  coord_fixed() + 
+  guides(color = guide_legend(ncol = 3, title = &quot;Sample&quot;))</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Koenig_mds_Sample-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>labels &lt;- colnames(metadata_Koenig)[2:ncol(metadata_Koenig)]
+plots &lt;- list()
+
+for (i in 1:length(labels)) {
+  plots[[i]] &lt;- ggplot(mds_df, aes(x, y, col = .data[[labels[i]]])) + 
+    geom_point(size = 3, alpha = 0.8) + 
+    labs(x = &quot;MDS dim. 1&quot;, y = &quot;MDS dim. 2&quot;) + 
+    ggtitle(paste0(&quot;Koenig 2022\nEndothelial cells - &quot;, labels[[i]])) + 
+    theme_bw() + 
+    theme(panel.grid.minor = element_blank(), plot.title = element_text(hjust = 0.5)) +
+    coord_fixed() + 
+    guides(color = guide_legend(ncol = 1, title = labels[[i]]))
+}
+
+combined_plots &lt;- (plots[[1]] + plots[[2]] + plots[[3]] + plots[[4]] + plots[[5]] + plots[[6]]) + plot_layout(nrow = 2)
+combined_plots</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Koenig_mds_plots-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>fit &lt;- glmQLFit(pseudocounts_Koenig, design, robust=TRUE)
+fit &lt;- glmQLFTest(fit, coef = 2)
+  
+results_Koenig &lt;- topTags(fit, n = Inf)$table
+results_Koenig &lt;- merge(results_Koenig, percent_stats[, c(&quot;gene&quot;, &quot;percentCells&quot;)], by = &quot;gene&quot;, all.x = FALSE)
+results_Koenig$metric &lt;- results_Koenig$logFC*-log10(results_Koenig$PValue)
+
+signif_Koenig &lt;- results_Koenig %&gt;%
+  dplyr::filter(FDR &lt; 0.05) %&gt;%
+  dplyr::filter(abs(logFC) &gt; 0.5) %&gt;%
+  arrange(desc(metric))
+
+write.csv(results_Koenig, file = here::here(output_dir_data, &quot;EC_DE_Results_Koenig.csv&quot;), quote=F, row.names = F)
+write.csv(signif_Koenig, file = here::here(output_dir_data, &quot;EC_DE_Signif_Koenig.csv&quot;), quote=F, row.names = F)
+
+rm(mds, mds_df, design, fit)</code></pre>
+<pre class="r"><code>reorder_GO_by_pvalue &lt;- function(enrichGO_result) {
+  go_results &lt;- enrichGO_result@result
+  go_results_sorted &lt;- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result &lt;- go_results_sorted
+  return(enrichGO_result)
+}</code></pre>
+<pre class="r"><code>gene_counts &lt;- rowSums(Koenig_EC@assays$RNA@counts &gt; 0)
+universe_genes &lt;- names(gene_counts[gene_counts &gt;= 3])
+universe_entrez &lt;- bitr(universe_genes, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db)$ENTREZID
+rm(gene_counts)
+
+ranked_genes &lt;- results_Koenig
+entrezid &lt;- bitr(ranked_genes$gene, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)
+ranked_genes &lt;- merge(ranked_genes, entrezid, by.x = &quot;gene&quot;, by.y = &quot;SYMBOL&quot;)
+ranked_genes &lt;- ranked_genes[!duplicated(ranked_genes$metric), ]
+write.csv(ranked_genes, file = here::here(output_dir_data, &quot;Koenig_EC_ranked_genes.csv&quot;), quote=F, row.names = F)
+
+genelist &lt;- ranked_genes$metric
+names(genelist) &lt;- ranked_genes$ENTREZID
+genelist &lt;- genelist[order(genelist, decreasing = T)]
+
+GSEA_Koenig &lt;- gseGO(geneList = genelist,
+              OrgDb = org.Hs.eg.db,
+              ont = &quot;ALL&quot;,
+              keyType = &quot;ENTREZID&quot;,
+              nPermSimple = 10000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_Koenig@result &lt;- GSEA_Koenig@result %&gt;%
+  filter(str_count(core_enrichment, &quot;/&quot;) &gt;= 4)
+GSEA_Koenig &lt;- setReadable(GSEA_Koenig, OrgDb = &quot;org.Hs.eg.db&quot;)
+
+GSEA_Koenig &lt;- reorder_GO_by_pvalue(GSEA_Koenig)
+
+rm(universe_genes, universe_entrez, up_genes, down_genes)</code></pre>
+<pre class="r"><code>GSEA_simplified &lt;-  clusterProfiler::simplify(
+  GSEA_Koenig,
+  cutoff = 0.8,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+
+
+GSEA_simplified &lt;- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 7, split=&quot;.sign&quot;, title = paste0(&quot;Koenig 2022 - Endothelial cells&quot;, &quot;\nGO Enrichment Analysis&quot;, &quot;\nDCM vs HC&quot;), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_Koenig_dotplot-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>classify_terms &lt;- function(df) {
+  df$sign &lt;- ifelse(df$NES &gt; 0, &quot;activated&quot;, &quot;suppressed&quot;)
+  return(df)
+}
+
+GSEA_simplified@result &lt;- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms &lt;- subset(GSEA_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_simplified@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gsea_activated &lt;- GSEA_simplified
+gsea_activated@result &lt;- activated_terms
+
+gsea_suppressed &lt;- GSEA_simplified
+gsea_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_Koenig_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaGO_up_terms &lt;- dplyr::filter(GSEA_Koenig@result, NES &gt; 0)
+table(gseaGO_up_terms$ONTOLOGY)</code></pre>
+<pre><code>
+BP CC MF 
+31  1 11 </code></pre>
+<pre class="r"><code>gseaGO_up_terms &lt;- gseaGO_up_terms$ID
+mat1 = GO_similarity(gseaGO_up_terms, ont = &quot;BP&quot;)
+BP &lt;- simplifyGO(mat1, column_title = &quot;31 GO Biological Process terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_up_Koenig-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mat2 = GO_similarity(gseaGO_up_terms, ont = &quot;MF&quot;)
+MF &lt;- simplifyGO(mat2, column_title = &quot;11 GO Molecular Function terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_up_Koenig-2.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mat3 = GO_similarity(gseaGO_up_terms, ont = &quot;CC&quot;)
+#CC &lt;- simplifyGO(mat3, column_title = &quot;11 GO Cellular Component terms&quot;)</code></pre>
+<pre class="r"><code>gseaGO_down_terms &lt;- dplyr::filter(GSEA_Koenig@result, NES &lt; 0)
+table(gseaGO_down_terms$ONTOLOGY)</code></pre>
+<pre><code>
+BP CC MF 
+55 35 18 </code></pre>
+<pre class="r"><code>gseaGO_down_terms &lt;- gseaGO_down_terms$ID
+mat1 = GO_similarity(gseaGO_down_terms, ont = &quot;BP&quot;)
+BP &lt;- simplifyGO(mat1, column_title = &quot;55 GO Biological Process terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_down_Koenig-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mat2 = GO_similarity(gseaGO_down_terms, ont = &quot;MF&quot;)
+MF &lt;- simplifyGO(mat2, column_title = &quot;35 GO Molecular Function terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_down_Koenig-2.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mat3 = GO_similarity(gseaGO_down_terms, ont = &quot;CC&quot;)
+CC &lt;- simplifyGO(mat3, column_title = &quot;18 GO Cellular Component terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_down_Koenig-3.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GSEA_KEGG_Koenig &lt;- gseKEGG(geneList = genelist,
+              organism = &quot;hsa&quot;,
+              keyType = &quot;kegg&quot;,
+              nPermSimple = 10000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_KEGG_Koenig &lt;- reorder_GO_by_pvalue(GSEA_KEGG_Koenig)</code></pre>
+<pre class="r"><code>GSEA_KEGG_Koenig@result &lt;- GSEA_KEGG_Koenig@result %&gt;%
+  filter(str_count(core_enrichment, &quot;/&quot;) &gt;= 4)
+
+GSEA_KEGG_Koenig &lt;- reorder_GO_by_pvalue(GSEA_KEGG_Koenig)
+
+dotplot(GSEA_KEGG_Koenig, showCategory = 7, split=&quot;.sign&quot;, title = paste0(&quot;Koenig 2022 - Endothelial cells&quot;, &quot;\nKEGG Pathways Enrichment Analysis&quot;, &quot;\nDCM vs HC&quot;), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_KEGG_Koenig_dotplot-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GSEA_simplified &lt;- GSEA_KEGG_Koenig
+
+GSEA_simplified@result &lt;- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms &lt;- subset(GSEA_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_simplified@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gsea_activated &lt;- GSEA_simplified
+gsea_activated@result &lt;- activated_terms
+
+gsea_suppressed &lt;- GSEA_simplified
+gsea_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_KEGG_Koenig_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>metadata_heatmap &lt;- metadata_Koenig %&gt;%
+  dplyr::select(orig.ident, Sex, Pre_Op_EF, Condition)
+
+sig_counts &lt;- counts_Koenig[rownames(counts_Koenig) %in% signif_Koenig$gene, ]
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE,
+         scale = &quot;row&quot;,
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) </code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Heatmap_DEGs_Koenig-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DEGs_top_up &lt;- signif_Koenig %&gt;% 
+  dplyr::arrange(desc(metric))
+DEGs_top_down &lt;- signif_Koenig %&gt;% 
+  dplyr::arrange(metric)
+
+DEGs_top &lt;- dplyr::bind_rows(head(DEGs_top_up, 20), head(DEGs_top_down, 20))
+sig_counts &lt;- counts_Koenig[rownames(counts_Koenig) %in% DEGs_top$gene, ]
+sig_counts &lt;- sig_counts[match(DEGs_top$gene, rownames(sig_counts)), ]
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = FALSE,
+         scale = &quot;row&quot;,
+         show_rownames = TRUE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) </code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Heatmap_DEGs_Koenig_top-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(activated_terms, BP, CC, combined_plot, combined_plots, DEGs_top, DEGs_top_down, DEGs_top_up, entrezid, gsea_activated, GSEA_simplified, gsea_suppressed, mat1, mat2, mat3, metadata_heatmap, MF, p1, p2, percent_stats, plots, sig_counts, suppressed_terms, genelist, gseaGO_down_terms, gseaGO_up_terms, i, labels)</code></pre>
+</div>
+<div id="chaffin-2022" class="section level2">
+<h2>Chaffin 2022</h2>
+<pre class="r"><code>Chaffin &lt;- readRDS(&quot;/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin_2022.rds&quot;)</code></pre>
+<pre class="r"><code>Chaffin_EC &lt;- subset(Chaffin, cell_type_leiden0.6 %in% c(&quot;Endothelial_I&quot;, &quot;Endothelial_II&quot;, &quot;Endothelial_III&quot;))
+Chaffin_EC &lt;- subset(Chaffin_EC, disease %in% c(&quot;DCM&quot;, &quot;NF&quot;))
+Chaffin_EC$cell_type &lt;- &quot;Endothelial cells&quot;</code></pre>
+<pre class="r"><code>Clinical_data &lt;- read_excel(&quot;/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin_et al_2022_Selected_clinical_info.xlsx&quot;)
+add_metadata &lt;- left_join(Chaffin_EC[[&quot;donor_id&quot;]], Clinical_data)
+row.names(add_metadata) &lt;- row.names(Chaffin_EC[[]])
+Chaffin_EC &lt;- AddMetaData(Chaffin_EC, metadata = add_metadata)
+rm(add_metadata, Clinical_data)</code></pre>
+<pre class="r"><code>metadata_Chaffin &lt;- Chaffin_EC@meta.data %&gt;%
+  dplyr::select(donor_id, disease, sex, age, lvef, Body_Mass_Index_kg_m2, Heart_Weight_g, Left_Ventricular_Mass_g, Left_Ventricular_Mass_Index_g_m2, Left_Ventricular_End_Systolic_Dimension_cm, Left_Ventricular_End_Diastolic_Dimension_cm, Posterior_Wall_Thickness_cm) %&gt;%
+  unique()
+
+rownames(metadata_Chaffin) &lt;- metadata_Chaffin$donor_id
+
+reactable(metadata_Chaffin, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-ba32e0541469b5ed4906" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-ba32e0541469b5ed4906">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["P1622","P1558","P1540","P1718","P1430","P1516","P1515","P1603","P1678","P1547","P1610","P1371","P1300","P1617","P1290","P1600","P1437","P1582","P1702","P1561","P1358","P1549","P1304","P1539","P1504","P1472","P1606"],"donor_id":["P1622","P1558","P1540","P1718","P1430","P1516","P1515","P1603","P1678","P1547","P1610","P1371","P1300","P1617","P1290","P1600","P1437","P1582","P1702","P1561","P1358","P1549","P1304","P1539","P1504","P1472","P1606"],"disease":["NF","NF","NF","NF","DCM","NF","NF","NF","NF","NF","NF","DCM","DCM","DCM","DCM","NF","DCM","NF","NF","NF","DCM","NF","DCM","NF","DCM","DCM","DCM"],"sex":["male","female","female","male","male","female","female","female","male","female","female","male","female","male","male","female","female","female","male","male","male","male","female","female","male","male","female"],"age":[56,58,72,33,62,66,54,69,46,62,63,54,45,64,65,51,63,58,59,65,42,49,63,47,49,41,56],"lvef":[65,55,"NaN",55,15,57.5,70,"NaN",65,45,60,15,10,15,10,50,17.5,65,60,60,10,55,10,65,18,10,10],"Body_Mass_Index_kg_m2":[27.5,20.16,27.51,21.72,22.62,20.91,22.88,21.6,48.7,32.89,34.5,20.05,30.45,27.8,20.99,25.72,29.76,29.94,19.79,22.13,23.41,31.99,23.14,29.17,26.13,23.89,18.3],"Heart_Weight_g":[259,242,259,278,730,281,294,284,450,332,348,434,423,626,624,213,419,341,386,307,744,383,526,347,424,463,390],"Left_Ventricular_Mass_g":[156,120,166,189,395,179,171,136,291,180,199,244,296,416,433,134,251,189,206,188,392,213,367,210,269,317,270],"Left_Ventricular_Mass_Index_g_m2":[92.57,81.13,89.51,106.94,183.01,110.71,103.44,84.69,108.13,100.09,95.84,143.7,145.2,213.11,234.83,76.46,129.08,97.7,117.99,103.32,178.54,93.33,215.98,102.79,142.19,167.68,191.37],"Left_Ventricular_End_Systolic_Dimension_cm":[2.35,2.6,"NA",3.7,8,"NA",1.93,"NA",3,3.3,"NA",6.4,"NA","NA",8.6,2.8,4.8,2.6,2.7,2.3,7.8,"NA",7.2,3.2,"NA",6,"NA"],"Left_Ventricular_End_Diastolic_Dimension_cm":[4.17,3.8,"NA",4.9,8.5,"NA",3.02,"NA",4.2,4.2,"NA",7.1,"NA",7.9,9.5,4.2,5.6,4.1,4.6,3.5,8,"NA",7.7,4.4,5.5,6.9,6],"Posterior_Wall_Thickness_cm":[0.89,"NA","NA",0.7,1,"NA",1.17,"NA",1.1,1,"NA",0.9,"NA",1,"NA",0.7,1.1,1.2,0.8,0.96,1.2,"NA",1.1,1.3,0.9,1.2,"NA"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"donor_id","name":"donor_id","type":"character"},{"id":"disease","name":"disease","type":"factor"},{"id":"sex","name":"sex","type":"factor"},{"id":"age","name":"age","type":"numeric"},{"id":"lvef","name":"lvef","type":"numeric"},{"id":"Body_Mass_Index_kg_m2","name":"Body_Mass_Index_kg_m2","type":"numeric"},{"id":"Heart_Weight_g","name":"Heart_Weight_g","type":"numeric"},{"id":"Left_Ventricular_Mass_g","name":"Left_Ventricular_Mass_g","type":"numeric"},{"id":"Left_Ventricular_Mass_Index_g_m2","name":"Left_Ventricular_Mass_Index_g_m2","type":"numeric"},{"id":"Left_Ventricular_End_Systolic_Dimension_cm","name":"Left_Ventricular_End_Systolic_Dimension_cm","type":"numeric"},{"id":"Left_Ventricular_End_Diastolic_Dimension_cm","name":"Left_Ventricular_End_Diastolic_Dimension_cm","type":"numeric"},{"id":"Posterior_Wall_Thickness_cm","name":"Posterior_Wall_Thickness_cm","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"48d44e76899d822b7b5efa771b8e3676"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>expr_matrix &lt;- GetAssayData(object = Chaffin_EC, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+non_zero_cells &lt;- rowSums(expr_matrix &gt; 0)
+total_cells &lt;- ncol(expr_matrix)
+percent_cells &lt;- (non_zero_cells / total_cells) * 100
+percent_stats &lt;- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes &lt;- rownames(dplyr::filter(percent_stats, percentCells &gt; 1))
+data &lt;- Chaffin_EC[which(rownames(Chaffin_EC) %in% keep_genes),]
+
+pseudocounts_Chaffin &lt;- Seurat2PB(data, sample=&quot;donor_id&quot;, cluster = &quot;cell_type&quot;)
+colnames(pseudocounts_Chaffin) &lt;- pseudocounts_Chaffin$samples$sample
+pseudocounts_Chaffin &lt;- pseudocounts_Chaffin[, match(metadata_Chaffin$donor_id, pseudocounts_Chaffin$samples$sample)]
+all(metadata_Chaffin$donor_id == pseudocounts_Chaffin$samples$sample)</code></pre>
+<pre><code>[1] TRUE</code></pre>
+<pre class="r"><code>keep_samples &lt;- pseudocounts_Chaffin$samples$lib.size &gt; 5e4
+pseudocounts_Chaffin &lt;- pseudocounts_Chaffin[, keep_samples]
+
+metadata_Chaffin$disease &lt;- factor(metadata_Chaffin$disease, levels = c(&quot;NF&quot;, &quot;DCM&quot;))
+design&lt;- model.matrix(~ disease, data = metadata_Chaffin)
+
+keep_genes &lt;- filterByExpr(pseudocounts_Chaffin, design = design)
+pseudocounts_Chaffin &lt;- pseudocounts_Chaffin[keep_genes, ]
+
+pseudocounts_Chaffin &lt;- normLibSizes(pseudocounts_Chaffin)
+counts_Chaffin &lt;- edgeR::cpm(pseudocounts_Chaffin, log = TRUE)
+
+pseudocounts_Chaffin &lt;- estimateDisp(pseudocounts_Chaffin, design)
+
+rm(expr_matrix, non_zero_cells, total_cells, percent_cells, keep_genes, data, keep_samples)</code></pre>
+<pre class="r"><code>mds &lt;- plotMDS(pseudocounts_Chaffin, plot = FALSE)
+
+mds_df &lt;- cbind(data.frame(mds[c(&quot;x&quot;, &quot;y&quot;)]), metadata_Chaffin)</code></pre>
+<pre class="r"><code>ggplot(mds_df, aes(x, y, col = donor_id, label = donor_id)) + 
+  geom_point(size = 3, alpha = 0.8) +
+  labs(x = &quot;MDS dim. 1&quot;, y = &quot;MDS dim. 2&quot;) + 
+  geom_text(vjust = -3, hjust = 0.5, size = 1.5) +  
+  ggtitle(&quot;Chaffin 2022\nEndothelial cells - Sample&quot;) + 
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5)) +
+  coord_fixed() + 
+  guides(color = guide_legend(ncol = 3, title = &quot;Sample&quot;))</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Chaffin_mds_Sample-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>labels &lt;- colnames(metadata_Chaffin)[2:ncol(metadata_Chaffin)]
+plots &lt;- list()
+
+for (i in 1:length(labels)) {
+  plots[[i]] &lt;- ggplot(mds_df, aes(x, y, col = .data[[labels[i]]])) + 
+    geom_point(size = 3, alpha = 0.8) + 
+    labs(x = &quot;MDS dim. 1&quot;, y = &quot;MDS dim. 2&quot;) + 
+    ggtitle(paste0(&quot;Chaffin 2022\nEndothelial cells\n&quot;, labels[[i]])) + 
+    theme_bw() + 
+    theme(panel.grid.minor = element_blank(), plot.title = element_text(hjust = 0.5, size = 10)) +
+    coord_fixed() + 
+    guides(color = guide_legend(ncol = 1, title = element_blank()))
+}
+
+combined_plots &lt;- (plots[[1]] + plots[[2]] + plots[[3]] + plots[[4]] + plots[[5]] + plots[[6]] + plots[[7]] + plots[[8]] + plots[[9]] + plots[[10]] + plots[[11]]) + plot_layout(nrow = 3)
+combined_plots</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Chaffin_mds_plots-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>fit &lt;- glmQLFit(pseudocounts_Chaffin, design, robust=TRUE)
+fit &lt;- glmQLFTest(fit, coef = 2)
+  
+results_Chaffin &lt;- topTags(fit, n = Inf)$table
+results_Chaffin &lt;- merge(results_Chaffin, percent_stats[, c(&quot;gene&quot;, &quot;percentCells&quot;)], by = &quot;gene&quot;, all.x = FALSE)
+results_Chaffin$metric &lt;- results_Chaffin$logFC*-log10(results_Chaffin$PValue)
+
+signif_Chaffin &lt;- results_Chaffin %&gt;%
+  dplyr::filter(FDR &lt; 0.05) %&gt;%
+  dplyr::filter(abs(logFC) &gt; 0.5) %&gt;%
+  arrange(desc(metric))
+
+write.csv(results_Chaffin, file = here::here(output_dir_data, &quot;EC_DE_Results_Chaffin.csv&quot;), quote=F, row.names = F)
+write.csv(signif_Chaffin, file = here::here(output_dir_data, &quot;EC_DE_Signif_Chaffin.csv&quot;), quote=F, row.names = F)
+
+rm(mds, mds_df, design, fit)</code></pre>
+<pre class="r"><code>gene_counts &lt;- rowSums(Chaffin_EC@assays$RNA@counts &gt; 0)
+universe_genes &lt;- names(gene_counts[gene_counts &gt;= 3])
+universe_entrez &lt;- bitr(universe_genes, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db)$ENTREZID
+rm(gene_counts)
+
+ranked_genes &lt;- results_Chaffin
+entrezid &lt;- bitr(ranked_genes$gene, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)
+ranked_genes &lt;- merge(ranked_genes, entrezid, by.x = &quot;gene&quot;, by.y = &quot;SYMBOL&quot;)
+ranked_genes &lt;- ranked_genes[!duplicated(ranked_genes$metric), ]
+write.csv(ranked_genes, file = here::here(output_dir_data, &quot;Chaffin_EC_ranked_genes.csv&quot;), quote=F, row.names = F)
+
+genelist &lt;- ranked_genes$metric
+names(genelist) &lt;- ranked_genes$ENTREZID
+genelist &lt;- genelist[order(genelist, decreasing = T)]
+
+GSEA_Chaffin &lt;- gseGO(geneList = genelist,
+              OrgDb = org.Hs.eg.db,
+              ont = &quot;ALL&quot;,
+              keyType = &quot;ENTREZID&quot;,
+              nPermSimple = 10000,
+              minGSSize = 10,
+              pvalueCutoff = 0.2,
+              eps = 0)
+
+GSEA_Chaffin@result &lt;- GSEA_Chaffin@result %&gt;%
+  filter(str_count(core_enrichment, &quot;/&quot;) &gt;= 4)
+GSEA_Chaffin &lt;- setReadable(GSEA_Chaffin, OrgDb = &quot;org.Hs.eg.db&quot;)
+
+GSEA_Chaffin &lt;- reorder_GO_by_pvalue(GSEA_Chaffin)
+
+rm(universe_genes, universe_entrez)</code></pre>
+<pre class="r"><code>GSEA_simplified &lt;-  clusterProfiler::simplify(
+  GSEA_Chaffin,
+  cutoff = 0.8,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+
+GSEA_simplified@result &lt;- GSEA_simplified@result %&gt;%
+  filter(str_count(core_enrichment, &quot;/&quot;) &gt;= 4)
+
+GSEA_simplified &lt;- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 7, split=&quot;.sign&quot;, title = paste0(&quot;Chaffin 2022 - Endothelial cells&quot;, &quot;\nGO Enrichment Analysis&quot;, &quot;\nDCM vs HC&quot;), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_Chaffin_dotplot-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>classify_terms &lt;- function(df) {
+  df$sign &lt;- ifelse(df$NES &gt; 0, &quot;activated&quot;, &quot;suppressed&quot;)
+  return(df)
+}
+
+GSEA_simplified@result &lt;- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms &lt;- subset(GSEA_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_simplified@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gsea_activated &lt;- GSEA_simplified
+gsea_activated@result &lt;- activated_terms
+
+gsea_suppressed &lt;- GSEA_simplified
+gsea_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_Chaffin_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaGO_up_terms &lt;- dplyr::filter(GSEA_Chaffin@result, NES &gt; 0)
+table(gseaGO_up_terms$ONTOLOGY)
+gseaGO_up_terms &lt;- gseaGO_up_terms$ID
+#mat1 = GO_similarity(gseaGO_up_terms, ont = &quot;BP&quot;)
+#BP &lt;- simplifyGO(mat1, column_title = &quot;33 GO Biological Process terms&quot;)
+#mat2 = GO_similarity(gseaGO_up_terms, ont = &quot;MF&quot;)
+#MF &lt;- simplifyGO(mat2, column_title = &quot;2 GO Molecular Function terms&quot;)
+#mat3 = GO_similarity(gseaGO_up_terms, ont = &quot;CC&quot;)
+#CC &lt;- simplifyGO(mat3, column_title = &quot;11 GO Cellular Component terms&quot;)</code></pre>
+<pre class="r"><code>#gseaGO_down_terms &lt;- dplyr::filter(GSEA@result, NES &lt; 0)
+#table(gseaGO_down_terms$ONTOLOGY)
+#gseaGO_down_terms &lt;- gseaGO_down_terms$ID
+#mat1 = GO_similarity(gseaGO_down_terms, ont = &quot;BP&quot;)
+#BP &lt;- simplifyGO(mat1, column_title = &quot;58 GO Biological Process terms&quot;)
+#mat2 = GO_similarity(gseaGO_down_terms, ont = &quot;MF&quot;)
+#MF &lt;- simplifyGO(mat2, column_title = &quot;36 GO Molecular Function terms&quot;)
+#mat3 = GO_similarity(gseaGO_down_terms, ont = &quot;CC&quot;)
+#CC &lt;- simplifyGO(mat3, column_title = &quot;19 GO Cellular Component terms&quot;)</code></pre>
+<pre class="r"><code>GSEA_KEGG_Chaffin &lt;- gseKEGG(geneList = genelist,
+              organism = &quot;hsa&quot;,
+              keyType = &quot;kegg&quot;,
+              nPermSimple = 10000,
+              minGSSize = 10,
+              eps = 0,
+              pvalueCutoff = 0.2)
+
+GSEA_KEGG_Chaffin &lt;- reorder_GO_by_pvalue(GSEA_KEGG_Chaffin)</code></pre>
+<pre class="r"><code>GSEA_KEGG_Chaffin@result &lt;- GSEA_KEGG_Chaffin@result %&gt;%
+  filter(str_count(core_enrichment, &quot;/&quot;) &gt;= 4)
+
+GSEA_KEGG_Chaffin &lt;- reorder_GO_by_pvalue(GSEA_KEGG_Chaffin)
+
+dotplot(GSEA_KEGG_Chaffin, showCategory = 7, split=&quot;.sign&quot;, title = paste0(&quot;Chaffin 2022 - Endothelial cells&quot;, &quot;\nKEGG Pathways Enrichment Analysis&quot;, &quot;\nDCM vs HC&quot;), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_KEGG_Chaffin_dotplot-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GSEA_simplified &lt;- GSEA_KEGG_Chaffin
+
+GSEA_simplified@result &lt;- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms &lt;- subset(GSEA_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_simplified@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gsea_activated &lt;- GSEA_simplified
+gsea_activated@result &lt;- activated_terms
+
+gsea_suppressed &lt;- GSEA_simplified
+gsea_suppressed@result &lt;- suppressed_terms
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_KEGG_Chaffin_emapplot-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>metadata_heatmap &lt;- metadata_Chaffin %&gt;%
+  dplyr::select(donor_id, sex, lvef, disease)
+
+sig_counts &lt;- counts_Chaffin[rownames(counts_Chaffin) %in% signif_Chaffin$gene, ]
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE,
+         scale = &quot;row&quot;,
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) </code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Heatmap_DEGs_Chaffin-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DEGs_top_up &lt;- signif_Chaffin %&gt;% 
+  dplyr::arrange(desc(metric))
+DEGs_top_down &lt;- signif_Chaffin %&gt;% 
+  dplyr::arrange(metric)
+
+DEGs_top &lt;- dplyr::bind_rows(head(DEGs_top_up, 20), head(DEGs_top_down, 20))
+sig_counts &lt;- counts_Chaffin[rownames(counts_Chaffin) %in% DEGs_top$gene, ]
+sig_counts &lt;- sig_counts[match(DEGs_top$gene, rownames(sig_counts)), ]
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = FALSE,
+         scale = &quot;row&quot;,
+         show_rownames = TRUE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) </code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Heatmap_DEGs_Chaffin_top-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(activated_terms, BP, CC, combined_plot, combined_plots, DEGs_top, DEGs_top_down, DEGs_top_up, entrezid, gsea_activated, GSEA_simplified, gsea_suppressed, mat1, mat2, mat3, metadata_heatmap, MF, p1, p2, percent_stats, plots, sig_counts, suppressed_terms, genelist, gseaGO_down_terms, gseaGO_up_terms, i, labels)</code></pre>
+</div>
+<div id="reichart-2022" class="section level2">
+<h2>Reichart 2022</h2>
+<pre class="r"><code>Reichart &lt;- readRDS(&quot;/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds&quot;)
+Reichart_gene_names &lt;- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[[&quot;RNA&quot;]]@meta.features$feature_name
+)
+rownames(Reichart@assays[[&quot;RNA&quot;]]@data) &lt;- Reichart@assays[[&quot;RNA&quot;]]@meta.features$feature_name
+rownames(Reichart@assays[[&quot;RNA&quot;]]@counts) &lt;- Reichart@assays[[&quot;RNA&quot;]]@meta.features$feature_name
+
+Idents(Reichart) &lt;- Reichart$cell_type</code></pre>
+<pre class="r"><code>Clinical_data &lt;- read_excel(&quot;/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx&quot;)
+add_metadata &lt;- left_join(Reichart[[&quot;donor_id&quot;]], Clinical_data)
+row.names(add_metadata) &lt;- row.names(Reichart[[]])
+Reichart &lt;- AddMetaData(Reichart, metadata = add_metadata)
+rm(add_metadata, Clinical_data)</code></pre>
+<pre class="r"><code>Reichart_EC &lt;- subset(Reichart, cell_type == &quot;endothelial cell&quot; &amp; disease %in% c(&quot;dilated cardiomyopathy&quot;, &quot;normal&quot;) &amp; Region_x == &quot;LV&quot;)
+table(Reichart_EC$cell_type, Reichart_EC$disease)</code></pre>
+<pre><code>                              
+                               non-compaction cardiomyopathy
+  mast cell                                                0
+  endothelial cell                                         0
+  adipocyte                                                0
+  lymphocyte                                               0
+  cardiac muscle cell                                      0
+  myeloid cell                                             0
+  fibroblast of cardiac tissue                             0
+  mural cell                                               0
+  cardiac neuron                                           0
+  unknown                                                  0
+                              
+                               dilated cardiomyopathy
+  mast cell                                         0
+  endothelial cell                              58449
+  adipocyte                                         0
+  lymphocyte                                        0
+  cardiac muscle cell                               0
+  myeloid cell                                      0
+  fibroblast of cardiac tissue                      0
+  mural cell                                        0
+  cardiac neuron                                    0
+  unknown                                           0
+                              
+                               arrhythmogenic right ventricular cardiomyopathy
+  mast cell                                                                  0
+  endothelial cell                                                           0
+  adipocyte                                                                  0
+  lymphocyte                                                                 0
+  cardiac muscle cell                                                        0
+  myeloid cell                                                               0
+  fibroblast of cardiac tissue                                               0
+  mural cell                                                                 0
+  cardiac neuron                                                             0
+  unknown                                                                    0
+                              
+                               normal
+  mast cell                         0
+  endothelial cell              15787
+  adipocyte                         0
+  lymphocyte                        0
+  cardiac muscle cell               0
+  myeloid cell                      0
+  fibroblast of cardiac tissue      0
+  mural cell                        0
+  cardiac neuron                    0
+  unknown                           0</code></pre>
+<pre class="r"><code>metadata_Reichart &lt;- Reichart_EC@meta.data %&gt;%
+  dplyr::select(donor_id, disease, sex, Age_range, LVEF_percent, LVIDd_mm, LVIDs_mm, RVEDD_mm, TAPSE_mm, PAH, Hypertension, COPD) %&gt;%
+  unique()
+
+rownames(metadata_Reichart) &lt;- metadata_Reichart$donor_id
+
+reactable(metadata_Reichart, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-484ed42468d86de4a421" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-484ed42468d86de4a421">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["H3","DT4","DP2","DO1","H6","H5","H7","H2","DL2","DS3","H4","DL3","DP1","H33","H26","H40","H06","H53","H36","H51","H37","H14","H18","H34","H13","H15","H22","H27","H04","H02","H81","H67","H35","H31","H25","H49","H01","H58","H59","H79","H24","H46","H41","H21","H17","H12","H19","H55","H57","H16","H28","H05","H03","H56","H80","H20","H32","H78","H73","H39","D1","D2","D4","D5","D6","D7","IC_H01","IC_H02","IC_H03","IC_H04"],"donor_id":["H3","DT4","DP2","DO1","H6","H5","H7","H2","DL2","DS3","H4","DL3","DP1","H33","H26","H40","H06","H53","H36","H51","H37","H14","H18","H34","H13","H15","H22","H27","H04","H02","H81","H67","H35","H31","H25","H49","H01","H58","H59","H79","H24","H46","H41","H21","H17","H12","H19","H55","H57","H16","H28","H05","H03","H56","H80","H20","H32","H78","H73","H39","D1","D2","D4","D5","D6","D7","IC_H01","IC_H02","IC_H03","IC_H04"],"disease":["normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","normal","normal","normal","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","normal","normal","normal","normal","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy"],"sex":["male","male","female","male","female","female","female","male","male","male","male","male","female","male","female","male","female","male","male","male","male","male","male","female","male","male","male","female","male","male","female","male","male","male","male","female","male","female","male","male","female","male","female","female","male","male","male","male","male","male","male","male","female","male","male","male","male","male","male","male","female","male","female","female","male","male","male","male","male","female"],"Age_range":["50-59","60-69","40-49","10-19","40-49","50-59","40-49","50-59","40-49","50-59","50-59","60-69","40-49","30-39","40-49","60-69","30-39","60-69","40-49","50-59","50-59","40-49","20-29","30-39","40-49","60-69","20-29","50-59","40-49","50-59","10-19","40-49","40-49","40-49","50-59","40-49","50-59","30-39","0-9","0-9","50-59","20-29","60-69","20-29","20-29","60-69","30-39","40-49","30-39","20-29","60-69","10-19","40-49","50-59","10-19","40-49","60-69","50-59","10-19","60-69","50-59","60-69","70-79","60-69","70-79","60-69","40-49","10-19","30-39","60-69"],"LVEF_percent":["NA",25,20,20,"NA","NA","NA","NA","NA",20,"NA","NA",19,17,20,32,26,"NA",25,"NA",20,23,19,21,42,31,19,25,17,20,31,"NA",14,25,20,"NA",30,16,36,12,22,"NA",27,12,15,21,20,"NA",5,20,15,25,"NA",30,4,20,10,27,17,29,"NA","NA","NA","NA","NA","NA",15,12,10,20],"LVIDd_mm":["NA",61,52,"NA","NA","NA","NA","NA","NA",97,"NA",60,54,69,65,66,59,"NA",77,"NA",69,67,73,54,48,64,73,55,67,75,66,"NA",88,53,65,"NA",56,73,52,40,62,"NA",71,81,81,53,74,"NA",93,68,59,63,"NA",63,73,77,78,91,77,64,"NA","NA","NA","NA","NA","NA",62,73,70,64],"LVIDs_mm":["NA",50,46,"NA","NA","NA","NA","NA","NA",92,"NA",45,49,64,58,58,51,"NA",70,"NA",64,61,"NA",50,40,56,68,49,63,70,56,"NA",84,"NA",58,"NA",49,69,"NA","NA",57,"NA",64,75,71,49,64,"NA","NA","NA",49,55,"NA",56,70,70,59,82,70,57,"NA","NA","NA","NA","NA","NA","NA","NA",63,53],"RVEDD_mm":["NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",28,"NA",40,"NA","NA","NA",42,35,"NA","NA","NA","NA",43,42,"NA","NA","NA","NA",36,"NA",38,"NA","NA","NA","NA","NA",35,"NA",26,"NA","NA",49,"NA","NA","NA","NA",39,"NA","NA","NA","NA",28,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"],"TAPSE_mm":["NA","NA","NA","NA","NA","NA","NA","NA","NA",17,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",14,11,"NA","NA","NA","NA","NA",20,"NA","NA",15,17,"NA",16,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",22,"NA","NA",11,"NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",13,14],"PAH":[null,"Y","Y","N",null,null,null,null,"N","N",null,"N","N","N","N","N","N",null,"N",null,"Y","N","N","N","N","N","N","N","Y","Y","N",null,"Y","N","N",null,"N","N","N","N","N",null,"N","N","N","N","N",null,"N","N","N","N","N","Y","N","N","N","N","N","N",null,null,null,null,null,null,"N","N","N","N"],"Hypertension":["N","Y","N","N","N","N","N","N","N","N","N","N","N","Y","N","N","N",null,"N",null,"N","N","N","N","N","N","Y","N","N","N","N",null,"N","Y","N",null,"N","N","N","N","N",null,"N","N","N","N","N",null,"N","N","N","N","N","N","N","Y","N","N","N","Y","Y","N","Y","N","N","N","N","N","N","N"],"COPD":[null,"Y","Y","N",null,null,null,null,"N","N",null,"N","N","N","N","N","N",null,"N",null,"N","N","N","N","N","N","N","N","N","Y","N",null,"N","N","N",null,"N","N","N","N","N",null,"N","N","N","N","N",null,"N","N","N","N","N","N","N","N","N","N","N","N",null,null,null,null,null,null,"N","N","N","N"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"donor_id","name":"donor_id","type":"character"},{"id":"disease","name":"disease","type":"factor"},{"id":"sex","name":"sex","type":"factor"},{"id":"Age_range","name":"Age_range","type":"character"},{"id":"LVEF_percent","name":"LVEF_percent","type":"numeric"},{"id":"LVIDd_mm","name":"LVIDd_mm","type":"numeric"},{"id":"LVIDs_mm","name":"LVIDs_mm","type":"numeric"},{"id":"RVEDD_mm","name":"RVEDD_mm","type":"numeric"},{"id":"TAPSE_mm","name":"TAPSE_mm","type":"numeric"},{"id":"PAH","name":"PAH","type":"character"},{"id":"Hypertension","name":"Hypertension","type":"character"},{"id":"COPD","name":"COPD","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"50d3485eb9b63357c5c9b851c18951a2"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>expr_matrix &lt;- GetAssayData(object = Reichart_EC, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+non_zero_cells &lt;- rowSums(expr_matrix &gt; 0)
+total_cells &lt;- ncol(expr_matrix)
+percent_cells &lt;- (non_zero_cells / total_cells) * 100
+percent_stats &lt;- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes &lt;- rownames(dplyr::filter(percent_stats, percentCells &gt; 1))
+data &lt;- Reichart_EC[which(rownames(Reichart_EC) %in% keep_genes),]
+
+pseudocounts_Reichart &lt;- Seurat2PB(data, sample=&quot;donor_id&quot;, cluster = &quot;cell_type&quot;)
+colnames(pseudocounts_Reichart) &lt;- pseudocounts_Reichart$samples$sample
+pseudocounts_Reichart &lt;- pseudocounts_Reichart[, match(metadata_Reichart$donor_id, pseudocounts_Reichart$samples$sample)]
+all(metadata_Reichart$donor_id == pseudocounts_Reichart$samples$sample)</code></pre>
+<pre><code>[1] TRUE</code></pre>
+<pre class="r"><code>keep_samples &lt;- pseudocounts_Reichart$samples$lib.size &gt; 5e4
+pseudocounts_Reichart &lt;- pseudocounts_Reichart[, keep_samples]
+
+metadata_Reichart$disease &lt;- factor(metadata_Reichart$disease, levels = c(&quot;normal&quot;, &quot;dilated cardiomyopathy&quot;))
+design&lt;- model.matrix(~ disease, data = metadata_Reichart)
+
+keep_genes &lt;- filterByExpr(pseudocounts_Reichart, design = design)
+pseudocounts_Reichart &lt;- pseudocounts_Reichart[keep_genes, ]
+
+pseudocounts_Reichart &lt;- normLibSizes(pseudocounts_Reichart)
+counts_Reichart &lt;- edgeR::cpm(pseudocounts_Reichart, log = TRUE)
+
+pseudocounts_Reichart &lt;- estimateDisp(pseudocounts_Reichart, design)
+
+rm(expr_matrix, non_zero_cells, total_cells, percent_cells, keep_genes, data, keep_samples)</code></pre>
+<pre class="r"><code>mds &lt;- plotMDS(pseudocounts_Reichart, plot = FALSE)
+
+mds_df &lt;- cbind(data.frame(mds[c(&quot;x&quot;, &quot;y&quot;)]), metadata_Reichart)</code></pre>
+<pre class="r"><code>ggplot(mds_df, aes(x, y, col = donor_id, label = donor_id)) + 
+  geom_point(size = 3, alpha = 0.8) +
+  labs(x = &quot;MDS dim. 1&quot;, y = &quot;MDS dim. 2&quot;) + 
+  geom_text(vjust = -3, hjust = 0.5, size = 1.5) +  
+  ggtitle(&quot;Reichart 2022\nEndothelial cells - Sample&quot;) + 
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5)) +
+  coord_fixed() + 
+  guides(color = guide_legend(ncol = 4, title = &quot;Sample&quot;))</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Reichart_mds_Sample-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>labels &lt;- colnames(metadata_Reichart)[2:ncol(metadata_Reichart)]
+plots &lt;- list()
+
+for (i in 1:length(labels)) {
+  plots[[i]] &lt;- ggplot(mds_df, aes(x, y, col = .data[[labels[i]]])) + 
+    geom_point(size = 3, alpha = 0.8) + 
+    labs(x = &quot;MDS dim. 1&quot;, y = &quot;MDS dim. 2&quot;) + 
+    ggtitle(paste0(&quot;Reichart 2022\nEndothelial cells\n&quot;, labels[[i]])) + 
+    theme_bw() + 
+    theme(panel.grid.minor = element_blank(), plot.title = element_text(hjust = 0.5, size = 10)) +
+    coord_fixed() + 
+    guides(color = guide_legend(ncol = 1, title = element_blank()))
+}
+
+combined_plots &lt;- (plots[[1]] + plots[[2]] + plots[[3]] + plots[[4]] + plots[[5]] + plots[[6]] + plots[[7]] + plots[[8]] + plots[[9]] + plots[[10]] + plots[[11]]) + plot_layout(nrow = 3)
+combined_plots</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Reichart_mds_plots-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>fit &lt;- glmQLFit(pseudocounts_Reichart, design, robust=TRUE)
+fit &lt;- glmQLFTest(fit, coef = 2)
+  
+results_Reichart &lt;- topTags(fit, n = Inf)$table
+results_Reichart &lt;- merge(results_Reichart, percent_stats[, c(&quot;gene&quot;, &quot;percentCells&quot;)], by = &quot;gene&quot;, all.x = FALSE)
+results_Reichart$metric &lt;- results_Reichart$logFC*-log10(results_Reichart$PValue)
+results_Reichart &lt;- results_Reichart %&gt;%
+  dplyr::select(-feature_biotype, -feature_is_filtered, -feature_name, -feature_reference, -feature_length)
+
+signif_Reichart &lt;- results_Reichart %&gt;%
+  dplyr::filter(FDR &lt; 0.05) %&gt;%
+  dplyr::filter(abs(logFC) &gt; 0.5) %&gt;%
+  arrange(desc(metric))
+
+write.csv(results_Reichart, file = here::here(output_dir_data, &quot;EC_DE_Results_Reichart.csv&quot;), quote=F, row.names = F)
+write.csv(signif_Reichart, file = here::here(output_dir_data, &quot;EC_DE_Signif_Reichart.csv&quot;), quote=F, row.names = F)
+
+
+rm(mds, mds_df, design, fit)</code></pre>
+<pre class="r"><code>gene_counts &lt;- rowSums(Reichart_EC@assays$RNA@counts &gt; 0)
+universe_genes &lt;- names(gene_counts[gene_counts &gt;= 3])
+universe_entrez &lt;- bitr(universe_genes, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db)$ENTREZID
+rm(gene_counts)
+
+ranked_genes &lt;- results_Reichart
+entrezid &lt;- bitr(ranked_genes$gene, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)
+ranked_genes &lt;- merge(ranked_genes, entrezid, by.x = &quot;gene&quot;, by.y = &quot;SYMBOL&quot;)
+ranked_genes &lt;- ranked_genes[!duplicated(ranked_genes$metric), ]
+write.csv(ranked_genes, file = here::here(output_dir_data, &quot;Reichart_EC_ranked_genes.csv&quot;), quote=F, row.names = F)
+
+genelist &lt;- ranked_genes$metric
+names(genelist) &lt;- ranked_genes$ENTREZID
+genelist &lt;- genelist[order(genelist, decreasing = T)]
+
+GSEA_Reichart &lt;- gseGO(geneList = genelist,
+              OrgDb = org.Hs.eg.db,
+              ont = &quot;ALL&quot;,
+              keyType = &quot;ENTREZID&quot;,
+              nPermSimple = 100000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_Reichart@result &lt;- GSEA_Reichart@result %&gt;%
+  filter(str_count(core_enrichment, &quot;/&quot;) &gt;= 4)
+GSEA_Reichart &lt;- setReadable(GSEA_Reichart, OrgDb = &quot;org.Hs.eg.db&quot;)
+
+GSEA_Reichart &lt;- reorder_GO_by_pvalue(GSEA_Reichart)
+
+rm(universe_genes, universe_entrez, up_genes, down_genes)</code></pre>
+<pre class="r"><code>GSEA_simplified &lt;-  clusterProfiler::simplify(
+  GSEA_Reichart,
+  cutoff = 0.8,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+
+GSEA_simplified@result &lt;- GSEA_simplified@result %&gt;%
+  filter(str_count(core_enrichment, &quot;/&quot;) &gt;= 4)
+
+GSEA_simplified &lt;- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 7, split=&quot;.sign&quot;, title = paste0(&quot;Reichart 2022 - Endothelial cells&quot;, &quot;\nGO Enrichment Analysis&quot;, &quot;\nDCM vs HC&quot;), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_Reichart_dotplot-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>classify_terms &lt;- function(df) {
+  df$sign &lt;- ifelse(df$NES &gt; 0, &quot;activated&quot;, &quot;suppressed&quot;)
+  return(df)
+}
+
+GSEA_simplified@result &lt;- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms &lt;- subset(GSEA_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_simplified@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gsea_activated &lt;- GSEA_simplified
+gsea_activated@result &lt;- activated_terms
+
+gsea_suppressed &lt;- GSEA_simplified
+gsea_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_Reichart_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaGO_up_terms &lt;- dplyr::filter(GSEA_Reichart@result, NES &gt; 0)
+table(gseaGO_up_terms$ONTOLOGY)</code></pre>
+<pre><code>
+BP MF 
+ 6  9 </code></pre>
+<pre class="r"><code>gseaGO_up_terms &lt;- gseaGO_up_terms$ID
+mat1 = GO_similarity(gseaGO_up_terms, ont = &quot;BP&quot;)
+BP &lt;- simplifyGO(mat1, column_title = &quot;6 GO Biological Process terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_up_Reichart-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mat2 = GO_similarity(gseaGO_up_terms, ont = &quot;MF&quot;)
+MF &lt;- simplifyGO(mat2, column_title = &quot;9 GO Molecular Function terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_up_Reichart-2.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>gseaGO_down_terms &lt;- dplyr::filter(GSEA_Reichart@result, NES &lt; 0)
+table(gseaGO_down_terms$ONTOLOGY)</code></pre>
+<pre><code>
+BP CC MF 
+65 49 19 </code></pre>
+<pre class="r"><code>gseaGO_down_terms &lt;- gseaGO_down_terms$ID
+mat1 = GO_similarity(gseaGO_down_terms, ont = &quot;BP&quot;)
+BP &lt;- simplifyGO(mat1, column_title = &quot;65 GO Biological Process terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_down_Reichart-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mat2 = GO_similarity(gseaGO_down_terms, ont = &quot;MF&quot;)
+MF &lt;- simplifyGO(mat2, column_title = &quot;49 GO Molecular Function terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_down_Reichart-2.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mat3 = GO_similarity(gseaGO_down_terms, ont = &quot;CC&quot;)
+CC &lt;- simplifyGO(mat3, column_title = &quot;19 GO Cellular Component terms&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GO_similarity_down_Reichart-3.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GSEA_KEGG_Reichart &lt;- gseKEGG(geneList = genelist,
+              organism = &quot;hsa&quot;,
+              keyType = &quot;kegg&quot;,
+              nPermSimple = 10000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_KEGG_Reichart &lt;- reorder_GO_by_pvalue(GSEA_KEGG_Reichart)</code></pre>
+<pre class="r"><code>GSEA_KEGG_Reichart@result &lt;- GSEA_KEGG_Reichart@result %&gt;%
+  filter(str_count(core_enrichment, &quot;/&quot;) &gt;= 4)
+
+GSEA_KEGG_Reichart &lt;- reorder_GO_by_pvalue(GSEA_KEGG_Reichart)
+
+dotplot(GSEA_KEGG_Reichart, showCategory = 7, split=&quot;.sign&quot;, title = paste0(&quot;Reichart 2022 - Endothelial cells&quot;, &quot;\nKEGG Pathways Enrichment Analysis&quot;, &quot;\nDCM vs HC&quot;), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_KEGG_Reichart_dotplot-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GSEA_simplified &lt;- GSEA_KEGG_Reichart
+
+GSEA_simplified@result &lt;- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms &lt;- subset(GSEA_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_simplified@result, sign == &quot;suppressed&quot;)
+
+# Create two separate enrichResult objects
+gsea_activated &lt;- GSEA_simplified
+gsea_activated@result &lt;- activated_terms
+
+gsea_suppressed &lt;- GSEA_simplified
+gsea_suppressed@result &lt;- suppressed_terms
+
+# Plot activated terms
+p1 &lt;- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 &lt;- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/GSEA_KEGG_Reichart_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>metadata_heatmap &lt;- metadata_Reichart %&gt;%
+  dplyr::select(donor_id, sex, disease, LVEF_percent)
+
+sig_counts &lt;- counts_Reichart[rownames(counts_Reichart) %in% signif_Reichart$gene, ]
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE,
+         scale = &quot;row&quot;,
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) </code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Heatmap_DEGs_Reichart-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DEGs_top_up &lt;- signif_Reichart %&gt;% 
+  dplyr::arrange(desc(metric))
+DEGs_top_down &lt;- signif_Reichart %&gt;% 
+  dplyr::arrange(metric)
+
+DEGs_top &lt;- dplyr::bind_rows(head(DEGs_top_up, 20), head(DEGs_top_down, 20))
+sig_counts &lt;- counts_Reichart[rownames(counts_Reichart) %in% DEGs_top$gene, ]
+sig_counts &lt;- sig_counts[match(DEGs_top$gene, rownames(sig_counts)), ]
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = FALSE,
+         scale = &quot;row&quot;,
+         show_rownames = TRUE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) </code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Heatmap_DEGs_Reichart_top-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(activated_terms, BP, CC, combined_plot, combined_plots, DEGs_top, DEGs_top_down, DEGs_top_up, entrezid, gsea_activated, GSEA_simplified, gsea_suppressed, mat1, mat2, mat3, metadata_heatmap, MF, p1, p2, percent_stats, plots, sig_counts, suppressed_terms, genelist, gseaGO_down_terms, gseaGO_up_terms, i, labels)</code></pre>
+</div>
+<div id="volcano-plots" class="section level2">
+<h2>Volcano plots</h2>
+<pre class="r"><code>volcano &lt;- list()
+
+keyvals &lt;- rep(&quot;grey&quot;, nrow(results_Koenig))
+names(keyvals) &lt;- rep(&quot;Not significant&quot;, nrow(results_Koenig))
+
+keyvals[results_Koenig$gene %in% dplyr::filter(signif_Koenig, logFC&gt;0)$gene] &lt;- &quot;#A63A2A&quot;
+names(keyvals)[keyvals == &quot;#A63A2A&quot;] &lt;- &quot;Upregulated&quot;
+keyvals[results_Koenig$gene%in% dplyr::filter(signif_Koenig, logFC&lt;0)$gene] &lt;- &quot;#004C8C&quot;
+names(keyvals)[keyvals == &quot;#004C8C&quot;] &lt;- &quot;Downregulated&quot;
+
+volcano[[1]] &lt;- EnhancedVolcano(results_Koenig,
+                lab = results_Koenig$gene,
+                x = &quot;logFC&quot;,
+                y = &quot;FDR&quot;,
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                axisLabSize = 12,
+                captionLabSize = 0,
+                pointSize = 0.3,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 11),
+                xlim = c(-8, 8),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = &quot;Koenig 2022\nEndothelial cells\nDCM (n=13) vs HC (n=25)&quot;,
+                colCustom = keyvals
+) + theme(legend.position = &quot;none&quot;)
+
+keyvals &lt;- rep(&quot;grey&quot;, nrow(results_Chaffin))
+names(keyvals) &lt;- rep(&quot;Not significant&quot;, nrow(results_Chaffin))
+
+keyvals[results_Chaffin$gene %in% dplyr::filter(signif_Chaffin, logFC&gt;0)$gene] &lt;- &quot;#A63A2A&quot;
+names(keyvals)[keyvals == &quot;#A63A2A&quot;] &lt;- &quot;Upregulated&quot;
+keyvals[results_Chaffin$gene%in% dplyr::filter(signif_Chaffin, logFC&lt;0)$gene] &lt;- &quot;#004C8C&quot;
+names(keyvals)[keyvals == &quot;#004C8C&quot;] &lt;- &quot;Downregulated&quot;
+
+volcano[[2]] &lt;- EnhancedVolcano(results_Chaffin,
+                lab = results_Chaffin$gene,
+                x = &quot;logFC&quot;,
+                y = &quot;FDR&quot;,
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                axisLabSize = 12,
+                captionLabSize = 0,
+                pointSize = 0.3,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 11),
+                xlim = c(-8, 8),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = &quot;Chaffin 2022\nEndothelial cells\nDCM (n=11) vs HC (n=16)&quot;,
+                colCustom = keyvals
+) + theme(legend.position = &quot;none&quot;)
+
+keyvals &lt;- rep(&quot;grey&quot;, nrow(results_Reichart))
+names(keyvals) &lt;- rep(&quot;Not significant&quot;, nrow(results_Reichart))
+
+keyvals[results_Reichart$gene %in% dplyr::filter(signif_Reichart, logFC&gt;0)$gene] &lt;- &quot;#A63A2A&quot;
+names(keyvals)[keyvals == &quot;#A63A2A&quot;] &lt;- &quot;Upregulated&quot;
+keyvals[results_Reichart$gene%in% dplyr::filter(signif_Reichart, logFC&lt;0)$gene] &lt;- &quot;#004C8C&quot;
+names(keyvals)[keyvals == &quot;#004C8C&quot;] &lt;- &quot;Downregulated&quot;
+
+volcano[[3]] &lt;- EnhancedVolcano(results_Reichart,
+                lab = results_Reichart$gene,
+                x = &quot;logFC&quot;,
+                y = &quot;FDR&quot;,
+                labSize = 0,
+                legendLabSize = 0,
+                titleLabSize = 16,
+                axisLabSize = 12,
+                captionLabSize = 0,
+                pointSize = 0.3,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 11),
+                xlim = c(-8, 8),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = &quot;Reichart 2022\nEndothelial cells\nDCM (n=52) vs HC (n=18)&quot;,
+                colCustom = keyvals
+) + theme(legend.position = &quot;none&quot;)
+
+combined_plots &lt;- volcano[[1]] + volcano[[2]] + volcano[[3]] + plot_layout(nrow = 1)
+combined_plots</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Volcano-1.png" width="3600" style="display: block; margin: auto;" /></p>
+</div>
+<div id="correlation-plot" class="section level2">
+<h2>Correlation plot</h2>
+<pre class="r"><code>library(GGally)
+
+# Merge the datasets by a common column, e.g., gene
+merged_data &lt;- results_Koenig %&gt;%
+  dplyr::select(gene, logFC_Koenig = logFC) %&gt;%
+  inner_join(results_Chaffin %&gt;% dplyr::select(gene, logFC_Chaffin = logFC), by = &quot;gene&quot;) %&gt;%
+  inner_join(results_Reichart %&gt;% dplyr::select(gene, logFC_Reichart = logFC), by = &quot;gene&quot;)
+
+# Create a pairwise scatterplot with correlations
+ggpairs(
+  merged_data %&gt;% dplyr::select(-gene), # Exclude the gene column for plotting
+  lower = list(continuous = wrap(&quot;smooth&quot;, method = &quot;lm&quot;)), # Add linear fit
+  diag = list(continuous = &quot;densityDiag&quot;), # Density plot on diagonal
+  upper = list(continuous = wrap(&quot;cor&quot;, size = 4)) # Correlation and p-value in upper triangle
+) +
+  theme_minimal()</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/Correlation%20plot-1.png" width="1800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="overlap" class="section level2">
+<h2>Overlap</h2>
+<pre class="r"><code>gene_sets_up &lt;- list(
+  Chaffin = dplyr::filter(signif_Chaffin, logFC &gt; 0)$gene,
+  Koenig = dplyr::filter(signif_Koenig, logFC &gt; 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC &gt; 0)$gene
+)
+gene_sets_up &lt;- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_up, mode = &quot;intersect&quot;, min_set_size = 1)
+p1 &lt;- UpSet(m, column_title = &quot;Upregulated genes - intersect&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down &lt;- list(
+  Chaffin = dplyr::filter(signif_Chaffin, logFC &lt; 0)$gene,
+  Koenig = dplyr::filter(signif_Koenig, logFC &lt; 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC &lt; 0)$gene
+)
+gene_sets_down &lt;- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_down, mode = &quot;intersect&quot;)
+p2 &lt;- UpSet(m, column_title = &quot;Downregulated genes - intersect&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 &lt;- grid::grid.grabExpr(draw(p1))
+p2 &lt;- grid::grid.grabExpr(draw(p2))
+
+combined_plots &lt;- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/UpSet_plot_intersect-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(m, p1, p2, combined_plots)</code></pre>
+<pre class="r"><code>gene_sets_up &lt;- list(
+  Chaffin = dplyr::filter(signif_Chaffin, logFC &gt; 0)$gene,
+  Koenig = dplyr::filter(signif_Koenig, logFC &gt; 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC &gt; 0)$gene
+)
+gene_sets_up &lt;- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_up, mode = &quot;distinct&quot;, min_set_size = 1)
+p1 &lt;- UpSet(m, column_title = &quot;Upregulated genes - distinct&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down &lt;- list(
+  Chaffin = dplyr::filter(signif_Chaffin, logFC &lt; 0)$gene,
+  Koenig = dplyr::filter(signif_Koenig, logFC &lt; 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC &lt; 0)$gene
+)
+gene_sets_down &lt;- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m &lt;- make_comb_mat(gene_sets_down, mode = &quot;distinct&quot;)
+p2 &lt;- UpSet(m, column_title = &quot;Downregulated genes - distinct&quot;, comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 &lt;- grid::grid.grabExpr(draw(p1))
+p2 &lt;- grid::grid.grabExpr(draw(p2))
+
+combined_plots &lt;- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/UpSet_plot_distinct-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(m, p1, p2, combined_plots)</code></pre>
+<pre class="r"><code>common_up &lt;- Reduce(intersect, list(filter(signif_Chaffin, logFC &gt; 0.25)$gene,
+                                    filter(signif_Koenig, logFC &gt; 0.25)$gene,
+                                    filter(signif_Reichart, logFC &gt; 0.25)$gene))
+
+common_down &lt;- Reduce(intersect, list(filter(signif_Chaffin, logFC &lt; -0.25)$gene,
+                                      filter(signif_Koenig, logFC &lt; -0.25)$gene,
+                                      filter(signif_Reichart, logFC &lt; -0.25)$gene))
+
+common_genes &lt;- union(common_up, common_down)
+
+common_FC &lt;- data.frame(
+  gene = sort(common_genes),
+  logFC_Chaffin = signif_Chaffin %&gt;%
+    filter(gene %in% common_genes) %&gt;%
+    arrange(gene) %&gt;%
+    pull(logFC),
+  logFC_Koenig = signif_Koenig %&gt;%
+    filter(gene %in% common_genes) %&gt;%
+    arrange(gene) %&gt;%
+    pull(logFC),
+  logFC_Reichart = signif_Reichart %&gt;%
+    filter(gene %in% common_genes) %&gt;%
+    arrange(gene) %&gt;%
+    pull(logFC)
+) %&gt;%
+  arrange(logFC_Koenig)
+
+common_universe &lt;- Reduce(intersect, list(results_Koenig$gene,
+                                      results_Chaffin$gene,
+                                      results_Reichart$gene))</code></pre>
+<pre class="r"><code>common_universe_entrez &lt;- bitr(common_universe, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)$ENTREZID
+common_up_entrez &lt;- bitr(common_up, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)$ENTREZID
+common_down_entrez &lt;- bitr(common_down, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)$ENTREZID</code></pre>
+<pre class="r"><code>ORA_up &lt;- enrichGO(common_up_entrez, OrgDb = &quot;org.Hs.eg.db&quot;, universe = common_universe_entrez, ont = &quot;ALL&quot;, readable = TRUE, pvalueCutoff = 0.2)
+nrow(ORA_up)</code></pre>
+<pre><code>[1] 31</code></pre>
+<pre class="r"><code>ORA_up &lt;- gsfilter(ORA_up, by = &#39;Count&#39;, min = 3)
+ORA_up &lt;- reorder_GO_by_pvalue(ORA_up)
+ORA_up_simplified &lt;-  clusterProfiler::simplify(
+  ORA_up,
+  cutoff = 0.7,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+ORA_up_simplified &lt;- reorder_GO_by_pvalue(ORA_up_simplified)
+
+ORA_down &lt;- enrichGO(common_down_entrez, OrgDb = &quot;org.Hs.eg.db&quot;, universe = common_universe_entrez, ont = &quot;ALL&quot;, readable = TRUE, pvalueCutoff = 0.2)
+nrow(ORA_down)</code></pre>
+<pre><code>[1] 103</code></pre>
+<pre class="r"><code>ORA_down &lt;- gsfilter(ORA_down, by = &#39;Count&#39;, min = 3)
+ORA_down &lt;- reorder_GO_by_pvalue(ORA_down)
+ORA_down_simplified &lt;-  clusterProfiler::simplify(
+  ORA_down,
+  cutoff = 0.7,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+ORA_down_simplified &lt;- reorder_GO_by_pvalue(ORA_down_simplified)</code></pre>
+<pre class="r"><code>p1 &lt;- dotplot(ORA_up_simplified, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nUpregulated terms&quot;), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+p2 &lt;- dotplot(ORA_down_simplified, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nDownegulated terms&quot;), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1|p2)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/ORA_common_dotplot-1.png" width="3900" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>ORA_up_simplified &lt;- pairwise_termsim(ORA_up_simplified)
+ORA_down_simplified &lt;- pairwise_termsim(ORA_down_simplified)
+p1 &lt;- emapplot(ORA_up_simplified, showCategory = 30, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Upregulated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+p2 &lt;- emapplot(ORA_down_simplified, showCategory = 30, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Downregulated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+print(p1|p2)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/ORA_common_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>combined_FC &lt;- full_join(signif_Chaffin %&gt;% dplyr::select(gene, logFC_Chaffin = logFC),
+                         signif_Koenig %&gt;% dplyr::select(gene, logFC_Koenig = logFC),
+                         by = &quot;gene&quot;) %&gt;%
+  full_join(signif_Reichart %&gt;% dplyr::select(gene, logFC_Reichart = logFC), by = &quot;gene&quot;)
+
+common_genes_2 &lt;- combined_FC %&gt;%
+  mutate(
+    up_count = rowSums(dplyr::select(., starts_with(&quot;logFC&quot;)) &gt; 0.25, na.rm = TRUE),
+    down_count = rowSums(dplyr::select(., starts_with(&quot;logFC&quot;)) &lt; -0.25, na.rm = TRUE)
+  ) %&gt;%
+  dplyr::filter(up_count &gt;= 2 | down_count &gt;= 2) %&gt;%
+  dplyr::select(gene)
+
+common_FC_2 &lt;- combined_FC %&gt;%
+  dplyr::filter(gene %in% common_genes_2$gene) %&gt;%
+  arrange(gene) %&gt;%
+  mutate(
+    Up_Down = case_when(
+      logFC_Chaffin &lt; -0.25 | logFC_Koenig &lt; -0.25 | logFC_Reichart &lt; -0.25 ~ &quot;Down&quot;,
+      logFC_Chaffin &gt; 0.25 | logFC_Koenig &gt; 0.25 | logFC_Reichart &gt; 0.25 ~ &quot;Up&quot;,   
+    )
+  )
+
+common_FC_2 &lt;- common_FC_2 %&gt;%
+  left_join(results_Chaffin %&gt;% dplyr::select(gene, logFC_Chaffin = logFC, percentCells_Chaffin = percentCells), by = &quot;gene&quot;) %&gt;%
+  left_join(results_Koenig %&gt;% dplyr::select(gene, logFC_Koenig = logFC, percentCells_Koenig = percentCells), by = &quot;gene&quot;) %&gt;%
+  left_join(results_Reichart %&gt;% dplyr::select(gene, logFC_Reichart = logFC, percentCells_Reichart = percentCells), by = &quot;gene&quot;) %&gt;%
+  mutate(
+    avg_percentCells = rowMeans(dplyr::select(., starts_with(&quot;percentCells_&quot;)), na.rm = TRUE)
+  ) %&gt;%
+  dplyr::select(
+    gene,
+    logFC_Chaffin.y, logFC_Koenig.y, logFC_Reichart.y,
+    percentCells_Chaffin, percentCells_Koenig, percentCells_Reichart,
+    avg_percentCells,
+    Up_Down
+  ) %&gt;%
+  rename(
+    logFC_Chaffin = logFC_Chaffin.y,
+    logFC_Koenig = logFC_Koenig.y,
+    logFC_Reichart = logFC_Reichart.y
+  )
+
+combined_genes &lt;- list(results_Koenig$gene, results_Chaffin$gene, results_Reichart$gene)
+
+# Find the genes that appear in at least 2 datasets
+common_universe &lt;- combined_genes %&gt;%
+  unlist() %&gt;%  # Flatten the list to create a single vector of genes
+  table() %&gt;%
+  as.data.frame() %&gt;%
+  dplyr::filter(Freq &gt; 1) %&gt;%
+  rename(gene = &quot;.&quot;) %&gt;%
+  pull(gene)</code></pre>
+<pre class="rcommon"><code>common_universe_entrez &lt;- bitr(common_universe, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)$ENTREZID
+common_up_entrez &lt;- bitr(dplyr::filter(common_FC_2, Up_Down == &quot;Up&quot;)$gene, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)$ENTREZID
+common_down_entrez &lt;- bitr(dplyr::filter(common_FC_2, Up_Down == &quot;Down&quot;)$gene, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)$ENTREZID</code></pre>
+<pre class="r"><code>ORA_up_2 &lt;- enrichGO(common_up_entrez, OrgDb = &quot;org.Hs.eg.db&quot;, universe = common_universe_entrez, ont = &quot;ALL&quot;, readable = TRUE, pvalueCutoff = 0.05)
+nrow(ORA_up_2)
+ORA_up_2 &lt;- gsfilter(ORA_up_2, by = &#39;Count&#39;, min = 5)
+ORA_up_2 &lt;- reorder_GO_by_pvalue(ORA_up_2)
+ORA_up_2_simplified &lt;-  clusterProfiler::simplify(
+  ORA_up_2,
+  cutoff = 0.7,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+ORA_up_2_simplified &lt;- reorder_GO_by_pvalue(ORA_up_2_simplified)
+
+ORA_down_2 &lt;- enrichGO(common_down_entrez, OrgDb = &quot;org.Hs.eg.db&quot;, universe = common_universe_entrez, ont = &quot;ALL&quot;, readable = TRUE, pvalueCutoff = 0.05)
+nrow(ORA_down_2)
+ORA_down_2 &lt;- gsfilter(ORA_down_2, by = &#39;Count&#39;, min = 5)
+ORA_down_2 &lt;- reorder_GO_by_pvalue(ORA_down_2)
+ORA_down_2_simplified &lt;-  clusterProfiler::simplify(
+  ORA_down_2,
+  cutoff = 0.7,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+ORA_down_2_simplified &lt;- reorder_GO_by_pvalue(ORA_down_2_simplified)</code></pre>
+<pre class="r"><code>p1 &lt;- dotplot(ORA_up_2_simplified, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nUpregulated terms&quot;), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+p2 &lt;- dotplot(ORA_down_2_simplified, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nDownegulated terms&quot;), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1|p2)</code></pre>
+<pre class="r"><code>ORA_up_2_simplified &lt;- pairwise_termsim(ORA_up_2_simplified)
+ORA_down_2_simplified &lt;- pairwise_termsim(ORA_down_2_simplified)
+p1 &lt;- emapplot(ORA_up_2_simplified, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Upregulated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+p2 &lt;- emapplot(ORA_down_2_simplified, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Downregulated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+print(p1|p2)</code></pre>
+<pre class="r"><code>ORA_KEGG_up_2 &lt;- enrichKEGG(common_up_entrez, organism = &quot;hsa&quot;, universe = common_universe_entrez, pvalueCutoff = 0.05, pAdjustMethod = &quot;BH&quot;)
+nrow(ORA_KEGG_up_2)
+ORA_KEGG_up_2 &lt;- gsfilter(ORA_KEGG_up_2, by = &#39;Count&#39;, min = 5)
+ORA_KEGG_up_2 &lt;- reorder_GO_by_pvalue(ORA_KEGG_up_2)
+
+ORA_KEGG_down_2 &lt;- enrichKEGG(common_down_entrez, organism = &quot;hsa&quot;, universe = common_universe_entrez, pvalueCutoff = 0.05, pAdjustMethod = &quot;BH&quot;)
+nrow(ORA_KEGG_down_2)
+ORA_KEGG_down_2 &lt;- gsfilter(ORA_KEGG_down_2, by = &#39;Count&#39;, min = 5)
+ORA_KEGG_down_2 &lt;- reorder_GO_by_pvalue(ORA_KEGG_down_2)</code></pre>
+<pre class="r"><code>p1 &lt;- dotplot(ORA_KEGG_up_2, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nUpregulated terms&quot;), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+p2 &lt;- dotplot(ORA_KEGG_down_2, showCategory = 10, title = paste0(&quot;GO - Over-representation analysis&quot;, &quot;\nDownegulated terms&quot;), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;))
+print(p1|p2)</code></pre>
+<pre class="r"><code>ORA_KEGG_up_2 &lt;- pairwise_termsim(ORA_KEGG_up_2)
+ORA_KEGG_down_2 &lt;- pairwise_termsim(ORA_KEGG_down_2)
+p1 &lt;- emapplot(ORA_KEGG_up_2, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Upregulated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+p2 &lt;- emapplot(ORA_KEGG_down_2, showCategory = 50, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle(&quot;Downregulated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+print(p1|p2)</code></pre>
+<p>#SGLT2</p>
+<pre class="r"><code>DCM_RV &lt;- readRDS(here::here(&quot;output&quot;, &quot;QC_integration_annotation_26&quot;, &quot;DCM_RV_integrated.rds&quot;))</code></pre>
+<pre class="r"><code>DefaultAssay(DCM_RV) &lt;- &quot;RNA&quot;
+DCM_RV &lt;- NormalizeData(DCM_RV)</code></pre>
+<pre class="r"><code>DCM_RV_EC &lt;- subset(DCM_RV, cell_type == &quot;Endothelial cells&quot;)</code></pre>
+<pre class="r"><code>DefaultAssay(nuclei) &lt;- &quot;RNA&quot;
+nuclei &lt;- NormalizeData(nuclei)
+
+DefaultAssay(Chaffin) &lt;- &quot;RNA&quot;
+Chaffin &lt;- NormalizeData(Chaffin)
+
+DefaultAssay(Reichart) &lt;- &quot;RNA&quot;</code></pre>
+<pre class="r"><code>DefaultAssay(Koenig_EC) &lt;- &quot;RNA&quot;
+Koenig_EC &lt;- NormalizeData(Koenig_EC)
+
+DefaultAssay(Chaffin_EC) &lt;- &quot;RNA&quot;
+Chaffin_EC &lt;- NormalizeData(Chaffin_EC)
+
+DefaultAssay(Reichart_EC) &lt;- &quot;RNA&quot;</code></pre>
+<pre class="r"><code>(FeaturePlot(Koenig_EC, &quot;SLC5A2&quot;) + labs(title = &quot;Koenig_2022 - Endothelial cells\nSLC5A2&quot;)) + (FeaturePlot(Chaffin_EC, &quot;SLC5A2&quot;) + labs(title = &quot;Chaffin_2022 - Endothelial cells\nSLC5A2&quot;)) + (FeaturePlot(Reichart_EC, &quot;SLC5A2&quot;) + labs(title = &quot;Reichart_2022 - Endothelial cells\nSLC5A2&quot;)) + (FeaturePlot(DCM_RV_EC, &quot;SLC5A2&quot;) + labs(title = &quot;DCM_RV - Endothelial cells\nSLC5A2&quot;)) + plot_layout(ncol = 2)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/FeatPlot_SLC5A2_EC-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>(FeaturePlot(nuclei, &quot;SLC5A2&quot;) + labs(title = &quot;Koenig_2022 - All cells\nSLC5A2&quot;)) + (FeaturePlot(Chaffin, &quot;SLC5A2&quot;) + labs(title = &quot;Chaffin_2022 - All cells\nSLC5A2&quot;)) + (FeaturePlot(Reichart, &quot;SLC5A2&quot;) + labs(title = &quot;Reichart_2022 - All cells\nSLC5A2&quot;)) + (FeaturePlot(DCM_RV, &quot;SLC5A2&quot;) + labs(title = &quot;DCM_RV - All cells\nSLC5A2&quot;)) + plot_layout(ncol = 2)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/FeatPlot_SLC5A2_All-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>(VlnPlot(Koenig_EC, &quot;SLC5A2&quot;, group.by = &quot;Names&quot;) + labs(title = &quot;Koenig_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(Chaffin_EC, &quot;SLC5A2&quot;, group.by = &quot;cell_type_leiden0.6&quot;) + labs(title = &quot;Chaffin_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(Reichart_EC, &quot;SLC5A2&quot;, group.by = &quot;cell_type&quot;) + labs(title = &quot;Reichart_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(DCM_RV_EC, &quot;SLC5A2&quot;, group.by = &quot;cell_type&quot;) + labs(title = &quot;DCM_RV_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) +
+  plot_layout(ncol = 2)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/VlnPlot_SLC5A2_EC-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>(VlnPlot(Koenig_EC, &quot;SLC5A2&quot;, group.by = &quot;Condition&quot;) + labs(title = &quot;Koenig_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(Chaffin_EC, &quot;SLC5A2&quot;, group.by = &quot;disease&quot;) + labs(title = &quot;Chaffin_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(Reichart_EC, &quot;SLC5A2&quot;, group.by = &quot;disease&quot;) + labs(title = &quot;Reichart_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(DCM_RV_EC, &quot;SLC5A2&quot;, group.by = &quot;Group&quot;) + labs(title = &quot;DCM_RV - Endothelial cells\nSLC5A2&quot;) + NoLegend()) +
+  plot_layout(ncol = 2)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/VlnPlot_SLC5A2_EC_Disease-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>(VlnPlot(Koenig_EC, &quot;SLC5A2&quot;, group.by = &quot;Condition&quot;, split.by = &quot;orig.ident&quot;) + labs(title = &quot;Koenig_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(Chaffin_EC, &quot;SLC5A2&quot;, group.by = &quot;disease&quot;, split.by = &quot;donor_id&quot;) + labs(title = &quot;Chaffin_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(Reichart_EC, &quot;SLC5A2&quot;, group.by = &quot;disease&quot;, split.by = &quot;donor_id&quot;) + labs(title = &quot;Reichart_2022 - Endothelial cells\nSLC5A2&quot;) + NoLegend()) +
+  (VlnPlot(DCM_RV_EC, &quot;SLC5A2&quot;, group.by = &quot;Group&quot;, split.by = &quot;Sample&quot;) + labs(title = &quot;DCM_RV - Endothelial cells\nSLC5A2&quot;) + NoLegend()) + 
+  plot_layout(ncol = 1)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/VlnPlot_SLC5A2_EC_Sample-1.png" width="3900" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>(VlnPlot(nuclei, &quot;SLC5A2&quot;, group.by = &quot;Names&quot;) + labs(title = &quot;Koenig_2022 - All cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(Chaffin, &quot;SLC5A2&quot;, group.by = &quot;cell_type_leiden0.6&quot;) + labs(title = &quot;Chaffin_2022 - All cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(Reichart, &quot;SLC5A2&quot;, group.by = &quot;cell_type&quot;) + labs(title = &quot;Reichart_2022 - All cells\nSLC5A2&quot;) + NoLegend()) + 
+  (VlnPlot(DCM_RV, &quot;SLC5A2&quot;, group.by = &quot;cell_type&quot;) + labs(title = &quot;DCM_RV - All cells\nSLC5A2&quot;) + NoLegend()) + 
+  plot_layout(ncol = 2)</code></pre>
+<p><img src="figure/Endothelial_cells_published_datasets.rmd/VlnPlot_SLC5A2_All-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.3.1 (2023-06-16)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 22.04.4 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;  LAPACK version 3.10.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8          LC_NUMERIC=C                 
+ [3] LC_TIME=en_US.UTF-8           LC_COLLATE=en_US.UTF-8       
+ [5] LC_MONETARY=en_US.UTF-8       LC_MESSAGES=en_US.UTF-8      
+ [7] LC_PAPER=en_US.UTF-8          LC_NAME=en_US.UTF-8          
+ [9] LC_ADDRESS=en_US.UTF-8        LC_TELEPHONE=en_US.UTF-8     
+[11] LC_MEASUREMENT=en_US.UTF-8    LC_IDENTIFICATION=en_US.UTF-8
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] GGally_2.2.1                cowplot_1.1.3              
+ [3] ggpubr_0.6.0                igraph_2.0.3               
+ [5] simplifyEnrichment_1.12.0   msigdbr_7.5.1              
+ [7] ComplexHeatmap_2.18.0       UpSetR_1.4.0               
+ [9] reactable_0.4.4             enrichplot_1.22.0          
+[11] dorothea_1.14.1             OmnipathR_3.10.1           
+[13] decoupleR_2.9.7             EnhancedVolcano_1.20.0     
+[15] ggrepel_0.9.5               edgeR_4.0.16               
+[17] limma_3.58.1                ReactomePA_1.46.0          
+[19] AnnotationHub_3.10.0        BiocFileCache_2.10.1       
+[21] dbplyr_2.4.0                org.Hs.eg.db_3.18.0        
+[23] AnnotationDbi_1.64.1        clusterProfiler_4.10.1     
+[25] SeuratDisk_0.0.0.9021       gprofiler2_0.2.3           
+[27] statmod_1.5.0               patchwork_1.2.0            
+[29] scater_1.30.1               scuttle_1.12.0             
+[31] Matrix.utils_0.9.7          RColorBrewer_1.1-3         
+[33] scales_1.3.0                knitr_1.45                 
+[35] gridExtra_2.3               png_0.1-8                  
+[37] pheatmap_1.0.12             reshape2_1.4.4             
+[39] lubridate_1.9.3             forcats_1.0.0              
+[41] stringr_1.5.1               purrr_1.0.2                
+[43] tidyr_1.3.1                 tibble_3.2.1               
+[45] tidyverse_2.0.0             magrittr_2.0.3             
+[47] ggplot2_3.5.0               dplyr_1.1.4                
+[49] scCustomize_2.1.2           Matrix_1.6-5               
+[51] DropletUtils_1.22.0         SingleCellExperiment_1.24.0
+[53] SummarizedExperiment_1.32.0 Biobase_2.62.0             
+[55] GenomicRanges_1.54.1        GenomeInfoDb_1.38.7        
+[57] IRanges_2.36.0              S4Vectors_0.40.2           
+[59] BiocGenerics_0.48.1         MatrixGenerics_1.14.0      
+[61] matrixStats_1.2.0           SeuratObject_5.0.2         
+[63] Seurat_4.4.0                xlsx_0.6.5                 
+[65] readxl_1.4.3                readr_2.1.5                
+[67] here_1.0.1                 
+
+loaded via a namespace (and not attached):
+  [1] graph_1.80.0                  ica_1.0-3                    
+  [3] plotly_4.10.4                 rematch2_2.1.2               
+  [5] zlibbioc_1.48.0               tidyselect_1.2.1             
+  [7] rvest_1.0.4                   bit_4.0.5                    
+  [9] doParallel_1.0.17             clue_0.3-65                  
+ [11] tm_0.7-14                     lattice_0.22-5               
+ [13] rjson_0.2.21                  blob_1.2.4                   
+ [15] S4Arrays_1.2.1                parallel_4.3.1               
+ [17] cli_3.6.2                     ggplotify_0.1.2              
+ [19] goftest_1.2-3                 grr_0.9.5                    
+ [21] BiocNeighbors_1.20.2          uwot_0.1.16                  
+ [23] shadowtext_0.1.3              curl_5.2.1                   
+ [25] mime_0.12                     evaluate_0.23                
+ [27] tidytree_0.4.6                leiden_0.4.3.1               
+ [29] stringi_1.8.3                 backports_1.4.1              
+ [31] httpuv_1.6.14                 paletteer_1.6.0              
+ [33] rappdirs_0.3.3                splines_4.3.1                
+ [35] ggraph_2.2.1                  logger_0.3.0                 
+ [37] bcellViper_1.38.0             sctransform_0.4.1            
+ [39] ggbeeswarm_0.7.2              DBI_1.2.2                    
+ [41] HDF5Array_1.30.1              jquerylib_0.1.4              
+ [43] reactome.db_1.86.2            withr_3.0.0                  
+ [45] git2r_0.33.0                  rprojroot_2.0.4              
+ [47] lmtest_0.9-40                 ggnewscale_0.4.10            
+ [49] tidygraph_1.3.1               BiocManager_1.30.22          
+ [51] htmlwidgets_1.6.4             fs_1.6.3                     
+ [53] labeling_0.4.3                SparseArray_1.2.4            
+ [55] cellranger_1.1.0              reticulate_1.35.0            
+ [57] zoo_1.8-12                    XVector_0.42.0               
+ [59] timechange_0.3.0              foreach_1.5.2                
+ [61] fansi_1.0.6                   data.table_1.15.2            
+ [63] ggtree_3.10.1                 rhdf5_2.46.1                 
+ [65] R.oo_1.26.0                   irlba_2.3.5.1                
+ [67] ggrastr_1.0.2                 gridGraphics_0.5-1           
+ [69] ellipsis_0.3.2                lazyeval_0.2.2               
+ [71] yaml_2.3.8                    survival_3.5-8               
+ [73] scattermore_1.2               BiocVersion_3.18.1           
+ [75] crayon_1.5.2                  RcppAnnoy_0.0.22             
+ [77] progressr_0.14.0              tweenr_2.0.3                 
+ [79] later_1.3.2                   ggridges_0.5.6               
+ [81] codetools_0.2-19              GlobalOptions_0.1.2          
+ [83] KEGGREST_1.42.0               Rtsne_0.17                   
+ [85] shape_1.4.6.1                 reactR_0.6.0                 
+ [87] filelock_1.0.3                pkgconfig_2.0.3              
+ [89] xml2_1.3.6                    aplot_0.2.2                  
+ [91] spatstat.sparse_3.0-3         ape_5.7-1                    
+ [93] viridisLite_0.4.2             xtable_1.8-4                 
+ [95] car_3.1-2                     highr_0.10                   
+ [97] plyr_1.8.9                    httr_1.4.7                   
+ [99] tools_4.3.1                   globals_0.16.3               
+[101] beeswarm_0.4.0                broom_1.0.5                  
+[103] checkmate_2.3.1               nlme_3.1-164                 
+[105] HDO.db_0.99.1                 hdf5r_1.3.10                 
+[107] crosstalk_1.2.1               digest_0.6.35                
+[109] farver_2.1.1                  tzdb_0.4.0                   
+[111] yulab.utils_0.1.4             viridis_0.6.5                
+[113] glue_1.7.0                    cachem_1.0.8                 
+[115] polyclip_1.10-6               generics_0.1.3               
+[117] proxyC_0.4.1                  Biostrings_2.70.2            
+[119] parallelly_1.37.1             ScaledMatrix_1.10.0          
+[121] carData_3.0-5                 pbapply_1.7-2                
+[123] spam_2.10-0                   gson_0.1.0                   
+[125] dqrng_0.3.2                   utf8_1.2.4                   
+[127] graphlayouts_1.1.1            ggsignif_0.6.4               
+[129] shiny_1.8.0                   GenomeInfoDbData_1.2.11      
+[131] R.utils_2.12.3                rhdf5filters_1.14.1          
+[133] memoise_2.0.1                 rmarkdown_2.26               
+[135] R.methodsS3_1.8.2             future_1.33.1                
+[137] RANN_2.6.1                    Cairo_1.6-2                  
+[139] spatstat.data_3.0-4           rstudioapi_0.15.0            
+[141] cluster_2.1.6                 whisker_0.4.1                
+[143] janitor_2.2.0                 spatstat.utils_3.1-0         
+[145] hms_1.1.3                     fitdistrplus_1.1-11          
+[147] munsell_0.5.0                 colorspace_2.1-0             
+[149] rlang_1.1.4                   DelayedMatrixStats_1.24.0    
+[151] sparseMatrixStats_1.14.0      dotCall64_1.1-1              
+[153] ggforce_0.4.2                 circlize_0.4.16              
+[155] mgcv_1.9-1                    xfun_0.42                    
+[157] iterators_1.0.14              abind_1.4-5                  
+[159] GOSemSim_2.28.1               interactiveDisplayBase_1.40.0
+[161] treeio_1.26.0                 rJava_1.0-11                 
+[163] Rhdf5lib_1.24.2               promises_1.2.1               
+[165] scatterpie_0.2.1              RSQLite_2.3.5                
+[167] qvalue_2.34.0                 fgsea_1.28.0                 
+[169] DelayedArray_0.28.0           GO.db_3.18.0                 
+[171] compiler_4.3.1                prettyunits_1.2.0            
+[173] beachmat_2.18.1               graphite_1.48.0              
+[175] listenv_0.9.1                 Rcpp_1.0.12                  
+[177] workflowr_1.7.1               BiocSingular_1.18.0          
+[179] tensor_1.5                    MASS_7.3-60.0.1              
+[181] progress_1.2.3                BiocParallel_1.36.0          
+[183] babelgene_22.9                spatstat.random_3.2-3        
+[185] R6_2.5.1                      fastmap_1.1.1                
+[187] fastmatch_1.1-4               rstatix_0.7.2                
+[189] vipor_0.4.7                   ROCR_1.0-11                  
+[191] ggstats_0.7.0                 rsvd_1.0.5                   
+[193] gtable_0.3.4                  KernSmooth_2.23-22           
+[195] miniUI_0.1.1.1                deldir_2.0-4                 
+[197] htmltools_0.5.8.1             bit64_4.0.5                  
+[199] spatstat.explore_3.2-6        lifecycle_1.0.4              
+[201] ggprism_1.0.4                 NLP_0.3-0                    
+[203] xlsxjars_0.6.1                sass_0.4.9                   
+[205] vctrs_0.6.5                   slam_0.1-53                  
+[207] spatstat.geom_3.2-9           snakecase_0.11.1             
+[209] DOSE_3.28.2                   ggfun_0.1.4                  
+[211] sp_2.1-3                      future.apply_1.11.1          
+[213] bslib_0.6.1                   pillar_1.9.0                 
+[215] locfit_1.5-9.9                jsonlite_1.8.8               
+[217] GetoptLong_1.0.5             </code></pre>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
