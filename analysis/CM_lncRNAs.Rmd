@@ -1,0 +1,390 @@
+---
+title: "lncRNAs in sn/scRNA-seq dataset of human cardiac tissue"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "CM_lncRNAs"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(SeuratDisk)
+library(speckle)
+library(rtracklayer)
+library(png)
+library(reactable)
+library(UpSetR)
+library(msigdbr)
+library(simplifyEnrichment)
+library(biomaRt)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+```{r reference_genes}
+reference_genes <- readGFF(here::here("data", "refdata-gex-GRCh38-2020-A", "genes", "genes.gtf"))
+```
+
+```{r lncrna}
+lncrna_ens <- c("ENSG00000254002", "ENSG00000228692", "ENSG00000226900", "ENSG00000215246", "ENSG00000253807")
+lncrna_ref <- reference_genes %>%
+  dplyr::filter(gene_id %in% lncrna_ens) %>%
+  dplyr::select(gene_id, gene_name) %>%
+  unique() %>%
+  dplyr::mutate(gene_id = factor(gene_id, levels = lncrna_ens)) %>%
+  dplyr::arrange(gene_id)
+lncrna_symbol <- lncrna_ref$gene_name
+lncrna_symbol
+```
+
+
+## Litvinukova et al. 2020
+
+```{r import Litvinukova}
+Convert("/scratch/gbonaz/Heart_datasets/Litvinukova_2020/global_raw_v1.h5ad", 
+        dest = "h5seurat", overwrite = TRUE )
+Litvinukova <- LoadH5Seurat("/scratch/gbonaz/Heart_datasets/Litvinukova_2020/global_raw_v1.h5seurat")
+DefaultAssay(Litvinukova) <- "RNA"
+Litvinukova <- NormalizeData(Litvinukova)
+```
+
+```{r Litvinukova_dimplot, fig.width=8, fig.height=5}
+Litvinukova_dimplot <- DimPlot(Litvinukova, group.by = "cell_type") + ggtitle("Litvinukova et al. 2020")
+Litvinukova_dimplot
+```
+
+```{r genes_Litvinukova}
+genes_Litvinukova <- data.frame(gene = rownames(Litvinukova))
+lncrna_symbol %in% genes_Litvinukova$gene
+```
+
+```{r Litvinukova_dotplot, fig.width=6, fig.height=5}
+Litvinukova_dotplot <- DotPlot(Litvinukova, features=lncrna_symbol, group.by="cell_type") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +  
+  scale_y_discrete(limits = rev) +
+  ggtitle("Litvinukova et al. 2020")
+Litvinukova_dotplot
+```
+
+```{r Litvinukova_vlnplot, fig.width=6, fig.height=5}
+Idents(Litvinukova) <- "cell_type"
+Litvinukova_vlnplot <- Stacked_VlnPlot(Litvinukova, features = lncrna_symbol, x_lab_rotate = TRUE, pt.size = 0.001, plot_spacing = 0.05)
+Litvinukova_vlnplot[[1]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Litvinukova_vlnplot[[2]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Litvinukova_vlnplot[[3]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Litvinukova_vlnplot[[4]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Litvinukova_vlnplot[[5]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Litvinukova_vlnplot <- wrap_plots(Litvinukova_vlnplot) + 
+  plot_annotation(title = "Litvinukova et al. 2020") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 15)
+  )
+print(Litvinukova_vlnplot)
+```
+
+```{r Litvinukova_featureplot, fig.width=9, fig.height=6}
+Litvinukova_featureplot <- FeaturePlot_scCustom(Litvinukova, features = lncrna_symbol, num_columns = 3)
+Litvinukova_featureplot <- wrap_plots(Litvinukova_featureplot) + 
+  plot_annotation(title = "Litvinukova et al. 2020") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 20)
+  )
+print(Litvinukova_featureplot)
+```
+
+
+## Koenig et al. 2022
+
+```{r import Koenig}
+load("/scratch/gbonaz/Heart_datasets/Koenig_2022/GSE183852_DCM_Integrated.Robj")
+Koenig <- RefMerge
+rm(RefMerge)
+DefaultAssay(Koenig) <- "RNA"
+Koenig <- NormalizeData(Koenig)
+```
+
+```{r Koenig_dimplot, fig.width=6, fig.height=5}
+Koenig_dimplot <- DimPlot(Koenig, group.by = "Names") + ggtitle("Koenig et al. 2022")
+Koenig_dimplot
+```
+
+```{r genes_Koenig}
+genes_Koenig <- data.frame(gene = rownames(Koenig))
+lncrna_symbol %in% genes_Koenig$gene
+```
+
+```{r Koenig_dotplot, fig.width=6, fig.height=5}
+Koenig_dotplot <- DotPlot(Koenig, features=lncrna_symbol, group.by="Names") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +  
+  scale_y_discrete(limits = rev) +
+  ggtitle("Koenig et al. 2022")
+Koenig_dotplot
+```
+
+```{r Koenig_vlnplot, fig.width=6, fig.height=5}
+Koenig_vlnplot <- Stacked_VlnPlot(Koenig, features = lncrna_symbol, x_lab_rotate = TRUE, pt.size = 0.001, plot_spacing = 0.05)
+Koenig_vlnplot[[1]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Koenig_vlnplot[[2]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Koenig_vlnplot[[3]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Koenig_vlnplot[[4]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Koenig_vlnplot[[5]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Koenig_vlnplot <- wrap_plots(Koenig_vlnplot) + 
+  plot_annotation(title = "Koenig et al. 2022") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 15)
+  )
+print(Koenig_vlnplot)
+```
+
+```{r Koenig_featureplot, fig.width=9, fig.height=6}
+Koenig_featureplot <- FeaturePlot_scCustom(Koenig, features = lncrna_symbol, num_columns = 3)
+Koenig_featureplot <- wrap_plots(Koenig_featureplot) + 
+  plot_annotation(title = "Koenig et al. 2022") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 20)
+  )
+print(Koenig_featureplot)
+```
+
+
+## Chaffin et al. 2022
+
+```{r import Chaffin}
+Chaffin <- readRDS("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin_2022.rds")
+DefaultAssay(Chaffin) <- "RNA"
+Chaffin <- NormalizeData(Chaffin)
+```
+
+```{r Chaffin_dimplot, fig.width=8, fig.height=5}
+Chaffin_dimplot <- DimPlot(Chaffin, group.by = "cell_type_leiden0.6") + ggtitle("Chaffin et al. 2022")
+Chaffin_dimplot
+```
+
+```{r genes_Chaffin}
+genes_Chaffin <- data.frame(gene = rownames(Chaffin))
+lncrna_symbol %in% genes_Chaffin$gene
+```
+
+```{r Chaffin_dotplot, fig.width=6, fig.height=5}
+Chaffin_dotplot <- DotPlot(Chaffin, features=lncrna_symbol, group.by="cell_type_leiden0.6") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +  
+  scale_y_discrete(limits = rev) +
+  ggtitle("Chaffin et al. 2022")
+Chaffin_dotplot
+```
+
+```{r Chaffin_vlnplot, fig.width=6, fig.height=5}
+Idents(Chaffin) <- "cell_type_leiden0.6"
+Chaffin_vlnplot <- Stacked_VlnPlot(Chaffin, features = lncrna_symbol, x_lab_rotate = TRUE, pt.size = 0.001, plot_spacing = 0.05)
+Chaffin_vlnplot[[1]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Chaffin_vlnplot[[2]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Chaffin_vlnplot[[3]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Chaffin_vlnplot[[4]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Chaffin_vlnplot[[5]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Chaffin_vlnplot <- wrap_plots(Chaffin_vlnplot) + 
+  plot_annotation(title = "Chaffin et al. 2022") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 15)
+  )
+print(Chaffin_vlnplot)
+```
+
+```{r Chaffin_featureplot, fig.width=9, fig.height=6}
+Chaffin_featureplot <- FeaturePlot_scCustom(Chaffin, features = lncrna_symbol, num_columns = 3)
+Chaffin_featureplot <- wrap_plots(Chaffin_featureplot) + 
+  plot_annotation(title = "Chaffin et al. 2022") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 20)
+  )
+print(Chaffin_featureplot)
+```
+
+
+## Reichart et al. 2022
+
+```{r import Reichart}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds")
+DefaultAssay(Reichart) <- "RNA"
+Reichart <- NormalizeData(Reichart)
+```
+
+```{r Reichart_dimplot, fig.width=6, fig.height=5}
+Reichart_dimplot <- DimPlot(Reichart, group.by = "cell_type") + ggtitle("Reichart et al. 2022")
+Reichart_dimplot
+```
+
+```{r genes_Reichart}
+genes_Reichart <- data.frame(gene = rownames(Reichart))
+lncrna_symbol %in% genes_Reichart$gene
+lncrna_ens %in% genes_Reichart$gene
+```
+
+```{r Reichart_dotplot, fig.width=6, fig.height=5}
+Reichart_dotplot <- DotPlot(Reichart, features=lncrna_ens, group.by="cell_type") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +  
+  scale_y_discrete(limits = rev) +
+  ggtitle("Reichart et al. 2022")
+Reichart_dotplot
+```
+
+```{r Reichart_vlnplot, fig.width=6, fig.height=5}
+Idents(Reichart) <- "cell_type"
+Reichart_vlnplot <- Stacked_VlnPlot(Reichart, features = lncrna_ens, x_lab_rotate = TRUE, pt.size = 0.001, plot_spacing = 0.05)
+Reichart_vlnplot[[1]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Reichart_vlnplot[[2]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Reichart_vlnplot[[3]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Reichart_vlnplot[[4]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Reichart_vlnplot[[5]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Reichart_vlnplot <- wrap_plots(Reichart_vlnplot) + 
+  plot_annotation(title = "Reichart et al. 2022") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 15)
+  )
+print(Reichart_vlnplot)
+```
+
+```{r Reichart_featureplot, fig.width=9, fig.height=6}
+Reichart_featureplot <- FeaturePlot_scCustom(Reichart, features = lncrna_ens, num_columns = 3)
+Reichart_featureplot <- wrap_plots(Reichart_featureplot) + 
+  plot_annotation(title = "Reichart et al. 2022") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 20)
+  )
+print(Reichart_featureplot)
+```
+
+
+## DCM_RV et al. 2022
+
+```{r import DCM_RV}
+DCM_RV <- readRDS(here::here("output", "QC_integration_annotation_26", "DCM_RV_integrated.rds"))
+DCM_RV@assays$RAW <- NULL
+DCM_RV@assays$SCT <- NULL
+DefaultAssay(DCM_RV_integrated) <- "RNA"
+DCM_RV_integrated <- NormalizeData(DCM_RV_integrated)
+```
+
+```{r DCM_RV_dimplot, fig.width=6, fig.height=5}
+DCM_RV_dimplot <- DimPlot(DCM_RV, group.by = "cell_type") + ggtitle("DCM RV")
+DCM_RV_dimplot
+```
+
+```{r genes_DCM_RV}
+genes_DCM_RV <- data.frame(gene = rownames(DCM_RV))
+lncrna_symbol %in% genes_DCM_RV$gene
+```
+
+```{r DCM_RV_dotplot, fig.width=6, fig.height=5}
+DCM_RV_dotplot <- DotPlot(DCM_RV, features=lncrna_symbol, group.by="cell_type") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +  
+  scale_y_discrete(limits = rev) +
+  ggtitle("DCM RV")
+DCM_RV_dotplot
+```
+
+```{r DCM_RV_vlnplot, fig.width=6, fig.height=5}
+DCM_RV_vlnplot <- Stacked_VlnPlot(DCM_RV, features = lncrna_symbol, x_lab_rotate = TRUE, pt.size = 0.001, plot_spacing = 0.05)
+DCM_RV_vlnplot[[1]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+DCM_RV_vlnplot[[2]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+DCM_RV_vlnplot[[3]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+DCM_RV_vlnplot[[4]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+DCM_RV_vlnplot[[5]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+DCM_RV_vlnplot <- wrap_plots(DCM_RV_vlnplot) + 
+  plot_annotation(title = "DCM RV") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 15)
+  )
+print(DCM_RV_vlnplot)
+```
+
+```{r DCM_RV_featureplot, fig.width=9, fig.height=6}
+DCM_RV_featureplot <- FeaturePlot_scCustom(DCM_RV, features = lncrna_symbol, num_columns = 3)
+DCM_RV_featureplot <- wrap_plots(DCM_RV_featureplot) + 
+  plot_annotation(title = "DCM RV") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 20)
+  )
+print(DCM_RV_featureplot)
+```
+
