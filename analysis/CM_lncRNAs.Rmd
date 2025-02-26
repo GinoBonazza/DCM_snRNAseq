@@ -336,8 +336,8 @@ print(Reichart_featureplot)
 DCM_RV <- readRDS(here::here("output", "QC_integration_annotation_26", "DCM_RV_integrated.rds"))
 DCM_RV@assays$RAW <- NULL
 DCM_RV@assays$SCT <- NULL
-DefaultAssay(DCM_RV_integrated) <- "RNA"
-DCM_RV_integrated <- NormalizeData(DCM_RV_integrated)
+DefaultAssay(DCM_RV) <- "RNA"
+DCM_RV <- NormalizeData(DCM_RV)
 ```
 
 ```{r DCM_RV_dimplot, fig.width=6, fig.height=5}
