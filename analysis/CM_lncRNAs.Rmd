@@ -66,6 +66,7 @@ library(biomaRt)
 library(igraph)
 library(gridExtra) 
 library(ggpubr)
+library(edgeR)
 
 #Output paths
 output_dir_data <- here::here("output", current_file)
@@ -153,6 +154,75 @@ Litvinukova_featureplot <- wrap_plots(Litvinukova_featureplot) +
 print(Litvinukova_featureplot)
 ```
 
+```{r subset Litvinukova FindMarkers}
+Litvinukova_subset_V <- subset(Litvinukova,  cell_type == "Ventricular_Cardiomyocyte" & region %in% c("RV", "LV"))
+Litvinukova_subset_A <- subset(Litvinukova, cell_type == "Atrial_Cardiomyocyte" & region %in% c("RA", "LA"))
+
+Idents(Litvinukova_subset_V) <- Litvinukova_subset_V$region
+Idents(Litvinukova_subset_A) <- Litvinukova_subset_A$region
+
+Litvinukova_RV_vs_LV <- FindMarkers(Litvinukova_subset_V, ident.1 = "RV", ident.2 = "LV", features = lncrna_symbol, logfc.threshold = 0, min.pct = 0.001)
+
+Litvinukova_RA_vs_LA <- FindMarkers(Litvinukova_subset_A, ident.1 = "RA", ident.2 = "LA", features = lncrna_symbol, logfc.threshold = 0, min.pct = 0.001)
+```
+
+```{r Litvinukova_RV_vs_LV }
+reactable(Litvinukova_RV_vs_LV, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Litvinukova_RA_vs_LA}
+reactable(Litvinukova_RA_vs_LA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Litvinukova_vlnplot_RV_vs_LV, fig.width=10, fig.height=3}
+Litvinukova_vlnplot_RV_vs_LV <- VlnPlot(Litvinukova_subset_V, features = lncrna_symbol, group.by = "region", ncol = 5, pt.size = 0.0001)
+Litvinukova_vlnplot_RV_vs_LV[[1]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RV_vs_LV[[2]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RV_vs_LV[[3]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RV_vs_LV[[4]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RV_vs_LV[[5]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RV_vs_LV
+```
+
+```{r Litvinukova_vlnplot_RA_vs_LA, fig.width=10, fig.height=3}
+Litvinukova_vlnplot_RA_vs_LA <- VlnPlot(Litvinukova_subset_V, features = lncrna_symbol, group.by = "region", ncol = 5, pt.size = 0.0001)
+Litvinukova_vlnplot_RA_vs_LA[[1]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RA_vs_LA[[2]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RA_vs_LA[[3]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RA_vs_LA[[4]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RA_vs_LA[[5]]$layers[[2]]$aes_params$alpha <- 0.2
+Litvinukova_vlnplot_RA_vs_LA
+```
+
+```{r Litvinukova_dotplot_RV_vs_LV, fig.width=6, fig.height=4}
+Litvinukova_dotplot_RV_vs_LV <- DotPlot(Litvinukova_subset_V, features=lncrna_symbol, group.by="region", scale=F) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) 
+  ggtitle("Litvinukova et al. 2020")
+Litvinukova_dotplot_RV_vs_LV
+```
+
+```{r Litvinukova_dotplot_RA_vs_LA, fig.width=6, fig.height=4}
+Litvinukova_dotplot_RA_vs_LA  <- DotPlot(Litvinukova_subset_A, features=lncrna_symbol, group.by="region", scale=F) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) 
+  ggtitle("Litvinukova et al. 2020")
+Litvinukova_dotplot_RA_vs_LA 
+```
+```{r rm Litvinukova}
+rm(Litvinukova)
+```
+
 
 ## Koenig et al. 2022
 
@@ -187,11 +257,11 @@ Koenig_dotplot
 
 ```{r Koenig_vlnplot, fig.width=6, fig.height=5}
 Koenig_vlnplot <- Stacked_VlnPlot(Koenig, features = lncrna_symbol, x_lab_rotate = TRUE, pt.size = 0.001, plot_spacing = 0.05)
-Koenig_vlnplot[[1]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
-Koenig_vlnplot[[2]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
-Koenig_vlnplot[[3]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
-Koenig_vlnplot[[4]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
-Koenig_vlnplot[[5]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Koenig_vlnplot[[1]][[1]]$layers[[2]]$aes_params$alpha <- 0.2
+Koenig_vlnplot[[2]][[1]]$layers[[2]]$aes_params$alpha <- 0.2
+Koenig_vlnplot[[3]][[1]]$layers[[2]]$aes_params$alpha <- 0.2
+Koenig_vlnplot[[4]][[1]]$layers[[2]]$aes_params$alpha <- 0.2
+Koenig_vlnplot[[5]][[1]]$layers[[2]]$aes_params$alpha <- 0.2
 Koenig_vlnplot <- wrap_plots(Koenig_vlnplot) + 
   plot_annotation(title = "Koenig et al. 2022") & 
   theme(plot.title = element_text(hjust = 0.5,      
@@ -212,10 +282,106 @@ Koenig_featureplot <- wrap_plots(Koenig_featureplot) +
 print(Koenig_featureplot)
 ```
 
+```{r Koenig metadata}
+Koenig_CM <- subset(Koenig, Names %in% c("Cardiomyocytes") & CondTech %in% c("DCM_SN", "Donor_SN"))
+
+metadata <- Koenig_CM@meta.data %>%
+  dplyr::select(orig.ident, condition) %>%
+  unique()
+rownames(metadata) <- metadata$orig.ident
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Remove genes expressed in <1% of cells
+
+```{r Koenig_pseudocounts, eval=TRUE}
+expr_matrix <- GetAssayData(object = Koenig_CM, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- Koenig_CM[which(rownames(Koenig_CM) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts <- Seurat2PB(data, sample="orig.ident", cluster = "Names")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(metadata$orig.ident, pseudocounts$samples$sample)]
+all(metadata$donor_id == pseudocounts$samples$sample)
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+```{r Koenig_DE}
+metadata$condition <- factor(metadata$condition, levels = c("Donor", "DCM"))
+design<- model.matrix(~ condition, data = metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Koenig <- topTags(fit, n = Inf)$table
+results_Koenig <- merge(results_Koenig, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Koenig$up_down <- ifelse(
+  results_Koenig$logFC > 0.5 & results_Koenig$FDR < 0.05, "Increased",
+  ifelse(results_Koenig$logFC < -0.5 & results_Koenig$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+results_Koenig_lncRNA <- results_Koenig %>%
+  dplyr::filter(gene %in% lncrna_symbol)
+reactable(results_Koenig_lncRNA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Koenig_heatmap_DCM_vs_HC, fig.width=6, fig.height=1}
+counts <- cpm(pseudocounts, log = TRUE)
+
+counts <- counts[rownames(counts) %in% results_Koenig_lncRNA$gene, , drop = FALSE]
+
+counts <- counts[, dplyr::arrange(metadata, condition)$orig.ident, drop = FALSE]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+pheatmap::pheatmap(counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = dplyr::select(metadata, condition), 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 15, 
+         show_rownames = T,
+         show_colnames = F,
+         cellheight = 15,
+         legend_breaks = c(-1.5, 0, 1.5)
+         )
+```
+
+```{r Koenig_vlnplot_DE, fig.width=2.5, fig.height=4}
+Koenig_dotplot_DE <- VlnPlot(Koenig_CM, features=results_Koenig_lncRNA$gene, group.by="condition") + 
+  ggtitle("Koenig et al. 2022") + NoLegend()
+Koenig_dotplot_DE
+```
+
+```{r rm Koenig}
+rm(Koenig)
+```
 
 ## Chaffin et al. 2022
 
 ```{r import Chaffin}
+Chaffin <- LoadH5Seurat("/scratch/gbonaz/Heart_datasets/Chaffin_2022/human_dcm_hcm_scportal_03.17.2022.h5seurat")
+Chaffin@assays$cellranger_raw <- NULL
+saveRDS(Chaffin, "/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin_2022.rds")
 Chaffin <- readRDS("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin_2022.rds")
 DefaultAssay(Chaffin) <- "RNA"
 Chaffin <- NormalizeData(Chaffin)
@@ -270,6 +436,154 @@ Chaffin_featureplot <- wrap_plots(Chaffin_featureplot) +
 print(Chaffin_featureplot)
 ```
 
+```{r Chaffin metadata}
+Chaffin_CM <- subset(Chaffin, cell_type_leiden0.6 %in% c("Cardiomyocyte_I", "Cardiomyocyte_II", "Cardiomyocyte_III"))
+Chaffin_CM$cell_type <- "Cardiomyocytes"
+metadata <- Chaffin_CM@meta.data %>%
+  dplyr::select(donor_id, disease) %>%
+  unique()
+rownames(metadata) <- metadata$donor_id
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Remove genes expressed in <1% of cells
+
+```{r Chaffin_pseudocounts, eval=TRUE}
+expr_matrix <- GetAssayData(object = Chaffin_CM, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- Chaffin_CM[which(rownames(Chaffin_CM) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(metadata$donor_id, pseudocounts$samples$sample)]
+all(metadata$donor_id == pseudocounts$samples$sample)
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+```{r Chaffin_DE}
+metadata$disease <- factor(metadata$disease, levels = c("NF", "DCM", "HCM"))
+design<- model.matrix(~ disease, data = metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+
+contrast_DCM_vs_NF <- makeContrasts(diseaseDCM, levels=design)
+results_Chaffin_DCM_vs_NF <- glmQLFTest(fit, contrast=contrast_DCM_vs_NF)
+results_Chaffin_DCM_vs_NF <- topTags(results_Chaffin_DCM_vs_NF, n = Inf)$table
+results_Chaffin_DCM_vs_NF <- merge(results_Chaffin_DCM_vs_NF, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Chaffin_DCM_vs_NF$up_down <- ifelse(
+  results_Chaffin_DCM_vs_NF$logFC > 0.5 & results_Chaffin_DCM_vs_NF$FDR < 0.05, "Increased",
+  ifelse(results_Chaffin_DCM_vs_NF$logFC < -0.5 & results_Chaffin_DCM_vs_NF$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+results_Chaffin_DCM_vs_NF_lncRNA <- results_Chaffin_DCM_vs_NF %>%
+  dplyr::filter(gene %in% lncrna_symbol)
+results_Chaffin_DCM_vs_NF_lncRNA$Contrast <- "DCM_vs_NF"
+
+
+contrast_HCM_vs_NF <- makeContrasts(diseaseHCM, levels=design)
+results_Chaffin_HCM_vs_NF <- glmQLFTest(fit, contrast=contrast_HCM_vs_NF)
+results_Chaffin_HCM_vs_NF <- topTags(results_Chaffin_HCM_vs_NF, n = Inf)$table
+results_Chaffin_HCM_vs_NF <- merge(results_Chaffin_HCM_vs_NF, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Chaffin_HCM_vs_NF$up_down <- ifelse(
+  results_Chaffin_HCM_vs_NF$logFC > 0.5 & results_Chaffin_HCM_vs_NF$FDR < 0.05, "Increased",
+  ifelse(results_Chaffin_HCM_vs_NF$logFC < -0.5 & results_Chaffin_HCM_vs_NF$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+results_Chaffin_HCM_vs_NF_lncRNA <- results_Chaffin_HCM_vs_NF %>%
+  dplyr::filter(gene %in% lncrna_symbol)
+results_Chaffin_HCM_vs_NF_lncRNA$Contrast <- "HCM_vs_NF"
+
+
+contrast_DCM_vs_HCM <- makeContrasts(diseaseDCM - diseaseHCM, levels=design)
+results_Chaffin_DCM_vs_HCM <- glmQLFTest(fit, contrast=contrast_DCM_vs_HCM)
+results_Chaffin_DCM_vs_HCM <- topTags(results_Chaffin_DCM_vs_HCM, n = Inf)$table
+results_Chaffin_DCM_vs_HCM <- merge(results_Chaffin_DCM_vs_HCM, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Chaffin_DCM_vs_HCM$up_down <- ifelse(
+  results_Chaffin_DCM_vs_HCM$logFC > 0.5 & results_Chaffin_DCM_vs_HCM$FDR < 0.05, "Increased",
+  ifelse(results_Chaffin_DCM_vs_HCM$logFC < -0.5 & results_Chaffin_DCM_vs_HCM$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+results_Chaffin_DCM_vs_HCM_lncRNA <- results_Chaffin_DCM_vs_HCM %>%
+  dplyr::filter(gene %in% lncrna_symbol)
+results_Chaffin_DCM_vs_HCM_lncRNA$Contrast <- "DCM_vs_HCM"
+
+
+reactable(results_Chaffin_DCM_vs_NF_lncRNA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+reactable(results_Chaffin_HCM_vs_NF_lncRNA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+reactable(results_Chaffin_DCM_vs_HCM_lncRNA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Chaffin_heatmap_DCM_vs_HC, fig.width=6, fig.height=2}
+counts <- cpm(pseudocounts, log = TRUE)
+
+counts <- counts[rownames(counts) %in% results_Chaffin_DCM_vs_NF_lncRNA$gene, , drop = FALSE]
+
+metadata_matched <- metadata[match(colnames(counts), metadata$donor_id), ]
+
+# Step 2: Check they align
+stopifnot(all(colnames(counts) == metadata_matched$donor_id))
+
+# Step 3: Reorder both by disease
+order_idx <- order(metadata_matched$disease)
+
+counts <- counts[, order_idx]
+metadata_matched <- metadata_matched[order_idx, ]
+
+# Step 4: Heatmap with matched annotations
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+pheatmap::pheatmap(
+  counts,
+  color = heat_colors,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = dplyr::select(metadata_matched, disease),
+  border_color = NA,
+  fontsize = 10,
+  scale = "row",
+  fontsize_row = 15,
+  show_rownames = TRUE,
+  show_colnames = FALSE,
+  cellheight = 15,
+  legend_breaks = c(-1.5, 0, 1.5)
+)
+```
+
+```{r Chaffin_vlnplot_DE, fig.width=10, fig.height=4}
+Chaffin_dotplot_DE <- VlnPlot(Chaffin_CM, features=results_Chaffin_DCM_vs_HCM_lncRNA$gene, group.by="disease", ncol = 4, pt.size = 0.001) + 
+  ggtitle("Chaffin et al. 2022") + NoLegend()
+Chaffin_dotplot_DE
+```
+
+```{r rm Chaffin}
+rm(Chaffin)
+```
 
 ## Reichart et al. 2022
 
@@ -329,6 +643,233 @@ Reichart_featureplot <- wrap_plots(Reichart_featureplot) +
 print(Reichart_featureplot)
 ```
 
+```{r subset Reichart FindMarkers}
+Reichart_subset_V <- subset(Reichart,  cell_type == "cardiac muscle cell" & Region_x %in% c("RV", "LV"))
+
+Idents(Reichart_subset_V) <- Reichart_subset_V$Region_x
+
+Reichart_RV_vs_LV <- FindMarkers(Reichart_subset_V, ident.1 = "RV", ident.2 = "LV", features = lncrna_ens, logfc.threshold = 0, min.pct = 0.001)
+```
+
+```{r Reichart_RV_vs_LV }
+reactable(Reichart_RV_vs_LV, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Reichart_vlnplot_RV_vs_LV, fig.width=12, fig.height=3}
+Reichart_vlnplot_RV_vs_LV <- VlnPlot(Reichart_subset_V, features = lncrna_ens, group.by = "Region_x", ncol = 5, pt.size = 0.0001)
+Reichart_vlnplot_RV_vs_LV[[1]]$layers[[2]]$aes_params$alpha <- 0.2
+Reichart_vlnplot_RV_vs_LV[[2]]$layers[[2]]$aes_params$alpha <- 0.2
+Reichart_vlnplot_RV_vs_LV[[3]]$layers[[2]]$aes_params$alpha <- 0.2
+Reichart_vlnplot_RV_vs_LV[[4]]$layers[[2]]$aes_params$alpha <- 0.2
+Reichart_vlnplot_RV_vs_LV[[5]]$layers[[2]]$aes_params$alpha <- 0.2
+Reichart_vlnplot_RV_vs_LV
+```
+
+```{r Reichart_dotplot_RV_vs_LV, fig.width=6.5, fig.height=4}
+Reichart_dotplot_RV_vs_LV <- DotPlot(Reichart_subset_V, features=lncrna_ens, group.by="Region_x", scale=F) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.margin = unit(c(0, 0, 0, 0.5), "inch")) 
+  ggtitle("Reichart et al. 2020")
+Reichart_dotplot_RV_vs_LV
+```
+
+```{r Reichart metadata RV}
+Reichart_CM_RV <- subset(Reichart, cell_type %in% c("cardiac muscle cell") & disease %in% c("normal", "dilated cardiomyopathy") & Region_x == "RV")
+metadata_RV <- Reichart_CM_RV@meta.data %>%
+  dplyr::select(donor_id, disease) %>%
+  unique()
+rownames(metadata_RV) <- metadata_RV$donor_id
+reactable(metadata_RV, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Reichart metadata LV}
+Reichart_CM_LV <- subset(Reichart, cell_type %in% c("cardiac muscle cell") & disease %in% c("normal", "dilated cardiomyopathy") & Region_x == "LV")
+metadata_LV <- Reichart_CM_LV@meta.data %>%
+  dplyr::select(donor_id, disease) %>%
+  unique()
+rownames(metadata_LV) <- metadata_LV$donor_id
+reactable(metadata_LV, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Reichart_pseudocounts_RV}
+expr_matrix <- GetAssayData(object = Reichart_CM_RV, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- Reichart_CM_RV[which(rownames(Reichart_CM_RV) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(metadata_RV$donor_id, pseudocounts$samples$sample)]
+all(metadata$donor_id == pseudocounts$samples$sample)
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+```{r Reichart_DE_RV}
+metadata_RV$disease <- factor(metadata_RV$disease, levels = c("normal", "dilated cardiomyopathy"))
+design<- model.matrix(~ disease, data = metadata_RV)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Reichart_RV <- topTags(fit, n = Inf)$table
+results_Reichart_RV <- merge(results_Reichart_RV, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Reichart_RV$up_down <- ifelse(
+  results_Reichart_RV$logFC > 0.5 & results_Reichart_RV$FDR < 0.05, "Increased",
+  ifelse(results_Reichart_RV$logFC < -0.5 & results_Reichart_RV$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+results_Reichart_RV_lncRNA <- results_Reichart_RV %>%
+  dplyr::filter(gene %in% lncrna_ens)
+reactable(results_Reichart_RV_lncRNA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Reichart_heatmap_DCM_vs_HC_RV, fig.width=8, fig.height=2}
+counts <- cpm(pseudocounts, log = TRUE)
+
+counts <- counts[rownames(counts) %in% results_Reichart_RV_lncRNA$gene, , drop = FALSE]
+
+metadata_matched <- metadata_RV[match(colnames(counts), metadata_RV$donor_id), ]
+
+stopifnot(all(colnames(counts) == metadata_matched$donor_id))
+
+order_idx <- order(metadata_matched$disease)
+
+counts <- counts[, order_idx]
+metadata_matched <- metadata_matched[order_idx, ]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+pheatmap::pheatmap(counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = dplyr::select(metadata_matched, disease), 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 15, 
+         show_rownames = T,
+         show_colnames = F,
+         cellheight = 15,
+         legend_breaks = c(-1.5, 0, 1.5)
+         )
+```
+
+```{r Reichart_pseudocounts_LV}
+expr_matrix <- GetAssayData(object = Reichart_CM_LV, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- Reichart_CM_LV[which(rownames(Reichart_CM_LV) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(metadata_LV$donor_id, pseudocounts$samples$sample)]
+all(metadata$donor_id == pseudocounts$samples$sample)
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+```{r Reichart_DE_LV}
+metadata_LV$disease <- factor(metadata_LV$disease, levels = c("normal", "dilated cardiomyopathy"))
+design<- model.matrix(~ disease, data = metadata_LV)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Reichart_LV <- topTags(fit, n = Inf)$table
+results_Reichart_LV <- merge(results_Reichart_LV, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Reichart_LV$up_down <- ifelse(
+  results_Reichart_LV$logFC > 0.5 & results_Reichart_LV$FDR < 0.05, "Increased",
+  ifelse(results_Reichart_LV$logFC < -0.5 & results_Reichart_LV$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+results_Reichart_LV_lncRNA <- results_Reichart_LV %>%
+  dplyr::filter(gene %in% lncrna_ens)
+reactable(results_Reichart_LV_lncRNA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Reichart_heatmap_DCM_vs_HC_LV, fig.width=8, fig.height=2}
+counts <- cpm(pseudocounts, log = TRUE)
+
+counts <- counts[rownames(counts) %in% results_Reichart_LV_lncRNA$gene, , drop = FALSE]
+
+metadata_matched <- metadata_LV[match(colnames(counts), metadata_LV$donor_id), ]
+
+stopifnot(all(colnames(counts) == metadata_matched$donor_id))
+
+order_idx <- order(metadata_matched$disease)
+
+counts <- counts[, order_idx]
+metadata_matched <- metadata_matched[order_idx, ]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+pheatmap::pheatmap(counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = dplyr::select(metadata_matched, disease), 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 15, 
+         show_rownames = T,
+         show_colnames = F,
+         cellheight = 15,
+         legend_breaks = c(-1.5, 0, 1.5)
+         )
+```
+
+```{r Reichart_vlnplot_DE_RV, fig.width=10, fig.height=6}
+Reichart_dotplot_DE <- VlnPlot(Reichart_CM_RV, features=results_Reichart_RV_lncRNA$gene, group.by="disease", ncol = 4) + 
+  ggtitle("Reichart et al. 2022") + NoLegend()
+Reichart_dotplot_DE
+```
+
+```{r Reichart_vlnplot_DE_LV, fig.width=10, fig.height=6}
+Reichart_dotplot_DE <- VlnPlot(Reichart_CM_LV, features=results_Reichart_LV_lncRNA$gene, group.by="disease", ncol = 4) + 
+  ggtitle("Reichart et al. 2022") + NoLegend()
+Reichart_dotplot_DE
+```
+
+```{r rm Reichart}
+rm(Reichart)
+```
 
 ## DCM RV
 
@@ -388,3 +929,257 @@ DCM_RV_featureplot <- wrap_plots(DCM_RV_featureplot) +
 print(DCM_RV_featureplot)
 ```
 
+```{r DCM_RV metadata}
+DCM_RV_CM <- subset(DCM_RV, cell_type %in% c("Cardiomyocytes"))
+
+metadata <- DCM_RV_CM@meta.data %>%
+  dplyr::select(Sample, Group) %>%
+  unique()
+rownames(metadata) <- metadata$Sample
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Remove genes expressed in <1% of cells
+
+```{r DCM_RV_pseudocounts, eval=TRUE}
+expr_matrix <- GetAssayData(object = DCM_RV_CM, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- DCM_RV_CM[which(rownames(DCM_RV_CM) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(metadata$Sample, pseudocounts$samples$sample)]
+all(metadata$donor_id == pseudocounts$samples$sample)
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+```{r DCM_RV_DE}
+metadata$Group <- factor(metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_DCM_RV <- topTags(fit, n = Inf)$table
+results_DCM_RV <- merge(results_DCM_RV, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_DCM_RV$up_down <- ifelse(
+  results_DCM_RV$logFC > 0.5 & results_DCM_RV$FDR < 0.05, "Increased",
+  ifelse(results_DCM_RV$logFC < -0.5 & results_DCM_RV$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+results_DCM_RV_lncRNA <- results_DCM_RV %>%
+  dplyr::filter(gene %in% lncrna_symbol)
+reactable(results_DCM_RV_lncRNA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r DCM_RV_heatmap_DCM_vs_HC, fig.width=6, fig.height=2}
+counts <- cpm(pseudocounts, log = TRUE)
+
+counts <- counts[rownames(counts) %in% results_DCM_RV_lncRNA$gene, , drop = FALSE]
+
+metadata_matched <- metadata[match(colnames(counts), metadata$Sample), ]
+
+stopifnot(all(colnames(counts) == metadata_matched$Sample))
+
+order_idx <- order(metadata_matched$Group)
+
+counts <- counts[, order_idx]
+metadata_matched <- metadata_matched[order_idx, ]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+pheatmap::pheatmap(counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = dplyr::select(metadata, Group), 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 15, 
+         show_rownames = T,
+         show_colnames = F,
+         cellheight = 15,
+         legend_breaks = c(-1.5, 0, 1.5)
+         )
+```
+
+```{r rm DCM_RV}
+rm(DCM_RV)
+```
+
+## Cao et al. 2020
+
+```{r import Cao}
+Cao <- readRDS("/scratch/gbonaz/Heart_datasets/Cao_2020/Heart_gene_count.RDS")
+Cao_genes <- readRDS("/scratch/gbonaz/Heart_datasets/Cao_2020/df_gene.RDS")
+Cao_cell <- readRDS("/scratch/gbonaz/Heart_datasets/Cao_2020/df_cell.RDS")
+
+Cao_cell <- Cao_cell[match(colnames(Cao), Cao_cell$sample), ]
+Cao_genes <- Cao_genes[match(rownames(Cao), rownames(Cao_genes)), ]
+cao_seurat <- CreateSeuratObject(
+  counts = Cao,
+  meta.data = Cao_cell,
+  assay = "RNA",
+  project = "Cao_2020"
+)
+
+cao_seurat[["RNA"]]@meta.features <- Cao_genes
+Cao <- cao_seurat
+DefaultAssay(Cao)  <- "RNA"
+Cao <- NormalizeData(Cao)
+```
+
+```{r Cao_dimplot, fig.width=8, fig.height=5, eval=FALSE}
+Cao_dimplot <- DimPlot(Cao, group.by = "Main_cluster_name") + ggtitle("Cao et al. 2020")
+Cao_dimplot
+```
+
+```{r genes_Cao}
+lncrna_Cao <- c("ENSG00000254002.1", "ENSG00000228692.2", "ENSG00000226900.1", "ENSG00000215246.4", "ENSG00000253807.1")
+lncrna_Cao %in% Cao_genes$gene_id
+```
+
+```{r NA_Cao}
+table(is.na(Cao$Main_cluster_name))
+Cao$Main_cluster_name[is.na(Cao$Main_cluster_name)] <- "Unassigned"
+```
+
+
+```{r Cao_dotplot, fig.width=6, fig.height=5}
+Cao_dotplot <- DotPlot(Cao, features=lncrna_Cao, group.by="Main_cluster_name", scale = F, assay = "RNA") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +  
+  ggtitle("Cao et al. 2020")
+Cao_dotplot
+```
+
+```{r Cao_vlnplot, fig.width=6, fig.height=5}
+Idents(Cao) <- "Main_cluster_name"
+Cao_vlnplot <- Stacked_VlnPlot(Cao, features = lncrna_Cao, x_lab_rotate = TRUE, pt.size = 0.001, plot_spacing = 0.05)
+Cao_vlnplot[[1]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Cao_vlnplot[[2]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Cao_vlnplot[[3]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Cao_vlnplot[[4]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Cao_vlnplot[[5]][[1]]$layers[[2]]$aes_params$alpha <- 0.3
+Cao_vlnplot <- wrap_plots(Cao_vlnplot) + 
+  plot_annotation(title = "Cao et al. 2020") & 
+  theme(plot.title = element_text(hjust = 0.5,      
+                                  face = "bold",     
+                                  size = 15)
+  )
+print(Cao_vlnplot)
+```
+
+
+```{r Cao metadata}
+Cao_CM <- subset(Cao, Main_cluster_name %in% c("Cardiomyocytes"))
+
+metadata <- Cao_CM@meta.data %>%
+  dplyr::select(Fetus_id, Development_day) %>%
+  unique()
+rownames(metadata) <- metadata$Fetus_id
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Remove genes expressed in <1% of cells
+
+```{r Cao_pseudocounts, eval=TRUE}
+expr_matrix <- GetAssayData(object = Cao_CM, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- Cao_CM[which(rownames(Cao_CM) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts <- Seurat2PB(data, sample="Fetus_id", cluster = "Main_cluster_name")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(metadata$Fetus_id, pseudocounts$samples$sample)]
+all(metadata$donor_id == pseudocounts$samples$sample)
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+```{r Cao_DE}
+design<- model.matrix(~ metadata$Development_day)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Cao <- topTags(fit, n = Inf)$table
+results_Cao <- merge(results_Cao, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Cao$up_down <- ifelse(
+  results_Cao$logFC > 0.5 & results_Cao$FDR < 0.05, "Increased",
+  ifelse(results_Cao$logFC < -0.5 & results_Cao$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+results_Cao_lncRNA <- results_Cao %>%
+  dplyr::filter(gene %in% lncrna_Cao)
+reactable(results_Cao_lncRNA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Cao_heatmap_DCM_vs_HC, fig.width=6, fig.height=2}
+counts <- cpm(pseudocounts, log = TRUE)
+
+counts <- counts[rownames(counts) %in% results_Cao_lncRNA$gene, , drop = FALSE]
+
+metadata_matched <- metadata[match(colnames(counts), metadata$Fetus_id), ]
+
+stopifnot(all(colnames(counts) == metadata_matched$Fetus_id))
+
+order_idx <- order(metadata_matched$Development_day)
+
+counts <- counts[, order_idx]
+metadata_matched <- metadata_matched[order_idx, ]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+pheatmap::pheatmap(counts, 
+         color = heat_colors, 
+         cluster_rows = F, 
+         annotation_col = dplyr::select(metadata, Development_day), 
+         border_color = NA, 
+         fontsize = 10, 
+         scale = "row",
+         cluster_cols=F,
+         fontsize_row = 15, 
+         show_rownames = T,
+         show_colnames = F,
+         cellheight = 15,
+         legend_breaks = c(-1.5, 0, 1.5)
+         )
+```
+
+```{r rm Cao}
+rm(Cao)
+```
