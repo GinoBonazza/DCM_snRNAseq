@@ -1,0 +1,643 @@
+---
+title: "Differential expression analysis in all cell types using fibrosis"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "DE_Fibrosis_all_cell_types"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(rtracklayer)
+library(cowplot)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+## DE Fibrosis
+
+Load seurat object
+
+```{r read DCM_RV_integrated}
+DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation_26", "DCM_RV_integrated.rds"))
+```
+
+```{r add fibrosis}
+Fibrosis_data <- read_excel(here::here("data", "Massons_quantification.xlsx"))
+colnames(Fibrosis_data)[3] <- "Fibrosis_percent"
+Fibrosis_data <- Fibrosis_data %>%
+  dplyr::filter(Sample %in% unique(DCM_RV_integrated$Sample))
+Fibrosis_data_DCM <- dplyr::filter(Fibrosis_data, Group=="DCM")
+add_metadata <- left_join(DCM_RV_integrated[["Sample"]], dplyr::select(Fibrosis_data, c("Sample", "Fibrosis_percent")))
+row.names(add_metadata) <- row.names(DCM_RV_integrated[[]])
+DCM_RV_integrated <- AddMetaData(DCM_RV_integrated, metadata = add_metadata)
+rm(add_metadata)
+table(DCM_RV_integrated$Fibrosis_percent)
+```
+
+```{r Speckle_all}
+# Initialize an empty data frame for storing differential abundance results
+differential_abundance <- data.frame()
+props <- getTransformedProps(DCM_RV_integrated$cell_type, DCM_RV_integrated$Sample, transform="logit")
+
+props$Counts <- props$Counts[, Fibrosis_data_DCM$Sample, drop = FALSE]
+props$TransformedProps <- props$TransformedProps[, Fibrosis_data_DCM$Sample, drop = FALSE]
+props$Proportions <- props$Proportions[, Fibrosis_data_DCM$Sample, drop = FALSE]
+Fibrosis_data_DCM <- Fibrosis_data_DCM %>% 
+    arrange(Sample, colnames(props$Proportions))
+design <- model.matrix(~ Fibrosis_data_DCM[["Fibrosis_percent"]])
+fit <- lmFit(props$TransformedProps, design)
+fit <- eBayes(fit, robust=TRUE)
+differential_abundance <- topTable(fit, n = Inf, coef = 2)
+differential_abundance$cell_state <- rownames(differential_abundance)
+
+rm(props, fit)
+
+write.csv(differential_abundance, file = here::here(output_dir_data, "Differential_Abundance_Fibrosis.csv"), quote=F, row.names = F)
+
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r cluster_names}
+cluster_names <- c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Pericytes", "Macrophages", "Lymphocytes", "Smooth muscle cells", "Neuronal cells", "Endocardial cells")
+```
+
+
+Remove genes expressed in <1% of cells
+
+```{r DE_fibrosis, eval=TRUE}
+results_DE_fibrosis <- list()
+signif_DE_fibrosis <- list()
+
+for (cluster in cluster_names) {
+data <- subset(DCM_RV_integrated, cell_type == cluster & Sample %in% Fibrosis_data_DCM$Sample)  
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- data[which(rownames(data) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(Fibrosis_data_DCM$Sample, pseudocounts$samples$sample)]
+all(Fibrosis_data_DCM$Sample == pseudocounts$samples$sample)
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+pseudocounts <- normLibSizes(pseudocounts)
+Fibrosis_data_subset <- Fibrosis_data_DCM %>%
+  dplyr::filter(Sample %in% pseudocounts$samples$sample)
+design <- model.matrix(~ Fibrosis_data_subset[["Fibrosis_percent"]])
+pseudocounts <- estimateDisp(pseudocounts, design)
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+results_DE_fibrosis[[cluster]] <- topTags(fit, n = Inf)$table
+results_DE_fibrosis[[cluster]] <- merge(results_DE_fibrosis[[cluster]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_DE_fibrosis[[cluster]]$up_down <- ifelse(
+  results_DE_fibrosis[[cluster]]$logFC > 0.5 & results_DE_fibrosis[[cluster]]$FDR < 0.05, "Increased",
+  ifelse(results_DE_fibrosis[[cluster]]$logFC < -0.5 & results_DE_fibrosis[[cluster]]$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+signif_DE_fibrosis[[cluster]] <- results_DE_fibrosis[[cluster]] %>%
+  dplyr::filter(FDR < 0.05) %>%
+  dplyr::arrange(FDR)
+}
+```
+
+
+Volcano plots
+
+```{r get_legend}
+get_legend <- function(my_plot) {
+  tmp <- ggplotGrob(my_plot)
+  legend <- tmp$grobs[[which(sapply(tmp$grobs, function(x) x$name) == "guide-box")]]
+  return(legend)
+}
+```
+
+```{r Volcano_up_down, fig.height=9, fig.width=16}
+volcano <- list()
+for (i in seq_along(results_DE_fibrosis)) {
+  keyvals <- rep("grey", nrow(results_DE_fibrosis[[i]]))
+  names(keyvals) <- rep("Not significant", nrow(results_DE_fibrosis[[i]]))
+  
+  keyvals[results_DE_fibrosis[[i]]$up_down == "Increased"] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results_DE_fibrosis[[i]]$up_down == "Decreased"] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+  volcano[[i]] <- EnhancedVolcano(results_DE_fibrosis[[i]],
+                  lab = results_DE_fibrosis[[i]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  legendLabSize = 15,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 1,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 5),
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = names(results_DE_fibrosis)[i],
+                  colCustom = keyvals
+  ) + theme(legend.position = "none")
+  names(volcano)[i] <- names(results_DE_fibrosis)[i]
+}
+
+# Extract the legend from the first plot
+legend <- cowplot::get_legend(volcano[[1]] + theme(legend.position = "right"))
+
+# Combine the individual volcano plots
+combined_plot <- patchwork::wrap_plots(volcano, ncol = 5)
+
+# Use ggdraw and draw_plot to overlay the legend in the bottom-right corner
+final_plot <- cowplot::ggdraw() +
+  cowplot::draw_plot(combined_plot, 0, 0, 1, 1) +    # Place the combined plot to fill the whole canvas
+  cowplot::draw_plot(legend, 0.77, 0.15, 0.25, 0.25)    # Position the legend in the bottom-right
+
+# Print the final plot
+print(final_plot)
+```
+
+
+
+
+## GSEA
+
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r classify_terms}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+```
+
+```{r cluster_names_2}
+cluster_names_2 <- c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Pericytes", "Macrophages", "Lymphocytes", "Smooth muscle cells", "Neuronal cells", "Endocardial cells")
+```
+
+
+```{r GSEA_all, eval=FALSE}
+ranked_genes <- list()
+GSEA_all <- list()
+for (i in seq_along(cluster_names)) {
+  gene_counts <- rowSums(subset(DCM_RV_integrated, cell_type == cluster_names_2[i])@assays$RNA@counts > 0)
+  universe_genes <- names(gene_counts[gene_counts >= 3])
+  universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+  rm(gene_counts)
+  
+  up_genes <- filter(signif_DE_fibrosis[[i]], logFC > 0.5)$gene
+  up_genes <- bitr(up_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+  down_genes <- filter(signif_DE_fibrosis[[i]], logFC < -0.5)$gene
+  down_genes <- bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+  
+  ranked_genes[[i]] <- results_DE_fibrosis[[i]]
+  names(ranked_genes)[i] <- cluster_names[i]
+  ranked_genes[[i]]$metric <- ranked_genes[[i]]$logFC*-log10(ranked_genes[[i]]$PValue)
+  entrezid <- bitr(ranked_genes[[i]]$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+  ranked_genes[[i]] <- merge(ranked_genes[[i]], entrezid, by.x = "gene", by.y = "SYMBOL")
+  ranked_genes[[i]] <- ranked_genes[[i]][!duplicated(ranked_genes[[i]]$metric), ]
+  write.csv(ranked_genes[[i]], file = here::here(output_dir_data, paste0(cluster_names[i], "_ranked_genes.csv")), quote=F, row.names = F)
+  
+  genelist <- ranked_genes[[i]]$metric
+  names(genelist) <- ranked_genes[[i]]$ENTREZID
+  genelist <- genelist[order(genelist, decreasing = T)]
+  
+  GSEA_all[i] <- gseGO(geneList = genelist,
+                       OrgDb = org.Hs.eg.db,
+                       ont = "ALL",
+                       keyType = "ENTREZID",
+                       nPermSimple = 1000000,
+                       minGSSize = 10,
+                       eps = 0)
+  GSEA_all[[i]] <- reorder_GO_by_pvalue(GSEA_all[[i]])
+  names(GSEA_all)[i] <- cluster_names[i]
+  saveRDS(GSEA_all[i], here::here(output_dir_data, paste0(cluster_names[i], "_GSEA_GO_Fibrosis.rds")))
+}
+
+rm(universe_genes, universe_entrez, up_genes, down_genes, genelist)
+
+saveRDS(ranked_genes, here::here(output_dir_data, "ranked_genes_list_Fibrosis.rds"))
+saveRDS(GSEA_all, here::here(output_dir_data, "GSEA_all_list_Fibrosis.rds"))
+```
+
+```{r load GSEA_all}
+GSEA_all <- readRDS(here::here(output_dir_data, "GSEA_all_list_Fibrosis.rds"))
+```
+
+```{r GSEA_Cardiomyocytes, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Cardiomyocytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Cardiomyocytes", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Cardiomyocytes_emapplot, fig.height=10, fig.width=20}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r GSEA_Fibroblasts, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Fibroblasts"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Fibroblasts", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Fibroblasts_emapplot, fig.height=10, fig.width=20}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 70, cex_label_category = 0.7, min_edge = 0.20) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_suppressed, showCategory = 70, cex_label_category = 0.7, min_edge = 0.20) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r GSEA_Endothelial_cells, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Endothelial cells"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Endothelial cells", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 40, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Endothelial_cells_emapplot, fig.height=10, fig.width=20}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+#GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+#p2 <- emapplot(GSEA_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r GSEA_Pericytes, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Pericytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Pericytes", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Pericytes_emapplot, fig.height=10, fig.width=20}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_suppressed, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r GSEA_Macrophages, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Macrophages"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Macrophages", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Macrophages_emapplot, fig.height=10, fig.width=20}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 70, cex_label_category = 0.7, min_edge = 0.20) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_suppressed, showCategory = 70, cex_label_category = 0.7, min_edge = 0.20) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r GSEA_Lymphocytes, fig.height=8, fig.width=8}
+GSEA_simplified <- simplify(
+  GSEA_all[["Lymphocytes"]],
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Lymphocytes", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Lymphocytes_emapplot, fig.height=10, fig.width=10}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, cex_label_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+print(p1)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+```{r FAP, fig.width=3, fig.height=3}
+data <- subset(DCM_RV_integrated, cell_type == "Fibroblasts" & Sample %in% Fibrosis_data_DCM$Sample)  
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- data[which(rownames(data) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(Fibrosis_data_DCM$Sample, pseudocounts$samples$sample)]
+all(Fibrosis_data_DCM$Sample == pseudocounts$samples$sample)
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+pseudocounts <- normLibSizes(pseudocounts)
+
+counts <- cpm(pseudocounts, log = TRUE)
+
+metadata_matched <- Fibrosis_data_DCM[match(colnames(counts), Fibrosis_data_DCM$Sample), ]
+
+stopifnot(all(colnames(counts) == metadata_matched$Sample))
+
+order_idx <- order(metadata_matched$Group)
+
+counts <- counts[, order_idx]
+metadata_matched <- metadata_matched[order_idx, ]
+
+data <- data.frame(FAP = t(counts)[,"FAP"],
+                   Fibrosis = metadata_matched$Fibrosis_percent)
+
+ggplot(data, aes_string(x = "Fibrosis", y = "FAP")) +
+    geom_point() +
+    theme_minimal() +
+    labs(
+      x = "Fibrosis (%)", 
+      y = "FAP (cpm)"
+    )
+```
+
+
+```{r FAP_2, fig.width=8, fig.height=4}
+vlnplot <- VlnPlot(DCM_RV_integrated, group.by = "cell_type", features = "FAP", add.noise = F)
+vlnplot[[1]]$layers[[2]]$aes_params$alpha <- 0.2
+vlnplot
+```
