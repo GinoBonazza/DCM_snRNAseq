@@ -311,7 +311,7 @@ sce = sce[genes_oi, ]
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 abundance_expression_info = process_abundance_expression_info(
   sce = sce, 
   sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, 
@@ -323,22 +323,22 @@ abundance_expression_info = process_abundance_expression_info(
   abundance_info = abundance_info)
 ```
 
-```{r}
+```{r, eval=FALSE}
 abundance_expression_info$celltype_info$pb_df %>% head()
 ```
 
-```{r}
+```{r, eval=FALSE}
 abundance_expression_info$celltype_info$pb_df_group %>% head()
 ```
 
-```{r}
+```{r, eval=FALSE}
 abundance_expression_info$sender_receiver_info$pb_df %>% head()
 
 abundance_expression_info$sender_receiver_info$pb_df_group %>% head()
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 DE_info = get_DE_info(
   sce = sce, 
   sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, 
@@ -348,15 +348,15 @@ DE_info = get_DE_info(
   expressed_df = frq_list$expressed_df)
 ```
 
-```{r}
+```{r, eval=FALSE}
 DE_info$celltype_de$de_output_tidy %>% head()
 ```
 
-```{r, fig.width=15, fig.height=6}
+```{r, fig.width=15, fig.height=6, eval=FALSE}
 DE_info$hist_pvals
 ```
 
-```{r}
+```{r, eval=FALSE}
 empirical_pval = FALSE
 if(empirical_pval == TRUE){
   DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
@@ -367,7 +367,7 @@ if(empirical_pval == TRUE){
 } 
 ```
 
-```{r}
+```{r, eval=FALSE}
 sender_receiver_de = combine_sender_receiver_de(
   sender_de = celltype_de,
   receiver_de = celltype_de,
@@ -384,7 +384,7 @@ p_val_threshold = 0.05
 p_val_adj = FALSE 
 ```
 
-```{r}
+```{r, eval=FALSE}
 geneset_assessment = 	
 contrast_tbl$contrast %>% 
   lapply(
@@ -395,7 +395,7 @@ contrast_tbl$contrast %>%
 geneset_assessment
 ```
 
-```{r}
+```{r, eval=FALSE}
 geneset_assessment_adjustedPval = contrast_tbl$contrast %>% 
   lapply(
     process_geneset_data, 
@@ -410,13 +410,13 @@ geneset_assessment_adjustedPval
 top_n_target = 250
 ```
 
-```{r}
+```{r, eval=FALSE}
 verbose = TRUE
 cores_system = 32
 n.cores = min(cores_system, celltype_de$cluster_id %>% unique() %>% length()) 
 ```
 
-```{r}
+```{r, eval=FALSE}
 ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(
   get_ligand_activities_targets_DEgenes(
     receiver_de = celltype_de,
@@ -432,15 +432,15 @@ ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(
 ))
 ```
 
-```{r}
+```{r, eval=FALSE}
 ligand_activities_targets_DEgenes$ligand_activities %>% head(20)
 ```
 
-```{r}
+```{r, eval=FALSE}
 ligand_activity_down = FALSE
 ```
 
-```{r}
+```{r, eval=FALSE}
 sender_receiver_tbl = sender_receiver_de %>% distinct(sender, receiver)
 
 metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
@@ -470,11 +470,11 @@ prioritization_tables = suppressMessages(generate_prioritization_tables(
   ))
 ```
 
-```{r}
+```{r, eval=FALSE}
 prioritization_tables$group_prioritization_tbl %>% head(20)
 ```
 
-```{r}
+```{r, eval=FALSE}
 lr_target_prior_cor = lr_target_prior_cor_inference(
   receivers_oi = prioritization_tables$group_prioritization_tbl$receiver %>% unique(), 
   abundance_expression_info = abundance_expression_info, 
@@ -488,7 +488,7 @@ lr_target_prior_cor = lr_target_prior_cor_inference(
   )
 ```
 
-```{r}
+```{r, eval=FALSE}
 path = output_dir_data
 
 multinichenet_output = list(
@@ -567,7 +567,7 @@ prioritized_tbl_oi_lo_50 = prioritized_tbl_oi_all %>%
 ```{r, fig.width=21, fig.height=5}
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_M_50 %>% inner_join(lr_network_all)
+  prioritized_tbl_oi_lo_50 %>% inner_join(lr_network_all)
   )
 plot_oi
 ```
@@ -619,7 +619,7 @@ DotPlot(DCM_RV_integrated, c("TGFBR1", "TGFBR2", "TGFBR3", "TGFB1", "TGFB2", "TG
 
 ```{r}
 group_oi = "mPAP35_hi"
-prioritized_tbl_oi_M_50 = get_top_n_lr_pairs(
+prioritized_tbl_oi_hi_50 = get_top_n_lr_pairs(
   multinichenet_output$prioritization_tables, 
   25, 
   groups_oi = group_oi, 
@@ -630,7 +630,7 @@ prioritized_tbl_oi_M_50 = get_top_n_lr_pairs(
 ```{r, fig.width=21, fig.height=12}
 plot_oi = make_sample_lr_prod_activity_plots_Omnipath(
   multinichenet_output$prioritization_tables, 
-  prioritized_tbl_oi_M_50 %>% inner_join(lr_network_all)
+  prioritized_tbl_oi_hi_50 %>% inner_join(lr_network_all)
   )
 plot_oi
 ```
@@ -638,9 +638,9 @@ plot_oi
 ```{r, fig.height=6, fig.width=6}
 prioritized_tbl_oi = 
   multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
-  filter(id %in% prioritized_tbl_oi_M_50$id) %>%
+  filter(id %in% prioritized_tbl_oi_hi_50$id) %>%
   distinct(id, sender, receiver, ligand, receptor, group) %>% 
-  left_join(prioritized_tbl_oi_M_50)
+  left_join(prioritized_tbl_oi_hi_50)
 prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
 
 senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
