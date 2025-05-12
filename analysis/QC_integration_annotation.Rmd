@@ -675,6 +675,20 @@ barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = color_pal
 legend("topright", inset = c(-0.34, -0.065), legend = rownames(props$Proportions), fill = color_palette, bty = "n", cex = 2)
 ```
 
+```{r Barplot_Sample, fig.height=6, fig.width=7, message=FALSE}
+color_palette_all <- c("#F8766D", "#00C1AB", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
+                   "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
+color_palette <- c("#F8766D", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
+                   "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
+
+props <- getTransformedProps(DCM_RV_integrated$cell_type, DCM_RV_integrated$Group, transform="logit")
+
+par(mar = c(7, 5, 1, 20), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = color_palette, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-2, -0.065), legend = rownames(props$Proportions), fill = color_palette, bty = "n", cex = 2)
+```
+
 ```{r Barplot_cell_type, fig.height=6, fig.width=12, message=FALSE}
 color_palette_all <- c("#F8766D", "#00C1AB", "#24B700", "#E18A00", "#00ACFC", "#D575FE", "#BE9C00", "#00BE70", 
                    "#8CAB00", "#00BBDA", "#FF65AC", "#8B93FF", "#EA8331")
