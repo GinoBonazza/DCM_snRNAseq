@@ -1,0 +1,245 @@
+---
+title: "Figures for manuscript"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Figures_manuscript"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(rtracklayer)
+library(cowplot)
+library(nichenetr)
+library(multinichenetr)
+library(muscat)
+
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+```{r read DCM_RV_integrated}
+DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_integrated.rds"))
+```
+
+```{r cols}
+cell_type_cols <- c("#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A", "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9")  
+sample_cols <- DiscretePalette_scCustomize(num_colors = 25, palette = "alphabet", shuffle_pal = TRUE, seed = 220510)
+batch_cols <- DiscretePalette_scCustomize(num_colors = 8, palette = "alphabet", shuffle_pal = TRUE, seed = 102205)
+cluster_cols <- DiscretePalette_scCustomize(num_colors = 14, palette = "alphabet", shuffle_pal = TRUE, seed = 100522)
+```
+
+```{r plot_cols, fig.height=5, fig.width=10}
+PalettePlot(cell_type_cols) + 
+  PalettePlot(sample_cols) + 
+  PalettePlot(batch_cols) + 
+  PalettePlot(cluster_cols)
+```
+
+```{r UMAP_cell_type, fig.width=7, fig.height=6}
+p <- DimPlot(
+        DCM_RV_integrated,
+        group.by  = "cell_type",
+        reduction = "umap",
+        cols      = cell_type_cols,       
+        label     = FALSE,
+        shuffle=T,
+        pt.size = 1.2
+        ) +
+     NoLegend() +
+     theme(axis.text  = element_text(size = 10, face = "bold"),
+           axis.title = element_text(size = 14, face = "bold"),
+           plot.title = element_blank())
+
+LabelClusters(p,
+              id       = "cell_type",
+              fontface = "bold",
+              size     = 6,
+              repel    = TRUE)
+```
+
+```{r UMAP_cell_type_2, fig.width=6, fig.height=6}
+p <- DimPlot(
+        DCM_RV_integrated,
+        group.by  = "cell_type",
+        reduction = "umap",
+        cols      = cell_type_cols,       
+        label     = FALSE,
+        shuffle=T,
+        pt.size = 1.2
+        ) +
+     NoLegend() +
+     theme(axis.text  = element_text(size = 8, face = "bold"),
+           axis.title = element_text(size = 12, face = "bold"),
+           plot.title = element_blank())
+
+LabelClusters(p,
+              id       = "cell_type",
+              fontface = "bold",
+              size     = 5.8,
+              repel    = TRUE)
+```
+
+```{r load markers}
+Markers_top3 <- read.csv(here::here("output", "QC_integration_annotation", "DCM_RV_Markers_top3_cell_type.csv"))
+Markers_top3 <- Markers_top3[-c(28),]
+Idents(DCM_RV_integrated) <- factor(
+  Idents(DCM_RV_integrated),
+  levels = rev(levels(Idents(DCM_RV_integrated)))
+)
+```
+
+```{r DotPlot_markers, fig.width=10.5, fig.height=6}
+p <- DotPlot_scCustom(
+        DCM_RV_integrated,
+        features       = Markers_top3$gene,
+        x_lab_rotate   = TRUE
+)
+
+p + theme(
+      axis.text.x  = element_text(size = 12,        
+                                  angle = 60,          
+                                  vjust = 1,
+                                  hjust = 1),
+      axis.text.y  = element_text(size = 15))         
+```
+
+```{r QC_sample, fig.width=14, fig.height=6}
+VlnPlot_scCustom(DCM_RV_integrated, features=c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp"), group.by="Sample", num_columns=2, pt.size = 0, colors_use = sample_cols) & theme(axis.title.x = element_blank())
+```
+
+```{r QC_batch, fig.width=14, fig.height=6}
+VlnPlot_scCustom(DCM_RV_integrated, features=c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp"), group.by="Batch_processing", num_columns=2, pt.size = 0, colors_use = batch_cols) & theme(axis.title.x = element_blank())
+```
+
+```{r QC_cell_type, fig.width=14, fig.height=7}
+VlnPlot_scCustom(DCM_RV_integrated, features=c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp"), group.by="cell_type", num_columns=2, pt.size = 0, colors_use = cell_type_cols) & theme(axis.title.x = element_blank())
+```
+
+```{r UMAPs, fig.height=5, fig.width=16.5}
+DimPlot_scCustom(DCM_RV_integrated, group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing"), num_columns = 3, colors_use = c(cluster_cols, sample_cols, batch_cols))
+```
+
+```{r Clustree, fig.width=7, fig.height=8}
+res_names <- sub("SCT_snn_res\\.", "", grep("SCT_snn_res", names(DCM_RV_integrated@meta.data), value = TRUE))
+
+clustree_cols <- sample_cols[c(2, 3, 4, 6, 12, 17, 23, 25)]
+
+set.seed(220510)
+clustree_cols <- sample(clustree_cols)
+
+names(clustree_cols) <- res_names[seq_along(clustree_cols)]      
+
+clustree(
+  DCM_RV_integrated@meta.data[, grep("SCT_snn_res", names(DCM_RV_integrated@meta.data))],
+  prefix = "SCT_snn_res."
+) +
+  scale_colour_manual(values = clustree_cols, name = "resolution") +  
+  scale_fill_manual(values = clustree_cols,  name = "resolution")    
+```
+
+```{r heatmap cols}
+Markers_top10 <- read.csv(here::here("output", "QC_integration_annotation", "DCM_RV_Markers_top10_cell_type.csv"))
+
+heatmap_cols <- colorRampPalette(RColorBrewer::brewer.pal(9,"RdBu"))(256)
+heatmap_cols <- rev(heatmap_cols[1:256])
+```
+
+```{r Heatmap, fig.width=12, fig.height=10}
+genes.use <- intersect(
+  Markers_top10$gene,
+  rownames(DCM_RV_integrated[["SCT"]]@scale.data)
+)
+DefaultAssay(DCM_RV_integrated) <- "SCT"
+Heatmap <- DoHeatmap(subset(DCM_RV_integrated, cells = sample(colnames(DCM_RV_integrated), 10000)),
+                     features = genes.use,
+                     label = FALSE,
+                     draw.line = TRUE,
+                     group.by = "cell_type",
+                     group.colors = cell_type_cols,
+                     lines.width = 1) +
+  scale_fill_gradientn(colours = heatmap_cols) + 
+  theme(text = element_text(size = 15), 
+        axis.text.y = element_text(size = 6))
+Heatmap
+```
+
+```{r Barplot_Sample, fig.height=6, fig.width=15, message=FALSE}
+props <- getTransformedProps(DCM_RV_integrated$cell_type, DCM_RV_integrated$Sample, transform="logit")
+
+par(mar = c(7, 5, 1, 18), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = cell_type_cols, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-0.34, -0.065), legend = rownames(props$Proportions), fill = cell_type_cols, bty = "n", cex = 2)
+```
