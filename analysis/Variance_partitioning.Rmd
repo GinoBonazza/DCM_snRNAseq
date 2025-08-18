@@ -1,0 +1,237 @@
+---
+title: "Variance partitioning analysis"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Variance_partitioning"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(msigdbr)
+library(simplifyEnrichment)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+library(variancePartition)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+Load cardiomyocytes dataset
+
+```{r read DCM_RV}
+DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_integrated_RNA.rds"))
+DefaultAssay(DCM_RV) <- "RNA"
+```
+
+```{r}
+DCM_RV_DCM <- subset(DCM_RV, Group=="DCM")
+```
+
+```{r meta, fig.height=6, fig.width=12}
+meta <- DCM_RV_DCM@meta.data %>% 
+  dplyr::select(c("Sample",
+                  "Age_years",
+                  "mPAP_mmHg",
+                  "sPAP_mmHg",
+                  "PCW_mmHg",
+                  "PVR_WU",
+                  "TAPSE_mm",
+                  "RVID_mm",
+                  "LVEF_percent",
+                  "LVEDD_mm")
+                ) %>% 
+  distinct() %>% 
+  arrange(match(Sample, unique(DCM_RV_DCM$Sample))) %>% 
+  dplyr::rename(
+    `Age (years)`    = Age_years,
+    `mPAP (mmHg)`    = mPAP_mmHg,
+    `sPAP (mmHg)`    = sPAP_mmHg,
+    `PCW (mmHg)`     = PCW_mmHg,
+    `PVR (WU)`       = PVR_WU,
+    `TAPSE (mm)`     = TAPSE_mm,
+    `RVID (mm)`      = RVID_mm,
+    `LVEF (%)`       = LVEF_percent,
+    `LVEDD (mm)`     = LVEDD_mm
+  )
+
+
+rownames(meta) <- meta$Sample
+
+DCM_RV_DCM$pseudobulk <- "Pseudobulk"
+
+pb <- Seurat2PB(
+        DCM_RV_DCM,
+        sample   = "Sample",
+        cluster    = "pseudobulk")
+
+colnames(pb) <- pb$samples$sample
+keep_samples <- pb$samples$lib.size > 5e4
+pb <- pb[, keep_samples]
+keep_genes <- filterByExpr(pb)
+pb <- pb[keep_genes, ]
+
+pb <- pb[, meta$Sample]
+
+all.equal(colnames(pb), rownames(meta))
+
+meta$LibSize        <- pb$samples$lib.size
+meta$log10_LibSize  <- log10(meta$LibSize)
+
+vobj <- voomWithDreamWeights(pb, ~ 1, meta)
+
+form <- ~ `Age (years)` +
+  `TAPSE (mm)` +
+  `RVID (mm)` +
+  `LVEF (%)` +
+  `LVEDD (mm)` + 
+  `mPAP (mmHg)` +
+  `PCW (mmHg)` +
+  `PVR (WU)` +
+  `LibSize`
+
+varPart <- fitExtractVarPartModel(
+            vobj, form, meta,
+            missing = "pairwise",        
+            BPPARAM = MulticoreParam(30)) 
+
+colnames(varPart) <- gsub("`", "", colnames(varPart))
+vp_mean <- sort(colMeans(varPart), decreasing = TRUE)
+
+barplot(vp_mean,
+        las  = 2,
+        ylab = "Mean fraction of variance explained",
+        main = "Variance partitioning across all genes\n(pseudobulk, all cell types)")
+
+plotVarPart(varPart)  
+```
+
+```{r Var_part_barplot, fig.height=4, fig.width=6}
+df <- data.frame(variable = names(vp_mean),
+                 value = vp_mean)
+
+ggplot(df, aes(x = reorder(variable, -value), y = value)) +
+  geom_col(fill = "grey70") +
+  labs(
+    y = "Mean fraction of variance explained",
+    x = NULL,
+    title = "Variance partitioning across all genes\n(pseudobulk)"
+  ) +
+  theme_classic(base_size = 14) +   # clean theme
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold", color = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12, color = "black"),
+    axis.text.y = element_text(size = 12, color = "black"),
+    axis.title.y = element_text(size = 14, color = "black"),
+    axis.line = element_line(color = "black"),   
+    panel.border = element_blank(),              
+    panel.grid = element_blank()                 
+  )
+```
+
+```{r Var_part_vln, fig.height=4, fig.width=6}
+p <- plotVarPart(varPart) +
+  theme_classic(base_size = 14) +
+  theme(
+    axis.text.x  = element_text(angle = 45, hjust = 1, size = 12, color = "black"),
+    axis.text.y  = element_text(size = 12, color = "black"),
+    axis.title.y = element_text(size = 14, color = "black"),
+    plot.title   = element_text(hjust = 0.5, face = "bold"),
+    panel.grid   = element_blank(),
+    panel.border = element_blank(),
+    axis.line    = element_line(color = "black"),
+    legend.position = "none"
+  ) 
+
+p
+```
+
+```{r Var_part_vln_sorted, fig.height=4, fig.width=6}
+vp_order <- names(sort(colMeans(varPart), decreasing = TRUE))
+
+p <- plotVarPart(varPart) +
+  scale_x_discrete(limits = vp_order) +   # enforce order
+  theme_classic(base_size = 14) +
+  theme(
+    axis.text.x  = element_text(angle = 45, hjust = 1, size = 12, color = "black"),
+    axis.text.y  = element_text(size = 12, color = "black"),
+    axis.title.y = element_text(size = 14, color = "black"),
+    plot.title   = element_text(hjust = 0.5, face = "bold"),
+    panel.grid   = element_blank(),
+    panel.border = element_blank(),
+    axis.line    = element_line(color = "black"),
+    legend.position = "none"
+  )
+
+p
+```
+
