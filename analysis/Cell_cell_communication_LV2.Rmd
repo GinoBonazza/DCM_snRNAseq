@@ -790,12 +790,13 @@ t2 <- ggplot() + labs(title = "Koenig et al. 2022\nEndothelial cells") +
 
 # arrange: titles on top row, plots below
 ((t1 | t2) / (p1 | p2)) + plot_layout(heights = c(0.08, 1))
+ggplot2::update_geom_defaults("point", list(size = 0.5, alpha = 1))
 
 ```
 
 ## Reichart Fibroblasts DE DCM vs HC
 
-```{r}
+```{r, eval=FALSE}
 library(zellkonverter)
 
 sce <- readH5AD("/scratch/gbonaz/Heart_datasets/Reichart_2022/c6851627-0ee9-40ff-9ce4-0dbdec73aa0b.h5ad")
@@ -809,19 +810,22 @@ Reichart_gene_names <- data.frame(
 )
 rownames(fb@assays[["originalexp"]]@data) <- fb@assays[["originalexp"]]@meta.features$feature_name
 rownames(fb@assays[["originalexp"]]@counts) <- fb@assays[["originalexp"]]@meta.features$feature_name
-
-Idents(fb) <- fb$cell_states
-```
-
-```{r add metadata fb}
 Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
 add_metadata <- left_join(fb[["donor_id"]], Clinical_data)
 row.names(add_metadata) <- row.names(fb[[]])
 fb <- AddMetaData(fb, metadata = add_metadata)
 rm(add_metadata, Clinical_data)
+saveRDS(fb, here::here(output_dir_data, "Reichart_FB.rds"))
 ```
 
-```{r subset fb}
+```{r}
+fb <- readRDS(here::here(output_dir_data, "Reichart_FB.rds"))
+DefaultAssay(fb) <- "originalexp"
+
+Idents(fb) <- fb$cell_states
+```
+
+```{r}
 fb <- subset(
   fb, 
   disease %in% c("dilated cardiomyopathy", "normal") &
@@ -981,7 +985,7 @@ volcano <- EnhancedVolcano(results_fb,
 volcano
 ```
 
-```{r Heatmap_top_DEGs_mPAP, fig.width=10, fig.height=5}
+```{r, fig.width=10, fig.height=5}
 signif_fb$metric <- signif_fb$logFC*-log10(signif_fb$PValue)
 
 DEGs_top_up <- signif_fb %>% 
@@ -996,12 +1000,13 @@ rm(DEGs_top_up, DEGs_top_down)
 
 counts <- cpm(pseudocounts, log = TRUE)
 
+fb_metadata$Group <- fb_metadata$Group_CCC
+
 fb_metadata <- fb_metadata %>%
   dplyr::arrange(Group)
 counts_heatmap <- counts[DEGs_top$gene, ]
 counts_heatmap <- counts_heatmap[, fb_metadata$donor_id, drop = FALSE]
 
-fb_metadata$Group <- fb_metadata$Group_CCC
 
 # 1) Build the annotation data.frame aligned to your matrix columns
 ann_col <- fb_metadata %>%
@@ -1050,7 +1055,7 @@ pheatmap::pheatmap(
 
 ```
 
-```{r Speckle_Group, fig.height=4, fig.width=20}
+```{r, fig.height=4, fig.width=20}
 fb_metadata$Group_CCC <- factor(fb_metadata$Group_CCC, levels = c("HC", "DCM"))
 
 props <- getTransformedProps(fb$cell_states, fb$donor_id, transform="logit")
@@ -1139,15 +1144,14 @@ Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt 
 write.csv(Markers_top3, here::here(output_dir_data, "Reichart_fb_top10.csv"))
 ```
 
-```{r load markers}
-Markers_top3 <- read.csv(here::here(output_dir_data, "Reichart_fb_top10.csv"))
+```{r}
 Idents(fb) <- factor(
   Idents(fb),
   levels = rev(levels(Idents(fb)))
 )
 ```
 
-```{r DotPlot_markers, fig.width=10.5, fig.height=6}
+```{r, fig.width=10.5, fig.height=6}
 p <- DotPlot_scCustom(
         fb,
         features       = Markers_top3$gene,
@@ -1171,7 +1175,7 @@ heatmap_cols <- rev(heatmap_cols[1:256])
 fb <- ScaleData(fb)
 ```
 
-```{r Heatmap, fig.width=8, fig.height=6}
+```{r, fig.width=8, fig.height=6}
 genes.use <- intersect(
   Markers_top10$gene,
   rownames(fb[["originalexp"]]@scale.data)
@@ -1191,7 +1195,7 @@ Heatmap
 
 ## Koenig Fibroblasts DE DCM vs HC
 
-```{r subset fb_K}
+```{r}
 fb_K <- subset(
   Koenig, 
   Names == "Fibroblasts"
@@ -1333,7 +1337,7 @@ volcano <- EnhancedVolcano(results_fb_K,
 volcano
 ```
 
-```{r Heatmap_top_DEGs_mPAP, fig.width=10, fig.height=5}
+```{r, fig.width=10, fig.height=5}
 signif_fb_K$metric <- signif_fb_K$logFC*-log10(signif_fb_K$PValue)
 
 DEGs_top_up <- signif_fb_K %>% 
