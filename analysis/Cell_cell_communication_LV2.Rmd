@@ -476,66 +476,6 @@ table(Koenig$Sample)
 ```
 
 ```{r}
-organism = "human"
-
-if(organism == "human"){
-  
-  lr_network_all = 
-    readRDS(url(
-      "https://zenodo.org/record/10229222/files/lr_network_human_allInfo_30112033.rds"
-      )) %>% 
-    mutate(
-      ligand = convert_alias_to_symbols(ligand, organism = organism), 
-      receptor = convert_alias_to_symbols(receptor, organism = organism))
-  
-  lr_network_all = lr_network_all  %>% 
-    mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
-  
-  lr_network = lr_network_all %>% 
-    distinct(ligand, receptor)
-  
-  ligand_target_matrix = readRDS(url(
-    "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"
-    ))
-  
-  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% 
-    convert_alias_to_symbols(organism = organism) %>% make.names()
-  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% 
-    convert_alias_to_symbols(organism = organism) %>% make.names()
-  
-  lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
-  ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
-  
-} else if(organism == "mouse"){
-  
-  lr_network_all = readRDS(url(
-    "https://zenodo.org/record/10229222/files/lr_network_mouse_allInfo_30112033.rds"
-    )) %>% 
-    mutate(
-      ligand = convert_alias_to_symbols(ligand, organism = organism), 
-      receptor = convert_alias_to_symbols(receptor, organism = organism))
-  
-  lr_network_all = lr_network_all  %>% 
-    mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
-  lr_network = lr_network_all %>% 
-    distinct(ligand, receptor)
-  
-  ligand_target_matrix = readRDS(url(
-    "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final_mouse.rds"
-    ))
-  
-  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% 
-    convert_alias_to_symbols(organism = organism) %>% make.names()
-  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% 
-    convert_alias_to_symbols(organism = organism) %>% make.names()
-  
-  lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
-  ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
-  
-}
-```
-
-```{r}
 sce <- Seurat::as.SingleCellExperiment(Koenig, assay = "RNA")
 
 sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
@@ -853,3 +793,609 @@ t2 <- ggplot() + labs(title = "Koenig et al. 2022\nEndothelial cells") +
 
 ```
 
+## Reichart Fibroblasts DE DCM vs HC
+
+```{r}
+library(zellkonverter)
+
+sce <- readH5AD("/scratch/gbonaz/Heart_datasets/Reichart_2022/c6851627-0ee9-40ff-9ce4-0dbdec73aa0b.h5ad")
+
+fb <- as.Seurat(sce, counts = "X", data = NULL)
+DefaultAssay(fb) <- "originalexp"
+
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(fb),
+  gene_symbol = fb@assays[["originalexp"]]@meta.features$feature_name
+)
+rownames(fb@assays[["originalexp"]]@data) <- fb@assays[["originalexp"]]@meta.features$feature_name
+rownames(fb@assays[["originalexp"]]@counts) <- fb@assays[["originalexp"]]@meta.features$feature_name
+
+Idents(fb) <- fb$cell_states
+```
+
+```{r add metadata fb}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(fb[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(fb[[]])
+fb <- AddMetaData(fb, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+```
+
+```{r subset fb}
+fb <- subset(
+  fb, 
+  disease %in% c("dilated cardiomyopathy", "normal") &
+    tissue == "heart left ventricle"
+)
+
+table(fb$cell_type, fb$disease)
+```
+
+```{r}
+fb@meta.data <- fb@meta.data %>%
+  mutate(Group_CCC = case_when(
+    disease == "normal" ~ "HC",
+    disease == "dilated cardiomyopathy" ~ "DCM"
+  ))
+
+fb@meta.data$cell_states_2 <- make.names(fb@meta.data$cell_states)
+
+```
+
+```{r, fig.width=9, fig.height=4}
+fb$Group <- fb$Group_CCC 
+DimPlot(fb, group.by = c("Group", "cell_states"), reduction = "X_umap", label = F, shuffle = TRUE, pt.size = 0.1) 
+```
+
+```{r, fig.width=8, fig.height=4}
+DimPlot(fb, group.by = c("cell_states"), reduction = "X_umap", label = F, shuffle = TRUE, split.by = "Group", pt.size = 0.001) + 
+  theme(plot.title = element_blank())
+```
+
+Prepare matadata for differential expression testing
+
+```{r}
+fb_metadata <- fb@meta.data %>%
+  dplyr::select(donor_id, Primary.Genetic.Diagnosis, disease, sex, Group_CCC) %>%
+  unique()
+
+rownames(fb_metadata) <- fb_metadata$donor_id
+table(fb$donor_id)[table(fb$donor_id) > 0]
+
+all.equal(rownames(fb_metadata), names(table(fb$donor_id)[table(fb$donor_id) > 0]))
+
+reactable(fb_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Remove genes expressed in <1% of cells
+
+```{r}
+expr_matrix <- GetAssayData(object = fb, assay = "originalexp", slot = "counts")
+
+# Calculate the number of cells where each gene is expressed (non-zero counts)
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+# Calculate the total number of cells
+total_cells <- ncol(expr_matrix)
+
+# Calculate the percentage of cells expressing each gene
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+# Create a dataframe to store the results
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- fb[which(rownames(fb) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r}
+data <- RenameAssays(data, originalexp = "RNA")
+
+Assays(data)   
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(fb_metadata$donor_id, pseudocounts$samples$sample)]
+all(fb_metadata$donor_id == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+DE analysis
+
+```{r}
+fb_metadata$disease <- factor(fb_metadata$disease, levels = c("normal", "dilated cardiomyopathy"))
+design<- model.matrix(~ disease, data = fb_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_fb <- topTags(fit, n = Inf)$table
+results_fb <- merge(results_fb, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_fb <- results_fb %>%
+  dplyr::select(-feature_biotype, -feature_is_filtered, -feature_name, -feature_reference, -feature_length)
+results_fb$up_down <- ifelse(
+  results_fb$logFC > 0.5 & results_fb$FDR < 0.05, "Increased",
+  ifelse(results_fb$logFC < -0.5 & results_fb$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_fb <- results_fb %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_fb, file = here::here(output_dir_data, "fb_DE_Results.csv"), quote=F, row.names = F)
+write.csv(signif_fb, file = here::here(output_dir_data, "fb_DE_Significant.csv"), quote=F, row.names = F)
+```
+
+```{r, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_fb))
+names(keyvals) <- rep("Not significant", nrow(results_fb))
+
+keyvals[results_fb$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_fb$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_fb,
+                lab = results_fb$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 16),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Fibroblasts\nDCM (n=49) vs HC (n=19)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_top_DEGs_mPAP, fig.width=10, fig.height=5}
+signif_fb$metric <- signif_fb$logFC*-log10(signif_fb$PValue)
+
+DEGs_top_up <- signif_fb %>% 
+  dplyr::arrange(desc(metric)) %>%
+  slice_head(n=10)
+DEGs_top_down <- signif_fb %>% 
+  dplyr::arrange(metric) %>%
+  slice_head(n=10)
+
+DEGs_top <- dplyr::bind_rows(DEGs_top_up, DEGs_top_down)
+rm(DEGs_top_up, DEGs_top_down)
+
+counts <- cpm(pseudocounts, log = TRUE)
+
+fb_metadata <- fb_metadata %>%
+  dplyr::arrange(Group)
+counts_heatmap <- counts[DEGs_top$gene, ]
+counts_heatmap <- counts_heatmap[, fb_metadata$donor_id, drop = FALSE]
+
+fb_metadata$Group <- fb_metadata$Group_CCC
+
+# 1) Build the annotation data.frame aligned to your matrix columns
+ann_col <- fb_metadata %>%
+  dplyr::filter(donor_id %in% colnames(counts)) %>%                            # if you have a donor_id key
+  dplyr::arrange(match(donor_id, colnames(counts))) %>%
+  dplyr::select(Group) %>%
+  as.data.frame()
+rownames(ann_col) <- colnames(counts)
+
+# (optional) lock desired order
+ann_col$Group <- factor(ann_col$Group, levels = c("HC","DCM"))
+
+# 2) Make a named color vector that matches the present levels
+lvl <- levels(ann_col$Group)
+# if you specifically want HC/DCM colors:
+palette_group <- c(HC = "#1f77b4", DCM = "#d62728")
+ann_colors <- list(Group = setNames(palette_group[lvl], lvl))
+# If levels are unknown beforehand, use this instead:
+# vals <- unique(as.character(ann_col$Group))
+# ann_colors <- list(Group = setNames(c("#1f77b4","#d62728","#2ca02c","#9467bd")[seq_along(vals)], vals))
+
+# 3) Heatmap colors
+heatmap_cols <- colorRampPalette(c("#004C8C", "white", "#A63A2A"))(101)
+
+# 4) Plot
+pheatmap::pheatmap(
+  counts_heatmap,
+  name = " ",
+  angle_col = 45,                 # numeric is fine
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  show_rownames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 6,
+  cellheight = 15,
+  gaps_col = c(0,0,0,0)
+  )
+
+```
+
+```{r Speckle_Group, fig.height=4, fig.width=20}
+fb_metadata$Group_CCC <- factor(fb_metadata$Group_CCC, levels = c("HC", "DCM"))
+
+props <- getTransformedProps(fb$cell_states, fb$donor_id, transform="logit")
+
+
+DA_metadata <- fb_metadata %>%
+  dplyr::arrange(match(donor_id, colnames(props$Counts)))
+
+identical(colnames(props$Counts), DA_metadata$donor_id)
+
+design <- model.matrix(~ 0 + DA_metadata$Group_CCC)
+colnames(design) <- c("HC", "DCM")
+mycontr <- makeContrasts(DCM-HC, levels=design)
+differential_abundance <- propeller.ttest(props, design, contrasts = mycontr, robust=TRUE, trend=FALSE, sort=TRUE)
+
+write.csv(differential_abundance, file = here::here(output_dir_data, "Differential_Abundance_fb.csv"), row.names = F)
+
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+```
+
+```{r, fig.height=3, fig.width=16}
+prop_mat <- as.matrix(props$Proportions)
+stopifnot(is.matrix(prop_mat))
+
+# 2) Long format
+prop_long <- as.data.frame.matrix(prop_mat) %>%           # <-- important: *.matrix
+  tibble::rownames_to_column("state") %>%
+  pivot_longer(cols = -state, names_to = "donor_id", values_to = "prop") %>%
+  mutate(donor_id = as.character(donor_id),
+         state    = factor(state, levels = rownames(prop_mat))) %>%
+  left_join(DA_metadata %>% dplyr::select(donor_id, Group_CCC) %>% distinct(),
+            by = "donor_id") %>%
+  mutate(Group_CCC = factor(Group_CCC, levels = c("HC","DCM")))
+
+# ---- Build labels from propeller results ----
+# rownames of differential_abundance should be the state names
+lab_df <- differential_abundance %>%
+  mutate(state = rownames(differential_abundance),
+         label = ifelse(FDR < 0.05, paste0("FDR=", signif(FDR, 2)), "ns")) %>%
+  dplyr::select(state, label)
+
+# y-position for labels (a little above the highest point per facet)
+y_pos <- prop_long %>%
+  group_by(state) %>%
+  summarise(y = max(prop, na.rm = TRUE) * 1.08, .groups = "drop")
+
+lab_plot <- left_join(lab_df, y_pos, by = "state")
+
+# ---- Colors (classic blue/red) ----
+cols <- c(HC = "#1f77b4", DCM = "#d62728")
+
+# ---- Plot ----
+p <- ggplot(prop_long, aes(x = Group_CCC, y = prop, fill = Group_CCC, color = Group_CCC)) +
+  geom_boxplot(width = 0.6, outlier.shape = NA, alpha = 0.35) +
+  geom_jitter(width = 0.12, size = 1.8, alpha = 0.9) +
+  facet_wrap(~ state, nrow = 1, scales = "free_y") +
+  geom_text(data = lab_plot, aes(x = 1.5, y = y, label = label),
+            inherit.aes = FALSE, size = 4.5) +
+  scale_fill_manual(values = cols) +
+  scale_color_manual(values = cols) +
+  labs(x = NULL, y = "Proportions") +
+  theme_classic(base_size = 14) +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.title.y = element_text(size = 13),
+    panel.spacing = unit(1.5, "lines")
+  )
+
+p
+```
+
+```{r}
+DefaultAssay(fb) <- "originalexp"
+Idents(fb) <- "cell_states"
+Markers <- FindAllMarkers(fb, only.pos = TRUE, min.pct = 0.5, logfc.threshold = 0.5)
+write.csv(Markers, here::here(output_dir_data, "Reichart_fb_Markers.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "Reichart_fb_top10.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "Reichart_fb_top10.csv"))
+```
+
+```{r load markers}
+Markers_top3 <- read.csv(here::here(output_dir_data, "Reichart_fb_top10.csv"))
+Idents(fb) <- factor(
+  Idents(fb),
+  levels = rev(levels(Idents(fb)))
+)
+```
+
+```{r DotPlot_markers, fig.width=10.5, fig.height=6}
+p <- DotPlot_scCustom(
+        fb,
+        features       = Markers_top3$gene,
+        x_lab_rotate   = TRUE
+)
+
+p + theme(
+      axis.text.x  = element_text(size = 12,        
+                                  angle = 60,          
+                                  vjust = 1,
+                                  hjust = 1),
+      axis.text.y  = element_text(size = 15))         
+```
+
+```{r}
+heatmap_cols <- colorRampPalette(RColorBrewer::brewer.pal(9,"RdBu"))(256)
+heatmap_cols <- rev(heatmap_cols[1:256])
+```
+
+```{r}
+fb <- ScaleData(fb)
+```
+
+```{r Heatmap, fig.width=8, fig.height=6}
+genes.use <- intersect(
+  Markers_top10$gene,
+  rownames(fb[["originalexp"]]@scale.data)
+)
+DefaultAssay(fb) <- "originalexp"
+Heatmap <- DoHeatmap(subset(fb, cells = sample(colnames(fb), 10000)),
+                     features = genes.use,
+                     label = FALSE,
+                     draw.line = TRUE,
+                     group.by = "cell_states",
+                     lines.width = 1) +
+  scale_fill_gradientn(colours = heatmap_cols) + 
+  theme(text = element_text(size = 15), 
+        axis.text.y = element_text(size = 7))
+Heatmap
+```
+
+## Koenig Fibroblasts DE DCM vs HC
+
+```{r subset fb_K}
+fb_K <- subset(
+  Koenig, 
+  Names == "Fibroblasts"
+)
+
+table(fb_K$Names, fb_K$Condition)
+```
+
+```{r}
+fb_K@meta.data <- fb_K@meta.data %>%
+  mutate(Group = case_when(
+    Condition == "Donor" ~ "HC",
+    Condition == "DCM" ~ "DCM"
+  ))
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(fb_K, group.by = c("Group"), reduction = "umap", label = F, shuffle = TRUE, pt.size = 0.1) 
+```
+
+Prepare matadata for differential expression testing
+
+```{r}
+fb_K_metadata <- fb_K@meta.data %>%
+  dplyr::select(orig.ident, Group) %>%
+  unique()
+
+rownames(fb_K_metadata) <- fb_K_metadata$orig.ident
+
+reactable(fb_K_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Remove genes expressed in <1% of cells
+
+```{r}
+expr_matrix <- GetAssayData(object = fb_K, assay = "RNA", slot = "counts")
+
+# Calculate the number of cells where each gene is expressed (non-zero counts)
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+# Calculate the total number of cells
+total_cells <- ncol(expr_matrix)
+
+# Calculate the percentage of cells expressing each gene
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+# Create a dataframe to store the results
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- fb_K[which(rownames(fb_K) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="orig.ident", cluster = "Names")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(fb_K_metadata$orig.ident, pseudocounts$samples$sample)]
+all(fb_K_metadata$orig.ident == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+DE analysis
+
+```{r}
+fb_K_metadata$Group <- factor(fb_K_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = fb_K_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_fb_K <- topTags(fit, n = Inf)$table
+results_fb_K <- merge(results_fb_K, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_fb_K$up_down <- ifelse(
+  results_fb_K$logFC > 0.5 & results_fb_K$FDR < 0.05, "Increased",
+  ifelse(results_fb_K$logFC < -0.5 & results_fb_K$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_fb_K <- results_fb_K %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_fb_K, file = here::here(output_dir_data, "fb_K_DE_Results.csv"), quote=F, row.names = F)
+write.csv(signif_fb_K, file = here::here(output_dir_data, "fb_K_DE_Significant.csv"), quote=F, row.names = F)
+```
+
+```{r, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_fb_K))
+names(keyvals) <- rep("Not significant", nrow(results_fb_K))
+
+keyvals[results_fb_K$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_fb_K$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_fb_K,
+                lab = results_fb_K$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Fibroblasts\nDCM (n=13) vs HC (n=25)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_top_DEGs_mPAP, fig.width=10, fig.height=5}
+signif_fb_K$metric <- signif_fb_K$logFC*-log10(signif_fb_K$PValue)
+
+DEGs_top_up <- signif_fb_K %>% 
+  dplyr::arrange(desc(metric)) %>%
+  slice_head(n=10)
+DEGs_top_down <- signif_fb_K %>% 
+  dplyr::arrange(metric) %>%
+  slice_head(n=10)
+
+DEGs_top <- dplyr::bind_rows(DEGs_top_up, DEGs_top_down)
+rm(DEGs_top_up, DEGs_top_down)
+
+counts <- cpm(pseudocounts, log = TRUE)
+
+fb_K_metadata <- fb_K_metadata %>%
+  dplyr::arrange(Group)
+counts_heatmap <- counts[DEGs_top$gene, ]
+counts_heatmap <- counts_heatmap[, fb_K_metadata$orig.ident, drop = FALSE]
+
+# 1) Build the annotation data.frame aligned to your matrix columns
+ann_col <- fb_K_metadata %>%
+  dplyr::filter(orig.ident %in% colnames(counts)) %>%                            # if you have a orig.ident key
+  dplyr::arrange(match(orig.ident, colnames(counts))) %>%
+  dplyr::select(Group) %>%
+  as.data.frame()
+rownames(ann_col) <- colnames(counts)
+
+# (optional) lock desired order
+ann_col$Group <- factor(ann_col$Group, levels = c("HC","DCM"))
+
+# 2) Make a named color vector that matches the present levels
+lvl <- levels(ann_col$Group)
+# if you specifically want HC/DCM colors:
+palette_group <- c(HC = "#1f77b4", DCM = "#d62728")
+ann_colors <- list(Group = setNames(palette_group[lvl], lvl))
+# If levels are unknown beforehand, use this instead:
+# vals <- unique(as.character(ann_col$Group))
+# ann_colors <- list(Group = setNames(c("#1f77b4","#d62728","#2ca02c","#9467bd")[seq_along(vals)], vals))
+
+# 3) Heatmap colors
+heatmap_cols <- colorRampPalette(c("#004C8C", "white", "#A63A2A"))(101)
+
+# 4) Plot
+pheatmap::pheatmap(
+  counts_heatmap,
+  name = " ",
+  angle_col = 45,                 # numeric is fine
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  show_rownames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 6,
+  cellheight = 15,
+  gaps_col = c(0,0,0,0)
+)
+
+```
