@@ -1,0 +1,2866 @@
+---
+title: "LV_Klaudia"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "LV_Klaudia"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(SeuratDisk)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(rtracklayer)
+library(cowplot)
+library(nichenetr)
+library(multinichenetr)
+library(muscat)
+
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+## Koenig
+
+```{r Import Koenig}
+load("/scratch/gbonaz/Heart_datasets/Koenig_2022/GSE183852_DCM_Nuclei.Robj")
+Koenig <- nuclei
+rm(nuclei)
+DefaultAssay(Koenig) <- "RNA"
+Koenig <- NormalizeData(Koenig)
+```
+
+```{r add_metadata Koenig}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Koenig[["orig.ident"]], Clinical_data)
+row.names(add_metadata) <- row.names(Koenig[[]])
+Koenig <- AddMetaData(Koenig, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+
+Koenig@meta.data <- Koenig@meta.data %>%
+  mutate(Group = case_when(
+    Condition == "Donor" ~ "HC",
+    Condition == "DCM" ~ "DCM"
+  ))
+
+Koenig$Sample <- make.names(Koenig$orig.ident)
+```
+
+## Chaffin
+
+```{r Import Chaffin}
+#library(zellkonverter)
+
+#sce <- readH5AD("/scratch/gbonaz/Heart_datasets/Chaffin_2022/human_dcm_hcm_scportal_03.17.2022.h5ad")
+
+#Chaffin <- as.Seurat(sce, counts = "X", data = NULL)
+#DefaultAssay(Chaffin) <- "originalexp"
+
+#saveRDS(Chaffin, "/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin.rds")
+Chaffin <- readRDS("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin.rds")
+```
+
+```{r add_metadata Chaffin}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin_et al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Chaffin[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Chaffin[[]])
+Chaffin <- AddMetaData(Chaffin, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+
+
+
+Chaffin$donor_id <- make.names(Chaffin$donor_id)
+```
+
+```{r subset Chaffin}
+Chaffin <- subset(
+  Chaffin, 
+  disease %in% c("DCM", "NF")
+)
+```
+
+```{r Chaffin Group}
+Chaffin@meta.data <- Chaffin@meta.data %>%
+  mutate(Group = case_when(
+    disease == "NF" ~ "HC",
+    disease == "DCM" ~ "DCM"
+    ))
+```
+
+## Reichart
+
+```{r Import Reichart}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds")
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+
+Idents(Reichart) <- Reichart$cell_type
+```
+
+```{r add metadata Reichart}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Reichart[[]])
+Reichart <- AddMetaData(Reichart, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+```
+
+```{r subset Reichart}
+Reichart <- subset(
+  Reichart, 
+  disease %in% c("dilated cardiomyopathy", "normal") &
+    tissue == "heart left ventricle" &
+    cell_type != "unknown"
+)
+
+table(Reichart$cell_type, Reichart$disease)
+```
+
+```{r Reichart Group}
+Reichart@meta.data <- Reichart@meta.data %>%
+  mutate(Group = case_when(
+    disease == "normal" ~ "HC",
+    disease == "dilated cardiomyopathy" ~ "DCM"
+  ))
+```
+
+
+## Dotplots
+
+```{r cell_type}
+Reichart$cell_type <- factor(Reichart$cell_type, levels = c("cardiac muscle cell",
+                                                                    "fibroblast of cardiac tissue",
+                                                                    "endothelial cell",
+                                                                    "mural cell",
+                                                                    "myeloid cell",
+                                                                    "lymphocyte",
+                                                                    "cardiac neuron",
+                                                                    "mast cell",
+                                                                    "adipocyte"
+                                                                    ))
+
+Koenig$Names <- factor(Koenig$Names, levels = c("Cardiomyocytes",
+                                                "Fibroblasts",
+                                                "Endothelium",
+                                                "Pericytes",
+                                                "Smooth_Muscle",
+                                                "Macrophages",
+                                                "Monocytes",
+                                                "Endocardium",
+                                                "T/NK_Cells",
+                                                "B_Cells",
+                                                "Neurons",
+                                                "Lymphatic",
+                                                "Epicardium",
+                                                "Mast_Cells",
+                                                "Adipocytes"
+                                                ))
+
+Chaffin$cell_type_leiden0.6 <- factor(Chaffin$cell_type_leiden0.6, levels = c("Cardiomyocyte_I",
+                                                "Cardiomyocyte_II",
+                                                "Cardiomyocyte_III",
+                                                "Fibroblast_I",
+                                                "Fibroblast_II",
+                                                "Activated_fibroblast",
+                                                "Endothelial_I",
+                                                "Endothelial_II",
+                                                "Endothelial_III",
+                                                "Pericyte_I",
+                                                "Pericyte_II",
+                                                "VSMC",
+                                                "Macrophage",
+                                                "Proliferating_macrophage",
+                                                "Lymphocyte",
+                                                "Endocardial",
+                                                "Neuronal",
+                                                "Lymphatic_endothelial",
+                                                "Epicardial",
+                                                "Mast_cell",
+                                                "Adipocyte"
+                                                ))
+```
+
+```{r gene lists}
+P1ar <- c("ADORA1", "ADORA2A", "ADORA2B", "ADORA3")
+P2Xr <- c("P2RX1", "P2RX2", "P2RX3", "P2RX4", "P2RX5", "P2RX6", "P2RX7")
+P2Yr <- c("P2RY1","P2RY2","P2RY4","P2RY6","P2RY11","P2RY12","P2RY13","P2RY14")
+Ectoenz <- c("ENTPD1","NT5E","ENPP1","ENPP2","ENPP3","CECR1","ADA1","DPP4","ALPP","PNP")
+NucleoTrans <- c("SLC29A1","SLC29A2","SLC29A3","SLC29A4",
+  "SLC28A1","SLC28A2","SLC28A3","ABCC4","ABCC5")
+SecMess <- c("GNAI1","GNAQ","PLCB","CAMK2","PRKC","CREB1","MAPK1","PIK3R1")
+IntrEnz <- c("AMPD1","XDH","PRKAA1","PRKAA2")
+Activation <- c("ACTA2","TAGLN","POSTN","MYH11","CNN1","COL1A1",
+  "COL3A1","SPARC","THY1","FAP","PDPN","LOX")
+RegGenes <- c("TGFB1","TGFB2","TGFB3","TGFBR1","TGFBR2",
+  "SMAD2","SMAD3","SMAD4","EDN1","CTGF",
+  "PDGFB","PDGFRA","PDGFRB","IL11","YAP1",
+  "TEAD1","TEAD4","STAT3","STAT1","SNAI1",
+  "TWIST1","ZEB1","ZEB2","FOSL1","JUNB",
+  "SOX9","TGFB1I1","SERPINE1")
+EndoEMT <- c("PECAM1","CDH5","VWF","CLDN5","TJP1","ACTA2",
+  "TAGLN","FN1","VIM","COL1A1","CDH2",
+  "SNAI1","TWIST1","ZEB1","ZEB2")
+SignPathways <- c("TGFB1","TGFB2","TGFB3","TGFBR1","TGFBR2",
+  "SMAD2","SMAD3","SMAD4",
+  # BMP family (main ligands)
+  "BMP2","BMP4","BMP5","BMP6","BMP7","BMP8A","BMP8B","BMP9","BMP10",
+  # Notch receptors
+  "NOTCH1","NOTCH2","NOTCH3","NOTCH4",
+  # WNT ligands (canonical set)
+  "WNT1","WNT2","WNT2B","WNT3","WNT3A","WNT4","WNT5A","WNT5B","WNT6",
+  "WNT7A","WNT7B","WNT8A","WNT8B","WNT9A","WNT9B","WNT10A","WNT10B","WNT11","WNT16",
+  "VEGFA","HIF1A","IL1B","TNF","JAK1",
+  "STAT1","STAT3","RELA","PIK3CA","AKT1",
+  "MAPK1","YAP1","TEAD1","TEAD4")
+Senescence <- c("CDKN2A","CDKN1A","TP53","MDM2","GLB1",
+  "SERPINE1","IL6","CXCL8","MMP1","MMP3")
+
+```
+
+```{r title_grob}
+title_grob <- function(txt){
+  ggplot() + labs(title = txt) +
+    theme_void() +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18))
+}
+```
+
+```{r Dotplot_P1ar, fig.height=10, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(P1ar),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(P1ar),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(P1ar),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_P2Xr, fig.height=10, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(P2Xr),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(P2Xr),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(P2Xr),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_P2Yr, fig.height=10, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(P2Yr),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(P2Yr),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(P2Yr),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_Ectoenz, fig.height=10, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(Ectoenz),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(Ectoenz),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(Ectoenz),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_NucleoTrans, fig.height=10, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(NucleoTrans),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(NucleoTrans),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(NucleoTrans),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_SecMess, fig.height=10, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(SecMess),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(SecMess),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(SecMess),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_IntrEnz, fig.height=10, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(IntrEnz),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(IntrEnz),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(IntrEnz),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_Activation, fig.height=12, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(Activation),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(Activation),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(Activation),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_RegGenes, fig.height=18, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(RegGenes),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(RegGenes),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(RegGenes),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_EndoEMT, fig.height=13, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(EndoEMT),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(EndoEMT),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(EndoEMT),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_SignPathways, fig.height=32, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(SignPathways),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(SignPathways),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(SignPathways),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r Dotplot_Senescence, fig.height=12, fig.width=8}
+p1 <- DotPlot_scCustom(
+  seurat_object = Reichart,
+  features = rev(Senescence),
+  group.by = "cell_type",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p2 <- DotPlot_scCustom(
+  seurat_object = Koenig,
+  features = rev(Senescence),
+  group.by = "Names",
+  assay = "RNA",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+p3 <- DotPlot_scCustom(
+  seurat_object = Chaffin,
+  features = rev(Senescence),
+  group.by = "cell_type_leiden0.6",
+  assay = "originalexp",
+  x_lab_rotate = TRUE,
+  flip_axes = TRUE
+)
+
+final_plot <- title_grob("Reichart et al. 2022") / p1 /
+              title_grob("Koenig et al. 2022") / p2 /
+              title_grob("Chaffin et al. 2022") / p3
+
+final_plot + 
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+  theme(
+    legend.key.size = unit(0.5, "cm"),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 8)
+  )
+```
+
+```{r all_lists}
+all_lists <- list(
+  P1ar = P1ar,
+  P2Xr = P2Xr,
+  P2Yr = P2Yr,
+  Ectoenz = Ectoenz,
+  NucleoTrans = NucleoTrans,
+  SecMess = SecMess,
+  IntrEnz = IntrEnz,
+  Activation = Activation,
+  RegGenes = RegGenes,
+  EndoEMT = EndoEMT,
+  SignPathways = SignPathways,
+  Senescence = Senescence
+)
+
+genes_df <- bind_rows(lapply(names(all_lists), function(lst) {
+  data.frame(
+    gene = all_lists[[lst]],
+    list = lst,
+    stringsAsFactors = FALSE
+  )
+})) %>%
+  distinct(gene, .keep_all = TRUE)
+
+head(genes_df, 20)
+```
+
+```{r heatmap_cols}
+heatmap_cols <- colorRampPalette(c("#004C8C", "white", "#A63A2A"))(101)
+
+ann_colors <- list(
+  Group = c("HC" = "#999999", "DCM" = "#B44D4D"))
+```
+
+## Koenig Cardiomyocytes DE DCM vs HC
+
+```{r}
+cm_K <- subset(
+  Koenig, 
+  Names == "Cardiomyocytes"
+)
+
+table(cm_K$Names, cm_K$Condition)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(cm_K, group.by = c("Group"), reduction = "umap", label = F, shuffle = TRUE, pt.size = 0.1) 
+```
+
+```{r}
+cm_K_metadata <- cm_K@meta.data %>%
+  dplyr::select(orig.ident, Group, Age, Sex, BMI, Pre_Op_EF, Pre_Op_CO_L_min, HTN) %>%
+  unique()
+
+rownames(cm_K_metadata) <- cm_K_metadata$orig.ident
+
+reactable(cm_K_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+expr_matrix <- GetAssayData(object = cm_K, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- cm_K[which(rownames(cm_K) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="orig.ident", cluster = "Names")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(cm_K_metadata$orig.ident, pseudocounts$samples$sample)]
+all(cm_K_metadata$orig.ident == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+cm_K_metadata$Group <- factor(cm_K_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = cm_K_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_cm_K <- topTags(fit, n = Inf)$table
+results_cm_K <- merge(results_cm_K, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_cm_K$up_down <- ifelse(
+  results_cm_K$logFC > 0.5 & results_cm_K$FDR < 0.05, "Increased",
+  ifelse(results_cm_K$logFC < -0.5 & results_cm_K$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_cm_K <- results_cm_K %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_cm_K_goi <- results_cm_K %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_cm_K_goi <- signif_cm_K %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_cm_K, file = here::here(output_dir_data, "cm_Koenig_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_cm_K_goi, file = here::here(output_dir_data, "cm_Koenig_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_cm_K, file = here::here(output_dir_data, "cm_Koenig_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_cm_K_goi, file = here::here(output_dir_data, "cm_Koenig_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_cm_Koenig, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_cm_K))
+names(keyvals) <- rep("Not significant", nrow(results_cm_K))
+
+keyvals[results_cm_K$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_cm_K$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_cm_K,
+                lab = results_cm_K$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Cardiomyocytes\nDCM (n=13) vs HC (n=25)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_cm_Koenig, fig.height=12, fig.width=10, warning=FALSE}
+metadata_heatmap <- cm_K_metadata %>% 
+  dplyr::select(orig.ident, Group) %>%
+  arrange(Group)
+
+counts_cm_K <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_cm_K, "cm_Koenig_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_cm_K))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_cm_K): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_K_heatmap <- counts_cm_K[idx[keep], , drop = FALSE]
+counts_K_heatmap <- counts_K_heatmap[, metadata_heatmap$orig.ident, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_K_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_cm_K_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_cm_K %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_K_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(0,0,0,0,0, sum(metadata_heatmap$Group == "HC")),
+  main = "Koenig et al. 2022 - Cardiomyocytes",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
+## Koenig Fibroblasts DE DCM vs HC
+
+```{r}
+fb_K <- subset(
+  Koenig, 
+  Names == "Fibroblasts"
+)
+
+table(fb_K$Names, fb_K$Condition)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(fb_K, group.by = c("Group"), reduction = "umap", label = F, shuffle = TRUE, pt.size = 0.1) 
+```
+
+```{r}
+fb_K_metadata <- fb_K@meta.data %>%
+  dplyr::select(orig.ident, Group, Age, Sex, BMI, Pre_Op_EF, Pre_Op_CO_L_min, HTN) %>%
+  unique()
+
+rownames(fb_K_metadata) <- fb_K_metadata$orig.ident
+
+reactable(fb_K_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+expr_matrix <- GetAssayData(object = fb_K, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- fb_K[which(rownames(fb_K) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="orig.ident", cluster = "Names")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(fb_K_metadata$orig.ident, pseudocounts$samples$sample)]
+all(fb_K_metadata$orig.ident == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+fb_K_metadata$Group <- factor(fb_K_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = fb_K_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_fb_K <- topTags(fit, n = Inf)$table
+results_fb_K <- merge(results_fb_K, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_fb_K$up_down <- ifelse(
+  results_fb_K$logFC > 0.5 & results_fb_K$FDR < 0.05, "Increased",
+  ifelse(results_fb_K$logFC < -0.5 & results_fb_K$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_fb_K <- results_fb_K %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_fb_K_goi <- results_fb_K %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_fb_K_goi <- signif_fb_K %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_fb_K, file = here::here(output_dir_data, "fb_Koenig_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_fb_K_goi, file = here::here(output_dir_data, "fb_Koenig_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_fb_K, file = here::here(output_dir_data, "fb_Koenig_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_fb_K_goi, file = here::here(output_dir_data, "fb_Koenig_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_fb_Koenig, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_fb_K))
+names(keyvals) <- rep("Not significant", nrow(results_fb_K))
+
+keyvals[results_fb_K$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_fb_K$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_fb_K,
+                lab = results_fb_K$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Fibroblasts\nDCM (n=13) vs HC (n=25)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_fb_Koenig, fig.height=14, fig.width=10, warning=FALSE}
+metadata_heatmap <- fb_K_metadata %>% 
+  dplyr::select(orig.ident, Group) %>%
+  arrange(Group)
+
+counts_fb_K <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_fb_K, "fb_Koenig_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_fb_K))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_fb_K): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_K_heatmap <- counts_fb_K[idx[keep], , drop = FALSE]
+counts_K_heatmap <- counts_K_heatmap[, metadata_heatmap$orig.ident, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_K_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_fb_K_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_fb_K %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_K_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(0,0,0,0,0, sum(metadata_heatmap$Group == "HC")),
+  main = "Koenig et al. 2022 - Fibroblasts",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
+## Koenig Endothelial cells DE DCM vs HC
+
+```{r}
+ec_K <- subset(
+  Koenig, 
+  Names == "Endothelium"
+)
+
+table(ec_K$Names, ec_K$Condition)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(ec_K, group.by = c("Group"), reduction = "umap", label = F, shuffle = TRUE, pt.size = 0.1) 
+```
+
+```{r}
+ec_K_metadata <- ec_K@meta.data %>%
+  dplyr::select(orig.ident, Group, Age, Sex, BMI, Pre_Op_EF, Pre_Op_CO_L_min, HTN) %>%
+  unique()
+
+rownames(ec_K_metadata) <- ec_K_metadata$orig.ident
+
+reactable(ec_K_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+expr_matrix <- GetAssayData(object = ec_K, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- ec_K[which(rownames(ec_K) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="orig.ident", cluster = "Names")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(ec_K_metadata$orig.ident, pseudocounts$samples$sample)]
+all(ec_K_metadata$orig.ident == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+ec_K_metadata$Group <- factor(ec_K_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = ec_K_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_ec_K <- topTags(fit, n = Inf)$table
+results_ec_K <- merge(results_ec_K, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_ec_K$up_down <- ifelse(
+  results_ec_K$logFC > 0.5 & results_ec_K$FDR < 0.05, "Increased",
+  ifelse(results_ec_K$logFC < -0.5 & results_ec_K$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_ec_K <- results_ec_K %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_ec_K_goi <- results_ec_K %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_ec_K_goi <- signif_ec_K %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_ec_K, file = here::here(output_dir_data, "ec_Koenig_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_ec_K_goi, file = here::here(output_dir_data, "ec_Koenig_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_ec_K, file = here::here(output_dir_data, "ec_Koenig_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_ec_K_goi, file = here::here(output_dir_data, "ec_Koenig_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_ec_Koenig, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_ec_K))
+names(keyvals) <- rep("Not significant", nrow(results_ec_K))
+
+keyvals[results_ec_K$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_ec_K$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_ec_K,
+                lab = results_ec_K$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Endothelial cells\nDCM (n=13) vs HC (n=25)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_ec_Koenig, fig.height=13, fig.width=10, warning=FALSE}
+metadata_heatmap <- ec_K_metadata %>% 
+  dplyr::select(orig.ident, Group) %>%
+  arrange(Group)
+
+counts_ec_K <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_ec_K, "ec_Koenig_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_ec_K))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_ec_K): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_K_heatmap <- counts_ec_K[idx[keep], , drop = FALSE]
+counts_K_heatmap <- counts_K_heatmap[, metadata_heatmap$orig.ident, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_K_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_ec_K_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_ec_K %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_K_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(0,0,0,0,0, sum(metadata_heatmap$Group == "HC")),
+  main = "Koenig et al. 2022 - Endothelial cells",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
+
+## Chaffin Cardiomyocytes DE DCM vs HC
+
+```{r}
+cm_C <- subset(
+  Chaffin, 
+  cell_type_leiden0.6 %in% c("Cardiomyocyte_I",
+                             "Cardiomyocyte_II",
+                             "Cardiomyocyte_III")
+)
+cm_C$cell_type <- "Cardiomyocytes"
+
+table(cm_C$cell_type, cm_C$Group)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(cm_C, group.by = c("Group"), reduction = "X_umap", label = F, shuffle = TRUE, pt.size = 0.1) 
+```
+
+```{r}
+cm_C_metadata <- cm_C@meta.data %>%
+  dplyr::select(donor_id, Group, sex, age, lvef, Body_Mass_Index_kg_m2, Heart_Weight_g, Left_Ventricular_Mass_g, Left_Ventricular_Mass_Index_g_m2, Left_Ventricular_End_Systolic_Dimension_cm, Left_Ventricular_End_Diastolic_Dimension_cm, Posterior_Wall_Thickness_cm) %>%
+  unique()
+
+rownames(cm_C_metadata) <- cm_C_metadata$donor_id
+
+reactable(cm_C_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+cm_C <- RenameAssays(cm_C, originalexp = "RNA")
+
+expr_matrix <- GetAssayData(object = cm_C, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- cm_C[which(rownames(cm_C) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(cm_C_metadata$donor_id, pseudocounts$samples$sample)]
+all(cm_C_metadata$donor_id == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+cm_C_metadata$Group <- factor(cm_C_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = cm_C_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_cm_C <- topTags(fit, n = Inf)$table
+results_cm_C <- merge(results_cm_C, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_cm_C$up_down <- ifelse(
+  results_cm_C$logFC > 0.5 & results_cm_C$FDR < 0.05, "Increased",
+  ifelse(results_cm_C$logFC < -0.5 & results_cm_C$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_cm_C <- results_cm_C %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_cm_C_goi <- results_cm_C %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_cm_C_goi <- signif_cm_C %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_cm_C, file = here::here(output_dir_data, "cm_Chaffin_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_cm_C_goi, file = here::here(output_dir_data, "cm_Chaffin_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_cm_C, file = here::here(output_dir_data, "cm_Chaffin_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_cm_C_goi, file = here::here(output_dir_data, "cm_Chaffin_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_cm_Chaffin, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_cm_C))
+names(keyvals) <- rep("Not significant", nrow(results_cm_C))
+
+keyvals[results_cm_C$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_cm_C$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_cm_C,
+                lab = results_cm_C$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Cardiomyocytes\nDCM (n=11) vs HC (n=16)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_cm_Chaffin, fig.height=12, fig.width=8, warning=FALSE}
+metadata_heatmap <- cm_C_metadata %>% 
+  dplyr::select(donor_id, Group) %>%
+  arrange(Group)
+
+counts_cm_C <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_cm_C, "cm_Chaffin_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_cm_C))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_cm_C): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_C_heatmap <- counts_cm_C[idx[keep], , drop = FALSE]
+counts_C_heatmap <- counts_C_heatmap[, metadata_heatmap$donor_id, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_C_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_cm_C_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_cm_C %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_C_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(sum(metadata_heatmap$Group == "HC")),
+  main = "Chaffin et al. 2022 - Cardiomyocytes",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
+
+
+## Chaffin Fibroblasts DE DCM vs HC
+
+```{r}
+fb_C <- subset(
+  Chaffin, 
+  cell_type_leiden0.6 %in% c("Fibroblast_I",
+                             "Fibroblast_II",
+                             "Activated_fibroblast")
+)
+fb_C$cell_type <- "Fibroblasts"
+
+table(fb_C$cell_type, fb_C$Group)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(fb_C, group.by = c("Group"), reduction = "X_umap", label = F, shuffle = TRUE, pt.size = 0.1) 
+```
+
+```{r}
+fb_C_metadata <- fb_C@meta.data %>%
+  dplyr::select(donor_id, Group, sex, age, lvef, Body_Mass_Index_kg_m2, Heart_Weight_g, Left_Ventricular_Mass_g, Left_Ventricular_Mass_Index_g_m2, Left_Ventricular_End_Systolic_Dimension_cm, Left_Ventricular_End_Diastolic_Dimension_cm, Posterior_Wall_Thickness_cm) %>%
+  unique()
+
+rownames(fb_C_metadata) <- fb_C_metadata$donor_id
+
+reactable(fb_C_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+fb_C <- RenameAssays(fb_C, originalexp = "RNA")
+
+expr_matrix <- GetAssayData(object = fb_C, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- fb_C[which(rownames(fb_C) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(fb_C_metadata$donor_id, pseudocounts$samples$sample)]
+all(fb_C_metadata$donor_id == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+fb_C_metadata$Group <- factor(fb_C_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = fb_C_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_fb_C <- topTags(fit, n = Inf)$table
+results_fb_C <- merge(results_fb_C, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_fb_C$up_down <- ifelse(
+  results_fb_C$logFC > 0.5 & results_fb_C$FDR < 0.05, "Increased",
+  ifelse(results_fb_C$logFC < -0.5 & results_fb_C$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_fb_C <- results_fb_C %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_fb_C_goi <- results_fb_C %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_fb_C_goi <- signif_fb_C %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_fb_C, file = here::here(output_dir_data, "fb_Chaffin_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_fb_C_goi, file = here::here(output_dir_data, "fb_Chaffin_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_fb_C, file = here::here(output_dir_data, "fb_Chaffin_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_fb_C_goi, file = here::here(output_dir_data, "fb_Chaffin_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_fb_Chaffin, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_fb_C))
+names(keyvals) <- rep("Not significant", nrow(results_fb_C))
+
+keyvals[results_fb_C$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_fb_C$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_fb_C,
+                lab = results_fb_C$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Fibroblasts\nDCM (n=11) vs HC (n=16)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_fb_Chaffin, fig.height=10, fig.width=8, warning=FALSE}
+metadata_heatmap <- fb_C_metadata %>% 
+  dplyr::select(donor_id, Group) %>%
+  arrange(Group)
+
+counts_fb_C <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_fb_C, "fb_Chaffin_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_fb_C))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_fb_C): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_C_heatmap <- counts_fb_C[idx[keep], , drop = FALSE]
+counts_C_heatmap <- counts_C_heatmap[, metadata_heatmap$donor_id, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_C_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_fb_C_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_fb_C %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_C_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(sum(metadata_heatmap$Group == "HC")),
+  main = "Chaffin et al. 2022 - Fibroblasts",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
+## Chaffin Endothelial cells DE DCM vs HC
+
+```{r}
+ec_C <- subset(
+  Chaffin, 
+  cell_type_leiden0.6 %in% c("Endothelial_I",
+                             "Endothelial_II",
+                             "Endothelial_III")
+)
+ec_C$cell_type <- "Endothelial cells"
+
+table(ec_C$cell_type, ec_C$Group)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(ec_C, group.by = c("Group"), reduction = "X_umap", label = F, shuffle = TRUE, pt.size = 0.1) 
+```
+
+```{r}
+ec_C_metadata <- ec_C@meta.data %>%
+  dplyr::select(donor_id, Group, sex, age, lvef, Body_Mass_Index_kg_m2, Heart_Weight_g, Left_Ventricular_Mass_g, Left_Ventricular_Mass_Index_g_m2, Left_Ventricular_End_Systolic_Dimension_cm, Left_Ventricular_End_Diastolic_Dimension_cm, Posterior_Wall_Thickness_cm) %>%
+  unique()
+
+rownames(ec_C_metadata) <- ec_C_metadata$donor_id
+
+reactable(ec_C_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+ec_C <- RenameAssays(ec_C, originalexp = "RNA")
+
+expr_matrix <- GetAssayData(object = ec_C, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- ec_C[which(rownames(ec_C) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(ec_C_metadata$donor_id, pseudocounts$samples$sample)]
+all(ec_C_metadata$donor_id == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+ec_C_metadata$Group <- factor(ec_C_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = ec_C_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_ec_C <- topTags(fit, n = Inf)$table
+results_ec_C <- merge(results_ec_C, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_ec_C$up_down <- ifelse(
+  results_ec_C$logFC > 0.5 & results_ec_C$FDR < 0.05, "Increased",
+  ifelse(results_ec_C$logFC < -0.5 & results_ec_C$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_ec_C <- results_ec_C %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_ec_C_goi <- results_ec_C %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_ec_C_goi <- signif_ec_C %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_ec_C, file = here::here(output_dir_data, "ec_Chaffin_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_ec_C_goi, file = here::here(output_dir_data, "ec_Chaffin_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_ec_C, file = here::here(output_dir_data, "ec_Chaffin_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_ec_C_goi, file = here::here(output_dir_data, "ec_Chaffin_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_ec_Chaffin, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_ec_C))
+names(keyvals) <- rep("Not significant", nrow(results_ec_C))
+
+keyvals[results_ec_C$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_ec_C$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_ec_C,
+                lab = results_ec_C$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Endothelial cells\nDCM (n=11) vs HC (n=16)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_ec_Chaffin, fig.height=10, fig.width=8, warning=FALSE}
+metadata_heatmap <- ec_C_metadata %>% 
+  dplyr::select(donor_id, Group) %>%
+  arrange(Group)
+
+counts_ec_C <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_ec_C, "ec_Chaffin_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_ec_C))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_ec_C): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_C_heatmap <- counts_ec_C[idx[keep], , drop = FALSE]
+counts_C_heatmap <- counts_C_heatmap[, metadata_heatmap$donor_id, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_C_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_ec_C_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_ec_C %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_C_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(sum(metadata_heatmap$Group == "HC")),
+  main = "Chaffin et al. 2022 - Endothelial cells",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
+
+
+## Reichart Cardiomyocytes DE DCM vs HC
+
+```{r}
+cm_R <- subset(
+  Reichart, 
+  cell_type == "cardiac muscle cell"
+)
+
+table(cm_R$cell_type, cm_R$Group)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(cm_R, group.by = c("Group"), reduction = "umap", label = F, shuffle = TRUE, pt.size = 0.1, raster=F) 
+```
+
+```{r}
+cm_R_metadata <- cm_R@meta.data %>%
+  dplyr::select(donor_id, Group, Age_range, BMI, LVEF_percent, LVIDd_mm, LVIDs_mm, RVEDD_mm, TAPSE_mm, PAH, Hypertension, COPD) %>%
+  unique()
+
+rownames(cm_R_metadata) <- cm_R_metadata$donor_id
+
+reactable(cm_R_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+expr_matrix <- GetAssayData(object = cm_R, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- cm_R[which(rownames(cm_R) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(cm_R_metadata$donor_id, pseudocounts$samples$sample)]
+all(cm_R_metadata$donor_id == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+cm_R_metadata$Group <- factor(cm_R_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = cm_R_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_cm_R <- topTags(fit, n = Inf)$table
+results_cm_R <- merge(results_cm_R, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_cm_R$up_down <- ifelse(
+  results_cm_R$logFC > 0.5 & results_cm_R$FDR < 0.05, "Increased",
+  ifelse(results_cm_R$logFC < -0.5 & results_cm_R$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_cm_R <- results_cm_R %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_cm_R_goi <- results_cm_R %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_cm_R_goi <- signif_cm_R %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_cm_R, file = here::here(output_dir_data, "cm_Reichart_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_cm_R_goi, file = here::here(output_dir_data, "cm_Reichart_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_cm_R, file = here::here(output_dir_data, "cm_Reichart_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_cm_R_goi, file = here::here(output_dir_data, "cm_Reichart_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_cm_Reichart, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_cm_R))
+names(keyvals) <- rep("Not significant", nrow(results_cm_R))
+
+keyvals[results_cm_R$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_cm_R$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_cm_R,
+                lab = results_cm_R$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Cardiomyocytes\nDCM (n=50) vs HC (n=18)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_cm_Reichart, fig.height=14, fig.width=15, warning=FALSE}
+metadata_heatmap <- cm_R_metadata %>% 
+  dplyr::select(donor_id, Group) %>%
+  arrange(Group)
+
+counts_cm_R <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_cm_R, "cm_Reichart_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_cm_R))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_cm_R): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_K_heatmap <- counts_cm_R[idx[keep], , drop = FALSE]
+counts_K_heatmap <- counts_K_heatmap[, metadata_heatmap$donor_id, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_K_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_cm_R_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_cm_R %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_K_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(0,0,0,0,0, sum(metadata_heatmap$Group == "HC")),
+  main = "Reichart et al. 2022 - Cardiomyocytes",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
+
+
+## Reichart Fibroblasts DE DCM vs HC
+
+```{r}
+fb_R <- subset(
+  Reichart, 
+  cell_type == "fibroblast of cardiac tissue"
+)
+
+table(fb_R$cell_type, fb_R$Group)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(fb_R, group.by = c("Group"), reduction = "umap", label = F, shuffle = TRUE, pt.size = 0.1, raster=F) 
+```
+
+```{r}
+fb_R_metadata <- fb_R@meta.data %>%
+  dplyr::select(donor_id, Group, Age_range, BMI, LVEF_percent, LVIDd_mm, LVIDs_mm, RVEDD_mm, TAPSE_mm, PAH, Hypertension, COPD) %>%
+  unique()
+
+rownames(fb_R_metadata) <- fb_R_metadata$donor_id
+
+reactable(fb_R_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+expr_matrix <- GetAssayData(object = fb_R, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- fb_R[which(rownames(fb_R) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(fb_R_metadata$donor_id, pseudocounts$samples$sample)]
+all(fb_R_metadata$donor_id == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+fb_R_metadata$Group <- factor(fb_R_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = fb_R_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_fb_R <- topTags(fit, n = Inf)$table
+results_fb_R <- merge(results_fb_R, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_fb_R$up_down <- ifelse(
+  results_fb_R$logFC > 0.5 & results_fb_R$FDR < 0.05, "Increased",
+  ifelse(results_fb_R$logFC < -0.5 & results_fb_R$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_fb_R <- results_fb_R %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_fb_R_goi <- results_fb_R %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_fb_R_goi <- signif_fb_R %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_fb_R, file = here::here(output_dir_data, "fb_Reichart_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_fb_R_goi, file = here::here(output_dir_data, "fb_Reichart_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_fb_R, file = here::here(output_dir_data, "fb_Reichart_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_fb_R_goi, file = here::here(output_dir_data, "fb_Reichart_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_fb_Reichart, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_fb_R))
+names(keyvals) <- rep("Not significant", nrow(results_fb_R))
+
+keyvals[results_fb_R$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_fb_R$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_fb_R,
+                lab = results_fb_R$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Fibroblasts\nDCM (n=50) vs HC (n=18)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_fb_Reichart, fig.height=13, fig.width=15, warning=FALSE}
+metadata_heatmap <- fb_R_metadata %>% 
+  dplyr::select(donor_id, Group) %>%
+  arrange(Group)
+
+counts_fb_R <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_fb_R, "fb_Reichart_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_fb_R))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_fb_R): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_K_heatmap <- counts_fb_R[idx[keep], , drop = FALSE]
+counts_K_heatmap <- counts_K_heatmap[, metadata_heatmap$donor_id, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_K_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_fb_R_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_fb_R %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_K_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(0,0,0,0,0, sum(metadata_heatmap$Group == "HC")),
+  main = "Reichart et al. 2022 - Fibroblasts",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
+
+## Reichart Endothelial cells DE DCM vs HC
+
+```{r}
+ec_R <- subset(
+  Reichart, 
+  cell_type == "endothelial cell"
+)
+
+table(ec_R$cell_type, ec_R$Group)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(ec_R, group.by = c("Group"), reduction = "umap", label = F, shuffle = TRUE, pt.size = 0.1, raster=F) 
+```
+
+```{r}
+ec_R_metadata <- ec_R@meta.data %>%
+  dplyr::select(donor_id, Group, Age_range, BMI, LVEF_percent, LVIDd_mm, LVIDs_mm, RVEDD_mm, TAPSE_mm, PAH, Hypertension, COPD) %>%
+  unique()
+
+rownames(ec_R_metadata) <- ec_R_metadata$donor_id
+
+reactable(ec_R_metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+expr_matrix <- GetAssayData(object = ec_R, assay = "RNA", slot = "counts")
+
+non_zero_cells <- rowSums(expr_matrix > 0)
+
+total_cells <- ncol(expr_matrix)
+
+percent_cells <- (non_zero_cells / total_cells) * 100
+
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- ec_R[which(rownames(ec_R) %in% keep_genes),]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+```{r}
+DefaultAssay(data) <- "RNA"
+
+pseudocounts <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+pseudocounts <- pseudocounts[, match(ec_R_metadata$donor_id, pseudocounts$samples$sample)]
+all(ec_R_metadata$donor_id == pseudocounts$samples$sample)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+
+```{r}
+ec_R_metadata$Group <- factor(ec_R_metadata$Group, levels = c("HC", "DCM"))
+design<- model.matrix(~ Group, data = ec_R_metadata)
+pseudocounts <- normLibSizes(pseudocounts)
+pseudocounts <- estimateDisp(pseudocounts, design)
+  
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_ec_R <- topTags(fit, n = Inf)$table
+results_ec_R <- merge(results_ec_R, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_ec_R$up_down <- ifelse(
+  results_ec_R$logFC > 0.5 & results_ec_R$FDR < 0.05, "Increased",
+  ifelse(results_ec_R$logFC < -0.5 & results_ec_R$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+
+signif_ec_R <- results_ec_R %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+
+results_ec_R_goi <- results_ec_R %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene") 
+
+signif_ec_R_goi <- signif_ec_R %>%
+  filter(gene %in% genes_df$gene) %>%
+  left_join(genes_df, by = "gene")
+  
+write.csv(results_ec_R, file = here::here(output_dir_data, "ec_Reichart_DE_Results.csv"), quote=F, row.names = F)
+write.csv(results_ec_R_goi, file = here::here(output_dir_data, "ec_Reichart_DE_Results_goi.csv"), quote=F, row.names = F)
+write.csv(signif_ec_R, file = here::here(output_dir_data, "ec_Reichart_DE_Significant.csv"), quote=F, row.names = F)
+write.csv(signif_ec_R_goi, file = here::here(output_dir_data, "ec_Reichart_DE_Significant_goi.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_ec_Reichart, fig.height=6, fig.width=4}
+keyvals <- rep("grey", nrow(results_ec_R))
+names(keyvals) <- rep("Not significant", nrow(results_ec_R))
+
+keyvals[results_ec_R$up_down == "Increased"] <- "#d62728"
+names(keyvals)[keyvals == "#d62728"] <- "Increased"
+keyvals[results_ec_R$up_down == "Decreased"] <- "#1f77b4"
+names(keyvals)[keyvals == "#1f77b4"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_ec_R,
+                lab = results_ec_R$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 8.5,
+                titleLabSize = 15,
+                subtitleLabSize = 14,
+                axisLabSize = 12,
+                captionLabSize = 9,
+                pointSize = 0.5,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 9),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "LV Endothelial cells\nDCM (n=50) vs HC (n=18)",
+                colCustom = keyvals
+) + theme(legend.position = "bottom")
+
+volcano
+```
+
+```{r Heatmap_ec_Reichart, fig.height=11, fig.width=15, warning=FALSE}
+metadata_heatmap <- ec_R_metadata %>% 
+  dplyr::select(donor_id, Group) %>%
+  arrange(Group)
+
+counts_ec_R <- cpm(pseudocounts, log = TRUE)
+write.csv(counts_ec_R, "ec_Reichart_logCPM.csv")
+
+idx <- match(genes_df$gene, rownames(counts_ec_R))   
+keep <- !is.na(idx)
+missing_genes <- genes_df$gene[!keep]
+if (length(missing_genes)) {
+  message("Missing genes (not in counts_ec_R): ",
+          paste(missing_genes, collapse = ", "))
+}
+
+counts_K_heatmap <- counts_ec_R[idx[keep], , drop = FALSE]
+counts_K_heatmap <- counts_K_heatmap[, metadata_heatmap$donor_id, drop = FALSE]
+
+row_annot <- genes_df[keep, c("gene", "list")]
+rownames(row_annot) <- row_annot$gene
+row_annot$gene <- NULL
+
+ann_col <- metadata_heatmap %>% 
+  dplyr::select(Group)
+
+runs <- rle(as.character(row_annot$list))
+gaps_row <- cumsum(runs$lengths)
+gaps_row <- gaps_row[-length(gaps_row)]
+
+# genes in the same order as the heatmap rows
+lab_row <- rownames(counts_K_heatmap)
+
+# stars by FDR (from your signif table)
+sig_map <- signif_ec_R_goi %>%
+  dplyr::select(gene, FDR) %>%
+  dplyr::mutate(stars = dplyr::case_when(
+    FDR < 0.001 ~ "***",
+    FDR < 0.01  ~ "**",
+    FDR < 0.05  ~ "*",
+    TRUE ~ ""
+  )) %>%
+  dplyr::distinct(gene, .keep_all = TRUE)
+
+stars_vec <- sig_map$stars[match(lab_row, sig_map$gene)]
+stars_vec[is.na(stars_vec)] <- ""
+
+# arrows by logFC sign (use results for all genes)
+lfc_map <- results_ec_R %>% dplyr::select(gene, logFC)
+lfc_vec <- lfc_map$logFC[match(lab_row, lfc_map$gene)]
+arrow_vec <- ifelse(is.na(lfc_vec), "",
+                    ifelse(lfc_vec > 0, "↑",
+                           ifelse(lfc_vec < 0, "↓", "")))
+
+#(optional) only show arrows for significant genes:
+arrow_vec[stars_vec == ""] <- ""
+
+# combine: GENENAME [space] ARROW + STARS
+labels_row <- paste0(lab_row,
+                     ifelse(arrow_vec != "", paste0(" ", arrow_vec), ""),
+                     stars_vec)
+
+pheatmap::pheatmap(
+  counts_K_heatmap,
+  color = heatmap_cols,
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,
+  annotation_legend = TRUE,
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 12,
+  fontsize_col = 8,
+  cellheight = 11,
+  cellwidth = 12,
+  gaps_row = gaps_row,
+  gaps_col = c(0,0,0,0,0, sum(metadata_heatmap$Group == "HC")),
+  main = "Reichart et al. 2022 - Endothelial cells",
+  angle_col = 45,
+  labels_row = labels_row   # ← arrows + stars
+)
+```
+
+
