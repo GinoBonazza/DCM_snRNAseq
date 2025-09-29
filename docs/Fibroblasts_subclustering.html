@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Fibroblasts subclustering</title>
+
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.umd.cjs"></script>
+<link href="site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.4/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.4/reactable.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_DA_DE.html">Cardiomyocytes differential expression</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Fibroblasts subclustering</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">29 September, 2025</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2025-09-29
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.1). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree0546c0e4819308ebf780c5ba294c6e75ad9dadadtargetblank0546c0ea">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/0546c0e4819308ebf780c5ba294c6e75ad9dadad" target="_blank">0546c0e</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree0546c0e4819308ebf780c5ba294c6e75ad9dadadtargetblank0546c0ea"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/0546c0e4819308ebf780c5ba294c6e75ad9dadad" target="_blank">0546c0e</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    output/CellChat/
+    Ignored:    output/Chaffin_2022/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/Figures_manuscript/
+    Ignored:    output/Genes_Luxembourg/
+    Ignored:    output/Koenig_2022/
+    Ignored:    output/SSc_PAH/
+    Ignored:    output/Variance_partitioning/
+
+Untracked files:
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DA_DE_all_cell_types_and_parameters.Rmd
+    Untracked:  analysis/DE_Group_all_cell_types.Rmd
+    Untracked:  analysis/Endothelial_cells_Koenig_Reichart.rmd
+    Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
+    Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
+    Untracked:  analysis/Genes_Luxembourg.Rmd
+    Untracked:  analysis/HC_DEGs_clustering.Rmd
+    Untracked:  analysis/Koenig_2022.Rmd
+    Untracked:  analysis/Mass_Spec_RV_dysf.Rmd
+    Untracked:  analysis/Olink_RV_dysf.Rmd
+    Untracked:  analysis/Olink_SSc_PAH.Rmd
+    Untracked:  analysis/Olink_SSc_PAH_draft.Rmd
+    Untracked:  analysis/Selection_genes_histology.Rmd
+    Untracked:  analysis/TOM/
+    Untracked:  analysis/UntitledR.R
+    Untracked:  analysis/VennDiagram.2024-09-16_14-12-56.160498.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-17.340014.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-57.942673.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-22-50.621507.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-24-47.010131.log
+    Untracked:  analysis/VennDiagram.2024-09-18_11-22-29.278827.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-35.50458.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-41.199096.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-59.64245.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-45-11.922474.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-50-36.483812.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-56-46.244322.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-58-30.74362.log
+    Untracked:  analysis/VennDiagram.2025-03-26_15-54-09.244636.log
+    Untracked:  analysis/VennDiagram.2025-06-11_14-53-30.499963.log
+    Untracked:  analysis/ec_Reichart_logCPM.csv
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/Removed_chunks.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/CM_lncRNAs/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Cell_cell_communication/
+    Untracked:  output/Cell_cell_communication_LV/
+    Untracked:  output/Cell_cell_communication_LV2/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_Fibrosis_all_cell_types/
+    Untracked:  output/DE_Group_all_cell_types/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart/
+    Untracked:  output/Endothelial_cells_SGLT2_I/
+    Untracked:  output/Endothelial_cells_published_datasets/
+    Untracked:  output/Fibroblasts_DA_DE_26/
+    Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/HC_DEGs_clustering/
+    Untracked:  output/LV_Klaudia/
+    Untracked:  output/Mass_Spec_RV_dysf/
+    Untracked:  output/Olink_RV_dysf/
+    Untracked:  output/Olink_SSc_PAH/
+    Untracked:  output/Olink_SSc_PAH_draft/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/Selection_genes_histology/
+    Untracked:  output/UntitledR.R
+    Untracked:  reference_sources/
+
+Unstaged changes:
+    Modified:   analysis/CM_lncRNAs.Rmd
+    Modified:   analysis/Comparison_LV.Rmd
+    Modified:   analysis/DE_mPAP_all_cell_types.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+    Modified:   analysis/Endothelial_cells_published_datasets.rmd
+    Modified:   analysis/LV_Klaudia.Rmd
+    Modified:   analysis/QC_integration_annotation.Rmd
+    Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
+    Modified:   analysis/SSc_PAH.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/Fibroblasts_subclustering.Rmd</code>) and HTML
+(<code>docs/Fibroblasts_subclustering.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0546c0e4819308ebf780c5ba294c6e75ad9dadad/analysis/Fibroblasts_subclustering.Rmd" target="_blank">0546c0e</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-09-29
+</td>
+<td>
+wflow_publish("analysis/Fibroblasts_subclustering.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code># Get current file name to make folder
+current_file &lt;- &quot;Fibroblasts_subclustering&quot;
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(speckle)
+library(limma)
+library(reactable)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+
+
+#Output paths
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;))
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
+<p>Load dataset and subset cardiomyocytes</p>
+<pre class="r"><code>DCM_RV_integrated &lt;- readRDS(here::here(&quot;output&quot;, &quot;QC_integration_annotation&quot;, &quot;DCM_RV_integrated_RNA.rds&quot;))
+DefaultAssay(DCM_RV_integrated) &lt;- &quot;RNA&quot;
+FB &lt;- subset(DCM_RV_integrated, cell_type == &quot;Fibroblasts&quot;)</code></pre>
+</div>
+<div id="integration-and-clustering" class="section level2">
+<h2>Integration and clustering</h2>
+<p>Re-normalize and re-scale the subsetted object using SCTransform</p>
+<pre class="r"><code>FB &lt;- SplitObject(FB, split.by = &quot;Sample&quot;)
+for (i in 1:length(FB)) {
+FB[[i]] &lt;- SCTransform(FB[[i]], vst.flavor = &quot;v2&quot;, vars.to.regress = c(&quot;percent.mt&quot;, &quot;percent.rp&quot;), return.only.var.genes = FALSE, min_cells = 0)
+}</code></pre>
+<p>PCA</p>
+<pre class="r"><code>features &lt;- SelectIntegrationFeatures(object.list = FB, nfeatures = 2000)
+FB &lt;- merge(x = FB[[1]], y = FB[2:length(FB)], merge.data=TRUE)
+VariableFeatures(FB) &lt;- features
+FB &lt;- RunPCA(FB)</code></pre>
+<pre class="r"><code>saveRDS(FB, 
+        here::here(output_dir_data, &quot;FB.rds&quot;))</code></pre>
+<pre class="r"><code>FB &lt;- readRDS(here::here(output_dir_data, &quot;FB.rds&quot;))</code></pre>
+<pre class="r"><code>ElbowPlot(FB, ndims = 50)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Elbow_FB-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<p>Reintegrate the samples using Harmony</p>
+<pre class="r"><code>FB &lt;- RunHarmony(FB, assay.use=&quot;SCT&quot;, group.by.vars = &quot;Sample&quot;, dims.use = 1:50)</code></pre>
+<p>Clustering after integration</p>
+<pre class="r"><code>DefaultAssay(FB) &lt;- &quot;SCT&quot;
+FB &lt;- RunUMAP(FB, dims = 1:50, reduction = &quot;harmony&quot;)
+FB &lt;- FindNeighbors(FB, dims = 1:50, reduction = &quot;harmony&quot;)
+FB &lt;- FindClusters(FB, resolution = seq(0.1, 0.8, by=0.1))</code></pre>
+<pre class="r"><code>clustree::clustree(FB@meta.data[,grep(&quot;SCT_snn_res&quot;, colnames(FB@meta.data))], prefix = &quot;SCT_snn_res.&quot;)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Clustree_FB-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DimPlot(FB, reduction = &quot;umap&quot;, shuffle = T,
+        group.by = c(&quot;SCT_snn_res.0.3&quot;, &quot;Sample&quot;, &quot;Group&quot;, &quot;Batch_processing&quot;), ncol = 2)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/UMAPs_FB-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Clinical_data &lt;- read_excel(here::here(&quot;data&quot;, &quot;DCM_Clinical_data_26.xlsx&quot;))
+add_metadata &lt;- left_join(FB[[&quot;Sample&quot;]], Clinical_data)
+row.names(add_metadata) &lt;- row.names(FB[[]])
+FB &lt;- AddMetaData(FB, metadata = add_metadata)
+rm(add_metadata, Clinical_data)</code></pre>
+<pre class="r"><code>saveRDS(FB, 
+        here::here(output_dir_data, &quot;FB.rds&quot;))</code></pre>
+<p>Find the markers that characterize each cell population</p>
+<pre class="r"><code>DefaultAssay(FB) &lt;- &quot;SCT&quot;
+FB &lt;- PrepSCTFindMarkers(FB)
+Idents(FB) &lt;- &quot;SCT_snn_res.0.3&quot;
+Markers &lt;- FindAllMarkers(FB, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
+Markers_top10 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 10, wt = avg_log2FC))
+Markers_top3 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 3, wt = avg_log2FC))</code></pre>
+<pre class="r"><code>mapal &lt;- colorRampPalette(RColorBrewer::brewer.pal(9,&quot;RdBu&quot;))(256)
+mapal &lt;- rev(mapal[1:256])
+Heatmap &lt;- DoHeatmap(subset(FB, cells = sample(colnames(FB), 20000)), label = FALSE, draw.line = F, features = Markers_top10$gene) +
+  scale_fill_gradientn(colours = mapal) +
+  theme(axis.text.y = element_text(size = 5)) +
+  theme(plot.margin = unit(c(0.1, 0, 0, 0), 
+                           &quot;inches&quot;))
+Heatmap</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Heatmap_FB-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>cell_type_cols &lt;- c(&quot;#d05050&quot;, &quot;#33A02C&quot;, &quot;#1F78B4&quot;, &quot;#CAB2D6&quot;, &quot;#FF7F00&quot;, &quot;#B2DF8A&quot;, &quot;#B15928&quot;, &quot;#FFD000&quot;, &quot;#FA95C0&quot;, &quot;#FDBF6F&quot;, &quot;#6A3D9A&quot;, &quot;#7aCDF9&quot;)  </code></pre>
+<p>Check QC parameters in each cluster</p>
+<pre class="r"><code>VlnPlot_scCustom(FB, features = c(&quot;nCount_RNA&quot;, &quot;nFeature_RNA&quot;, &quot;percent.mt&quot;, &quot;percent.rp&quot;), num_columns = 2, pt.size = 0, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/QC_VlnPlots_FB-1.png" width="2400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="cell-type-annotation" class="section level2">
+<h2>Cell type annotation</h2>
+<p>Annotate the clusters</p>
+<pre class="r"><code>FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c(&quot;0&quot;), &quot;cell_state&quot;] = &quot;FB1&quot;
+FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c(&quot;1&quot;), &quot;cell_state&quot;] = &quot;FB2&quot;
+FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c(&quot;2&quot;), &quot;cell_state&quot;] = &quot;FB3&quot;
+FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c(&quot;3&quot;), &quot;cell_state&quot;] = &quot;FB4&quot;
+FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c(&quot;4&quot;), &quot;cell_state&quot;] = &quot;FB5&quot;
+
+FB$cell_state &lt;- factor(FB$cell_state, levels = c(&quot;FB1&quot;, &quot;FB2&quot;, &quot;FB3&quot;,&quot;FB4&quot;,&quot;FB5&quot;))
+Idents(FB) &lt;- FB$cell_state</code></pre>
+<pre class="r"><code>DefaultAssay(FB) &lt;- &quot;SCT&quot;
+Idents(FB) &lt;- &quot;cell_state&quot;
+Markers &lt;- FindAllMarkers(FB, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
+write.csv(Markers, here::here(output_dir_data, &quot;FB_Markers_all_cell_state.csv&quot;))
+Markers_top10 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, &quot;FB_Markers_top10_cell_state.csv&quot;))
+Markers_top3 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, &quot;FB_Markers_top3_cell_state.csv&quot;))</code></pre>
+<pre class="r"><code>Heatmap &lt;- DoHeatmap(subset(FB, cells = sample(colnames(FB), 20000)), label = TRUE, draw.line = F, features = Markers_top10$gene) + 
+  scale_fill_gradientn(colours = mapal) +
+  theme(text = element_text(size = 12), 
+        axis.text.y = element_text(size = 8)) +
+  theme(plot.margin = unit(c(0.2, 0, 0, 0), &quot;inches&quot;)) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) + guides(color = &quot;none&quot;) 
+Heatmap</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Heatmap_cell_state-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p &lt;- DimPlot(
+        FB,
+        group.by  = &quot;cell_state&quot;,
+        reduction = &quot;umap&quot;,
+        cols      = cell_type_cols,       
+        label     = FALSE,
+        shuffle=T,
+        pt.size = 0.1
+        ) +
+     NoLegend() +
+     theme(axis.text  = element_text(size = 8, face = &quot;bold&quot;),
+           axis.title = element_text(size = 12, face = &quot;bold&quot;),
+           plot.title = element_blank())
+
+LabelClusters(p,
+              id       = &quot;cell_state&quot;,
+              fontface = &quot;bold&quot;,
+              size     = 8,
+              repel    = TRUE)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/UMAP_cell_type_2-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB) &lt;- factor(
+  Idents(FB),
+  levels = rev(levels(Idents(FB)))
+)
+
+p &lt;- DotPlot_scCustom(
+        FB,
+        features       = Markers_top3$gene,
+        x_lab_rotate   = TRUE
+)
+
+p + theme(
+      axis.text.x  = element_text(size = 12,        
+                                  angle = 60,          
+                                  vjust = 1,
+                                  hjust = 1),
+      axis.text.y  = element_text(size = 15))  </code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/DotPlot_markers-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB) &lt;- FB$cell_state</code></pre>
+<pre class="r"><code>VlnPlot_scCustom(FB, features = c(&quot;ACSM3&quot;, &quot;PCOLCE2&quot;, &quot;KAZN&quot;, &quot;FGF14&quot;, &quot;NFATC2&quot;), num_columns = 5, colors_use = cell_type_cols)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/VlnPlot_markers_FB-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot_scCustom(FB, features = Markers_top3$gene, num_columns = 3)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/FeatPlot_markers_FB-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot_scCustom(FB, features = c(&quot;POSTN&quot;, &quot;ACTA2&quot;, &quot;FAP&quot;, &quot;VIM&quot;, &quot;COL1A1&quot;), num_columns = 5)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/FeatPlot_markers_myoFB-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>props &lt;- getTransformedProps(FB$cell_state, FB$Sample, transform=&quot;logit&quot;)
+
+par(mar = c(7, 5, 1, 8), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = &quot;Proportions&quot;, col = cell_type_cols, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend(&quot;topright&quot;, inset = c(-0.1, 0.1), legend = rownames(props$Proportions), fill = cell_type_cols, bty = &quot;n&quot;, cex = 2)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Barplot_FB_Sample-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>props &lt;- getTransformedProps(FB$cell_state, FB$Group, transform=&quot;logit&quot;)
+
+par(mar = c(7, 5, 1, 8), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = &quot;Proportions&quot;, col = cell_type_cols, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend(&quot;topright&quot;, inset = c(-0.65, 0.15), legend = rownames(props$Proportions), fill = cell_type_cols, bty = &quot;n&quot;, cex = 2)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Barplot_FB_Group-1.png" width="1500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>df &lt;- Markers[,7:6]
+dfsample &lt;- split(df$gene,df$cluster)
+length(dfsample)</code></pre>
+<pre><code>[1] 5</code></pre>
+<pre class="r"><code>dfsample$FB1 = bitr(dfsample$FB1, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)
+dfsample$FB2 = bitr(dfsample$FB2, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)
+dfsample$FB3 = bitr(dfsample$FB3, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)
+dfsample$FB4 = bitr(dfsample$FB4, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)
+dfsample$FB5 = bitr(dfsample$FB5, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;)
+
+genelist &lt;- list(&quot;FB1&quot; = dfsample$FB1$ENTREZID, 
+                 &quot;FB2&quot; = dfsample$FB2$ENTREZID,
+                 &quot;FB3&quot; = dfsample$FB3$ENTREZID,
+                 &quot;FB4&quot; = dfsample$FB4$ENTREZID,
+                 &quot;FB5&quot; = dfsample$FB5$ENTREZID
+)
+
+gene_counts &lt;- rowSums(FB@assays$RNA@counts &gt; 0)
+
+universe_genes &lt;- names(gene_counts[gene_counts &gt;= 3])
+
+universe_entrez &lt;- bitr(universe_genes, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db)$ENTREZID</code></pre>
+<pre class="r"><code>GO &lt;- compareCluster(geneCluster = genelist, fun = &quot;enrichGO&quot;, ont = &quot;ALL&quot;,  OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez)
+GO &lt;- gsfilter(GO, by = &#39;Count&#39;, min = 3)
+dotplot(GO, label_format = 35, title = &quot;GO - Over-representation analysis&quot;)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Pathways_GO-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GO_simplified &lt;- simplify(
+  GO,
+  cutoff = 0.5,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+dotplot(GO_simplified, label_format = 35, title = &quot;GO - Over-representation analysis&quot;)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Pathways_GO_simplified-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>KEGG &lt;- compareCluster(geneCluster = genelist, fun = &quot;enrichKEGG&quot;, organism = &#39;hsa&#39;, universe = universe_entrez)
+KEGG &lt;- gsfilter(KEGG, by = &#39;Count&#39;, min = 3)
+dotplot(KEGG, label_format = 35, title = &quot;KEGG Pathways&quot;)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Pathways_KEGG-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>REACTOME &lt;- compareCluster(geneCluster = genelist, fun = &quot;enrichPathway&quot;, organism = &#39;human&#39;, universe = universe_entrez)
+REACTOME &lt;- gsfilter(REACTOME, by = &#39;Count&#39;, min = 3)
+dotplot(REACTOME, label_format = 40, title = &quot;REACTOME&quot;, showCategory = 4)</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Pathways_REACTOME-1.png" width="1800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="differential-abundance-analysis" class="section level2">
+<h2>Differential abundance analysis</h2>
+<pre class="r"><code>metadata &lt;- FB@meta.data %&gt;%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %&gt;%
+  unique() %&gt;%
+  dplyr::arrange(match(Sample, names(table(FB$Sample))))
+
+rownames(metadata) &lt;- metadata$Sample
+
+all.equal(metadata$Sample, names(table(FB$Sample)))</code></pre>
+<pre><code>[1] TRUE</code></pre>
+<pre class="r"><code>reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-714a00f8e7e90d0c99e6" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-714a00f8e7e90d0c99e6">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["CZD4","CZD5","CZD6","CZD7","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Sample":["CZD4","CZD5","CZD6","CZD7","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Batch_processing":["Batch8","Batch8","Batch8","Batch8","Batch6","Batch7","Batch6","Batch7","Batch6","Batch6","Batch7","Batch1","Batch1","Batch1","Batch2","Batch2","Batch2","Batch3","Batch2","Batch3","Batch3","Batch4","Batch5","Batch4","Batch5"],"Batch_sequencing":["Batch7_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch5_seq","Batch6_seq","Batch1_seq","Batch1_seq","Batch1_seq","Batch2_seq","Batch2_seq","Batch2_seq","Batch3_seq","Batch3_seq","Batch3_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq"],"Age_years":[46,55,33,37,19,36,37,28,49,49,45,32,29,61,56,53,58,41,61,41,52,66,16,57,40],"Sex":["M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M"],"Group":["HC","HC","HC","HC","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM"],"mPAP_mmHg":["NA","NA","NA","NA","NA",25,26,27,33,22,30,41,43,39,36,21,29,43,30,"NA",29,19,"NA",34,48],"sPAP_mmHg":["NA","NA","NA","NA","NA",35,37,41,48,33,38,51,56,54,51,31,45,55,44,"NA",42,26,"NA",41,58],"PCW_mmHg":["NA","NA","NA","NA","NA",22,20,23,20,15,18,32,35,31,25,9,20,"NA",21,"NA",17,10,"NA",28,33],"PVR_WU":["NA","NA","NA","NA","NA",0.68,1.5,1.27,4.8,1.39,2.2,3.67,2.55,3.26,3.38,2.05,2.42,5.8,2.5,"NA",2.4,2.37,"NA",2.27,3.9],"TAPSE_mm":["NA","NA","NA","NA",13,9,13,24,9,20,12,16,17,15,15,20,17,18,15,12,22,19,7,19,15],"RVID_mm":["NA","NA","NA","NA",39,41,45,28,54,30,39,44,49,48,58,33,60,40,47,37,41,46,60,45,57],"LVEF_percent":["NA","NA","NA","NA",10,15,10,18,10,30,15,16,15,15,15,18,10,35,6,20,20,23,20,15,17],"LVEDD_mm":["NA","NA","NA","NA",76,80,98,72,92,69,75,67,88,71,74,82,84,58,83,63,89,69,58,98,81]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"Sample","name":"Sample","type":"character"},{"id":"Batch_processing","name":"Batch_processing","type":"character"},{"id":"Batch_sequencing","name":"Batch_sequencing","type":"character"},{"id":"Age_years","name":"Age_years","type":"numeric"},{"id":"Sex","name":"Sex","type":"character"},{"id":"Group","name":"Group","type":"character"},{"id":"mPAP_mmHg","name":"mPAP_mmHg","type":"numeric"},{"id":"sPAP_mmHg","name":"sPAP_mmHg","type":"numeric"},{"id":"PCW_mmHg","name":"PCW_mmHg","type":"numeric"},{"id":"PVR_WU","name":"PVR_WU","type":"numeric"},{"id":"TAPSE_mm","name":"TAPSE_mm","type":"numeric"},{"id":"RVID_mm","name":"RVID_mm","type":"numeric"},{"id":"LVEF_percent","name":"LVEF_percent","type":"numeric"},{"id":"LVEDD_mm","name":"LVEDD_mm","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"6a3429aca608d0a65657c07d377eb7f2"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>metadata_DCM &lt;- metadata %&gt;%
+  dplyr::filter(Group == &quot;DCM&quot;)</code></pre>
+<pre class="r"><code>differential_abundance &lt;- data.frame()
+props &lt;- getTransformedProps(FB$cell_state, FB$Sample, transform=&quot;logit&quot;)
+
+for (i in 7:(length(metadata_DCM))) {
+  metadata_subset &lt;- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  props_subset &lt;- props
+  props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+  props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+  props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+  metadata_subset &lt;- metadata_subset %&gt;% 
+    arrange(Sample, colnames(props_subset$Proportions))
+  design &lt;- model.matrix(~ metadata_subset[[i]] + metadata_subset[[&quot;Age_years&quot;]])
+  fit &lt;- lmFit(props_subset$TransformedProps, design)
+  fit &lt;- eBayes(fit, robust=TRUE)
+  differential_abundance_temp &lt;- topTable(fit, n = Inf, coef = 2)
+  differential_abundance_temp$metadata &lt;- colnames(metadata_subset[i])
+  differential_abundance_temp$cell_state &lt;- rownames(differential_abundance_temp)
+  differential_abundance &lt;- rbind(differential_abundance, differential_abundance_temp)
+}
+
+rm(metadata_subset, props_subset, design, fit, differential_abundance_temp)
+
+rownames(differential_abundance) &lt;- NULL
+differential_abundance &lt;- dplyr::arrange(differential_abundance, adj.P.Val)
+
+write.csv(differential_abundance, file = here::here(output_dir_data, &quot;FB_Differential_Abundance.csv&quot;), row.names = F)
+
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-e214f5e846d44661a820" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-e214f5e846d44661a820">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"logFC":[0.0152868106373955,-0.00902716293581593,0.00775115376172221,-0.0067788872356219,-0.0236997254346252,0.0179691452369385,0.0176536756473939,-0.0143152283651266,0.00825820452438546,-0.00871955108242216,-0.00568014315183137,0.0138138761929593,0.0109336229279067,-0.0105095438288955,-0.00268297808067508,-0.00318091765392604,-0.00335141119998736,0.0530296540890378,-0.0479308185341108,-0.0200167184202489,0.0156722588500844,-0.0157222505546046,0.0109187658994221,-0.00824777074087642,0.00324796476869011,-0.0016811402715816,-0.00134516111377194,0.0107092083909254,-0.00494334188635952,-0.0033811608095954,-0.00257722406527197,0.00114044602760891,0.00129334351849911,-0.00112314748697708,-0.000257089424993386,0.00706152722716132,-0.00440696219363087,-0.00281675622793728,0.00173613231512242,0.000365357159219232],"AveExpr":[-2.34866630984319,-0.238230530259961,-1.70945661708631,-1.50888335047379,-2.34866630984319,-1.50888335047379,-1.99544990438113,-1.70945661708631,-0.238230530259961,-2.34866630984319,-1.70945661708631,-1.70817901433739,-2.42358605195536,-1.47367294102539,-1.99544990438113,-0.196815990030183,-2.04722499913576,-1.70656450426709,-2.41806286377235,-0.19896793281786,-1.47249300894756,-2.04280680491934,-1.50888335047379,-0.238230530259961,-2.34866630984319,-1.99544990438113,-1.70945661708631,-1.70656450426709,-1.47249300894756,-2.04280680491934,-0.19896793281786,-2.41806286377235,-0.238230530259961,-1.99544990438113,-1.50888335047379,-1.70656450426709,-1.47249300894756,-0.19896793281786,-2.04280680491934,-2.41806286377235],"t":[1.90983520343661,-1.36002519370563,1.15837172683823,-1.00812426985841,-1.27865489252681,1.19973059224156,1.14569158257837,-0.952848773774759,1.53854285567231,-1.26642290854355,-1.03902758492813,1.3695591394638,1.02979538057708,-1.02900408980058,-0.38632702408185,-0.327690823496617,-0.325470523386898,1.0258172826984,-0.86272745317676,-0.414964164146491,0.297042139461989,-0.296946345920474,1.18216361272767,-0.893265196655879,0.271809776977629,-0.173623105997232,-0.143697233290801,1.29429804456988,-0.582482690759231,-0.39621859092148,-0.333653910613608,0.125968832284331,0.0856515741904699,-0.196608580449869,-0.0463564624312352,0.961307728243089,-0.588822260657432,-0.414632324361665,0.230410603090303,0.0456902551205735],"P.Value":[0.0613785417968698,0.179374550745879,0.251720901675823,0.317812488876654,0.207026178868402,0.235998033219065,0.257473163508733,0.345331550098077,0.130965589100516,0.211921654807273,0.304379841044902,0.175202279615129,0.306651218885679,0.307020267701215,0.700746019057652,0.744123509882921,0.745795862523827,0.309392459061228,0.391970354008067,0.679755078752961,0.767534360202555,0.767607113932235,0.24373944261702,0.376765976590794,0.787089707142942,0.862989361509469,0.886421513544406,0.201265476700716,0.562752032946147,0.693560558560402,0.739978826114539,0.900241058756575,0.932091522307819,0.845025057387498,0.963232629308671,0.340959939615691,0.558594946317338,0.680160297139079,0.818699920078067,0.963736624517215],"adj.P.Val":[0.306892708984349,0.397265611095817,0.397265611095817,0.397265611095817,0.429121939181221,0.429121939181221,0.429121939181221,0.431664437622597,0.507299735074837,0.507299735074837,0.507299735074837,0.511700446168692,0.511700446168692,0.511700446168692,0.700746019057652,0.745795862523827,0.745795862523827,0.767607113932235,0.767607113932235,0.767607113932235,0.767607113932235,0.767607113932235,0.886421513544406,0.886421513544406,0.886421513544406,0.886421513544406,0.886421513544406,0.900241058756575,0.900241058756575,0.900241058756575,0.900241058756575,0.900241058756575,0.932091522307819,0.963232629308671,0.963232629308671,0.963736624517215,0.963736624517215,0.963736624517215,0.963736624517215,0.963736624517215],"B":[-5.47342830910307,-6.34075204608037,-6.59075427405563,-6.75219181753818,-5.65920813398831,-5.75357934966237,-5.81492814135011,-6.01187448976217,-6.27974607981974,-6.65206167797415,-6.91136411445744,-5.95592251826083,-6.35662337099702,-6.35742876645228,-7.18686149461797,-6.83102972865477,-6.83175653001666,-4.95047643471599,-5.07138078142046,-5.29808956790244,-5.33159724179045,-5.33161997049835,-6.22823101881413,-6.52445118894954,-6.88774917246976,-6.90989424284746,-6.91470554214654,-6.24266367179802,-6.90581223310824,-6.99761976203415,-7.02066744657958,-7.06891204045433,-6.45607480291262,-7.43517304916852,-7.45376465818266,-6.73633427963263,-7.02548222461362,-7.11366226786328,-7.17378498494783,-7.19963268068469],"metadata":["RVID_mm","RVID_mm","RVID_mm","RVID_mm","TAPSE_mm","TAPSE_mm","TAPSE_mm","TAPSE_mm","LVEDD_mm","LVEDD_mm","LVEDD_mm","PCW_mmHg","PCW_mmHg","PCW_mmHg","RVID_mm","PCW_mmHg","PCW_mmHg","PVR_WU","PVR_WU","PVR_WU","PVR_WU","PVR_WU","LVEF_percent","LVEF_percent","LVEF_percent","LVEF_percent","LVEF_percent","mPAP_mmHg","mPAP_mmHg","mPAP_mmHg","mPAP_mmHg","mPAP_mmHg","TAPSE_mm","LVEDD_mm","LVEDD_mm","sPAP_mmHg","sPAP_mmHg","sPAP_mmHg","sPAP_mmHg","sPAP_mmHg"],"cell_state":["FB5","FB1","FB3","FB2","FB5","FB2","FB4","FB3","FB1","FB5","FB3","FB3","FB5","FB2","FB4","FB1","FB4","FB3","FB5","FB1","FB2","FB4","FB2","FB1","FB5","FB4","FB3","FB3","FB2","FB4","FB1","FB5","FB1","FB4","FB2","FB3","FB2","FB1","FB4","FB5"]},"columns":[{"id":"logFC","name":"logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"P.Value","name":"P.Value","type":"numeric"},{"id":"adj.P.Val","name":"adj.P.Val","type":"numeric"},{"id":"B","name":"B","type":"numeric"},{"id":"metadata","name":"metadata","type":"character"},{"id":"cell_state","name":"cell_state","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"b085399d6f84a042e92cfad401e0ee76"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;RVID_mm&quot;]]),]
+
+props_subset &lt;- props
+props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset &lt;- metadata_subset %&gt;% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design &lt;- model.matrix(~ metadata_subset$RVID_mm + metadata_subset$Age_years)
+fit.prop &lt;- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$RVID_mm, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;RVID_mm&quot;, cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Speckle_LVEDD_mm-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_subset, props_subset, design, fit.prop)</code></pre>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;mPAP_mmHg&quot;]]),]
+
+props_subset &lt;- props
+props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset &lt;- metadata_subset %&gt;% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design &lt;- model.matrix(~ metadata_subset$mPAP_mmHg + metadata_subset$Age_years)
+fit.prop &lt;- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$mPAP_mmHg, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab=&quot;Proportions&quot;, xlab=&quot;mPAP_mmHg&quot;, cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Speckle_mPAP_mmHg-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(metadata_subset, props_subset, design, fit.prop)</code></pre>
+<pre class="r"><code>design &lt;- model.matrix(~ 0 + metadata$Group)
+colnames(design) &lt;- c(&quot;DCM&quot;, &quot;HC&quot;)
+mycontr &lt;- makeContrasts(DCM-HC, levels=design)
+differential_abundance_HC &lt;- propeller.ttest(props, design, contrasts = mycontr, robust=TRUE, trend=FALSE, sort=TRUE)
+
+write.csv(differential_abundance_HC, file = here::here(output_dir_data, &quot;FB_Differential_Abundance_HC.csv&quot;), row.names = F)
+
+reactable(differential_abundance_HC, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-f328d119b29bcb624b71" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-f328d119b29bcb624b71">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["FB4","FB3","FB2","FB5","FB1"],"PropMean.DCM":[0.12263131060326,0.155841017419824,0.184438126464512,0.0943644265822078,0.442725118930197],"PropMean.HC":[0.0831689811011928,0.187834702461694,0.213624661938901,0.0837774301548184,0.431594224343394],"PropRatio":[1.47448374357325,0.829671063852566,0.863374690873768,1.12637050823623,1.02579018429576],"Tstatistic":[2.74609267260361,-1.72324370930747,-1.17421836453559,0.43611223244985,0.27815529995484],"P.Value":[0.00941159871467525,0.0935576252629514,0.248135375916212,0.665399658312321,0.782509075053342],"FDR":[0.0470579935733763,0.233894063157379,0.413558959860353,0.782509075053342,0.782509075053342]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"PropMean.DCM","name":"PropMean.DCM","type":"numeric"},{"id":"PropMean.HC","name":"PropMean.HC","type":"numeric"},{"id":"PropRatio","name":"PropRatio","type":"numeric"},{"id":"Tstatistic","name":"Tstatistic","type":"numeric"},{"id":"P.Value","name":"P.Value","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"e08397749b8f39f9b59697ea8651c1a7"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>prop_mat &lt;- as.matrix(props$Proportions)
+stopifnot(is.matrix(prop_mat))
+
+# 2) Long format
+prop_long &lt;- as.data.frame.matrix(prop_mat) %&gt;%           # &lt;-- important: *.matrix
+  tibble::rownames_to_column(&quot;state&quot;) %&gt;%
+  pivot_longer(cols = -state, names_to = &quot;Sample&quot;, values_to = &quot;prop&quot;) %&gt;%
+  mutate(Sample = as.character(Sample),
+         state    = factor(state, levels = rownames(prop_mat))) %&gt;%
+  left_join(metadata %&gt;% dplyr::select(Sample, Group) %&gt;% distinct(),
+            by = &quot;Sample&quot;) %&gt;%
+  mutate(Group = factor(Group, levels = c(&quot;HC&quot;,&quot;DCM&quot;)))
+
+# ---- Build labels from propeller results ----
+# rownames of differential_abundance_HC should be the state names
+lab_df &lt;- differential_abundance_HC %&gt;%
+  mutate(state = rownames(differential_abundance_HC),
+         label = ifelse(FDR &lt; 0.05, paste0(&quot;FDR=&quot;, signif(FDR, 2)), &quot;ns&quot;)) %&gt;%
+  dplyr::select(state, label)
+
+# y-position for labels (a little above the highest point per facet)
+y_pos &lt;- prop_long %&gt;%
+  group_by(state) %&gt;%
+  summarise(y = max(prop, na.rm = TRUE) * 1.08, .groups = &quot;drop&quot;)
+
+lab_plot &lt;- left_join(lab_df, y_pos, by = &quot;state&quot;)
+
+# ---- Colors (classic blue/red) ----
+cols &lt;- c(HC = &quot;#1f77b4&quot;, DCM = &quot;#d62728&quot;)
+
+# ---- Plot ----
+p &lt;- ggplot(prop_long, aes(x = Group, y = prop, fill = Group, color = Group)) +
+  geom_boxplot(width = 0.6, outlier.shape = NA, alpha = 0.35) +
+  geom_jitter(width = 0.12, size = 1.8, alpha = 0.9) +
+  facet_wrap(~ state, nrow = 1, scales = &quot;free_y&quot;) +
+  geom_text(data = lab_plot, aes(x = 1.5, y = y, label = label),
+            inherit.aes = FALSE, size = 4.5) +
+  scale_fill_manual(values = cols) +
+  scale_color_manual(values = cols) +
+  labs(x = NULL, y = &quot;Proportions&quot;) +
+  theme_classic(base_size = 14) +
+  theme(
+    legend.position = &quot;none&quot;,
+    strip.text = element_text(face = &quot;bold&quot;, size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.title.y = element_text(size = 13),
+    panel.spacing = unit(1.5, &quot;lines&quot;)
+  )
+
+p</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Speckle_Group-2.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FB_proportions &lt;- as.data.frame(props$Proportions) %&gt;%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+write.csv(FB_proportions, file = here::here(output_dir_data, &quot;FB_Proportions.csv&quot;), row.names = F)</code></pre>
+<pre class="r"><code>rm(differential_abundance, differential_abundance_HC, props, FB_proportions)</code></pre>
+</div>
+<div id="transcription-factor-inference-analysis"
+class="section level2">
+<h2>Transcription factor inference analysis</h2>
+<pre class="r"><code>net &lt;- get_collectri(organism=&#39;human&#39;, split_complexes=FALSE)</code></pre>
+<pre class="r"><code>DefaultAssay(FB) &lt;- &quot;RNA&quot;
+FB &lt;- NormalizeData(FB)</code></pre>
+<pre class="r"><code>expr_matrix &lt;- GetAssayData(object = FB, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+non_zero_cells &lt;- rowSums(expr_matrix &gt; 0)
+total_cells &lt;- ncol(expr_matrix)
+percent_cells &lt;- (non_zero_cells / total_cells) * 100
+percent_stats &lt;- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)</code></pre>
+<pre class="r"><code>net &lt;- net %&gt;% 
+  dplyr::filter(source %in% filter(percent_stats, percentCells &gt; 5)$gene)</code></pre>
+<pre class="r"><code>TF_cols &lt;- rev(colorRampPalette(brewer.pal(5, &quot;BrBG&quot;))(101))</code></pre>
+<pre class="r"><code>mat &lt;- as.matrix(FB@assays$RNA@data)
+
+acts &lt;- decoupleR::run_ulm(mat = mat, 
+                           net = net, 
+                           .source = &#39;source&#39;, 
+                           .target = &#39;target&#39;,
+                           .mor=&#39;mor&#39;, 
+                           minsize = 10)
+
+FB[[&#39;tfsulm&#39;]] &lt;- acts %&gt;%
+                    tidyr::pivot_wider(id_cols = &#39;source&#39;, 
+                                       names_from = &#39;condition&#39;,
+                                       values_from = &#39;score&#39;) %&gt;%
+                    tibble::column_to_rownames(&#39;source&#39;) %&gt;%
+                    Seurat::CreateAssayObject(.)
+
+DefaultAssay(object = FB) &lt;- &quot;tfsulm&quot;
+
+FB &lt;- Seurat::ScaleData(FB)
+FB@assays$tfsulm@data &lt;- FB@assays$tfsulm@scale.data</code></pre>
+<pre class="r"><code>n_tfs &lt;- 10
+
+df &lt;- t(as.matrix(FB@assays$tfsulm@data)) %&gt;%
+      as.data.frame() %&gt;%
+      dplyr::mutate(cluster = Seurat::Idents(FB)) %&gt;%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = &quot;source&quot;, 
+                          values_to = &quot;score&quot;) %&gt;%
+      dplyr::group_by(cluster, source) %&gt;%
+      dplyr::summarise(mean = mean(score))
+df &lt;- df %&gt;%
+  filter(source %in% filter(percent_stats, percentCells &gt; 5)$gene)
+
+tfs &lt;- df %&gt;%
+       dplyr::group_by(source) %&gt;%
+       dplyr::summarise(std = stats::sd(mean)) %&gt;%
+       dplyr::arrange(-abs(std)) %&gt;%
+       head(n_tfs) %&gt;%
+       dplyr::pull(source)
+
+top_acts_mat &lt;- df %&gt;%
+                dplyr::filter(source %in% tfs) %&gt;%
+                tidyr::pivot_wider(id_cols = &#39;cluster&#39;, 
+                                   names_from = &#39;source&#39;,
+                                   values_from = &#39;mean&#39;) %&gt;%
+                tibble::column_to_rownames(&#39;cluster&#39;) %&gt;%
+                as.matrix()
+
+my_breaks &lt;- c(seq(-2, 0, length.out = ceiling(101 / 2) + 1),
+               seq(0.05, 2, length.out = floor(101 / 2)))
+
+# Plot
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = TF_cols,
+                   border_color = &quot;white&quot;,
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) </code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/TF_heatmap_cluster_10-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>n_tfs &lt;- 20
+
+df &lt;- t(as.matrix(FB@assays$tfsulm@data)) %&gt;%
+      as.data.frame() %&gt;%
+      dplyr::mutate(cluster = Seurat::Idents(FB)) %&gt;%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = &quot;source&quot;, 
+                          values_to = &quot;score&quot;) %&gt;%
+      dplyr::group_by(cluster, source) %&gt;%
+      dplyr::summarise(mean = mean(score))
+df &lt;- df %&gt;%
+  filter(source %in% filter(percent_stats, percentCells &gt; 5)$gene)
+
+tfs &lt;- df %&gt;%
+       dplyr::group_by(source) %&gt;%
+       dplyr::summarise(std = stats::sd(mean)) %&gt;%
+       dplyr::arrange(-abs(std)) %&gt;%
+       head(n_tfs) %&gt;%
+       dplyr::pull(source)
+
+top_acts_mat &lt;- df %&gt;%
+                dplyr::filter(source %in% tfs) %&gt;%
+                tidyr::pivot_wider(id_cols = &#39;cluster&#39;, 
+                                   names_from = &#39;source&#39;,
+                                   values_from = &#39;mean&#39;) %&gt;%
+                tibble::column_to_rownames(&#39;cluster&#39;) %&gt;%
+                as.matrix()
+
+my_breaks &lt;- c(seq(-2, 0, length.out = ceiling(100 / 2) + 1),
+               seq(0.05, 2, length.out = floor(100 / 2)))
+
+# Plot
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = TF_cols,
+                   border_color = &quot;white&quot;,
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) </code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/TF_heatmap_cluster_20-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Seurat::DefaultAssay(FB) &lt;- &quot;tfsulm&quot;
+p1 &lt;- Seurat::DimPlot(FB, 
+                      reduction = &quot;umap&quot;, 
+                      label = TRUE, 
+                      pt.size = 0.1) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle(&#39;Cell states&#39;)
+
+p2 &lt;- Seurat::FeaturePlot(FB, features = c(&quot;NFATC3&quot;), pt.size = 0.1, order = T) + 
+      ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = &quot;white&quot;) +
+      ggplot2::ggtitle(&#39;NFATC3 activity&#39;)
+
+DefaultAssay(object = FB) &lt;- &quot;RNA&quot;
+p3 &lt;- Seurat::FeaturePlot(FB, 
+                          features = c(&quot;NFATC3&quot;), pt.size = 0.1, order = T) + 
+      ggplot2::ggtitle(&#39;NFATC3 expression&#39;)
+
+Seurat::DefaultAssay(FB) &lt;- &quot;tfsulm&quot;
+
+p &lt;- p1 | p2 | p3
+p</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/TF_Feat_NFATC3-1.png" width="3600" style="display: block; margin: auto;" /></p>
+</div>
+<div id="pathway-activity-inference" class="section level2">
+<h2>Pathway activity inference</h2>
+<pre class="r"><code>net_path &lt;- get_progeny(organism = &#39;human&#39;, top = 100000)</code></pre>
+<pre class="r"><code>Pathway_cols &lt;- colorRampPalette(c(&quot;#28A2EB&quot;, &quot;white&quot;, &quot;#FFB233&quot;))(101)</code></pre>
+<pre class="r"><code>acts_pathway &lt;- decoupleR::run_mlm(mat = mat, 
+                           net = net_path, 
+                           .source = &#39;source&#39;, 
+                           .target = &#39;target&#39;,
+                           .mor = &#39;weight&#39;, 
+                           minsize = 10)
+
+FB[[&#39;pathwaysmlm&#39;]] &lt;- acts_pathway %&gt;%
+                         tidyr::pivot_wider(id_cols = &#39;source&#39;, 
+                                            names_from = &#39;condition&#39;,
+                                            values_from = &#39;score&#39;) %&gt;%
+                         tibble::column_to_rownames(var = &#39;source&#39;) %&gt;%
+                         Seurat::CreateAssayObject(.)
+
+Seurat::DefaultAssay(object = FB) &lt;- &quot;pathwaysmlm&quot;
+
+FB &lt;- Seurat::ScaleData(FB)
+FB@assays$pathwaysmlm@data &lt;- FB@assays$pathwaysmlm@scale.data</code></pre>
+<pre class="r"><code>Seurat::DefaultAssay(object = FB) &lt;- &quot;pathwaysmlm&quot;
+
+p1 &lt;- Seurat::DimPlot(FB, 
+                      reduction = &quot;umap&quot;, 
+                      label = TRUE, 
+                      pt.size = 0.11) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle(&#39;Cell states&#39;)
+
+p2 &lt;- Seurat::FeaturePlot(FB, features = c(&quot;TGFb&quot;), 
+                      pt.size = 0.1, order = T) + 
+      ggplot2::scale_colour_gradientn(colors = Pathway_cols
+                                      ) +
+      ggplot2::ggtitle(&#39;TGFb activity&#39;)
+
+p &lt;- p1 | p2
+p</code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Pathway_Feat_TGFb-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>df_pathway &lt;- t(as.matrix(FB@assays$pathwaysmlm@data)) %&gt;%
+      as.data.frame() %&gt;%
+      dplyr::mutate(cluster = Seurat::Idents(FB)) %&gt;%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = &quot;source&quot;, 
+                          values_to = &quot;score&quot;) %&gt;%
+      dplyr::group_by(cluster, source) %&gt;%
+      dplyr::summarise(mean = mean(score))
+
+top_acts_mat &lt;- df_pathway %&gt;%
+                tidyr::pivot_wider(id_cols = &#39;cluster&#39;, 
+                                   names_from = &#39;source&#39;,
+                                   values_from = &#39;mean&#39;) %&gt;%
+                tibble::column_to_rownames(var = &#39;cluster&#39;) %&gt;%
+                as.matrix()
+
+my_breaks &lt;- c(seq(-1.25, 0, length.out = ceiling(101 / 2) + 1),
+               seq(0.05, 1.25, length.out = floor(101 / 2)))
+
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = Pathway_cols,
+                   border_color = &quot;white&quot;,
+                   breaks = my_breaks,
+                   cellwidth = 20,
+                   cellheight = 20,
+                   treeheight_row = 20,
+                   treeheight_col = 20) </code></pre>
+<p><img src="figure/Fibroblasts_subclustering.Rmd/Pathway_heatmap_cluster-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>saveRDS(FB, 
+        here::here(output_dir_data, &quot;FB.rds&quot;))</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.3.1 (2023-06-16)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 22.04.4 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;  LAPACK version 3.10.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8          LC_NUMERIC=C                 
+ [3] LC_TIME=en_US.UTF-8           LC_COLLATE=en_US.UTF-8       
+ [5] LC_MONETARY=en_US.UTF-8       LC_MESSAGES=en_US.UTF-8      
+ [7] LC_PAPER=en_US.UTF-8          LC_NAME=en_US.UTF-8          
+ [9] LC_ADDRESS=en_US.UTF-8        LC_TELEPHONE=en_US.UTF-8     
+[11] LC_MEASUREMENT=en_US.UTF-8    LC_IDENTIFICATION=en_US.UTF-8
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] enrichplot_1.22.0           dorothea_1.14.1            
+ [3] OmnipathR_3.10.1            decoupleR_2.9.7            
+ [5] reactable_0.4.4             limma_3.58.1               
+ [7] speckle_1.2.0               ReactomePA_1.46.0          
+ [9] AnnotationHub_3.10.0        BiocFileCache_2.10.1       
+[11] dbplyr_2.4.0                org.Hs.eg.db_3.18.0        
+[13] AnnotationDbi_1.64.1        clusterProfiler_4.10.1     
+[15] gprofiler2_0.2.3            harmony_1.2.0              
+[17] clustree_0.5.1              ggraph_2.2.1               
+[19] rhdf5_2.46.1                Rcpp_1.0.12                
+[21] data.table_1.15.2           plyr_1.8.9                 
+[23] gtable_0.3.4                gtools_3.9.5               
+[25] ArchR_1.0.2                 statmod_1.5.0              
+[27] patchwork_1.2.0             scater_1.30.1              
+[29] scuttle_1.12.0              Matrix.utils_0.9.7         
+[31] RColorBrewer_1.1-3          scales_1.3.0               
+[33] knitr_1.45                  gridExtra_2.3              
+[35] png_0.1-8                   pheatmap_1.0.12            
+[37] reshape2_1.4.4              lubridate_1.9.3            
+[39] forcats_1.0.0               stringr_1.5.1              
+[41] purrr_1.0.2                 tidyr_1.3.1                
+[43] tibble_3.2.1                tidyverse_2.0.0            
+[45] magrittr_2.0.3              ggplot2_3.5.0              
+[47] dplyr_1.1.4                 scCustomize_3.0.1          
+[49] scDblFinder_1.16.0          Matrix_1.6-5               
+[51] DropletUtils_1.22.0         SingleCellExperiment_1.24.0
+[53] SummarizedExperiment_1.32.0 Biobase_2.62.0             
+[55] GenomicRanges_1.54.1        GenomeInfoDb_1.38.7        
+[57] IRanges_2.36.0              S4Vectors_0.40.2           
+[59] BiocGenerics_0.48.1         MatrixGenerics_1.14.0      
+[61] matrixStats_1.2.0           SeuratObject_5.0.2         
+[63] Seurat_4.4.0                xlsx_0.6.5                 
+[65] readxl_1.4.3                readr_2.1.5                
+[67] here_1.0.1                 
+
+loaded via a namespace (and not attached):
+  [1] R.methodsS3_1.8.2             vroom_1.6.5                  
+  [3] progress_1.2.3                goftest_1.2-3                
+  [5] Biostrings_2.70.2             HDF5Array_1.30.1             
+  [7] vctrs_0.6.5                   spatstat.random_3.2-3        
+  [9] digest_0.6.35                 shape_1.4.6.1                
+ [11] git2r_0.33.0                  ggrepel_0.9.5                
+ [13] deldir_2.0-4                  parallelly_1.37.1            
+ [15] bcellViper_1.38.0             MASS_7.3-60.0.1              
+ [17] httpuv_1.6.14                 qvalue_2.34.0                
+ [19] withr_3.0.0                   ggrastr_1.0.2                
+ [21] ggfun_0.1.4                   xfun_0.42                    
+ [23] ellipsis_0.3.2                survival_3.5-8               
+ [25] memoise_2.0.1                 ggbeeswarm_0.7.2             
+ [27] gson_0.1.0                    janitor_2.2.0                
+ [29] tidytree_0.4.6                zoo_1.8-12                   
+ [31] GlobalOptions_0.1.2           pbapply_1.7-2                
+ [33] R.oo_1.26.0                   prettyunits_1.2.0            
+ [35] rematch2_2.1.2                KEGGREST_1.42.0              
+ [37] promises_1.2.1                httr_1.4.7                   
+ [39] restfulr_0.0.15               globals_0.16.3               
+ [41] fitdistrplus_1.1-11           rhdf5filters_1.14.1          
+ [43] rstudioapi_0.15.0             miniUI_0.1.1.1               
+ [45] generics_0.1.3                DOSE_3.28.2                  
+ [47] reactome.db_1.86.2            curl_5.2.1                   
+ [49] zlibbioc_1.48.0               ScaledMatrix_1.10.0          
+ [51] polyclip_1.10-6               GenomeInfoDbData_1.2.11      
+ [53] SparseArray_1.2.4             interactiveDisplayBase_1.40.0
+ [55] xtable_1.8-4                  evaluate_0.23                
+ [57] S4Arrays_1.2.1                hms_1.1.3                    
+ [59] irlba_2.3.5.1                 filelock_1.0.3               
+ [61] colorspace_2.1-0              ROCR_1.0-11                  
+ [63] reticulate_1.35.0             spatstat.data_3.0-4          
+ [65] lmtest_0.9-40                 snakecase_0.11.1             
+ [67] ggtree_3.10.1                 later_1.3.2                  
+ [69] viridis_0.6.5                 lattice_0.22-5               
+ [71] spatstat.geom_3.2-9           future.apply_1.11.1          
+ [73] shadowtext_0.1.3              scattermore_1.2              
+ [75] XML_3.99-0.16.1               cowplot_1.1.3                
+ [77] RcppAnnoy_0.0.22              pillar_1.9.0                 
+ [79] nlme_3.1-164                  compiler_4.3.1               
+ [81] beachmat_2.18.1               stringi_1.8.3                
+ [83] tensor_1.5                    GenomicAlignments_1.38.2     
+ [85] crayon_1.5.2                  abind_1.4-5                  
+ [87] BiocIO_1.12.0                 gridGraphics_0.5-1           
+ [89] locfit_1.5-9.9                sp_2.1-3                     
+ [91] graphlayouts_1.1.1            bit_4.0.5                    
+ [93] fastmatch_1.1-4               whisker_0.4.1                
+ [95] codetools_0.2-19              BiocSingular_1.18.0          
+ [97] crosstalk_1.2.1               bslib_0.6.1                  
+ [99] paletteer_1.6.0               plotly_4.10.4                
+[101] mime_0.12                     splines_4.3.1                
+[103] circlize_0.4.16               sparseMatrixStats_1.14.0     
+[105] HDO.db_0.99.1                 cellranger_1.1.0             
+[107] grr_0.9.5                     blob_1.2.4                   
+[109] utf8_1.2.4                    BiocVersion_3.18.1           
+[111] fs_1.6.3                      checkmate_2.3.1              
+[113] listenv_0.9.1                 DelayedMatrixStats_1.24.0    
+[115] logger_0.3.0                  ggplotify_0.1.2              
+[117] tzdb_0.4.0                    tweenr_2.0.3                 
+[119] pkgconfig_2.0.3               tools_4.3.1                  
+[121] cachem_1.0.8                  RSQLite_2.3.5                
+[123] rvest_1.0.4                   viridisLite_0.4.2            
+[125] DBI_1.2.2                     graphite_1.48.0              
+[127] fastmap_1.1.1                 rmarkdown_2.26               
+[129] ica_1.0-3                     Rsamtools_2.18.0             
+[131] sass_0.4.9                    BiocManager_1.30.22          
+[133] ggprism_1.0.4                 dotCall64_1.1-1              
+[135] graph_1.80.0                  selectr_0.4-2                
+[137] RANN_2.6.1                    farver_2.1.1                 
+[139] scatterpie_0.2.1              tidygraph_1.3.1              
+[141] yaml_2.3.8                    workflowr_1.7.1              
+[143] rtracklayer_1.62.0            cli_3.6.2                    
+[145] leiden_0.4.3.1                lifecycle_1.0.4              
+[147] uwot_0.1.16                   backports_1.4.1              
+[149] bluster_1.12.0                BiocParallel_1.36.0          
+[151] timechange_0.3.0              rjson_0.2.21                 
+[153] ggridges_0.5.6                progressr_0.14.0             
+[155] ape_5.7-1                     parallel_4.3.1               
+[157] jsonlite_1.8.8                edgeR_4.0.16                 
+[159] bitops_1.0-7                  bit64_4.6.0-1                
+[161] xgboost_1.7.7.1               Rtsne_0.17                   
+[163] yulab.utils_0.1.4             spatstat.utils_3.1-0         
+[165] BiocNeighbors_1.20.2          highr_0.10                   
+[167] jquerylib_0.1.4               metapod_1.10.1               
+[169] GOSemSim_2.28.1               dqrng_0.3.2                  
+[171] R.utils_2.12.3                reactR_0.6.0                 
+[173] lazyeval_0.2.2                shiny_1.8.0                  
+[175] htmltools_0.5.8.1             rJava_1.0-11                 
+[177] GO.db_3.18.0                  sctransform_0.4.1            
+[179] rappdirs_0.3.3                glue_1.7.0                   
+[181] spam_2.10-0                   XVector_0.42.0               
+[183] RCurl_1.98-1.14               treeio_1.26.0                
+[185] rprojroot_2.0.4               scran_1.30.2                 
+[187] igraph_2.0.3                  R6_2.5.1                     
+[189] labeling_0.4.3                xlsxjars_0.6.1               
+[191] cluster_2.1.6                 Rhdf5lib_1.24.2              
+[193] aplot_0.2.2                   DelayedArray_0.28.0          
+[195] tidyselect_1.2.1              vipor_0.4.7                  
+[197] xml2_1.3.6                    ggforce_0.4.2                
+[199] future_1.33.1                 rsvd_1.0.5                   
+[201] munsell_0.5.0                 KernSmooth_2.23-22           
+[203] htmlwidgets_1.6.4             fgsea_1.28.0                 
+[205] rlang_1.1.6                   spatstat.sparse_3.0-3        
+[207] spatstat.explore_3.2-6        fansi_1.0.6                  
+[209] beeswarm_0.4.0               </code></pre>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
