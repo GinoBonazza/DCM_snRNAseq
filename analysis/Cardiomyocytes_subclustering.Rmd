@@ -67,6 +67,7 @@ library(decoupleR)
 library(OmnipathR)
 library(dorothea)
 library(enrichplot)
+library(SeuratDisk)
 
 
 #Output paths
@@ -83,57 +84,59 @@ if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
 Load dataset and subset cardiomyocytes
 
 ```{r Load data, echo = TRUE, results= "hide"}
-DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_integrated_RNA.rds"))
-DefaultAssay(DCM_RV_integrated) <- "RNA"
-CM <- subset(DCM_RV_integrated, cell_type == "Cardiomyocytes")
+DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.rds"))
+DefaultAssay(DCM_RV) <- "RNA"
+CM <- subset(DCM_RV, cell_type == "Cardiomyocytes")
 ```
 
 ## Integration and clustering
 
 Re-normalize and re-scale the subsetted object using SCTransform
 
-```{r SCTransform, eval=FALSE, message=FALSE}
+```{r SCTransform, message=FALSE}
 CM <- SplitObject(CM, split.by = "Sample")
 for (i in 1:length(CM)) {
-CM[[i]] <- SCTransform(CM[[i]], vst.flavor = "v2", vars.to.regress = c("percent.mt", "percent.rp"), return.only.var.genes = FALSE)
+CM[[i]] <- SCTransform(CM[[i]], vst.flavor = "v2", vars.to.regress = "percent.mt", return.only.var.genes = TRUE, variable.features.n = 2000)
 }
 ```
 
 PCA
 
-```{r PCA, eval=FALSE}
+```{r PCA}
 features <- SelectIntegrationFeatures(object.list = CM, nfeatures = 2000)
 CM <- merge(x = CM[[1]], y = CM[2:length(CM)], merge.data=TRUE)
 VariableFeatures(CM) <- features
-CM <- RunPCA(CM)
+CM <- RunPCA(CM, npcs = 30)
 ```
 
-```{r save CM, eval=FALSE}
-saveRDS(CM, 
-        here::here(output_dir_data, "CM.rds"))
+```{r Elbow_CM, fig.width=4, fig.height=4}
+ElbowPlot(CM, ndims = 30)
+```
+
+Reintegrate the samples using Harmony
+
+```{r RunHarmony}
+CM <- RunHarmony(CM, 
+                 assay.use="SCT", 
+                 group.by.vars = "Sample", 
+                 dims.use = 1:30, 
+                 plot_convergence=TRUE, 
+                 .options = harmony_options(
+                   max.iter.cluster = 100,
+                   )
+                 )
 ```
 
 ```{r read CM}
 CM <- readRDS(here::here(output_dir_data, "CM.rds"))
 ```
 
-
-```{r Elbow_CM, fig.width=4, fig.height=4}
-ElbowPlot(CM, ndims = 50)
-```
-
-Reintegrate the samples using Harmony
-
-```{r RunHarmony, eval=FALSE}
-CM <- RunHarmony(CM, assay.use="SCT", group.by.vars = "Sample", dims.use = 1:50)
-```
-
 Clustering after integration
 
 ```{r clustering integrated, eval=FALSE}
 DefaultAssay(CM) <- "SCT"
-CM <- RunUMAP(CM, dims = 1:50, reduction = "harmony")
-CM <- FindNeighbors(CM, dims = 1:50, reduction = "harmony")
+CM <- RunUMAP(CM, dims = 1:30, reduction = "harmony")
+CM <- FindNeighbors(CM, dims = 1:30, reduction = "harmony")
 CM <- FindClusters(CM, resolution = seq(0.1, 0.8, by=0.1))
 ```
 
@@ -146,35 +149,20 @@ DimPlot(CM, reduction = "umap", shuffle = T,
         group.by = c("SCT_snn_res.0.2", "Sample", "Group", "Batch_processing"), ncol = 2)
 ```
 
-```{r Clinical_data}
-Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_26.xlsx"))
-add_metadata <- left_join(CM[["Sample"]], Clinical_data)
-row.names(add_metadata) <- row.names(CM[[]])
-CM <- AddMetaData(CM, metadata = add_metadata)
-rm(add_metadata, Clinical_data)
-```
-
-```{r save CM 2, eval=FALSE}
-saveRDS(CM, 
-        here::here(output_dir_data, "CM.rds"))
-```
-
-Find the markers that characterize each cell population
-
 ```{r FindAllMarkers}
-DefaultAssay(CM) <- "SCT"
-CM <- PrepSCTFindMarkers(CM)
+DefaultAssay(CM) <- "RNA"
+CM <- NormalizeData(CM)
 Idents(CM) <- "SCT_snn_res.0.2"
-Markers <- FindAllMarkers(CM, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+Markers <- FindAllMarkers(CM, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
 Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
 Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
 ```
 
 ```{r Heatmap_CM, fig.width=15, fig.height=10}
-mapal <- colorRampPalette(RColorBrewer::brewer.pal(9,"RdBu"))(256)
-mapal <- rev(mapal[1:256])
-Heatmap <- DoHeatmap(subset(CM, cells = sample(colnames(CM), 20000)), label = FALSE, draw.line = F, features = Markers_top10$gene) +
-  scale_fill_gradientn(colours = mapal) +
+heatmap_cols <- colorRampPalette(RColorBrewer::brewer.pal(9,"RdBu"))(256)
+heatmap_cols <- rev(heatmap_cols[1:256])
+Heatmap <- DoHeatmap(subset(CM, cells = sample(colnames(CM), 20000)), label = FALSE, draw.line = F, features = Markers_top10$gene, assay = "SCT") +
+  scale_fill_gradientn(colours = heatmap_cols) +
   theme(axis.text.y = element_text(size = 5)) +
   theme(plot.margin = unit(c(0.1, 0, 0, 0), 
                            "inches"))
@@ -187,29 +175,33 @@ cell_type_cols <- c("#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2D
 
 Check QC parameters in each cluster
 
-```{r QC_VlnPlots_CM, fig.width=8, fig.height=6}
+```{r QC_VlnPlots_1, fig.width=8, fig.height=6}
 VlnPlot_scCustom(CM, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp"), num_columns = 2, pt.size = 0, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())
+```
+
+```{r QC_VlnPlots_2, fig.width=8, fig.height=6}
+VlnPlot_scCustom(CM, features = c("COL6A3", "VWF", "RGS5", "scDblFinder.score"), assay="RNA", num_columns = 2, pt.size = 0, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())
 ```
 
 ## Cell type annotation
 
 Annotate the clusters
 
-```{r cell_state, eval=FALSE}
+```{r cell_state}
 CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("0"), "cell_state"] = "CM1"
 CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("1"), "cell_state"] = "CM2"
 CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("2"), "cell_state"] = "CM3"
 CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_state"] = "CM4"
 CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_state"] = "CM5"
+CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("5"), "cell_state"] = "CM6"
 
-CM$cell_state <- factor(CM$cell_state, levels = c("CM1", "CM2", "CM3","CM4","CM5"))
+CM$cell_state <- factor(CM$cell_state, levels = c("CM1", "CM2", "CM3","CM4","CM5", "CM6"))
 Idents(CM) <- CM$cell_state
 ```
 
 ```{r FindAllMarkers cell_state}
-DefaultAssay(CM) <- "SCT"
-Idents(CM) <- "cell_state"
-Markers <- FindAllMarkers(CM, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+DefaultAssay(CM) <- "RNA"
+Markers <- FindAllMarkers(CM, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
 write.csv(Markers, here::here(output_dir_data, "CM_Markers_all_cell_state.csv"))
 Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
 write.csv(Markers_top10, here::here(output_dir_data, "CM_Markers_top10_cell_state.csv"))
@@ -218,8 +210,8 @@ write.csv(Markers_top3, here::here(output_dir_data, "CM_Markers_top3_cell_state.
 ```
 
 ```{r Heatmap_cell_state, fig.width=8, fig.height=6}
-Heatmap <- DoHeatmap(subset(CM, cells = sample(colnames(CM), 20000)), label = TRUE, draw.line = F, features = Markers_top10$gene) + 
-  scale_fill_gradientn(colours = mapal) +
+Heatmap <- DoHeatmap(subset(CM, cells = sample(colnames(CM), 20000)), label = TRUE, draw.line = F, features = Markers_top10$gene, assay = "SCT") + 
+  scale_fill_gradientn(colours = heatmap_cols) +
   theme(text = element_text(size = 12), 
         axis.text.y = element_text(size = 8)) +
   theme(plot.margin = unit(c(0.2, 0, 0, 0), "inches")) +
@@ -271,13 +263,12 @@ Idents(CM) <- CM$cell_state
 ```
 
 
-
 ```{r VlnPlot_markers_CM, fig.width=12, fig.height=4}
-VlnPlot_scCustom(CM, features = c("PLCG2", "LINC02388", "NRAP", "ARHGAP24", "IGF1R"), num_columns = 5, colors_use = cell_type_cols)
+VlnPlot_scCustom(CM, features = c("LINC02388", "MIR646HG", "NRAP", "ARHGAP24", "DAPK2"), num_columns = 5, colors_use = cell_type_cols, pt.size = 0)
 ```
 
 ```{r FeatPlot_markers_CM, fig.width=15, fig.height=3}
-FeaturePlot_scCustom(CM, features = c("PLCG2", "LINC02388", "NRAP", "ARHGAP24", "IGF1R"), num_columns = 5)
+FeaturePlot_scCustom(CM, features = c("LINC02388", "MIR646HG", "NRAP", "ARHGAP24", "DAPK2"), num_columns = 5)
 ```
 
 ```{r Barplot_CM_Sample, fig.height=6, fig.width=15, message=FALSE}
@@ -308,12 +299,14 @@ dfsample$CM2 = bitr(dfsample$CM2, fromType="SYMBOL", toType="ENTREZID", OrgDb="o
 dfsample$CM3 = bitr(dfsample$CM3, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 dfsample$CM4 = bitr(dfsample$CM4, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 dfsample$CM5 = bitr(dfsample$CM5, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+dfsample$CM6 = bitr(dfsample$CM6, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 
 genelist <- list("CM1" = dfsample$CM1$ENTREZID, 
                  "CM2" = dfsample$CM2$ENTREZID,
                  "CM3" = dfsample$CM3$ENTREZID,
                  "CM4" = dfsample$CM4$ENTREZID,
-                 "CM5" = dfsample$CM5$ENTREZID
+                 "CM5" = dfsample$CM5$ENTREZID,
+                 "CM6" = dfsample$CM6$ENTREZID
 )
 
 gene_counts <- rowSums(CM@assays$RNA@counts > 0)
@@ -386,7 +379,7 @@ for (i in 7:(length(metadata_DCM))) {
   props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
   metadata_subset <- metadata_subset %>% 
     arrange(Sample, colnames(props_subset$Proportions))
-  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset$Age_years)
   fit <- lmFit(props_subset$TransformedProps, design)
   fit <- eBayes(fit, robust=TRUE)
   differential_abundance_temp <- topTable(fit, n = Inf, coef = 2)
@@ -408,7 +401,7 @@ reactable(differential_abundance,
           showPageSizeOptions = TRUE)
 ```
 
-```{r Speckle_LVEDD_mm, fig.height=4, fig.width=20}
+```{r Speckle_LVEDD_mm, fig.height=8, fig.width=12}
 metadata_subset <- metadata[complete.cases(metadata[["LVEDD_mm"]]),]
 
 props_subset <- props
@@ -422,8 +415,8 @@ metadata_subset <- metadata_subset %>%
 design <- model.matrix(~ metadata_subset$LVEDD_mm + metadata_subset$Age_years)
 fit.prop <- lmFit(props_subset$Proportions,design)
 
-par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
-for(i in seq(1,5,1)){
+par(mfrow=c(2,3), mar = c(5, 5, 3, 1))
+for(i in seq(1,6,1)){
   plot(metadata_subset$LVEDD_mm, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
        pch=16, cex=2, ylab="Proportions", xlab="LVEDD_mm", cex.lab=2, cex.axis=1.5,
        cex.main=2.5)
@@ -433,7 +426,7 @@ for(i in seq(1,5,1)){
 rm(metadata_subset, props_subset, design, fit.prop)
 ```
 
-```{r Speckle_LVEF_percent, fig.height=4, fig.width=20}
+```{r Speckle_LVEF_percent, fig.height=8, fig.width=12}
 metadata_subset <- metadata[complete.cases(metadata[["LVEF_percent"]]),]
 
 props_subset <- props
@@ -447,8 +440,8 @@ metadata_subset <- metadata_subset %>%
 design <- model.matrix(~ metadata_subset$LVEF_percent + metadata_subset$Age_years)
 fit.prop <- lmFit(props_subset$Proportions,design)
 
-par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
-for(i in seq(1,5,1)){
+par(mfrow=c(2,3), mar = c(5, 5, 3, 1))
+for(i in seq(1,6,1)){
   plot(metadata_subset$LVEF_percent, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
        pch=16, cex=2, ylab="Proportions", xlab="LVEF_percent", cex.lab=2, cex.axis=1.5,
        cex.main=2.5)
@@ -458,7 +451,7 @@ for(i in seq(1,5,1)){
 rm(metadata_subset, props_subset, design, fit.prop)
 ```
 
-```{r Speckle_mPAP_mmHg, fig.height=4, fig.width=20}
+```{r Speckle_mPAP_mmHg, fig.height=8, fig.width=12}
 metadata_subset <- metadata[complete.cases(metadata[["mPAP_mmHg"]]),]
 
 props_subset <- props
@@ -472,8 +465,8 @@ metadata_subset <- metadata_subset %>%
 design <- model.matrix(~ metadata_subset$mPAP_mmHg + metadata_subset$Age_years)
 fit.prop <- lmFit(props_subset$Proportions,design)
 
-par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
-for(i in seq(1,5,1)){
+par(mfrow=c(2,3), mar = c(5, 5, 3, 1))
+for(i in seq(1,6,1)){
   plot(metadata_subset$mPAP_mmHg, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
        pch=16, cex=2, ylab="Proportions", xlab="mPAP_mmHg", cex.lab=2, cex.axis=1.5,
        cex.main=2.5)
@@ -565,7 +558,6 @@ rm(differential_abundance, differential_abundance_HC, props, CM_proportions)
 
 ## Transcription factor inference analysis
 
-
 ```{r net}
 net <- get_collectri(organism='human', split_complexes=FALSE)
 ```
@@ -580,7 +572,7 @@ percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent
 
 ```{r filter percent_stats}
 net <- net %>% 
-  dplyr::filter(source %in% filter(percent_stats, percentCells > 5)$gene)
+  dplyr::filter(source %in% filter(percent_stats, percentCells > 1)$gene)
 ```
 
 ```{r TF_cols}
@@ -621,8 +613,6 @@ df <- t(as.matrix(CM@assays$tfsulm@data)) %>%
                           values_to = "score") %>%
       dplyr::group_by(cluster, source) %>%
       dplyr::summarise(mean = mean(score))
-df <- df %>%
-  filter(source %in% filter(percent_stats, percentCells > 5)$gene)
 
 tfs <- df %>%
        dplyr::group_by(source) %>%
@@ -664,8 +654,6 @@ df <- t(as.matrix(CM@assays$tfsulm@data)) %>%
                           values_to = "score") %>%
       dplyr::group_by(cluster, source) %>%
       dplyr::summarise(mean = mean(score))
-df <- df %>%
-  filter(source %in% filter(percent_stats, percentCells > 5)$gene)
 
 tfs <- df %>%
        dplyr::group_by(source) %>%
@@ -696,7 +684,7 @@ pheatmap::pheatmap(mat = top_acts_mat,
                    treeheight_col = 20) 
 ```
 
-```{r TF_Feat_STAT2, fig.width=12, fig.height=4}
+```{r TF_Feat_MEF2A, fig.width=12, fig.height=4}
 Seurat::DefaultAssay(CM) <- "tfsulm"
 p1 <- Seurat::DimPlot(CM, 
                       reduction = "umap", 
@@ -705,14 +693,14 @@ p1 <- Seurat::DimPlot(CM,
       Seurat::NoLegend() + 
       ggplot2::ggtitle('Cell states')
 
-p2 <- Seurat::FeaturePlot(CM, features = c("STAT2"), pt.size = 0.1) + 
+p2 <- Seurat::FeaturePlot(CM, features = c("MEF2A"), pt.size = 0.1, order=T) + 
       ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = "white") +
-      ggplot2::ggtitle('STAT2 activity')
+      ggplot2::ggtitle('MEF2A activity')
 
 DefaultAssay(object = CM) <- "RNA"
-p3 <- Seurat::FeaturePlot(CM, 
-                          features = c("STAT2"), pt.size = 0.1) + 
-      ggplot2::ggtitle('STAT2 expression')
+p3 <- FeaturePlot_scCustom(CM, 
+                          features = c("MEF2A"), pt.size = 0.1) + 
+      ggplot2::ggtitle('MEF2A expression')
 
 Seurat::DefaultAssay(CM) <- "tfsulm"
 
@@ -751,26 +739,6 @@ CM <- Seurat::ScaleData(CM)
 CM@assays$pathwaysmlm@data <- CM@assays$pathwaysmlm@scale.data
 ```
 
-```{r Pathway_Feat_WNT, fig.width=8, fig.height=4}
-Seurat::DefaultAssay(object = CM) <- "pathwaysmlm"
-
-p1 <- Seurat::DimPlot(CM, 
-                      reduction = "umap", 
-                      label = TRUE, 
-                      pt.size = 0.11) + 
-      Seurat::NoLegend() + 
-      ggplot2::ggtitle('Cell states')
-
-p2 <- Seurat::FeaturePlot(CM, features = c("WNT"), 
-                      pt.size = 0.1) + 
-      ggplot2::scale_colour_gradientn(colors = Pathway_cols
-                                      ) +
-      ggplot2::ggtitle('WNT activity')
-
-p <- p1 | p2
-p
-```
-
 ```{r Pathway_heatmap_cluster, fig.width=6, fig.height=2.5}
 df_pathway <- t(as.matrix(CM@assays$pathwaysmlm@data)) %>%
       as.data.frame() %>%
@@ -801,7 +769,46 @@ pheatmap::pheatmap(mat = top_acts_mat,
                    treeheight_col = 20) 
 ```
 
+```{r Pathway_Feat_Hypoxia, fig.width=8, fig.height=4}
+Seurat::DefaultAssay(object = CM) <- "pathwaysmlm"
+
+p1 <- Seurat::DimPlot(CM, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.11) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(CM, features = c("Hypoxia"), 
+                      pt.size = 0.1, order=T) + 
+      ggplot2::scale_colour_gradientn(colors = Pathway_cols
+                                      ) +
+      ggplot2::ggtitle('Hypoxia activity')
+
+p <- p1 | p2
+p
+```
+
+```{r CM_cell_states.csv, eval=FALSE}
+cell_states <- data.frame(
+  cell = colnames(CM),
+  cell_state = CM$cell_state
+)
+
+write.csv(
+  cell_states,
+  here::here(output_dir_data, "CM_cell_states.csv"),
+  row.names = FALSE
+)
+```
+
 ```{r save CM final, eval = FALSE}
 saveRDS(CM, 
         here::here(output_dir_data, "CM.rds"))
 ```
+
+```{r h5ad, eval = FALSE}
+SaveH5Seurat(CM, here::here(output_dir_data, "CM.h5Seurat"), overwrite = TRUE)
+Convert(here::here(output_dir_data, "CM.h5Seurat"), dest = "h5ad", assay = "RNA")
+```
+
