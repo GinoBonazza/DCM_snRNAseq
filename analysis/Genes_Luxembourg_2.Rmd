@@ -1,0 +1,518 @@
+---
+title: "Collaboration Luxembourg"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Genes_Luxembourg"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(rtracklayer)
+library(png)
+library(reactable)
+library(UpSetR)
+library(msigdbr)
+library(simplifyEnrichment)
+library(biomaRt)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+```{r read DCM_RV_integrated}
+DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV.rds"))
+```
+
+```{r}
+goi <- c("TRHDE-AS1", "SIGLEC10", "FGFR4")
+```
+
+```{r}
+Idents(DCM_RV) <- "cell_type"
+DefaultAssay(DCM_RV) <- "RNA"
+```
+
+```{r DotPlot_markers, fig.width=8, fig.height=4.5}
+p <- DotPlot_scCustom(
+        DCM_RV,
+        features       = goi,
+        x_lab_rotate   = TRUE,
+        flip_axes = TRUE
+)
+
+p + theme(
+      axis.text.x  = element_text(size = 12,        
+                                  angle = 60,          
+                                  vjust = 1,
+                                  hjust = 1),
+      axis.text.y  = element_text(size = 15))  
+```
+
+```{r}
+counts <- GetAssayData(DCM_RV, assay = "RNA", slot = "counts")
+
+cell_types <- levels(Idents(DCM_RV))
+
+# Function to compute % expressing for a given set of cells
+pct_expressing <- function(cell_vec) {
+  m <- counts[goi, cell_vec, drop = FALSE]
+  (Matrix::rowSums(m > 0) / ncol(m)) * 100
+}
+
+pcts_by_type <- sapply(cell_types, function(ct) {
+  cells_ct <- Seurat::WhichCells(DCM_RV, idents = ct)
+  if (length(cells_ct) == 0) return(rep(NA_real_, length(goi)))
+  pct_expressing(cells_ct)
+}, simplify = "matrix")
+
+pcts_by_type <- t(pcts_by_type)               
+
+pcts_total <- pct_expressing(colnames(DCM_RV))
+names(pcts_total) <- goi
+
+percent_df <- rbind(pcts_by_type, tot = pcts_total)
+percent_df <- as.data.frame(round(percent_df, 4))
+
+reactable(percent_df, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE,
+          defaultPageSize = 14)
+```
+
+```{r UMAP_cell_type, fig.width=6.5, fig.height=6}
+p <- DimPlot(DCM_RV, group.by = "cell_type", reduction = "umap", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p, id = "cell_type", fontface = "bold", size = 5, repel = T)
+```
+
+```{r FeatPlot_markers, fig.width=12, fig.height=4}
+FeaturePlot_scCustom(DCM_RV, features = goi, num_columns = 3, order = T)
+```
+
+```{r QC_cell_type_Manuscript, fig.width=18, fig.height=5}
+VlnPlot_scCustom(DCM_RV, features=goi, group.by="cell_type", num_columns=3, pt.size = 0.001) & theme(axis.title.x = element_blank())
+```
+
+```{r}
+DCM_RV$pseudobulk <- "pseudobulk"
+
+pseudocounts_all <- Seurat2PB(DCM_RV, sample="Sample", cluster = "pseudobulk")
+keep_samples <- pseudocounts_all$samples$lib.size > 5e4
+pseudocounts_all <- pseudocounts_all[, keep_samples]
+
+pseudocounts_all <- normLibSizes(pseudocounts_all)
+
+colnames(pseudocounts_all) <- pseudocounts_all$samples$sample
+counts_pseudocounts_all <- cpm(pseudocounts_all, log = TRUE)
+```
+
+```{r}
+metadata <- DCM_RV@meta.data %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %>%
+  unique() %>%
+  dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
+
+rownames(metadata) <- metadata$Sample
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r, fig.width=4, fig.height=3}
+present_genes <- intersect(goi, rownames(counts_pseudocounts_all))
+missing_genes <- setdiff(goi, rownames(counts_pseudocounts_all))
+if (length(missing_genes) > 0) {
+  message("Warning: not found in pseudobulk matrix -> ", paste(missing_genes, collapse=", "))
+}
+stopifnot(length(present_genes) > 0)
+
+expr_long <- counts_pseudocounts_all[present_genes, , drop = FALSE] %>%
+  t() %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column(var = "Sample") %>%
+  left_join(metadata, by = "Sample") %>%
+  pivot_longer(cols = all_of(present_genes), names_to = "gene", values_to = "logCPM") %>%
+  mutate(
+    Group = factor(Group, levels = c("HC","DCM")),
+    gene  = factor(gene, levels = goi) 
+  )
+
+stopifnot(all(expr_long$Sample %in% rownames(metadata)))
+
+wilcox_tbl <- expr_long %>%
+  group_by(gene) %>%
+  summarise(
+    n_HC  = sum(Group == "HC"),
+    n_DCM = sum(Group == "DCM"),
+    median_HC  = median(logCPM[Group == "HC"], na.rm = TRUE),
+    median_DCM = median(logCPM[Group == "DCM"], na.rm = TRUE),
+    diff_median = median_DCM - median_HC,
+    p_wilcox = tryCatch(
+      wilcox.test(logCPM ~ Group)$p.value,
+      error = function(e) NA_real_
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(p_adj_BH = p.adjust(p_wilcox, method = "BH"))
+print(wilcox_tbl)
+
+write_csv(wilcox_tbl, "Pseudobulk_all.csv")
+
+p <- ggplot(expr_long, aes(x = Group, y = logCPM, fill = Group)) +
+  geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.7) +
+  geom_jitter(aes(color = Group), width = 0.12, height = 0, size = 2, alpha = 0.9) +
+  facet_wrap(~ gene, nrow = 1, scales = "free_y") +
+  stat_compare_means(
+    method = "wilcox.test",
+    comparisons = list(c("HC","DCM")),
+    label = "p.format",
+    label.y.npc = 0.98,
+    vjust = 0
+  ) +
+  labs(x = NULL, y = "logCPM",
+       title = "Pseudobulk all cells") +
+  scale_fill_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+  scale_color_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.25))) +
+  coord_cartesian(clip = "off") +
+  theme_bw(base_size = 12) +
+  theme(panel.grid.major.x = element_blank(),
+        legend.position = "none",
+        strip.text = element_text(face = "bold"),
+        plot.margin = margin(10, 20, 10, 10))
+
+print(p)
+
+```
+
+```{r, fig.width=6, fig.height=9}
+pb_ct <- Seurat2PB(DCM_RV, sample = "Sample", cluster = "cell_type")
+
+keep_cols <- pb_ct$samples$lib.size > 5e4
+pb_ct <- pb_ct[, keep_cols, keep.lib.sizes = FALSE]
+
+pb_ct <- edgeR::normLibSizes(pb_ct)
+logcpm_ct <- edgeR::cpm(pb_ct, log = TRUE)
+
+col_annot <- pb_ct$samples %>%
+  dplyr::transmute(Sample = .data$sample, cell_type = .data$cluster) %>%
+  dplyr::left_join(metadata, by = "Sample")
+
+
+colnames(logcpm_ct) <- paste(col_annot$Sample, col_annot$cell_type, sep = "::")
+
+min_detect <- 10
+
+counts_ct <- pb_ct$counts                        
+present_genes <- intersect(goi, rownames(counts_ct))
+missing_genes  <- setdiff(goi, rownames(counts_ct))
+if (length(missing_genes) > 0) {
+  message("Warning: not found in pseudobulk matrix -> ", paste(missing_genes, collapse = ", "))
+}
+stopifnot(length(present_genes) > 0)
+
+det_tbl <- lapply(present_genes, function(g) {
+  data.frame(
+    cell_type = col_annot$cell_type,
+    detected  = as.integer(counts_ct[g, ] > 0)
+  ) |>
+    dplyr::group_by(cell_type) |>
+    dplyr::summarise(n_detect = sum(detected), .groups = "drop") |>
+    dplyr::mutate(gene = g)
+}) |>
+  dplyr::bind_rows()
+
+keep_pairs <- det_tbl |>
+  dplyr::filter(n_detect >= min_detect) |>
+  dplyr::transmute(key = paste(cell_type, gene, sep = "||")) |>
+  dplyr::pull(key)
+
+expr_long_ct <- logcpm_ct[present_genes, , drop = FALSE] |>
+  t() |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "col_id") |>
+  dplyr::mutate(
+    Sample    = sub("::.*$", "", col_id),
+    cell_type = sub("^.*::", "", col_id)
+  ) |>
+  dplyr::left_join(metadata, by = "Sample") |>
+  tidyr::pivot_longer(cols = all_of(present_genes),
+                      names_to = "gene", values_to = "logCPM") |>
+  dplyr::mutate(
+    key       = paste(cell_type, gene, sep = "||"),
+    keep      = key %in% keep_pairs,
+    Group     = factor(Group, levels = c("HC", "DCM")),
+    gene      = factor(gene, levels = goi)
+  ) |>
+  dplyr::filter(keep) |>
+  dplyr::select(-keep, -key)
+
+
+expr_long_ct <- droplevels(expr_long_ct)
+
+wilcox_ct <- expr_long_ct |>
+  dplyr::group_by(cell_type, gene) |>
+  dplyr::summarise(
+    n_HC  = sum(Group == "HC"),
+    n_DCM = sum(Group == "DCM"),
+    median_HC  = median(logCPM[Group == "HC"], na.rm = TRUE),
+    median_DCM = median(logCPM[Group == "DCM"], na.rm = TRUE),
+    diff_median = median_DCM - median_HC,
+    p_wilcox = tryCatch(wilcox.test(logCPM ~ Group)$p.value, error = function(e) NA_real_),
+    .groups = "drop"
+  ) |>
+  dplyr::group_by(gene) |>
+  dplyr::mutate(p_adj_BH_within_gene = p.adjust(p_wilcox, method = "BH")) |>
+  dplyr::ungroup()
+
+readr::write_csv(wilcox_ct, "Pseudobulk_byCellType_wilcox.csv")
+
+make_gene_plot <- function(df, g, ncol_facets = 3, base_size = 11) {
+  df_g <- df %>% filter(gene == g)
+  ggplot(df_g, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.7) +
+    geom_jitter(aes(color = Group), width = 0.12, height = 0, size = 1.8, alpha = 0.9) +
+    ggpubr::stat_compare_means(
+      method = "wilcox.test",
+      comparisons = list(c("HC","DCM")),
+      label = "p.format",
+      label.y.npc = 0.98,
+      vjust = 0,
+      size = 3
+    ) +
+    facet_wrap(~ cell_type, ncol = ncol_facets, scales = "free_y") +
+    labs(x = NULL, y = "logCPM",
+         title = paste("Pseudobulk by cell type -", as.character(g))) +
+    scale_fill_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_color_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.25))) +
+    coord_cartesian(clip = "off") +
+    theme_bw(base_size = base_size) +
+    theme(
+      panel.grid.major.x = element_blank(),
+      legend.position = "none",
+      strip.text = element_text(face = "bold"),
+      strip.background = element_rect(fill = "grey95"),
+      plot.margin = margin(8, 16, 8, 8)
+    )
+}
+
+# genes to plot (preserve your order)
+genes_to_plot <- intersect(levels(expr_long_ct$gene), goi)
+
+# build plots
+plots <- lapply(genes_to_plot, function(g) make_gene_plot(expr_long_ct, g, ncol_facets = 3))
+
+# compute number of facet rows per gene (for proportional heights)
+rows_per_gene <- sapply(genes_to_plot, function(g) {
+  n_ct <- expr_long_ct %>% filter(gene == g) %>% pull(cell_type) %>% n_distinct()
+  ceiling(n_ct / 3)  # 3 columns
+})
+
+# scale to heights (each row gets the same height unit)
+heights_vec <- rows_per_gene / sum(rows_per_gene)
+
+# stack with proportional heights
+p_stack <- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
+print(p_stack)
+```
+
+```{r, fig.height=5, fig.width=8}
+metadata_DCM <- metadata %>% filter(Group == "DCM")
+
+dcm_samples_all <- intersect(colnames(counts_pseudocounts_all), metadata_DCM$Sample)
+
+counts_all_raw     <- pseudocounts_all$counts
+present_genes_all  <- intersect(goi, rownames(counts_all_raw))
+det_counts_all     <- sapply(present_genes_all, function(g)
+  sum(counts_all_raw[g, dcm_samples_all, drop = FALSE] > 0)
+)
+genes_keep_all     <- names(det_counts_all[det_counts_all >= 10])
+
+expr_all_long_DCM <- counts_pseudocounts_all[genes_keep_all, dcm_samples_all, drop = FALSE] %>%
+  t() %>% as.data.frame() %>%
+  tibble::rownames_to_column("Sample") %>%
+  left_join(metadata_DCM, by = "Sample") %>%
+  pivot_longer(cols = all_of(genes_keep_all), names_to = "gene", values_to = "logCPM") %>%
+  mutate(gene = factor(gene, levels = goi))
+
+make_allcells_panel <- function(df, xvar, xlab) {
+  ggplot(df, aes_string(x = xvar, y = "logCPM")) +
+    geom_point(size = 1.6, alpha = 0.9) +
+    geom_smooth(method = "lm", se = TRUE, size = 0.5) +
+    ggpubr::stat_cor(method = "pearson", label.y.npc = 0.95, size = 3) +
+    facet_wrap(~ gene, ncol = 3, scales = "free_y") +
+    theme_minimal(base_size = 11) +
+    labs(x = xlab, y = "logCPM")
+}
+
+genes_to_plot <- intersect(goi, unique(as.character(expr_all_long_DCM$gene)))
+expr_all_long_DCM$gene <- factor(expr_all_long_DCM$gene, levels = genes_to_plot)
+
+p_all_mpap <- make_allcells_panel(
+  df   = expr_all_long_DCM %>% filter(!is.na(mPAP_mmHg), !is.na(logCPM)),
+  xvar = "mPAP_mmHg", xlab = "mPAP (mmHg)"
+)
+p_all_tapse <- make_allcells_panel(
+  df   = expr_all_long_DCM %>% filter(!is.na(TAPSE_mm), !is.na(logCPM)),
+  xvar = "TAPSE_mm",  xlab = "TAPSE (mm)"
+)
+
+fig_allcells <- (p_all_mpap / p_all_tapse) +
+  patchwork::plot_layout(heights = c(1, 1.25)) +
+  patchwork::plot_annotation(title = "Pseudobulk all cells")
+print(fig_allcells)
+
+is_dcm_ct       <- col_annot$Sample %in% metadata_DCM$Sample
+logcpm_ct_DCM   <- logcpm_ct[, is_dcm_ct, drop = FALSE]
+col_ann_DCM     <- col_annot[is_dcm_ct, , drop = FALSE]
+colnames(logcpm_ct_DCM) <- paste(col_ann_DCM$Sample, col_ann_DCM$cell_type, sep = "::")
+
+counts_ct_DCM    <- counts_ct[, is_dcm_ct, drop = FALSE]
+present_genes_ct <- intersect(goi, rownames(counts_ct_DCM))
+
+det_tbl_DCM <- lapply(present_genes_ct, function(g) {
+  tibble(cell_type = col_ann_DCM$cell_type,
+         detected  = as.integer(counts_ct_DCM[g, ] > 0)) %>%
+    group_by(cell_type) %>%
+    summarise(n_detect = sum(detected), .groups = "drop") %>%
+    mutate(gene = g)
+}) %>% bind_rows()
+
+keep_pairs_DCM <- det_tbl_DCM %>%
+  filter(n_detect >= 10) %>%
+  transmute(key = paste(cell_type, gene, sep = "||")) %>%
+  pull(key)
+
+expr_ct_long_DCM <- logcpm_ct_DCM[present_genes_ct, , drop = FALSE] %>%
+  t() %>% as.data.frame() %>%
+  tibble::rownames_to_column("col_id") %>%
+  mutate(Sample = sub("::.*$", "", col_id),
+         cell_type = sub("^.*::", "", col_id)) %>%
+  left_join(metadata_DCM, by = "Sample") %>%
+  pivot_longer(cols = all_of(present_genes_ct),
+               names_to = "gene", values_to = "logCPM") %>%
+  mutate(key = paste(cell_type, gene, sep = "||")) %>%
+  filter(key %in% keep_pairs_DCM) %>%
+  mutate(gene = factor(gene, levels = goi),
+         cell_type = droplevels(factor(cell_type))) %>%
+  dplyr::select(-key, -col_id)
+
+plot_perct_vs <- function(df, gene_id, xvar, xlab, ncol_facets = 3) {
+  dfg <- df %>% filter(gene == gene_id, !is.na(.data[[xvar]]))
+  ggplot(dfg, aes_string(x = xvar, y = "logCPM")) +
+    geom_point(size = 1.6, alpha = 0.9) +
+    geom_smooth(method = "lm", se = TRUE, size = 0.5) +
+    ggpubr::stat_cor(method = "pearson", label.y.npc = 0.95, size = 3) +
+    facet_wrap(~ cell_type, ncol = ncol_facets, scales = "free_y") +
+    theme_minimal(base_size = 11) +
+    labs(title = paste0(as.character(gene_id), " - per cell type"),
+         x = xlab, y = "logCPM")
+}
+
+g <- "TRHDE-AS1"
+p_ct_mpap  <- plot_perct_vs(expr_ct_long_DCM, g, "mPAP_mmHg", "mPAP (mmHg)")
+p_ct_tapse <- plot_perct_vs(expr_ct_long_DCM, g, "TAPSE_mm",  "TAPSE (mm)")
+
+rows_mpap  <- expr_ct_long_DCM %>% filter(gene == g, !is.na(mPAP_mmHg)) %>%
+               pull(cell_type) %>% n_distinct() %>% {max(1, ceiling(. / 3))}
+rows_tapse <- expr_ct_long_DCM %>% filter(gene == g, !is.na(TAPSE_mm)) %>%
+               pull(cell_type) %>% n_distinct() %>% {max(1, ceiling(. / 3))}
+
+fig_ct_TRHDE <- (p_ct_mpap / p_ct_tapse) + plot_layout(heights = c(rows_mpap, rows_tapse))
+print(fig_ct_TRHDE)
+
+```
+
+```{r, fig.height=8.5, fig.width=8}
+stopifnot(exists("expr_ct_long_DCM"))
+if (!exists("plot_perct_vs")) {
+  plot_perct_vs <- function(df, gene_id, xvar, xlab, ncol_facets = 3) {
+    dfg <- df %>% dplyr::filter(gene == gene_id, !is.na(.data[[xvar]]))
+    ggplot(dfg, aes_string(x = xvar, y = "logCPM")) +
+      geom_point(size = 1.6, alpha = 0.9) +
+      geom_smooth(method = "lm", se = TRUE, size = 0.5) +
+      ggpubr::stat_cor(method = "pearson", label.y.npc = 0.95, size = 3) +
+      facet_wrap(~ cell_type, ncol = ncol_facets, scales = "free_y") +
+      theme_minimal(base_size = 11) +
+      labs(title = paste0(as.character(gene_id), " - per cell type"),
+           x = xlab, y = "logCPM")
+  }
+}
+
+for (g in c("FGFR4", "SIGLEC10")) {
+  p_ct_mpap  <- plot_perct_vs(expr_ct_long_DCM, g, "mPAP_mmHg", "mPAP (mmHg)")
+  p_ct_tapse <- plot_perct_vs(expr_ct_long_DCM, g, "TAPSE_mm",  "TAPSE (mm)")
+
+  rows_mpap  <- expr_ct_long_DCM %>% dplyr::filter(gene == g, !is.na(mPAP_mmHg)) %>%
+                 dplyr::pull(cell_type) %>% n_distinct() %>% {max(1, ceiling(. / 3))}
+  rows_tapse <- expr_ct_long_DCM %>% dplyr::filter(gene == g, !is.na(TAPSE_mm)) %>%
+                 dplyr::pull(cell_type) %>% n_distinct() %>% {max(1, ceiling(. / 3))}
+
+  fig_ct <- (p_ct_mpap / p_ct_tapse) + patchwork::plot_layout(heights = c(rows_mpap, rows_tapse))
+  print(fig_ct)
+}
+```
+
