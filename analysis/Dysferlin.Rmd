@@ -1,0 +1,693 @@
+---
+title: "Dysferlin"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Dysferlin"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(rtracklayer)
+library(cowplot)
+library(nichenetr)
+library(multinichenetr)
+library(muscat)
+
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+## Reichart
+
+Load seurat object
+
+```{r Import Reichart}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds")
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+
+Idents(Reichart) <- Reichart$cell_type
+```
+
+```{r add metadata Reichart}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Reichart[[]])
+Reichart <- AddMetaData(Reichart, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+```
+
+```{r subset Reichart}
+Reichart <- subset(
+  Reichart, 
+  disease %in% c("dilated cardiomyopathy", "normal") &
+    cell_type != "unknown"
+)
+
+table(Reichart$cell_type, Reichart$disease)
+table(unique(dplyr::select(Reichart@meta.data, c("disease", "donor_id")))$disease)
+```
+
+```{r, fig.width=6, fig.height=5}
+VlnPlot_scCustom(Reichart, features="DYSF", group.by="cell_type", num_columns=1, pt.size = 0) & theme(axis.title.x = element_blank()) + NoLegend()
+```
+
+```{r, fig.width=5, fig.height=5}
+FeaturePlot_scCustom(Reichart, features = "DYSF")+ 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold"))
+```
+
+```{r, fig.width=5, fig.height=5}
+p <- DimPlot(Reichart, group.by = "cell_type", reduction = "umap", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p, id = "cell_type", fontface = "bold", size = 4.5, repel = T)
+```
+
+```{r}
+detect_by_celltype <- function(seu, genes, cell_type_col) {
+
+  mat <- SeuratObject::GetAssayData(seu, assay = "RNA", slot = "counts")
+  present <- intersect(genes, rownames(mat))
+
+  mat <- mat[present, , drop = FALSE]
+  ct  <- factor(seu@meta.data[colnames(mat), cell_type_col, drop = TRUE])
+
+  det <- Matrix::Matrix(mat > 0, sparse = TRUE)
+  X   <- Matrix::sparse.model.matrix(~ ct - 1)     
+  colnames(X) <- sub("^ct", "", colnames(X))
+
+  expr_cells <- as.matrix(det %*% X)               
+  n_cells_ct <- colSums(X)
+
+  df <- data.frame(
+    gene             = rep(rownames(expr_cells), times = ncol(expr_cells)),
+    cell_type        = rep(colnames(expr_cells), each  = nrow(expr_cells)),
+    n_expr_cells     = as.vector(expr_cells),
+    n_cells          = as.integer(n_cells_ct[rep(colnames(expr_cells), each = nrow(expr_cells))]),
+    percent_expressing = NA_real_
+  )
+  df$percent_expressing <- 100 * df$n_expr_cells / pmax(1, df$n_cells)
+  df[order(df$gene, df$cell_type), ]
+}
+```
+
+```{r}
+goi <- "DYSF"
+```
+
+```{r}
+Reichart_percent <- detect_by_celltype(Reichart, "DYSF", "cell_type")
+write_csv(Reichart_percent, here::here(output_dir_data, "Reichart_Percent_per_cell_type.csv"))
+
+reactable(Reichart_percent, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE,
+          defaultPageSize = 10)
+```
+
+```{r}
+Reichart@meta.data <- Reichart@meta.data %>%
+  mutate(Group = case_when(
+    disease == "normal" ~ "HC",
+    disease == "dilated cardiomyopathy" ~ "DCM"
+  ))
+
+Reichart$Sample_id <- Reichart$Sample
+Reichart$Sample <- Reichart$donor_id
+
+metadata <- Reichart@meta.data %>%
+  dplyr::select(Sample, Group) %>%
+  unique() %>%
+  dplyr::arrange(match(Sample, names(table(Reichart$Sample))))
+
+rownames(metadata) <- metadata$Sample
+```
+
+```{r, fig.width=8, fig.height=5}
+pb_ct <- Seurat2PB(Reichart, sample = "Sample", cluster = "cell_type")
+
+keep_cols <- pb_ct$samples$lib.size > 5e4
+pb_ct <- pb_ct[, keep_cols, keep.lib.sizes = FALSE]
+
+pb_ct <- edgeR::normLibSizes(pb_ct)
+logcpm_ct <- edgeR::cpm(pb_ct, log = TRUE)
+
+col_annot <- pb_ct$samples %>%
+  dplyr::transmute(Sample = .data$sample, cell_type = .data$cluster) %>%
+  dplyr::left_join(metadata, by = "Sample")
+
+colnames(logcpm_ct) <- paste(col_annot$Sample, col_annot$cell_type, sep = "::")
+
+min_detect <- 10
+
+counts_ct <- pb_ct$counts                        
+present_genes <- intersect(goi, rownames(counts_ct))
+missing_genes  <- setdiff(goi, rownames(counts_ct))
+if (length(missing_genes) > 0) {
+  message("Warning: not found in pseudobulk matrix -> ", paste(missing_genes, collapse = ", "))
+}
+stopifnot(length(present_genes) > 0)
+
+det_tbl <- lapply(present_genes, function(g) {
+  data.frame(
+    cell_type = col_annot$cell_type,
+    detected  = as.integer(counts_ct[g, ] > 0)
+  ) |>
+    dplyr::group_by(cell_type) |>
+    dplyr::summarise(n_detect = sum(detected), .groups = "drop") |>
+    dplyr::mutate(gene = g)
+}) |>
+  dplyr::bind_rows()
+
+keep_pairs <- det_tbl |>
+  dplyr::filter(n_detect >= min_detect) |>
+  dplyr::transmute(key = paste(cell_type, gene, sep = "||")) |>
+  dplyr::pull(key)
+
+expr_long_ct <- logcpm_ct[present_genes, , drop = FALSE] |>
+  t() |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "col_id") |>
+  dplyr::mutate(
+    Sample    = sub("::.*$", "", col_id),
+    cell_type = sub("^.*::", "", col_id)
+  ) |>
+  dplyr::left_join(metadata, by = "Sample") |>
+  tidyr::pivot_longer(cols = all_of(present_genes),
+                      names_to = "gene", values_to = "logCPM") |>
+  dplyr::mutate(
+    key       = paste(cell_type, gene, sep = "||"),
+    keep      = key %in% keep_pairs,
+    Group     = factor(Group, levels = c("HC", "DCM")),
+    gene      = factor(gene, levels = goi)
+  ) |>
+  dplyr::filter(keep) |>
+  dplyr::select(-keep, -key)
+
+
+expr_long_ct <- droplevels(expr_long_ct)
+
+wilcox_ct <- expr_long_ct |>
+  dplyr::group_by(cell_type, gene) |>
+  dplyr::summarise(
+    n_HC  = sum(Group == "HC"),
+    n_DCM = sum(Group == "DCM"),
+    median_HC  = median(logCPM[Group == "HC"], na.rm = TRUE),
+    median_DCM = median(logCPM[Group == "DCM"], na.rm = TRUE),
+    diff_median = median_DCM - median_HC,
+    p_wilcox = tryCatch(wilcox.test(logCPM ~ Group)$p.value, error = function(e) NA_real_),
+    .groups = "drop"
+  ) |>
+  dplyr::group_by(gene) |>
+  dplyr::mutate(p_adj_BH_within_gene = p.adjust(p_wilcox, method = "BH")) |>
+  dplyr::ungroup()
+
+readr::write_csv(wilcox_ct,  here::here(output_dir_data, "Reichart_wilcox.csv"))
+
+make_gene_plot <- function(df, g, ncol_facets = 3, base_size = 11) {
+  df_g <- df %>% filter(gene == g)
+  ggplot(df_g, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.7) +
+    geom_jitter(aes(color = Group), width = 0.12, height = 0, size = 1.8, alpha = 0.9) +
+    ggpubr::stat_compare_means(
+      method = "wilcox.test",
+      comparisons = list(c("HC","DCM")),
+      label = "p.format",
+      label.y.npc = 0.98,
+      vjust = 0,
+      size = 3
+    ) +
+    facet_wrap(~ cell_type, ncol = ncol_facets, scales = "free_y") +
+    labs(x = NULL, y = "logCPM",
+         title = paste("Pseudobulk by cell type -", as.character(g))) +
+    scale_fill_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_color_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.25))) +
+    coord_cartesian(clip = "off") +
+    theme_bw(base_size = base_size) +
+    theme(
+      panel.grid.major.x = element_blank(),
+      legend.position = "none",
+      strip.text = element_text(face = "bold"),
+      strip.background = element_rect(fill = "grey95"),
+      plot.margin = margin(8, 16, 8, 8)
+    )
+}
+
+# genes to plot (preserve your order)
+genes_to_plot <- intersect(levels(expr_long_ct$gene), goi)
+
+# build plots
+plots <- lapply(genes_to_plot, function(g) make_gene_plot(expr_long_ct, g, ncol_facets = 4))
+
+# compute number of facet rows per gene (for proportional heights)
+rows_per_gene <- sapply(genes_to_plot, function(g) {
+  n_ct <- expr_long_ct %>% filter(gene == g) %>% pull(cell_type) %>% n_distinct()
+  ceiling(n_ct / 4)  # 4 columns
+})
+
+# scale to heights (each row gets the same height unit)
+heights_vec <- rows_per_gene / sum(rows_per_gene)
+
+# stack with proportional heights
+p_stack <- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
+print(p_stack)
+```
+
+## Chaffin
+
+Load seurat object
+
+```{r Import Chaffin}
+Chaffin <- readRDS("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin.rds")
+Chaffin <- RenameAssays(Chaffin, originalexp = "RNA")
+
+DefaultAssay(Chaffin) <- "RNA"
+
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Activated_fibroblast", "Fibroblast_I", "Fibroblast_II"), "cell_type"] = "Fibroblast"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Adipocyte"), "cell_type"] = "Adipocyte"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Cardiomyocyte_I", "Cardiomyocyte_II", "Cardiomyocyte_III"), "cell_type"] = "Cardiomyocyte"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Endocardial"), "cell_type"] = "Endocardial"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Endothelial_I", "Endothelial_II", "Endothelial_III"), "cell_type"] = "Endothelial"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Epicardial"), "cell_type"] = "Epicardial"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Lymphatic_endothelial"), "cell_type"] = "Lymphatic_endothelial"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Lymphocyte"), "cell_type"] = "Lymphocyte"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Macrophage", "Proliferating_macrophage"), "cell_type"] = "Macrophage"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Mast_cell"), "cell_type"] = "Mast_cell"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Neuronal"), "cell_type"] = "Neuronal"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Pericyte_I", "Pericyte_II"), "cell_type"] = "Pericyte"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("VSMC"), "cell_type"] = "VSMC"
+
+Idents(Chaffin) <- Chaffin$cell_type
+Chaffin <- NormalizeData(Chaffin)
+```
+
+```{r subset Chaffin}
+Chaffin <- subset(
+  Chaffin, 
+  disease %in% c("NF", "DCM")
+)
+
+table(Chaffin$cell_type, Chaffin$disease)
+table(unique(dplyr::select(Chaffin@meta.data, c("disease", "donor_id")))$disease)
+```
+
+```{r, fig.width=6, fig.height=5}
+VlnPlot_scCustom(Chaffin, features="DYSF", group.by="cell_type", num_columns=1, pt.size = 0) & theme(axis.title.x = element_blank()) + NoLegend()
+```
+
+```{r, fig.width=5, fig.height=5}
+FeaturePlot_scCustom(Chaffin, features = "DYSF")+ 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold"))
+```
+
+```{r, fig.width=5, fig.height=5}
+p <- DimPlot(Chaffin, group.by = "cell_type", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p, id = "cell_type", fontface = "bold", size = 4.5, repel = T)
+```
+
+```{r}
+Chaffin_percent <- detect_by_celltype(Chaffin, "DYSF", "cell_type")
+write_csv(Chaffin_percent, here::here(output_dir_data, "Chaffin_Percent_per_cell_type.csv"))
+
+reactable(Chaffin_percent, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE,
+          defaultPageSize = 10)
+```
+
+```{r}
+Chaffin@meta.data <- Chaffin@meta.data %>%
+  mutate(Group = case_when(
+    disease == "NF" ~ "HC",
+    disease == "DCM" ~ "DCM"
+  ))
+
+Chaffin$Sample <- Chaffin$donor_id
+
+metadata <- Chaffin@meta.data %>%
+  dplyr::select(Sample, Group) %>%
+  unique() %>%
+  dplyr::arrange(match(Sample, names(table(Chaffin$Sample))))
+
+rownames(metadata) <- metadata$Sample
+```
+
+```{r, fig.width=8, fig.height=7.5}
+pb_ct <- Seurat2PB(Chaffin, sample = "Sample", cluster = "cell_type")
+
+keep_cols <- pb_ct$samples$lib.size > 5e4
+pb_ct <- pb_ct[, keep_cols, keep.lib.sizes = FALSE]
+
+pb_ct <- edgeR::normLibSizes(pb_ct)
+logcpm_ct <- edgeR::cpm(pb_ct, log = TRUE)
+
+col_annot <- pb_ct$samples %>%
+  dplyr::transmute(Sample = .data$sample, cell_type = .data$cluster) %>%
+  dplyr::left_join(metadata, by = "Sample")
+
+colnames(logcpm_ct) <- paste(col_annot$Sample, col_annot$cell_type, sep = "::")
+
+min_detect <- 10
+
+counts_ct <- pb_ct$counts                        
+present_genes <- intersect(goi, rownames(counts_ct))
+missing_genes  <- setdiff(goi, rownames(counts_ct))
+if (length(missing_genes) > 0) {
+  message("Warning: not found in pseudobulk matrix -> ", paste(missing_genes, collapse = ", "))
+}
+stopifnot(length(present_genes) > 0)
+
+det_tbl <- lapply(present_genes, function(g) {
+  data.frame(
+    cell_type = col_annot$cell_type,
+    detected  = as.integer(counts_ct[g, ] > 0)
+  ) |>
+    dplyr::group_by(cell_type) |>
+    dplyr::summarise(n_detect = sum(detected), .groups = "drop") |>
+    dplyr::mutate(gene = g)
+}) |>
+  dplyr::bind_rows()
+
+keep_pairs <- det_tbl |>
+  dplyr::filter(n_detect >= min_detect) |>
+  dplyr::transmute(key = paste(cell_type, gene, sep = "||")) |>
+  dplyr::pull(key)
+
+expr_long_ct <- logcpm_ct[present_genes, , drop = FALSE] |>
+  t() |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "col_id") |>
+  dplyr::mutate(
+    Sample    = sub("::.*$", "", col_id),
+    cell_type = sub("^.*::", "", col_id)
+  ) |>
+  dplyr::left_join(metadata, by = "Sample") |>
+  tidyr::pivot_longer(cols = all_of(present_genes),
+                      names_to = "gene", values_to = "logCPM") |>
+  dplyr::mutate(
+    key       = paste(cell_type, gene, sep = "||"),
+    keep      = key %in% keep_pairs,
+    Group     = factor(Group, levels = c("HC", "DCM")),
+    gene      = factor(gene, levels = goi)
+  ) |>
+  dplyr::filter(keep) |>
+  dplyr::select(-keep, -key)
+
+
+expr_long_ct <- droplevels(expr_long_ct)
+
+wilcox_ct <- expr_long_ct |>
+  dplyr::group_by(cell_type, gene) |>
+  dplyr::summarise(
+    n_HC  = sum(Group == "HC"),
+    n_DCM = sum(Group == "DCM"),
+    median_HC  = median(logCPM[Group == "HC"], na.rm = TRUE),
+    median_DCM = median(logCPM[Group == "DCM"], na.rm = TRUE),
+    diff_median = median_DCM - median_HC,
+    p_wilcox = tryCatch(wilcox.test(logCPM ~ Group)$p.value, error = function(e) NA_real_),
+    .groups = "drop"
+  ) |>
+  dplyr::group_by(gene) |>
+  dplyr::mutate(p_adj_BH_within_gene = p.adjust(p_wilcox, method = "BH")) |>
+  dplyr::ungroup()
+
+readr::write_csv(wilcox_ct, "Chaffin_wilcox.csv")
+
+# genes to plot (preserve your order)
+genes_to_plot <- intersect(levels(expr_long_ct$gene), goi)
+
+# build plots
+plots <- lapply(genes_to_plot, function(g) make_gene_plot(expr_long_ct, g, ncol_facets = 4))
+
+# compute number of facet rows per gene (for proportional heights)
+rows_per_gene <- sapply(genes_to_plot, function(g) {
+  n_ct <- expr_long_ct %>% filter(gene == g) %>% pull(cell_type) %>% n_distinct()
+  ceiling(n_ct / 4)  # 4 columns
+})
+
+# scale to heights (each row gets the same height unit)
+heights_vec <- rows_per_gene / sum(rows_per_gene)
+
+# stack with proportional heights
+p_stack <- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
+print(p_stack)
+```
+
+## Koenig
+
+Load seurat object
+
+```{r Import Koenig}
+load("/scratch/gbonaz/Heart_datasets/Koenig_2022/GSE183852_DCM_Nuclei.Robj")
+Koenig <- nuclei
+rm(nuclei)
+DefaultAssay(Koenig) <- "RNA"
+Koenig <- NormalizeData(Koenig)
+Koenig$cell_type <- Koenig$Names
+
+Idents(Koenig) <- Koenig$cell_type
+```
+
+```{r add_metadata Koenig}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Koenig[["orig.ident"]], Clinical_data)
+row.names(add_metadata) <- row.names(Koenig[[]])
+Koenig <- AddMetaData(Koenig, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+```
+
+```{r subset Koenig}
+table(Koenig$cell_type, Koenig$Condition)
+table(unique(dplyr::select(Koenig@meta.data, c("Condition", "orig.ident")))$Condition)
+```
+
+```{r, fig.width=6, fig.height=5}
+VlnPlot_scCustom(Koenig, features="DYSF", group.by="cell_type", num_columns=1, pt.size = 0) & theme(axis.title.x = element_blank()) + NoLegend()
+```
+
+```{r, fig.width=5, fig.height=5}
+FeaturePlot_scCustom(Koenig, features = "DYSF")+ 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold"))
+```
+
+```{r, fig.width=5, fig.height=5}
+p <- DimPlot(Koenig, group.by = "cell_type", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p, id = "cell_type", fontface = "bold", size = 4.5, repel = T)
+```
+
+```{r}
+Koenig_percent <- detect_by_celltype(Koenig, "DYSF", "cell_type")
+write_csv(Koenig_percent, here::here(output_dir_data, "Koenig_Percent_per_cell_type.csv"))
+
+reactable(Koenig_percent, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE,
+          defaultPageSize = 10)
+```
+
+```{r}
+Koenig@meta.data <- Koenig@meta.data %>%
+  mutate(Group = case_when(
+    Condition == "Donor" ~ "HC",
+    Condition == "DCM" ~ "DCM"
+  ))
+
+Koenig$Sample <- Koenig$orig.ident
+
+metadata <- Koenig@meta.data %>%
+  dplyr::select(Sample, Group) %>%
+  unique() %>%
+  dplyr::arrange(match(Sample, names(table(Koenig$Sample))))
+
+rownames(metadata) <- metadata$Sample
+```
+
+```{r, fig.width=8, fig.height=7.5}
+pb_ct <- Seurat2PB(Koenig, sample = "Sample", cluster = "cell_type")
+
+keep_cols <- pb_ct$samples$lib.size > 5e4
+pb_ct <- pb_ct[, keep_cols, keep.lib.sizes = FALSE]
+
+pb_ct <- edgeR::normLibSizes(pb_ct)
+logcpm_ct <- edgeR::cpm(pb_ct, log = TRUE)
+
+col_annot <- pb_ct$samples %>%
+  dplyr::transmute(Sample = .data$sample, cell_type = .data$cluster) %>%
+  dplyr::left_join(metadata, by = "Sample")
+
+colnames(logcpm_ct) <- paste(col_annot$Sample, col_annot$cell_type, sep = "::")
+
+min_detect <- 10
+
+counts_ct <- pb_ct$counts                        
+present_genes <- intersect(goi, rownames(counts_ct))
+missing_genes  <- setdiff(goi, rownames(counts_ct))
+if (length(missing_genes) > 0) {
+  message("Warning: not found in pseudobulk matrix -> ", paste(missing_genes, collapse = ", "))
+}
+stopifnot(length(present_genes) > 0)
+
+det_tbl <- lapply(present_genes, function(g) {
+  data.frame(
+    cell_type = col_annot$cell_type,
+    detected  = as.integer(counts_ct[g, ] > 0)
+  ) |>
+    dplyr::group_by(cell_type) |>
+    dplyr::summarise(n_detect = sum(detected), .groups = "drop") |>
+    dplyr::mutate(gene = g)
+}) |>
+  dplyr::bind_rows()
+
+keep_pairs <- det_tbl |>
+  dplyr::filter(n_detect >= min_detect) |>
+  dplyr::transmute(key = paste(cell_type, gene, sep = "||")) |>
+  dplyr::pull(key)
+
+expr_long_ct <- logcpm_ct[present_genes, , drop = FALSE] |>
+  t() |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "col_id") |>
+  dplyr::mutate(
+    Sample    = sub("::.*$", "", col_id),
+    cell_type = sub("^.*::", "", col_id)
+  ) |>
+  dplyr::left_join(metadata, by = "Sample") |>
+  tidyr::pivot_longer(cols = all_of(present_genes),
+                      names_to = "gene", values_to = "logCPM") |>
+  dplyr::mutate(
+    key       = paste(cell_type, gene, sep = "||"),
+    keep      = key %in% keep_pairs,
+    Group     = factor(Group, levels = c("HC", "DCM")),
+    gene      = factor(gene, levels = goi)
+  ) |>
+  dplyr::filter(keep) |>
+  dplyr::select(-keep, -key)
+
+
+expr_long_ct <- droplevels(expr_long_ct)
+
+wilcox_ct <- expr_long_ct |>
+  dplyr::group_by(cell_type, gene) |>
+  dplyr::summarise(
+    n_HC  = sum(Group == "HC"),
+    n_DCM = sum(Group == "DCM"),
+    median_HC  = median(logCPM[Group == "HC"], na.rm = TRUE),
+    median_DCM = median(logCPM[Group == "DCM"], na.rm = TRUE),
+    diff_median = median_DCM - median_HC,
+    p_wilcox = tryCatch(wilcox.test(logCPM ~ Group)$p.value, error = function(e) NA_real_),
+    .groups = "drop"
+  ) |>
+  dplyr::group_by(gene) |>
+  dplyr::mutate(p_adj_BH_within_gene = p.adjust(p_wilcox, method = "BH")) |>
+  dplyr::ungroup()
+
+readr::write_csv(wilcox_ct, "Koenig_wilcox.csv")
+
+# genes to plot (preserve your order)
+genes_to_plot <- intersect(levels(expr_long_ct$gene), goi)
+
+# build plots
+plots <- lapply(genes_to_plot, function(g) make_gene_plot(expr_long_ct, g, ncol_facets = 4))
+
+# compute number of facet rows per gene (for proportional heights)
+rows_per_gene <- sapply(genes_to_plot, function(g) {
+  n_ct <- expr_long_ct %>% filter(gene == g) %>% pull(cell_type) %>% n_distinct()
+  ceiling(n_ct / 4)  # 4 columns
+})
+
+# scale to heights (each row gets the same height unit)
+heights_vec <- rows_per_gene / sum(rows_per_gene)
+
+# stack with proportional heights
+p_stack <- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
+print(p_stack)
+```
+
