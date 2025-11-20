@@ -1,0 +1,507 @@
+---
+title: "Cell cell communication analysis using MultiNicheNet"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Cell_cell_communication_Macrophages"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(xlsx)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(ArchR)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(rtracklayer)
+library(cowplot)
+library(nichenetr)
+library(multinichenetr)
+library(muscat)
+
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+## Reichart
+
+Load seurat object
+
+```{r Import Reichart}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds")
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+
+Idents(Reichart) <- Reichart$cell_type
+```
+
+```{r add metadata Reichart}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Reichart[[]])
+Reichart <- AddMetaData(Reichart, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+```
+
+```{r subset Reichart}
+Reichart <- subset(
+  Reichart, 
+  disease %in% c("dilated cardiomyopathy", "normal") &
+    tissue == "heart left ventricle" &
+    cell_type != "unknown"
+)
+
+table(Reichart$cell_type, Reichart$disease)
+```
+
+```{r}
+Reichart@meta.data <- Reichart@meta.data %>%
+  mutate(Group_CCC = case_when(
+    disease == "normal" ~ "HC",
+    disease == "dilated cardiomyopathy" ~ "DCM"
+  ))
+
+Reichart@meta.data$cell_type_2 <- make.names(Reichart@meta.data$cell_type)
+
+Reichart@meta.data %>%
+  dplyr::select(Group_CCC, donor_id) %>%
+  distinct() %>%                
+  dplyr::count(Group_CCC)  
+```
+
+```{r}
+organism = "human"
+
+if(organism == "human"){
+  
+  lr_network_all = 
+    readRDS(url(
+      "https://zenodo.org/record/10229222/files/lr_network_human_allInfo_30112033.rds"
+      )) %>% 
+    mutate(
+      ligand = convert_alias_to_symbols(ligand, organism = organism), 
+      receptor = convert_alias_to_symbols(receptor, organism = organism))
+  
+  lr_network_all = lr_network_all  %>% 
+    mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
+  
+  lr_network = lr_network_all %>% 
+    distinct(ligand, receptor)
+  
+  ligand_target_matrix = readRDS(url(
+    "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds"
+    ))
+  
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% 
+    convert_alias_to_symbols(organism = organism) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% 
+    convert_alias_to_symbols(organism = organism) %>% make.names()
+  
+  lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
+  ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
+  
+} else if(organism == "mouse"){
+  
+  lr_network_all = readRDS(url(
+    "https://zenodo.org/record/10229222/files/lr_network_mouse_allInfo_30112033.rds"
+    )) %>% 
+    mutate(
+      ligand = convert_alias_to_symbols(ligand, organism = organism), 
+      receptor = convert_alias_to_symbols(receptor, organism = organism))
+  
+  lr_network_all = lr_network_all  %>% 
+    mutate(ligand = make.names(ligand), receptor = make.names(receptor)) 
+  lr_network = lr_network_all %>% 
+    distinct(ligand, receptor)
+  
+  ligand_target_matrix = readRDS(url(
+    "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final_mouse.rds"
+    ))
+  
+  colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% 
+    convert_alias_to_symbols(organism = organism) %>% make.names()
+  rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% 
+    convert_alias_to_symbols(organism = organism) %>% make.names()
+  
+  lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
+  ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
+  
+}
+```
+
+```{r include=FALSE}
+sce <- Seurat::as.SingleCellExperiment(Reichart, assay = "RNA")
+
+sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
+
+sce = scuttle::logNormCounts(sce)
+```
+
+```{r}
+group_id = "Group_CCC"
+sample_id = "donor_id"
+celltype_id = "cell_type_2"
+covariates = NA
+batches = NA
+```
+
+```{r}
+contrasts_oi = c("'DCM-HC','HC-DCM'")
+contrast_tbl = tibble(contrast = 
+                        c("DCM-HC","HC-DCM"), 
+                      group = c("DCM","HC"))
+```
+
+```{r}
+senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% 
+            c(senders_oi, receivers_oi)
+          ]
+```
+
+```{r}
+conditions_keep = c("HC", "DCM")
+sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% 
+            conditions_keep
+          ]
+```
+
+```{r}
+multinichenet_output <- readRDS(here::here("output", "Cell_cell_communication_LV", "multinichenet_output_Reichart.rds"))
+```
+
+### Myeloid cells
+
+```{r}
+celltypes_oi <- c(
+  "myeloid.cell",
+  "fibroblast.of.cardiac.tissue", 
+  "cardiac.muscle.cell",
+  "endothelial cell"
+)
+```
+
+```{r}
+prioritized_tbl_oi_all <- get_top_n_lr_pairs(
+  multinichenet_output$prioritization_tables, 
+  top_n = 200,  # can keep 50 if you want, but 200 then re-rank is safer
+  senders_oi  = celltypes_oi,
+  receivers_oi  = celltypes_oi,
+  rank_per_group = FALSE
+)
+```
+
+```{r}
+celltypes_oi <- c(
+  "fibroblast.of.cardiac.tissue", 
+  "cardiac.muscle.cell",
+  "endothelial cell"
+)
+```
+
+```{r}
+prioritized_tbl_oi_all <- prioritized_tbl_oi_all %>%
+  dplyr::filter(
+    # myeloid sending
+    (sender == "myeloid.cell" & receiver %in% celltypes_oi) |
+    # myeloid receiving
+    (receiver == "myeloid.cell" & sender %in% celltypes_oi)
+  ) %>%
+  # optional: keep only top 50 *among these*
+  dplyr::arrange(dplyr::desc(prioritization_score)) %>%
+  dplyr::slice_head(n = 20)
+```
+
+```{r, fig.height=5, fig.width=5}
+prioritized_tbl_oi = 
+  multinichenet_output$prioritization_tables$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% 
+  left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+par(mai = c(0.5, 0.4, 0.9, 0.4), xpd = NA)
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+
+```{r}
+group_oi = "DCM"
+```
+
+```{r, fig.width=18, fig.height=8}
+prioritized_tbl_oi_hi_50 = prioritized_tbl_oi_all %>% 
+  filter(group == group_oi)
+
+plot_oi <- make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output$prioritization_tables,
+  prioritized_tbl_oi_hi_50 %>% inner_join(lr_network_all),
+  widths = c(18, 3, 3, 3)
+)
+plot_oi
+```
+
+```{r}
+group_oi = "HC"
+```
+
+```{r, fig.width=18, fig.height=8}
+prioritized_tbl_oi_hi_50 = prioritized_tbl_oi_all %>% 
+  filter(group == group_oi)
+
+plot_oi <- make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output$prioritization_tables,
+  prioritized_tbl_oi_hi_50 %>% inner_join(lr_network_all),
+  widths = c(18, 3, 3, 3)
+)
+plot_oi
+```
+
+## Koenig
+
+```{r Import Koenig}
+load("/scratch/gbonaz/Heart_datasets/Koenig_2022/GSE183852_DCM_Nuclei.Robj")
+Koenig <- nuclei
+rm(nuclei)
+```
+
+```{r add_metadata Koenig}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Koenig[["orig.ident"]], Clinical_data)
+row.names(add_metadata) <- row.names(Koenig[[]])
+Koenig <- AddMetaData(Koenig, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+```
+
+```{r}
+table(Koenig$Names, Koenig$Condition)
+```
+
+```{r}
+Koenig@meta.data <- Koenig@meta.data %>%
+  mutate(Group_CCC = case_when(
+    Condition == "Donor" ~ "HC",
+    Condition == "DCM" ~ "DCM"
+  ))
+
+Koenig@meta.data$cell_type_2 <- make.names(Koenig@meta.data$Names)
+
+Koenig@meta.data %>%
+  dplyr::select(Group_CCC, orig.ident) %>%
+  distinct() %>%                
+  dplyr::count(Group_CCC)  
+```
+
+```{r}
+Koenig$Sample <- make.names(Koenig$orig.ident)
+table(Koenig$Sample)
+```
+
+```{r, include=FALSE}
+sce <- Seurat::as.SingleCellExperiment(Koenig, assay = "RNA")
+
+sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
+
+sce = scuttle::logNormCounts(sce)
+```
+
+```{r}
+group_id = "Group_CCC"
+sample_id = "Sample"
+celltype_id = "cell_type_2"
+covariates = NA
+batches = NA
+```
+
+```{r}
+contrasts_oi = c("'DCM-HC','HC-DCM'")
+contrast_tbl = tibble(contrast = 
+                        c("DCM-HC","HC-DCM"), 
+                      group = c("DCM","HC"))
+```
+
+```{r}
+senders_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+receivers_oi = SummarizedExperiment::colData(sce)[,celltype_id] %>% unique()
+sce = sce[, SummarizedExperiment::colData(sce)[,celltype_id] %in% 
+            c(senders_oi, receivers_oi)
+          ]
+```
+
+```{r}
+conditions_keep = c("HC", "DCM")
+sce = sce[, SummarizedExperiment::colData(sce)[,group_id] %in% 
+            conditions_keep
+          ]
+```
+
+```{r}
+multinichenet_output_K <- readRDS(here::here("output", "Cell_cell_communication_LV", "multinichenet_output_Koenig.rds"))
+```
+
+### Myeloid cells
+
+```{r}
+celltypes_oi <- c(
+  "Macrophages",
+  "Fibroblasts", 
+  "Cardiomyocytes",
+  "Endothelium"
+)
+```
+
+```{r}
+prioritized_tbl_oi_all <- get_top_n_lr_pairs(
+  multinichenet_output_K$prioritization_tables, 
+  top_n = 200,  # can keep 50 if you want, but 200 then re-rank is safer
+  senders_oi  = celltypes_oi,
+  receivers_oi  = celltypes_oi,
+  rank_per_group = FALSE
+)
+```
+
+```{r}
+celltypes_oi <- c(
+  "Fibroblasts", 
+  "Cardiomyocytes",
+  "Endothelium"
+)
+```
+
+```{r}
+prioritized_tbl_oi_all <- prioritized_tbl_oi_all %>%
+  dplyr::filter(
+    # myeloid sending
+    (sender == "Macrophages" & receiver %in% celltypes_oi) |
+    # myeloid receiving
+    (receiver == "Macrophages" & sender %in% celltypes_oi)
+  ) %>%
+  # optional: keep only top 50 *among these*
+  dplyr::arrange(dplyr::desc(prioritization_score)) %>%
+  dplyr::slice_head(n = 20)
+```
+
+```{r, fig.height=5, fig.width=5}
+prioritized_tbl_oi = 
+  multinichenet_output_K$prioritization_tables$group_prioritization_tbl %>%
+  filter(id %in% prioritized_tbl_oi_all$id) %>%
+  distinct(id, sender, receiver, ligand, receptor, group) %>% 
+  left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+
+senders_receivers = union(prioritized_tbl_oi$sender %>% unique(), prioritized_tbl_oi$receiver %>% unique()) %>% sort()
+
+colors_sender = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+colors_receiver = RColorBrewer::brewer.pal(n = length(senders_receivers), name = 'Spectral') %>% magrittr::set_names(senders_receivers)
+
+par(mai = c(0.5, 0.4, 0.9, 0.4), xpd = NA)
+circos_list = make_circos_group_comparison(prioritized_tbl_oi, colors_sender, colors_receiver)
+```
+
+```{r}
+group_oi = "DCM"
+```
+
+```{r, fig.width=18, fig.height=8}
+prioritized_tbl_oi_hi_50 = prioritized_tbl_oi_all %>% 
+  filter(group == group_oi)
+
+plot_oi <- make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output_K$prioritization_tables,
+  prioritized_tbl_oi_hi_50 %>% inner_join(lr_network_all),
+  widths = c(18, 3, 3, 3)
+)
+plot_oi
+```
+
+```{r}
+group_oi = "HC"
+```
+
+```{r, fig.width=18, fig.height=8}
+prioritized_tbl_oi_hi_50 = prioritized_tbl_oi_all %>% 
+  filter(group == group_oi)
+
+plot_oi <- make_sample_lr_prod_activity_plots_Omnipath(
+  multinichenet_output_K$prioritization_tables,
+  prioritized_tbl_oi_hi_50 %>% inner_join(lr_network_all),
+  widths = c(18, 3, 3, 3)
+)
+plot_oi
+```
+
