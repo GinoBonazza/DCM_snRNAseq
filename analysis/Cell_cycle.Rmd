@@ -1,0 +1,237 @@
+---
+title: "Cell_cycle"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Cell_cycle"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(msigdbr)
+library(simplifyEnrichment)
+library(miloR)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+library(biomaRt)
+library(GGally)
+library(rtracklayer)
+library(cowplot)
+library(SeuratDisk)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+```{r Import Reichart}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds")
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+write.csv(Reichart_gene_names, file = here::here(output_dir_data, "Reichart_gene_names.csv"), quote=F, row.names = F)
+```
+
+```{r add metadata Reichart}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Reichart[[]])
+Reichart <- AddMetaData(Reichart, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+Reichart@meta.data[Reichart@meta.data$disease == "normal", "Group"] = "HC"
+Reichart@meta.data[Reichart@meta.data$disease == "dilated cardiomyopathy", "Group"] = "DCM"
+Reichart$Sample <- Reichart$donor_id
+```
+
+```{r, fig.height = 5, fig.width = 6}
+s.genes <- cc.genes$s.genes
+g2m.genes <- cc.genes$g2m.genes
+Reichart <- CellCycleScoring(Reichart, s.features = s.genes, g2m.features = g2m.genes)
+```
+
+```{r}
+Reichart_CM <- subset(Reichart, disease %in% c("dilated cardiomyopathy", "normal") & cell_type == "cardiac muscle cell")
+Reichart_CM$Group <- factor(Reichart_CM$Group, levels = c("HC", "DCM"))
+```
+
+```{r Barplot_Group, fig.height=6, fig.width=5, message=FALSE}
+props <- getTransformedProps(Reichart_CM$Phase, Reichart_CM$Group, transform="logit")
+
+par(mar = c(7, 5, 1, 10), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = c("#F8766D", "#00BA38", "#619CFF"), cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-0.9, 0.3), legend = rownames(props$Proportions), fill = c("#F8766D", "#00BA38", "#619CFF"), bty = "n", cex = 2)
+```
+
+```{r Barplot_Region, fig.height=6, fig.width=5, message=FALSE}
+props <- getTransformedProps(Reichart_CM$Phase, Reichart_CM$Region_x, transform="logit")
+
+par(mar = c(7, 5, 1, 10), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = c("#F8766D", "#00BA38", "#619CFF"), cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-0.9, 0.3), legend = rownames(props$Proportions), fill = c("#F8766D", "#00BA38", "#619CFF"), bty = "n", cex = 2)
+```
+
+```{r Barplot_4, fig.height=6, fig.width=6, message=FALSE}
+Reichart_CM$GroupRegion <- paste0(Reichart_CM$Group, "_", Reichart_CM$Region_x)
+Reichart_CM$GroupRegion <- factor(Reichart_CM$GroupRegion, levels = c("HC_LV", "HC_RV", "DCM_LV", "DCM_RV"))
+
+props <- getTransformedProps(
+  Reichart_CM$Phase,
+  Reichart_CM$GroupRegion,
+  transform = "logit"
+)
+par(mar = c(8, 5, 1, 10), xpd = TRUE)
+
+barplot(
+  props$Proportions,
+  legend = FALSE,
+  ylab = "Proportions",
+  col = c("#F8766D", "#00BA38", "#619CFF"),
+  cex.names = 2,
+  las = 2,
+  font.lab = 2,
+  font.axis = 2,
+  cex.axis = 1.2,
+  cex.lab = 2,
+  beside = FALSE
+)
+
+legend(
+  "topright",
+  inset = c(-0.6, 0.3),
+  legend = rownames(props$Proportions),
+  fill = c("#F8766D", "#00BA38", "#619CFF"),
+  bty = "n",
+  cex = 2
+)
+
+```
+
+```{r}
+Reichart_CM$GroupRegion <- paste0(Reichart_CM$Group, "_", Reichart_CM$Region_x)
+Reichart_CM$GroupRegion <- factor(Reichart_CM$GroupRegion, levels = c("HC_LV", "HC_RV", "DCM_LV", "DCM_RV"))
+
+# Per-patient percentages
+df_patient_phase <- Reichart_CM@meta.data %>%
+  group_by(donor_id, GroupRegion, Phase) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(donor_id, GroupRegion) %>%   # <- fix: include GroupRegion
+  mutate(pct = n / sum(n) * 100) %>%
+  ungroup()
+
+df_patient_phase$GroupRegion <- factor(
+  df_patient_phase$GroupRegion,
+  levels = c("HC_LV", "HC_RV", "DCM_LV", "DCM_RV")
+)
+
+comparisons <- list(
+  c("HC_RV", "DCM_RV"),
+  c("HC_LV", "DCM_LV"),
+  c("HC_RV", "HC_LV"),
+  c("DCM_RV", "DCM_LV")
+)
+```
+
+```{r, fig.height=5, fig.width=4}
+plots <- list()
+
+for (ph in c("G1", "S", "G2M")) {
+
+  df_sub <- df_patient_phase %>% filter(Phase == ph)
+
+  p <- ggplot(df_sub, aes(GroupRegion, pct, fill = GroupRegion)) +
+    geom_boxplot(alpha = 0.7, outlier.shape = NA) +
+    geom_jitter(width = 0.15, size = 2, alpha = 0.8) +
+    stat_compare_means(
+      comparisons = comparisons,
+      method = "wilcox.test",
+      hide.ns = FALSE,
+      label = "p.signif"
+    ) +
+    labs(
+      title = paste0("Phase: ", ph),
+      y = "Percentage of cells",
+      x = ""
+    ) +
+    theme_bw(base_size = 16) +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(face = "bold", size = 18),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+
+  plots[[ph]] <- p
+}
+plots
+```
+
