@@ -80,7 +80,7 @@ library(biomaRt)
 library(GGally)
 library(rtracklayer)
 library(cowplot)
-library(SeuratDisk)
+library(anndata)
 
 #Output paths
 output_dir_data <- here::here("output", current_file)
@@ -104,7 +104,7 @@ write.csv(Reichart_gene_names, file = here::here(output_dir_data, "Reichart_gene
 ```
 
 ```{r add metadata Reichart}
-Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+Clinical_data <- readxl::read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
 add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
 row.names(add_metadata) <- row.names(Reichart[[]])
 Reichart <- AddMetaData(Reichart, metadata = add_metadata)
@@ -234,4 +234,329 @@ for (ph in c("G1", "S", "G2M")) {
 }
 plots
 ```
+
+```{r}
+#data <- anndata::read_h5ad("/scratch/gbonaz/Heart_datasets/Reichart_2022/4e0a1252-c993-42ae-a0a8-e6cf3f02bfdb.h5ad")
+#seurat_obj <- CreateSeuratObject(counts = t(as.matrix(data$X)), meta.data = data$obs)
+#saveRDS(seurat_obj,"/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_CM.rds")
+seurat_obj <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_CM.rds")
+```
+
+```{r cols}
+cell_type_cols <- c("#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A", "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600")  
+```
+
+```{r UMAP_cell_type_Manuscript, fig.width=6, fig.height=6}
+p <- DimPlot(
+        Reichart,
+        group.by  = "cell_type",
+        reduction = "umap",
+        label     = FALSE,
+        shuffle=T,
+        pt.size = 1.2
+        ) +
+     NoLegend() +
+     theme(axis.text  = element_text(size = 8, face = "bold"),
+           axis.title = element_text(size = 12, face = "bold"),
+           plot.title = element_blank())
+
+LabelClusters(p,
+              id       = "cell_type",
+              fontface = "bold",
+              size     = 5.8,
+              repel    = TRUE)
+```
+
+```{r}
+# DCM cardiomyocytes only
+Reichart_CM_DCM <- subset(
+  Reichart_CM,
+  Group == "DCM" & cell_type == "cardiac muscle cell"
+)
+
+
+make_state_phase_df <- function(seu_obj) {
+  meta <- seu_obj@meta.data
+  
+  meta %>%
+    dplyr::filter(!is.na(donor_id),
+           !is.na(cell_states),
+           !is.na(Phase),
+           !is.na(Region_x)) %>%
+    # cells per donor × region × state × phase
+    group_by(donor_id, Region_x, cell_states, Phase) %>%
+    summarise(n_phase = n(), .groups = "drop") %>%
+    # total cells per donor × region × state
+    group_by(donor_id, Region_x, cell_states) %>%
+    dplyr::mutate(n_total_state = sum(n_phase),
+           pct_phase_in_state = n_phase / n_total_state * 100) %>%
+    ungroup()
+}
+
+df_state_phase <- make_state_phase_df(Reichart_CM_DCM)
+
+# Make factors (optional but safer)
+df_state_phase$Phase      <- factor(df_state_phase$Phase, levels = c("G1", "S", "G2M"))
+df_state_phase$Region_x   <- factor(df_state_phase$Region_x, levels = c("LV", "RV"))
+df_state_phase$cell_states <- factor(df_state_phase$cell_states)
+
+```
+
+```{r}
+Reichart_CM_DCM_RV <- subset(Reichart_CM_DCM, Region_x == "RV")
+Reichart_CM_DCM_LV <- subset(Reichart_CM_DCM, Region_x == "LV")
+Reichart_CM_DCM_RV$cell_states <- droplevels(Reichart_CM_DCM_RV$cell_states)
+Reichart_CM_DCM_LV$cell_states <- droplevels(Reichart_CM_DCM_LV$cell_states)
+```
+
+```{r, fig.height=6, fig.width=6, message=FALSE}
+props <- getTransformedProps(
+  Reichart_CM_DCM_RV$Phase,
+  Reichart_CM_DCM_RV$cell_states,
+  transform = "logit"
+)
+par(mar = c(8, 5, 4, 10), xpd = TRUE)
+
+barplot(
+  props$Proportions,
+  legend = FALSE,
+  ylab = "Proportions",
+  col = c("#F8766D", "#00BA38", "#619CFF"),
+  cex.names = 2,
+  las = 2,
+  font.lab = 2,
+  font.axis = 2,
+  cex.axis = 1.2,
+  cex.lab = 2,
+  beside = FALSE
+)
+
+title(
+  main = "RV",
+  cex.main = 2.5,  # bigger title
+  line = 1         # move it further up (increase for higher)
+)
+legend(
+  "topright",
+  inset = c(-0.6, 0.3),
+  legend = rownames(props$Proportions),
+  fill = c("#F8766D", "#00BA38", "#619CFF"),
+  bty = "n",
+  cex = 2
+)
+
+```
+
+```{r, fig.height=6, fig.width=6, message=FALSE}
+props <- getTransformedProps(
+  Reichart_CM_DCM_LV$Phase,
+  Reichart_CM_DCM_LV$cell_states,
+  transform = "logit"
+)
+par(mar = c(8, 5, 4, 10), xpd = TRUE)
+
+barplot(
+  props$Proportions,
+  legend = FALSE,
+  ylab = "Proportions",
+  col = c("#F8766D", "#00BA38", "#619CFF"),
+  cex.names = 2,
+  las = 2,
+  font.lab = 2,
+  font.axis = 2,
+  cex.axis = 1.2,
+  cex.lab = 2,
+  beside = FALSE
+)
+
+title(
+  main = "LV",
+  cex.main = 2.5,  # bigger title
+  line = 1         # move it further up (increase for higher)
+)
+legend(
+  "topright",
+  inset = c(-0.6, 0.3),
+  legend = rownames(props$Proportions),
+  fill = c("#F8766D", "#00BA38", "#619CFF"),
+  bty = "n",
+  cex = 2
+)
+
+```
+
+```{r}
+compare_state_vs_rest <- function(df, region) {
+  df_region <- df %>% filter(Region_x == region)
+  
+  all_states <- levels(df_region$cell_states)
+  all_phases <- levels(df_region$Phase)
+  
+  res_list <- list()
+  
+  for (ph in all_phases) {
+    df_ph <- df_region %>% filter(Phase == ph)
+    
+    for (st in all_states) {
+      # target state
+      df_target <- df_ph %>%
+        filter(cell_states == st) %>%
+        dplyr::select(donor_id, pct_phase_in_state) %>%
+        rename(target_pct = pct_phase_in_state)
+      
+      # "other" = all remaining states pooled
+      df_other <- df_ph %>%
+        filter(cell_states != st) %>%
+        group_by(donor_id) %>%
+        summarise(
+          n_phase_other = sum(n_phase),
+          n_total_other = sum(n_total_state),   # total cells in non-target states
+          other_pct = (n_phase_other / n_total_other) * 100,
+          .groups = "drop"
+        )
+      
+      # merge; keep donors having both
+      df_pair <- inner_join(df_target, df_other, by = "donor_id")
+      
+      if (nrow(df_pair) < 3) {
+        # not enough donors with both target and other -> skip / NA
+        res_list[[length(res_list) + 1]] <- data.frame(
+          Region    = region,
+          Phase     = ph,
+          cell_states = st,
+          n_donors  = nrow(df_pair),
+          median_target_pct = NA_real_,
+          median_other_pct  = NA_real_,
+          p_value           = NA_real_
+        )
+        next
+      }
+      
+      wtest <- suppressWarnings(
+        wilcox.test(df_pair$target_pct, df_pair$other_pct, paired = TRUE)
+      )
+      
+      res_list[[length(res_list) + 1]] <- data.frame(
+        Region    = region,
+        Phase     = ph,
+        cell_states = st,
+        n_donors  = nrow(df_pair),
+        median_target_pct = median(df_pair$target_pct),
+        median_other_pct  = median(df_pair$other_pct),
+        p_value           = wtest$p.value
+      )
+    }
+  }
+  
+  res <- bind_rows(res_list) %>%
+    mutate(p_adj = p.adjust(p_value, method = "fdr"))
+  
+  return(res)
+}
+
+res_lv <- compare_state_vs_rest(df_state_phase, region = "LV")
+res_rv <- compare_state_vs_rest(df_state_phase, region = "RV")
+
+# Have a look
+res_lv %>% arrange(Phase, p_adj) %>% head()
+res_rv %>% arrange(Phase, p_adj) %>% head()
+
+```
+
+
+```{r}
+make_boxplot_phase_region <- function(df_state_phase, res_table,
+                                      region, phase_label,
+                                      sig_level = 0.05) {
+  # data for this region & phase
+  df_plot <- df_state_phase %>%
+    filter(Region_x == region, Phase == phase_label)
+  
+  # significance for this region & phase
+  res_sub <- res_table %>%
+    filter(Region == region, Phase == phase_label) %>%
+    mutate(
+      label = case_when(
+        is.na(p_adj) ~ "",
+        p_adj < 0.001 ~ "***",
+        p_adj < 0.01  ~ "**",
+        p_adj < sig_level ~ "*",
+        TRUE ~ ""
+      )
+    ) %>%
+    filter(label != "")
+  
+  # y-position for asterisks: a bit above the max of each state
+  if (nrow(res_sub) > 0) {
+    label_df <- df_plot %>%
+      group_by(cell_states) %>%
+      summarise(y_max = max(pct_phase_in_state), .groups = "drop") %>%
+      inner_join(res_sub, by = "cell_states") %>%
+      mutate(y_pos = y_max * 1.05)
+  } else {
+    label_df <- NULL
+  }
+  
+  p <- ggplot(df_plot, aes(x = cell_states, y = pct_phase_in_state, fill = cell_states)) +
+    geom_boxplot(alpha = 0.7, outlier.shape = NA) +
+    geom_jitter(width = 0.15, size = 1.8, alpha = 0.8) +
+    labs(
+      title = paste0(region, " – ", phase_label),
+      x = "",
+      y = "Percentage of cells in phase (per donor)"
+    ) +
+    theme_bw(base_size = 14) +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(face = "bold", size = 16),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  
+  if (!is.null(label_df) && nrow(label_df) > 0) {
+    p <- p +
+      geom_text(
+        data = label_df,
+        aes(x = cell_states, y = y_pos, label = label),
+        vjust = 0,
+        size = 5
+      ) +
+      expand_limits(y = max(label_df$y_pos) * 1.1)
+  }
+  
+  return(p)
+}
+
+phases <- c("G1", "S", "G2M")
+
+# LV plots
+plots_lv <- lapply(
+  phases,
+  function(ph) make_boxplot_phase_region(df_state_phase, res_lv, region = "LV", phase_label = ph)
+)
+names(plots_lv) <- phases
+
+# RV plots
+plots_rv <- lapply(
+  phases,
+  function(ph) make_boxplot_phase_region(df_state_phase, res_rv, region = "RV", phase_label = ph)
+)
+names(plots_rv) <- phases
+
+# Print individually if you want
+plots_lv$G1
+plots_lv$S
+plots_lv$G2M
+
+plots_rv$G1
+plots_rv$S
+plots_rv$G2M
+
+```
+
+
+
+
+
+
+
 
