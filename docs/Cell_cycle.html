@@ -415,7 +415,7 @@ div.tocify {
 <h4 class="author">GinoBonazza (<a
 href="mailto:ginoandrea.bonazza@usz.ch"
 class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
-<h4 class="date">10 December, 2025</h4>
+<h4 class="date">11 December, 2025</h4>
 
 </div>
 
@@ -444,7 +444,7 @@ class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2025-12-10
+<strong>Last updated:</strong> 2025-12-11
 </p>
 <p>
 <strong>Checks:</strong> <span
@@ -575,15 +575,15 @@ project makes it easier to run your code on other machines.</p>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree6f5d839dc52ed38b6b40991bf30cecf7fa5ea07atargetblank6f5d839a">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed953169838f12f2d7191b71cda61f9bb0f2859a7targetblankd953169a">
 <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span> <strong>Repository version:</strong>
-<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/6f5d839dc52ed38b6b40991bf30cecf7fa5ea07a" target="_blank">6f5d839</a>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d953169838f12f2d7191b71cda61f9bb0f2859a7" target="_blank">d953169</a>
 </a>
 </p>
 </div>
 <div
-id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree6f5d839dc52ed38b6b40991bf30cecf7fa5ea07atargetblank6f5d839a"
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed953169838f12f2d7191b71cda61f9bb0f2859a7targetblankd953169a"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -593,7 +593,7 @@ reproducibility.
 </p>
 <p>
 The results in this page were generated with repository version
-<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/6f5d839dc52ed38b6b40991bf30cecf7fa5ea07a" target="_blank">6f5d839</a>.
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d953169838f12f2d7191b71cda61f9bb0f2859a7" target="_blank">d953169</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -834,6 +834,40 @@ Message
 Rmd
 </td>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d953169838f12f2d7191b71cda61f9bb0f2859a7/analysis/Cell_cycle.Rmd" target="_blank">d953169</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-12-11
+</td>
+<td>
+wflow_publish("analysis/Cell_cycle.Rmd")
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/dfbe17f8ccebdb5c160303190e91283edb09a319/docs/Cell_cycle.html" target="_blank">dfbe17f</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-12-10
+</td>
+<td>
+Build site.
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/6f5d839dc52ed38b6b40991bf30cecf7fa5ea07a/analysis/Cell_cycle.Rmd" target="_blank">6f5d839</a>
 </td>
 <td>
@@ -915,7 +949,7 @@ library(biomaRt)
 library(GGally)
 library(rtracklayer)
 library(cowplot)
-library(SeuratDisk)
+library(anndata)
 
 #Output paths
 output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
@@ -933,7 +967,7 @@ Reichart_gene_names &lt;- data.frame(
 rownames(Reichart@assays[[&quot;RNA&quot;]]@data) &lt;- Reichart@assays[[&quot;RNA&quot;]]@meta.features$feature_name
 rownames(Reichart@assays[[&quot;RNA&quot;]]@counts) &lt;- Reichart@assays[[&quot;RNA&quot;]]@meta.features$feature_name
 write.csv(Reichart_gene_names, file = here::here(output_dir_data, &quot;Reichart_gene_names.csv&quot;), quote=F, row.names = F)</code></pre>
-<pre class="r"><code>Clinical_data &lt;- read_excel(&quot;/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx&quot;)
+<pre class="r"><code>Clinical_data &lt;- readxl::read_excel(&quot;/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx&quot;)
 add_metadata &lt;- left_join(Reichart[[&quot;donor_id&quot;]], Clinical_data)
 row.names(add_metadata) &lt;- row.names(Reichart[[]])
 Reichart &lt;- AddMetaData(Reichart, metadata = add_metadata)
@@ -952,12 +986,86 @@ par(mar = c(7, 5, 1, 10), xpd = TRUE)
 barplot(props$Proportions, legend = FALSE, ylab = &quot;Proportions&quot;, col = c(&quot;#F8766D&quot;, &quot;#00BA38&quot;, &quot;#619CFF&quot;), cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
 legend(&quot;topright&quot;, inset = c(-0.9, 0.3), legend = rownames(props$Proportions), fill = c(&quot;#F8766D&quot;, &quot;#00BA38&quot;, &quot;#619CFF&quot;), bty = &quot;n&quot;, cex = 2)</code></pre>
 <p><img src="figure/Cell_cycle.Rmd/Barplot_Group-1.png" width="1500" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Barplot_Group-1">
+Past versions of Barplot_Group-1.png
+</button>
+</p>
+<div id="fig-Barplot_Group-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/dfbe17f8ccebdb5c160303190e91283edb09a319/docs/figure/Cell_cycle.Rmd/Barplot_Group-1.png" target="_blank">dfbe17f</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-12-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>props &lt;- getTransformedProps(Reichart_CM$Phase, Reichart_CM$Region_x, transform=&quot;logit&quot;)
 
 par(mar = c(7, 5, 1, 10), xpd = TRUE)
 barplot(props$Proportions, legend = FALSE, ylab = &quot;Proportions&quot;, col = c(&quot;#F8766D&quot;, &quot;#00BA38&quot;, &quot;#619CFF&quot;), cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
 legend(&quot;topright&quot;, inset = c(-0.9, 0.3), legend = rownames(props$Proportions), fill = c(&quot;#F8766D&quot;, &quot;#00BA38&quot;, &quot;#619CFF&quot;), bty = &quot;n&quot;, cex = 2)</code></pre>
 <p><img src="figure/Cell_cycle.Rmd/Barplot_Region-1.png" width="1500" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Barplot_Region-1">
+Past versions of Barplot_Region-1.png
+</button>
+</p>
+<div id="fig-Barplot_Region-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/dfbe17f8ccebdb5c160303190e91283edb09a319/docs/figure/Cell_cycle.Rmd/Barplot_Region-1.png" target="_blank">dfbe17f</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-12-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>Reichart_CM$GroupRegion &lt;- paste0(Reichart_CM$Group, &quot;_&quot;, Reichart_CM$Region_x)
 Reichart_CM$GroupRegion &lt;- factor(Reichart_CM$GroupRegion, levels = c(&quot;HC_LV&quot;, &quot;HC_RV&quot;, &quot;DCM_LV&quot;, &quot;DCM_RV&quot;))
 
@@ -991,6 +1099,43 @@ legend(
   cex = 2
 )</code></pre>
 <p><img src="figure/Cell_cycle.Rmd/Barplot_4-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Barplot_4-1">
+Past versions of Barplot_4-1.png
+</button>
+</p>
+<div id="fig-Barplot_4-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/dfbe17f8ccebdb5c160303190e91283edb09a319/docs/figure/Cell_cycle.Rmd/Barplot_4-1.png" target="_blank">dfbe17f</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-12-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>Reichart_CM$GroupRegion &lt;- paste0(Reichart_CM$Group, &quot;_&quot;, Reichart_CM$Region_x)
 Reichart_CM$GroupRegion &lt;- factor(Reichart_CM$GroupRegion, levels = c(&quot;HC_LV&quot;, &quot;HC_RV&quot;, &quot;DCM_LV&quot;, &quot;DCM_RV&quot;))
 
@@ -1045,12 +1190,444 @@ for (ph in c(&quot;G1&quot;, &quot;S&quot;, &quot;G2M&quot;)) {
 plots</code></pre>
 <pre><code>$G1</code></pre>
 <p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-4-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-4-1">
+Past versions of unnamed-chunk-4-1.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-4-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/dfbe17f8ccebdb5c160303190e91283edb09a319/docs/figure/Cell_cycle.Rmd/unnamed-chunk-4-1.png" target="_blank">dfbe17f</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-12-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre><code>
 $S</code></pre>
 <p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-4-2.png" width="1200" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-4-2">
+Past versions of unnamed-chunk-4-2.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-4-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/dfbe17f8ccebdb5c160303190e91283edb09a319/docs/figure/Cell_cycle.Rmd/unnamed-chunk-4-2.png" target="_blank">dfbe17f</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-12-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre><code>
 $G2M</code></pre>
 <p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-4-3.png" width="1200" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-4-3">
+Past versions of unnamed-chunk-4-3.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-4-3" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/dfbe17f8ccebdb5c160303190e91283edb09a319/docs/figure/Cell_cycle.Rmd/unnamed-chunk-4-3.png" target="_blank">dfbe17f</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-12-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>#data &lt;- anndata::read_h5ad(&quot;/scratch/gbonaz/Heart_datasets/Reichart_2022/4e0a1252-c993-42ae-a0a8-e6cf3f02bfdb.h5ad&quot;)
+#seurat_obj &lt;- CreateSeuratObject(counts = t(as.matrix(data$X)), meta.data = data$obs)
+#saveRDS(seurat_obj,&quot;/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_CM.rds&quot;)
+seurat_obj &lt;- readRDS(&quot;/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_CM.rds&quot;)</code></pre>
+<pre class="r"><code>cell_type_cols &lt;- c(&quot;#d05050&quot;, &quot;#33A02C&quot;, &quot;#1F78B4&quot;, &quot;#CAB2D6&quot;, &quot;#FF7F00&quot;, &quot;#B2DF8A&quot;, &quot;#B15928&quot;, &quot;#FFD000&quot;, &quot;#FA95C0&quot;, &quot;#FDBF6F&quot;, &quot;#6A3D9A&quot;, &quot;#7aCDF9&quot;, &quot;#E6E600&quot;)  </code></pre>
+<pre class="r"><code>p &lt;- DimPlot(
+        Reichart,
+        group.by  = &quot;cell_type&quot;,
+        reduction = &quot;umap&quot;,
+        label     = FALSE,
+        shuffle=T,
+        pt.size = 1.2
+        ) +
+     NoLegend() +
+     theme(axis.text  = element_text(size = 8, face = &quot;bold&quot;),
+           axis.title = element_text(size = 12, face = &quot;bold&quot;),
+           plot.title = element_blank())
+
+LabelClusters(p,
+              id       = &quot;cell_type&quot;,
+              fontface = &quot;bold&quot;,
+              size     = 5.8,
+              repel    = TRUE)</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/UMAP_cell_type_Manuscript-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># DCM cardiomyocytes only
+Reichart_CM_DCM &lt;- subset(
+  Reichart_CM,
+  Group == &quot;DCM&quot; &amp; cell_type == &quot;cardiac muscle cell&quot;
+)
+
+
+make_state_phase_df &lt;- function(seu_obj) {
+  meta &lt;- seu_obj@meta.data
+  
+  meta %&gt;%
+    dplyr::filter(!is.na(donor_id),
+           !is.na(cell_states),
+           !is.na(Phase),
+           !is.na(Region_x)) %&gt;%
+    # cells per donor × region × state × phase
+    group_by(donor_id, Region_x, cell_states, Phase) %&gt;%
+    summarise(n_phase = n(), .groups = &quot;drop&quot;) %&gt;%
+    # total cells per donor × region × state
+    group_by(donor_id, Region_x, cell_states) %&gt;%
+    dplyr::mutate(n_total_state = sum(n_phase),
+           pct_phase_in_state = n_phase / n_total_state * 100) %&gt;%
+    ungroup()
+}
+
+df_state_phase &lt;- make_state_phase_df(Reichart_CM_DCM)
+
+# Make factors (optional but safer)
+df_state_phase$Phase      &lt;- factor(df_state_phase$Phase, levels = c(&quot;G1&quot;, &quot;S&quot;, &quot;G2M&quot;))
+df_state_phase$Region_x   &lt;- factor(df_state_phase$Region_x, levels = c(&quot;LV&quot;, &quot;RV&quot;))
+df_state_phase$cell_states &lt;- factor(df_state_phase$cell_states)</code></pre>
+<pre class="r"><code>Reichart_CM_DCM_RV &lt;- subset(Reichart_CM_DCM, Region_x == &quot;RV&quot;)
+Reichart_CM_DCM_LV &lt;- subset(Reichart_CM_DCM, Region_x == &quot;LV&quot;)
+Reichart_CM_DCM_RV$cell_states &lt;- droplevels(Reichart_CM_DCM_RV$cell_states)
+Reichart_CM_DCM_LV$cell_states &lt;- droplevels(Reichart_CM_DCM_LV$cell_states)</code></pre>
+<pre class="r"><code>props &lt;- getTransformedProps(
+  Reichart_CM_DCM_RV$Phase,
+  Reichart_CM_DCM_RV$cell_states,
+  transform = &quot;logit&quot;
+)
+par(mar = c(8, 5, 4, 10), xpd = TRUE)
+
+barplot(
+  props$Proportions,
+  legend = FALSE,
+  ylab = &quot;Proportions&quot;,
+  col = c(&quot;#F8766D&quot;, &quot;#00BA38&quot;, &quot;#619CFF&quot;),
+  cex.names = 2,
+  las = 2,
+  font.lab = 2,
+  font.axis = 2,
+  cex.axis = 1.2,
+  cex.lab = 2,
+  beside = FALSE
+)
+
+title(
+  main = &quot;RV&quot;,
+  cex.main = 2.5,  # bigger title
+  line = 1         # move it further up (increase for higher)
+)
+legend(
+  &quot;topright&quot;,
+  inset = c(-0.6, 0.3),
+  legend = rownames(props$Proportions),
+  fill = c(&quot;#F8766D&quot;, &quot;#00BA38&quot;, &quot;#619CFF&quot;),
+  bty = &quot;n&quot;,
+  cex = 2
+)</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-8-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>props &lt;- getTransformedProps(
+  Reichart_CM_DCM_LV$Phase,
+  Reichart_CM_DCM_LV$cell_states,
+  transform = &quot;logit&quot;
+)
+par(mar = c(8, 5, 4, 10), xpd = TRUE)
+
+barplot(
+  props$Proportions,
+  legend = FALSE,
+  ylab = &quot;Proportions&quot;,
+  col = c(&quot;#F8766D&quot;, &quot;#00BA38&quot;, &quot;#619CFF&quot;),
+  cex.names = 2,
+  las = 2,
+  font.lab = 2,
+  font.axis = 2,
+  cex.axis = 1.2,
+  cex.lab = 2,
+  beside = FALSE
+)
+
+title(
+  main = &quot;LV&quot;,
+  cex.main = 2.5,  # bigger title
+  line = 1         # move it further up (increase for higher)
+)
+legend(
+  &quot;topright&quot;,
+  inset = c(-0.6, 0.3),
+  legend = rownames(props$Proportions),
+  fill = c(&quot;#F8766D&quot;, &quot;#00BA38&quot;, &quot;#619CFF&quot;),
+  bty = &quot;n&quot;,
+  cex = 2
+)</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-9-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>compare_state_vs_rest &lt;- function(df, region) {
+  df_region &lt;- df %&gt;% filter(Region_x == region)
+  
+  all_states &lt;- levels(df_region$cell_states)
+  all_phases &lt;- levels(df_region$Phase)
+  
+  res_list &lt;- list()
+  
+  for (ph in all_phases) {
+    df_ph &lt;- df_region %&gt;% filter(Phase == ph)
+    
+    for (st in all_states) {
+      # target state
+      df_target &lt;- df_ph %&gt;%
+        filter(cell_states == st) %&gt;%
+        dplyr::select(donor_id, pct_phase_in_state) %&gt;%
+        rename(target_pct = pct_phase_in_state)
+      
+      # &quot;other&quot; = all remaining states pooled
+      df_other &lt;- df_ph %&gt;%
+        filter(cell_states != st) %&gt;%
+        group_by(donor_id) %&gt;%
+        summarise(
+          n_phase_other = sum(n_phase),
+          n_total_other = sum(n_total_state),   # total cells in non-target states
+          other_pct = (n_phase_other / n_total_other) * 100,
+          .groups = &quot;drop&quot;
+        )
+      
+      # merge; keep donors having both
+      df_pair &lt;- inner_join(df_target, df_other, by = &quot;donor_id&quot;)
+      
+      if (nrow(df_pair) &lt; 3) {
+        # not enough donors with both target and other -&gt; skip / NA
+        res_list[[length(res_list) + 1]] &lt;- data.frame(
+          Region    = region,
+          Phase     = ph,
+          cell_states = st,
+          n_donors  = nrow(df_pair),
+          median_target_pct = NA_real_,
+          median_other_pct  = NA_real_,
+          p_value           = NA_real_
+        )
+        next
+      }
+      
+      wtest &lt;- suppressWarnings(
+        wilcox.test(df_pair$target_pct, df_pair$other_pct, paired = TRUE)
+      )
+      
+      res_list[[length(res_list) + 1]] &lt;- data.frame(
+        Region    = region,
+        Phase     = ph,
+        cell_states = st,
+        n_donors  = nrow(df_pair),
+        median_target_pct = median(df_pair$target_pct),
+        median_other_pct  = median(df_pair$other_pct),
+        p_value           = wtest$p.value
+      )
+    }
+  }
+  
+  res &lt;- bind_rows(res_list) %&gt;%
+    mutate(p_adj = p.adjust(p_value, method = &quot;fdr&quot;))
+  
+  return(res)
+}
+
+res_lv &lt;- compare_state_vs_rest(df_state_phase, region = &quot;LV&quot;)
+res_rv &lt;- compare_state_vs_rest(df_state_phase, region = &quot;RV&quot;)
+
+# Have a look
+res_lv %&gt;% arrange(Phase, p_adj) %&gt;% head()</code></pre>
+<pre><code>  Region Phase cell_states n_donors median_target_pct median_other_pct
+1     LV    G1      vCM1.1       49          37.17949         32.61614
+2     LV    G1      vCM1.2       52          29.19864         32.91840
+3     LV    G1      vCM3.0       51          35.29412         32.40741
+4     LV    G1        vCM2       52          29.81333         33.01527
+5     LV    G1      vCM1.3       51          29.53368         32.52830
+6     LV    G1        vCM5       51          36.84211         32.45614
+       p_value        p_adj
+1 6.147381e-09 1.268745e-07
+2 5.392580e-06 2.426661e-05
+3 1.874718e-04 5.061738e-04
+4 5.122096e-04 1.152472e-03
+5 3.010123e-03 5.805237e-03
+6 9.291532e-03 1.672476e-02</code></pre>
+<pre class="r"><code>res_rv %&gt;% arrange(Phase, p_adj) %&gt;% head()</code></pre>
+<pre><code>  Region Phase cell_states n_donors median_target_pct median_other_pct
+1     RV    G1        vCM2       27          24.35597         30.83004
+2     RV    G1      vCM1.1       27          34.13655         28.97311
+3     RV    G1      vCM3.0       27          33.33333         29.05325
+4     RV    G1      vCM1.3       27          26.08696         29.33333
+5     RV    G1        vCM4       24          30.00000         30.46176
+6     RV    G1        vCM5       23          33.33333         29.46429
+       p_value       p_adj
+1 0.0002363175 0.001686171
+2 0.0004787445 0.002585220
+3 0.0299049914 0.080743477
+4 0.0772257745 0.139006394
+5 0.1688096523 0.268109448
+6 0.1601049900 0.268109448</code></pre>
+<pre class="r"><code>make_boxplot_phase_region &lt;- function(df_state_phase, res_table,
+                                      region, phase_label,
+                                      sig_level = 0.05) {
+  # data for this region &amp; phase
+  df_plot &lt;- df_state_phase %&gt;%
+    filter(Region_x == region, Phase == phase_label)
+  
+  # significance for this region &amp; phase
+  res_sub &lt;- res_table %&gt;%
+    filter(Region == region, Phase == phase_label) %&gt;%
+    mutate(
+      label = case_when(
+        is.na(p_adj) ~ &quot;&quot;,
+        p_adj &lt; 0.001 ~ &quot;***&quot;,
+        p_adj &lt; 0.01  ~ &quot;**&quot;,
+        p_adj &lt; sig_level ~ &quot;*&quot;,
+        TRUE ~ &quot;&quot;
+      )
+    ) %&gt;%
+    filter(label != &quot;&quot;)
+  
+  # y-position for asterisks: a bit above the max of each state
+  if (nrow(res_sub) &gt; 0) {
+    label_df &lt;- df_plot %&gt;%
+      group_by(cell_states) %&gt;%
+      summarise(y_max = max(pct_phase_in_state), .groups = &quot;drop&quot;) %&gt;%
+      inner_join(res_sub, by = &quot;cell_states&quot;) %&gt;%
+      mutate(y_pos = y_max * 1.05)
+  } else {
+    label_df &lt;- NULL
+  }
+  
+  p &lt;- ggplot(df_plot, aes(x = cell_states, y = pct_phase_in_state, fill = cell_states)) +
+    geom_boxplot(alpha = 0.7, outlier.shape = NA) +
+    geom_jitter(width = 0.15, size = 1.8, alpha = 0.8) +
+    labs(
+      title = paste0(region, &quot; – &quot;, phase_label),
+      x = &quot;&quot;,
+      y = &quot;Percentage of cells in phase (per donor)&quot;
+    ) +
+    theme_bw(base_size = 14) +
+    theme(
+      legend.position = &quot;none&quot;,
+      plot.title = element_text(face = &quot;bold&quot;, size = 16),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  
+  if (!is.null(label_df) &amp;&amp; nrow(label_df) &gt; 0) {
+    p &lt;- p +
+      geom_text(
+        data = label_df,
+        aes(x = cell_states, y = y_pos, label = label),
+        vjust = 0,
+        size = 5
+      ) +
+      expand_limits(y = max(label_df$y_pos) * 1.1)
+  }
+  
+  return(p)
+}
+
+phases &lt;- c(&quot;G1&quot;, &quot;S&quot;, &quot;G2M&quot;)
+
+# LV plots
+plots_lv &lt;- lapply(
+  phases,
+  function(ph) make_boxplot_phase_region(df_state_phase, res_lv, region = &quot;LV&quot;, phase_label = ph)
+)
+names(plots_lv) &lt;- phases
+
+# RV plots
+plots_rv &lt;- lapply(
+  phases,
+  function(ph) make_boxplot_phase_region(df_state_phase, res_rv, region = &quot;RV&quot;, phase_label = ph)
+)
+names(plots_rv) &lt;- phases
+
+# Print individually if you want
+plots_lv$G1</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-11-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plots_lv$S</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-11-2.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plots_lv$G2M</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-11-3.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plots_rv$G1</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-11-4.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plots_rv$S</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-11-5.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>plots_rv$G2M</code></pre>
+<p><img src="figure/Cell_cycle.Rmd/unnamed-chunk-11-6.png" width="2100" style="display: block; margin: auto;" /></p>
 <br>
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
@@ -1084,7 +1661,7 @@ attached base packages:
 [8] methods   base     
 
 other attached packages:
- [1] SeuratDisk_0.0.0.9021       cowplot_1.2.0              
+ [1] anndata_0.8.0               cowplot_1.2.0              
  [3] rtracklayer_1.70.0          GGally_2.4.0               
  [5] biomaRt_2.66.0              ggpubr_0.6.2               
  [7] igraph_2.2.1                miloR_2.6.0                
@@ -1180,68 +1757,68 @@ loaded via a namespace (and not attached):
 [107] tools_4.5.2               globals_0.18.0           
 [109] broom_1.0.11              beeswarm_0.4.0           
 [111] checkmate_2.3.3           nlme_3.1-168             
-[113] hdf5r_1.3.12              assertthat_0.2.1         
-[115] digest_0.6.39             numDeriv_2016.8-1.1      
-[117] farver_2.1.2              tzdb_0.5.0               
-[119] yulab.utils_0.2.2         viridis_0.6.5            
-[121] glue_1.8.0                cachem_1.1.0             
-[123] polyclip_1.10-7           Biostrings_2.78.0        
-[125] parallelly_1.45.1         ScaledMatrix_1.18.0      
-[127] carData_3.0-5             fontBitstreamVera_0.1.1  
-[129] pbapply_1.7-4             httr2_1.2.1              
-[131] tcltk_4.5.2               spam_2.11-1              
-[133] gson_0.1.0                dqrng_0.4.1              
-[135] gtools_3.9.5              graphlayouts_1.2.2       
-[137] ggsignif_0.6.4            shiny_1.12.0             
-[139] tidydr_0.0.6              R.utils_2.13.0           
-[141] rhdf5filters_1.22.0       RCurl_1.98-1.17          
-[143] memoise_2.0.1             rmarkdown_2.30           
-[145] R.methodsS3_1.8.2         future_1.68.0            
-[147] RANN_2.6.2                fontLiberation_0.1.0     
-[149] renv_1.1.5                spatstat.data_3.1-9      
-[151] rstudioapi_0.17.1         cluster_2.1.8.1          
-[153] whisker_0.4.1             janitor_2.2.1            
-[155] spatstat.utils_3.2-0      hms_1.1.4                
-[157] fitdistrplus_1.2-4        colorspace_2.1-2         
-[159] rlang_1.1.6               GenomeInfoDb_1.46.1      
-[161] DelayedMatrixStats_1.32.0 sparseMatrixStats_1.22.0 
-[163] dotCall64_1.2             ggforce_0.5.0            
-[165] circlize_0.4.16           ggtangle_0.0.9           
-[167] xfun_0.54                 simona_1.8.0             
-[169] iterators_1.0.14          abind_1.4-8              
-[171] GOSemSim_2.36.0           treeio_1.34.0            
-[173] Rhdf5lib_1.32.0           bitops_1.0-9             
-[175] promises_1.5.0            scatterpie_0.2.6         
-[177] RSQLite_2.4.5             qvalue_2.42.0            
-[179] fgsea_1.36.0              DelayedArray_0.36.0      
-[181] GO.db_3.22.0              compiler_4.5.2           
-[183] prettyunits_1.2.0         beachmat_2.26.0          
-[185] graphite_1.56.0           listenv_0.10.0           
-[187] fontquiver_0.2.1          workflowr_1.7.2          
-[189] BiocSingular_1.26.1       tensor_1.5.1             
-[191] MASS_7.3-65               progress_1.2.3           
-[193] BiocParallel_1.44.0       babelgene_22.9           
-[195] spatstat.random_3.4-3     R6_2.6.1                 
-[197] rstatix_0.7.3             fastmap_1.2.0            
-[199] fastmatch_1.1-6           vipor_0.4.7              
-[201] ROCR_1.0-11               ggstats_0.11.0           
-[203] rsvd_1.0.5                gtable_0.3.6             
-[205] KernSmooth_2.23-26        miniUI_0.1.2             
-[207] deldir_2.0-4              htmltools_0.5.9          
-[209] bit64_4.6.0-1             spatstat.explore_3.6-0   
-[211] lifecycle_1.0.4           ggprism_1.0.7            
-[213] S7_0.2.1                  NLP_0.3-2                
-[215] zip_2.3.3                 restfulr_0.0.16          
-[217] sass_0.4.10               vctrs_0.6.5              
-[219] slam_0.1-55               Polychrome_1.5.4         
-[221] spatstat.geom_3.6-1       snakecase_0.11.1         
-[223] DOSE_4.4.0                scran_1.38.0             
-[225] ggfun_0.2.0               sp_2.2-0                 
-[227] pracma_2.4.6              future.apply_1.20.0      
-[229] bslib_0.9.0               pillar_1.11.1            
-[231] metapod_1.18.0            locfit_1.5-9.12          
-[233] otel_0.2.0                jsonlite_2.0.0           
-[235] cigarillo_1.0.0           GetoptLong_1.1.0         </code></pre>
+[113] assertthat_0.2.1          digest_0.6.39            
+[115] numDeriv_2016.8-1.1       farver_2.1.2             
+[117] tzdb_0.5.0                yulab.utils_0.2.2        
+[119] viridis_0.6.5             glue_1.8.0               
+[121] cachem_1.1.0              polyclip_1.10-7          
+[123] Biostrings_2.78.0         parallelly_1.45.1        
+[125] ScaledMatrix_1.18.0       carData_3.0-5            
+[127] fontBitstreamVera_0.1.1   pbapply_1.7-4            
+[129] httr2_1.2.1               tcltk_4.5.2              
+[131] spam_2.11-1               gson_0.1.0               
+[133] dqrng_0.4.1               gtools_3.9.5             
+[135] graphlayouts_1.2.2        ggsignif_0.6.4           
+[137] shiny_1.12.0              tidydr_0.0.6             
+[139] R.utils_2.13.0            rhdf5filters_1.22.0      
+[141] RCurl_1.98-1.17           memoise_2.0.1            
+[143] rmarkdown_2.30            R.methodsS3_1.8.2        
+[145] future_1.68.0             RANN_2.6.2               
+[147] fontLiberation_0.1.0      renv_1.1.5               
+[149] spatstat.data_3.1-9       rstudioapi_0.17.1        
+[151] cluster_2.1.8.1           whisker_0.4.1            
+[153] janitor_2.2.1             spatstat.utils_3.2-0     
+[155] hms_1.1.4                 fitdistrplus_1.2-4       
+[157] colorspace_2.1-2          rlang_1.1.6              
+[159] GenomeInfoDb_1.46.1       DelayedMatrixStats_1.32.0
+[161] sparseMatrixStats_1.22.0  dotCall64_1.2            
+[163] ggforce_0.5.0             circlize_0.4.16          
+[165] ggtangle_0.0.9            xfun_0.54                
+[167] simona_1.8.0              iterators_1.0.14         
+[169] abind_1.4-8               GOSemSim_2.36.0          
+[171] treeio_1.34.0             Rhdf5lib_1.32.0          
+[173] bitops_1.0-9              promises_1.5.0           
+[175] scatterpie_0.2.6          RSQLite_2.4.5            
+[177] qvalue_2.42.0             fgsea_1.36.0             
+[179] DelayedArray_0.36.0       GO.db_3.22.0             
+[181] compiler_4.5.2            prettyunits_1.2.0        
+[183] beachmat_2.26.0           graphite_1.56.0          
+[185] listenv_0.10.0            fontquiver_0.2.1         
+[187] workflowr_1.7.2           BiocSingular_1.26.1      
+[189] tensor_1.5.1              MASS_7.3-65              
+[191] progress_1.2.3            BiocParallel_1.44.0      
+[193] babelgene_22.9            spatstat.random_3.4-3    
+[195] R6_2.6.1                  rstatix_0.7.3            
+[197] fastmap_1.2.0             fastmatch_1.1-6          
+[199] vipor_0.4.7               ROCR_1.0-11              
+[201] ggstats_0.11.0            rsvd_1.0.5               
+[203] gtable_0.3.6              KernSmooth_2.23-26       
+[205] miniUI_0.1.2              deldir_2.0-4             
+[207] htmltools_0.5.9           bit64_4.6.0-1            
+[209] spatstat.explore_3.6-0    lifecycle_1.0.4          
+[211] ggprism_1.0.7             S7_0.2.1                 
+[213] NLP_0.3-2                 zip_2.3.3                
+[215] restfulr_0.0.16           sass_0.4.10              
+[217] vctrs_0.6.5               slam_0.1-55              
+[219] Polychrome_1.5.4          spatstat.geom_3.6-1      
+[221] snakecase_0.11.1          DOSE_4.4.0               
+[223] scran_1.38.0              ggfun_0.2.0              
+[225] sp_2.2-0                  pracma_2.4.6             
+[227] future.apply_1.20.0       bslib_0.9.0              
+[229] pillar_1.11.1             metapod_1.18.0           
+[231] locfit_1.5-9.12           otel_0.2.0               
+[233] jsonlite_2.0.0            cigarillo_1.0.0          
+[235] GetoptLong_1.1.0         </code></pre>
 </div>
 </div>
 </div>
