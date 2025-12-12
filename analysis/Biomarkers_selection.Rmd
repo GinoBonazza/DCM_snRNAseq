@@ -1354,6 +1354,13 @@ signif_mPAP$Reichart <- ifelse(signif_mPAP$logFC > 0 & signif_mPAP$gene %in% dpl
                                    ifelse(signif_mPAP$logFC < 0 & signif_mPAP$gene %in% dplyr::filter(signif_Reichart, logFC < 0)$gene, "Downregulated", "Not significant"))
 ```
 
+```{r}
+reactable(signif_mPAP, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
 ```{r candidate_biomarkers}
 candidate_biomarkers <- signif_mPAP %>%
   dplyr::filter(diff_exp_in_HC == "Yes") %>%
