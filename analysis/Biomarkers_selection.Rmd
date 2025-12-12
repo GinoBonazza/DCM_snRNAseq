@@ -1,0 +1,1373 @@
+---
+title: "Biomarkers selection"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Biomarkers_selection"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(speckle)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(msigdbr)
+library(simplifyEnrichment)
+library(miloR)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+library(biomaRt)
+library(GGally)
+library(rtracklayer)
+library(cowplot)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+Load dataset
+
+```{r read dataset}
+DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.rds"))
+DefaultAssay(DCM_RV) <- "RNA"
+DCM_RV$pseudobulk <- "pseudobulk"
+```
+
+Prepare metadata df
+
+```{r}
+metadata <- DCM_RV@meta.data %>%
+  dplyr::select(Sample:CO_l.min) %>%
+  unique() %>%
+  dplyr::select(-LVID_mm, -RVIT_mm) 
+metadata <- metadata %>%
+  dplyr::select(1:3, 5, 6, 4, 7:ncol(metadata)) %>%
+  dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
+
+rownames(metadata) <- metadata$Sample
+
+all.equal(metadata$Sample, names(table(DCM_RV$Sample)))
+
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+metadata_DCM <- metadata %>%
+  dplyr::filter(Group == "DCM")
+```
+
+## DE pseudobulk all cells mPAP
+
+```{r}
+data <- subset(DCM_RV, mPAP_mmHg > 0)
+
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+pseudocounts_mPAP <- Seurat2PB(data, sample="Sample", cluster = "pseudobulk")
+colnames(pseudocounts_mPAP) <- pseudocounts_mPAP$samples$sample
+```
+
+```{r}
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts_mPAP <- pseudocounts_mPAP[keep_genes, ]
+
+keep_samples <- pseudocounts_mPAP$samples$lib.size > 5e4
+pseudocounts_mPAP <- pseudocounts_mPAP[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts_mPAP)
+pseudocounts_mPAP <- pseudocounts_mPAP[keep_genes, ]
+```
+
+```{r DE_mPAP}
+metadata_mPAP <- metadata_DCM[complete.cases(metadata_DCM[["mPAP_mmHg"]]),]
+design <- model.matrix(~ metadata_mPAP[["mPAP_mmHg"]] + metadata_mPAP[["Age_years"]])
+colnames(design)[2] <- "mPAP_mmHg"
+colnames(design)[3] <- "Age_years"
+design[,"mPAP_mmHg"] <- rescale(design[,"mPAP_mmHg"])
+
+metadata_mPAP$Sample == pseudocounts_mPAP$samples$sample
+
+pseudocounts_mPAP <- normLibSizes(pseudocounts_mPAP)
+pseudocounts_mPAP <- estimateDisp(pseudocounts_mPAP, design)
+  
+fit <- glmQLFit(pseudocounts_mPAP, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_mPAP <- topTags(fit, n = Inf)$table
+results_mPAP <- merge(results_mPAP, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_mPAP$up_down <- ifelse(
+  results_mPAP$logFC > 0.5 & results_mPAP$FDR < 0.1, "Increased",
+    ifelse(results_mPAP$logFC < -0.5 & results_mPAP$FDR < 0.1, "Decreased",
+           "Not significant"
+           )
+)
+
+signif_mPAP <- results_mPAP %>% dplyr::filter(FDR < 0.1, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_mPAP, file = here::here(output_dir_data, "Results_DE_pseudobulk_allcells_mPAP.csv"), quote=F, row.names = F)
+write.csv(signif_mPAP, file = here::here(output_dir_data, "Signif_DE_pseudobulk_allcells_mPAP.csv"), quote=F, row.names = F)
+
+rm(design, expr_matrix, fit, percent_stats, non_zero_cells, percent_cells, total_cells, keep_samples, keep_genes, data)
+```
+
+```{r counts_mPAP}
+counts_mPAP <- cpm(pseudocounts_mPAP, log = TRUE)
+```
+
+```{r heatmap_cols, fig.width=10, fig.height=10}
+heatmap_cols <- colorRampPalette(c("#004C8C", "white", "#A63A2A"))(101)
+
+scales::show_col(heatmap_cols)
+```
+
+```{r metadata_heatmap}
+metadata_heatmap <- metadata_mPAP %>% dplyr::select(Sample, mPAP_mmHg) %>% dplyr::arrange(mPAP_mmHg)
+```
+
+```{r ann_col}
+ann_col <- metadata_mPAP %>%                 
+  arrange(mPAP_mmHg) %>%                   
+  dplyr::select(mPAP_mmHg)                   
+
+ann_colors <- list(
+  mPAP_mmHg = colorRampPalette(c("grey80", "grey20"))(100)
+)
+```
+
+```{r Heatmap_DEGs_mPAP, fig.width=8, fig.height=6}
+counts_heatmap <- counts_mPAP[arrange(signif_mPAP, logFC)$gene, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  gaps_col = c(0,0,0)
+  )
+```
+
+```{r Heatmap_DEGs_mPAP_clustered, fig.width=8, fig.height=6}
+counts_heatmap <- counts_mPAP[arrange(signif_mPAP, logFC)$gene, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  gaps_col = c(0,0,0)
+  )
+```
+
+```{r Volcano_all_mPAP, fig.height=4.5, fig.width=3.5}
+keyvals <- rep("grey", nrow(results_mPAP))
+names(keyvals) <- rep("Not significant", nrow(results_mPAP))
+keyvals[results_mPAP$logFC > 0.5 & results_mPAP$FDR < 0.1] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[results_mPAP$logFC < -0.5 & results_mPAP$FDR < 0.1] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_mPAP,
+                           lab = results_mPAP$gene,
+                           x = "logFC",
+                           y = "FDR",
+                           labSize = 0,
+                           titleLabSize = 16,
+                           subtitleLabSize = 14,
+                           axisLabSize = 12,
+                           captionLabSize = 9,
+                           pointSize = 0.5,
+                           FCcutoff = 0.5,
+                           pCutoff  = 0.1,
+                           ylim = c(0, 3.5),
+                           colCustom = keyvals,
+                           colAlpha = 1,
+                           drawConnectors = FALSE,
+                           subtitle = NULL,
+                           title = "Pseudobulk all cells\nmPAP (n = 18)"
+                           ) + 
+  theme(legend.position = "none")
+volcano
+```
+
+
+## DE pseudobulk all cells DCM vs HC
+
+```{r}
+data <- DCM_RV
+
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+pseudocounts_all <- Seurat2PB(data, sample="Sample", cluster = "pseudobulk")
+colnames(pseudocounts_all) <- pseudocounts_all$samples$sample
+```
+
+```{r}
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts_all <- pseudocounts_all[keep_genes, ]
+
+keep_samples <- pseudocounts_all$samples$lib.size > 5e4
+pseudocounts_all <- pseudocounts_all[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts_all)
+pseudocounts_all <- pseudocounts_all[keep_genes, ]
+```
+
+```{r}
+group <- factor(metadata$Group)
+levels(group)
+
+design <- model.matrix(~ 0 + group)
+colnames(design) <- levels(group)
+
+contrast <- makeContrasts(
+  DCM_vs_HC = DCM - HC,
+  levels = design
+)
+
+metadata$Sample == pseudocounts_all$samples$sample
+
+pseudocounts_all <- normLibSizes(pseudocounts_all)
+pseudocounts_all <- estimateDisp(pseudocounts_all, design)
+  
+fit <- glmQLFit(pseudocounts_all, design, robust=TRUE)
+fit <- glmQLFTest(fit, contrast = contrast)
+  
+results_DCM_HC <- topTags(fit, n = Inf)$table
+results_DCM_HC <- merge(results_DCM_HC, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_DCM_HC$up_down <- ifelse(
+  results_DCM_HC$logFC > 0.5 & results_DCM_HC$FDR < 0.1, "Increased",
+    ifelse(results_DCM_HC$logFC < -0.5 & results_DCM_HC$FDR < 0.1, "Decreased",
+           "Not significant"
+           )
+)
+signif_DCM_HC <- results_DCM_HC %>% dplyr::filter(FDR < 0.1, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_DCM_HC, file = here::here(output_dir_data, "Results_DE_pseudobulk_allcells_DCM_HC.csv"), quote=F, row.names = F)
+write.csv(signif_DCM_HC, file = here::here(output_dir_data, "Signif_DE_pseudobulk_allcells_DCM_HC.csv"), quote=F, row.names = F)
+
+rm(design, expr_matrix, fit, percent_stats, non_zero_cells, percent_cells, total_cells, keep_samples, keep_genes, data)
+```
+
+```{r}
+counts_all <- cpm(pseudocounts_all, log = TRUE)
+```
+
+```{r}
+metadata_heatmap <- metadata %>% 
+  dplyr::select(Sample, Group) %>% 
+  mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  dplyr::arrange(Group)
+```
+
+```{r}
+ann_col <- metadata_heatmap %>%                 
+  dplyr::select(Group)                   
+
+ann_colors <- list(
+  Group = c("HC" = "#999999", "DCM" = "#B44D4D")
+)
+```
+
+```{r, fig.width=8, fig.height=7}
+counts_heatmap <- counts_all[arrange(signif_DCM_HC, logFC)$gene, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  gaps_col = c(0,0,0)
+  )
+```
+
+```{r, fig.width=8, fig.height=8}
+ann_col <- metadata[, c("Group", "mPAP_mmHg")]
+
+ann_colors <- list(
+  Group = c("HC" = "#999999", "DCM" = "#B44D4D"),
+  `mPAP (mmHg)`  = colorRampPalette(c("grey80", "grey20"))(100)
+)
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  gaps_col = c(0,0,0)
+  )
+```
+
+```{r Volcano_all_DCM_vs_HC, fig.height=4.5, fig.width=3.5}
+keyvals <- rep("grey", nrow(results_DCM_HC))
+names(keyvals) <- rep("Not significant", nrow(results_DCM_HC))
+keyvals[results_DCM_HC$logFC > 0.5 & results_DCM_HC$FDR < 0.1] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[results_DCM_HC$logFC < -0.5 & results_DCM_HC$FDR < 0.1] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_DCM_HC,
+                           lab = results_DCM_HC$gene,
+                           x = "logFC",
+                           y = "FDR",
+                           labSize = 0,
+                           titleLabSize = 16,
+                           subtitleLabSize = 14,
+                           axisLabSize = 12,
+                           captionLabSize = 9,
+                           pointSize = 0.5,
+                           FCcutoff = 0.5,
+                           pCutoff  = 0.1,
+                           ylim = c(0, 7),
+                           colCustom = keyvals,
+                           colAlpha = 1,
+                           drawConnectors = FALSE,
+                           subtitle = NULL,
+                           title = "Pseudobulk all cells\nDCM (n = 21) vs HC (n = 8)"
+                           ) + 
+  theme(legend.position = "none")
+volcano
+```
+
+```{r diff_exp_in_HC}
+signif_mPAP$diff_exp_in_HC <- ifelse(signif_mPAP$logFC > 0 & signif_mPAP$gene %in%
+                                       dplyr::filter(signif_DCM_HC, logFC > 0)$gene, "Yes",
+                                     ifelse(signif_mPAP$logFC < 0 & signif_mPAP$gene %in%
+                                              dplyr::filter(signif_DCM_HC, logFC < 0)$gene, "Yes",
+                                            "No")
+                                     )
+table(signif_mPAP$diff_exp_in_HC)
+```
+
+## Plasma proteome
+
+```{r}
+Plasma_proteome_atlas <- read_excel(path = here::here("data", "Human_plasma_proteome.xlsx"), sheet = 1)
+Plasma_proteome_concentration <- read_excel(path = here::here("data", "Human_plasma_proteome.xlsx"), sheet = 2)
+
+signif_mPAP$Detected_in_plasma <- ifelse(signif_mPAP$gene %in% Plasma_proteome_concentration$Gene, "Yes", "No")
+
+table(filter(signif_mPAP, diff_exp_in_HC == "Yes")$Detected_in_plasma)
+```
+
+
+## Heart specific proteome
+
+```{r}
+Heart_proteome_atlas <- read_excel(path = here::here("data", "Heart_specific_proteome.xlsx"), sheet = 1)
+
+signif_mPAP$Heart_specific <- ifelse(signif_mPAP$gene %in% Heart_proteome_atlas$Gene, "Yes", "No")
+
+table(filter(signif_mPAP, diff_exp_in_HC == "Yes" & Detected_in_plasma == "Yes")$Heart_specific)
+```
+
+## DE LV datasets
+
+### Koenig 2022
+
+```{r Import Koenig}
+load("/scratch/gbonaz/Heart_datasets/Koenig_2022/GSE183852_DCM_Nuclei.Robj")
+Koenig <- nuclei
+rm(nuclei)
+```
+
+```{r subset Koenig}
+Koenig$pseudobulk <- "pseudobulk"
+```
+
+```{r add metadata Koenig}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Koenig[["orig.ident"]], Clinical_data)
+row.names(add_metadata) <- row.names(Koenig[[]])
+Koenig <- AddMetaData(Koenig, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+Koenig$Group <- Koenig$Condition
+Koenig$Sample <- Koenig$orig.ident
+```
+
+```{r metadata Koenig}
+metadata_Koenig <- Koenig@meta.data %>%
+  dplyr::select(Sample, Age, Sex, Group, Pre_Op_EF, Pre_Op_CO_L_min, HTN) %>%
+  unique()
+
+rownames(metadata_Koenig) <- metadata_Koenig$Sample
+
+reactable(metadata_Koenig, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+data <- Koenig
+
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+pseudocounts_Koenig <- Seurat2PB(data, sample="Sample", cluster = "pseudobulk")
+colnames(pseudocounts_Koenig) <- pseudocounts_Koenig$samples$sample
+```
+
+```{r}
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts_Koenig <- pseudocounts_Koenig[keep_genes, ]
+
+keep_samples <- pseudocounts_Koenig$samples$lib.size > 5e4
+pseudocounts_Koenig <- pseudocounts_Koenig[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts_Koenig)
+pseudocounts_Koenig <- pseudocounts_Koenig[keep_genes, ]
+```
+
+```{r DE_Koenig}
+metadata_Koenig <- metadata_Koenig[
+  match(pseudocounts_Koenig$samples$sample, metadata_Koenig$Sample),
+]
+
+group <- factor(metadata_Koenig$Group)
+levels(group)
+
+design <- model.matrix(~ 0 + group)
+colnames(design) <- levels(group)
+
+contrast <- makeContrasts(
+  DCM_vs_HC = DCM - Donor,
+  levels = design
+)
+
+metadata_Koenig$Sample == pseudocounts_Koenig$samples$sample
+
+pseudocounts_Koenig <- normLibSizes(pseudocounts_Koenig)
+pseudocounts_Koenig <- estimateDisp(pseudocounts_Koenig, design)
+  
+fit <- glmQLFit(pseudocounts_Koenig, design, robust=TRUE)
+fit <- glmQLFTest(fit, contrast = contrast)
+  
+results_Koenig <- topTags(fit, n = Inf)$table
+results_Koenig <- merge(results_Koenig, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Koenig$up_down <- ifelse(
+  results_Koenig$logFC > 0.5 & results_Koenig$FDR < 0.1, "Increased",
+    ifelse(results_Koenig$logFC < -0.5 & results_Koenig$FDR < 0.1, "Decreased",
+           "Not significant"
+           )
+)
+signif_Koenig <- results_Koenig %>% dplyr::filter(FDR < 0.1, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_Koenig, file = here::here(output_dir_data, "Results_DE_pseudobulk_Koenig.csv"), quote=F, row.names = F)
+write.csv(signif_Koenig, file = here::here(output_dir_data, "Signif_DE_pseudobulk_Koenig.csv"), quote=F, row.names = F)
+
+rm(design, expr_matrix, fit, percent_stats, non_zero_cells, percent_cells, total_cells, keep_samples, keep_genes, data)
+```
+
+```{r counts_Koenig}
+counts_Koenig <- cpm(pseudocounts_Koenig, log = TRUE)
+```
+
+```{r}
+metadata_heatmap <- metadata_Koenig %>% 
+  dplyr::select(Sample, Group) %>% 
+  mutate(Group = factor(Group, levels = c("Donor", "DCM"))) %>%
+  dplyr::arrange(Group)
+```
+
+```{r}
+ann_col <- metadata_heatmap %>%                 
+  dplyr::select(Group)                   
+
+ann_colors <- list(
+  Group = c("Donor" = "#999999", "DCM" = "#B44D4D")
+)
+```
+
+```{r Heatmap_DEGs_Koenig, fig.width=10, fig.height=6}
+counts_heatmap <- counts_Koenig[arrange(signif_Koenig, logFC)$gene, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  cellwidth = 15,
+  gaps_col = c(0,0,0,0,0,0,0,0)
+  )
+```
+
+```{r Heatmap_DEGs_Koenig_clustered, fig.width=10, fig.height=7}
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  cellwidth = 15,
+  gaps_col = c(0,0,0,0,0,0,0,0)
+  )
+```
+
+```{r Volcano_all_Koenig, fig.height=4.5, fig.width=4}
+keyvals <- rep("grey", nrow(results_Koenig))
+names(keyvals) <- rep("Not significant", nrow(results_Koenig))
+keyvals[results_Koenig$logFC > 1 & results_Koenig$FDR < 0.1] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[results_Koenig$logFC < -1 & results_Koenig$FDR < 0.1] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_Koenig,
+                           lab = results_Koenig$gene,
+                           x = "logFC",
+                           y = "FDR",
+                           labSize = 0,
+                           titleLabSize = 16,
+                           subtitleLabSize = 14,
+                           axisLabSize = 12,
+                           captionLabSize = 9,
+                           pointSize = 0.5,
+                           FCcutoff = 0.5,
+                           pCutoff  = 0.1,
+                           ylim = c(0, 10),
+                           colCustom = keyvals,
+                           colAlpha = 1,
+                           drawConnectors = FALSE,
+                           subtitle = NULL,
+                           title = "Koenig 2022\nPseudobulk all cells\nDCM (n = 25) vs HC (n = 13)"
+                           ) + 
+  theme(legend.position = "none")
+volcano
+```
+
+```{r}
+rm(Koenig)
+```
+
+### Reichart 2022
+
+```{r Import Reichart}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds")
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+write.csv(Reichart_gene_names, file = here::here(output_dir_data, "Reichart_gene_names.csv"), quote=F, row.names = F)
+```
+
+```{r subset Reichart}
+Reichart$pseudobulk <- "pseudobulk"
+```
+
+```{r add metadata Reichart}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Reichart[[]])
+Reichart <- AddMetaData(Reichart, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+Reichart@meta.data[Reichart@meta.data$disease == "normal", "Group"] = "HC"
+Reichart@meta.data[Reichart@meta.data$disease == "dilated cardiomyopathy", "Group"] = "DCM"
+Reichart$Sample <- Reichart$donor_id
+```
+
+```{r}
+Reichart <- subset(Reichart, disease %in% c("dilated cardiomyopathy", "normal") & Region_x == "LV")
+```
+
+```{r metadata Reichart}
+metadata_Reichart <- Reichart@meta.data %>%
+   dplyr::select(Sample, Group, sex, Age_range, LVEF_percent, LVIDd_mm, LVIDs_mm, RVEDD_mm, TAPSE_mm, PAH, Hypertension, COPD) %>%
+  unique()
+
+rownames(metadata_Reichart) <- metadata_Reichart$Sample
+
+reactable(metadata_Reichart, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+data <- Reichart
+
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+pseudocounts_Reichart <- Seurat2PB(data, sample="Sample", cluster = "pseudobulk")
+colnames(pseudocounts_Reichart) <- pseudocounts_Reichart$samples$sample
+```
+
+```{r}
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts_Reichart <- pseudocounts_Reichart[keep_genes, ]
+
+keep_samples <- pseudocounts_Reichart$samples$lib.size > 5e4
+pseudocounts_Reichart <- pseudocounts_Reichart[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts_Reichart)
+pseudocounts_Reichart <- pseudocounts_Reichart[keep_genes, ]
+```
+
+```{r DE_Reichart}
+metadata_Reichart <- metadata_Reichart[
+  match(pseudocounts_Reichart$samples$sample, metadata_Reichart$Sample),
+]
+
+group <- factor(metadata_Reichart$Group)
+levels(group)
+
+design <- model.matrix(~ 0 + group)
+colnames(design) <- levels(group)
+
+contrast <- makeContrasts(
+  DCM_vs_HC = DCM - HC,
+  levels = design
+)
+
+metadata_Reichart$Sample == pseudocounts_Reichart$samples$sample
+
+pseudocounts_Reichart <- normLibSizes(pseudocounts_Reichart)
+pseudocounts_Reichart <- estimateDisp(pseudocounts_Reichart, design)
+  
+fit <- glmQLFit(pseudocounts_Reichart, design, robust=TRUE)
+fit <- glmQLFTest(fit, contrast = contrast)
+  
+results_Reichart <- topTags(fit, n = Inf)$table
+results_Reichart <- merge(results_Reichart, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Reichart$up_down <- ifelse(
+  results_Reichart$logFC > 0.5 & results_Reichart$FDR < 0.1, "Increased",
+    ifelse(results_Reichart$logFC < -0.5 & results_Reichart$FDR < 0.1, "Decreased",
+           "Not significant"
+           )
+)
+results_Reichart <- results_Reichart %>%
+  dplyr::select(-feature_biotype, -feature_is_filtered, -feature_name, -feature_reference, -feature_length)
+
+signif_Reichart <- results_Reichart %>% dplyr::filter(FDR < 0.1, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_Reichart, file = here::here(output_dir_data, "Results_DE_pseudobulk_Reichart.csv"), quote=F, row.names = F)
+write.csv(signif_Reichart, file = here::here(output_dir_data, "Signif_DE_pseudobulk_Reichart.csv"), quote=F, row.names = F)
+
+rm(design, expr_matrix, fit, percent_stats, non_zero_cells, percent_cells, total_cells, keep_samples, keep_genes, data)
+```
+
+```{r counts_Reichart}
+counts_Reichart <- cpm(pseudocounts_Reichart, log = TRUE)
+```
+
+```{r}
+metadata_heatmap <- metadata_Reichart %>% 
+  dplyr::select(Sample, Group) %>% 
+  mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  dplyr::arrange(Group)
+```
+
+```{r}
+ann_col <- metadata_heatmap %>%                 
+  dplyr::select(Group)                   
+
+ann_colors <- list(
+  Group = c("HC" = "#999999", "DCM" = "#B44D4D")
+)
+```
+
+```{r Heatmap_DEGs_Reichart, fig.width=14, fig.height=7.5}
+counts_heatmap <- counts_Reichart[arrange(signif_Reichart, logFC)$gene, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  cellwidth = 12,
+  gaps_col = c(0,0)
+  )
+```
+
+```{r Heatmap_DEGs_Reichart_clustered, fig.width=14, fig.height=7.5}
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  cellwidth = 12,
+  gaps_col = c(0,0)
+  )
+```
+
+```{r Volcano_all_Reichart, fig.height=4.5, fig.width=4}
+keyvals <- rep("grey", nrow(results_Reichart))
+names(keyvals) <- rep("Not significant", nrow(results_Reichart))
+keyvals[results_Reichart$logFC > 0.5 & results_Reichart$FDR < 0.1] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[results_Reichart$logFC < -0.5 & results_Reichart$FDR < 0.1] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_Reichart,
+                           lab = results_Reichart$gene,
+                           x = "logFC",
+                           y = "FDR",
+                           labSize = 0,
+                           titleLabSize = 16,
+                           subtitleLabSize = 14,
+                           axisLabSize = 12,
+                           captionLabSize = 9,
+                           pointSize = 0.5,
+                           FCcutoff = 0.5,
+                           pCutoff  = 0.1,
+                           ylim = c(0, 14),
+                           colCustom = keyvals,
+                           colAlpha = 1,
+                           drawConnectors = FALSE,
+                           subtitle = NULL,
+                           title = "Reichart 2022\nPseudobulk all cells\nDCM (n = 52) vs HC (n = 18)"
+                           ) + 
+  theme(legend.position = "none")
+volcano
+```
+
+```{r}
+rm(Reichart)
+```
+
+### Chaffin 2022
+
+```{r Import Chaffin}
+Chaffin <- readRDS("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin.rds")
+                   
+Chaffin[["RNA"]] <- Chaffin[["originalexp"]]
+
+DefaultAssay(Chaffin) <- "RNA"
+
+Chaffin[["originalexp"]] <- NULL
+```
+
+```{r subset Chaffin}
+Chaffin$pseudobulk <- "pseudobulk"
+```
+
+```{r add metadata Chaffin}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin_et al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Chaffin[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Chaffin[[]])
+Chaffin <- AddMetaData(Chaffin, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+Chaffin$Group <- Chaffin$disease
+Chaffin$Sample <- Chaffin$donor_id
+```
+
+```{r}
+Chaffin <- subset(Chaffin, disease %in% c("NF", "DCM"))
+```
+
+```{r metadata Chaffin}
+metadata_Chaffin <- Chaffin@meta.data %>%
+  dplyr::select(Sample, Group, sex, age, lvef, Body_Mass_Index_kg_m2, Heart_Weight_g, Left_Ventricular_Mass_g, Left_Ventricular_Mass_Index_g_m2, Left_Ventricular_End_Systolic_Dimension_cm, Left_Ventricular_End_Diastolic_Dimension_cm, Posterior_Wall_Thickness_cm) %>%
+  unique()
+
+rownames(metadata_Chaffin) <- metadata_Chaffin$Sample
+
+reactable(metadata_Chaffin, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r}
+data <- Chaffin
+
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+pseudocounts_Chaffin <- Seurat2PB(data, sample="Sample", cluster = "pseudobulk")
+colnames(pseudocounts_Chaffin) <- pseudocounts_Chaffin$samples$sample
+```
+
+```{r}
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts_Chaffin <- pseudocounts_Chaffin[keep_genes, ]
+
+keep_samples <- pseudocounts_Chaffin$samples$lib.size > 5e4
+pseudocounts_Chaffin <- pseudocounts_Chaffin[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts_Chaffin)
+pseudocounts_Chaffin <- pseudocounts_Chaffin[keep_genes, ]
+```
+
+```{r DE_Chaffin}
+metadata_Chaffin <- metadata_Chaffin[
+  match(pseudocounts_Chaffin$samples$sample, metadata_Chaffin$Sample),
+]
+
+group <- factor(metadata_Chaffin$Group)
+levels(group)
+
+design <- model.matrix(~ 0 + group)
+colnames(design) <- levels(group)
+
+contrast <- makeContrasts(
+  DCM_vs_HC = DCM - NF,
+  levels = design
+)
+
+metadata_Chaffin$Sample == pseudocounts_Chaffin$samples$sample
+
+pseudocounts_Chaffin <- normLibSizes(pseudocounts_Chaffin)
+pseudocounts_Chaffin <- estimateDisp(pseudocounts_Chaffin, design)
+  
+fit <- glmQLFit(pseudocounts_Chaffin, design, robust=TRUE)
+fit <- glmQLFTest(fit, contrast = contrast)
+  
+results_Chaffin <- topTags(fit, n = Inf)$table
+results_Chaffin <- merge(results_Chaffin, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Chaffin$up_down <- ifelse(
+  results_Chaffin$logFC > 0.5 & results_Chaffin$FDR < 0.1, "Increased",
+    ifelse(results_Chaffin$logFC < -0.5 & results_Chaffin$FDR < 0.1, "Decreased",
+           "Not significant"
+           )
+)
+signif_Chaffin <- results_Chaffin %>% dplyr::filter(FDR < 0.1, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_Chaffin, file = here::here(output_dir_data, "Results_DE_pseudobulk_Chaffin.csv"), quote=F, row.names = F)
+write.csv(signif_Chaffin, file = here::here(output_dir_data, "Signif_DE_pseudobulk_Chaffin.csv"), quote=F, row.names = F)
+
+rm(design, expr_matrix, fit, percent_stats, non_zero_cells, percent_cells, total_cells, keep_samples, keep_genes, data)
+```
+
+```{r counts_Chaffin}
+counts_Chaffin <- cpm(pseudocounts_Chaffin, log = TRUE)
+```
+
+```{r}
+metadata_heatmap <- metadata_Chaffin %>% 
+  dplyr::select(Sample, Group) %>% 
+  mutate(Group = factor(Group, levels = c("NF", "DCM"))) %>%
+  dplyr::arrange(Group)
+```
+
+```{r}
+ann_col <- metadata_heatmap %>%                 
+  dplyr::select(Group)                   
+
+ann_colors <- list(
+  Group = c("NF" = "#999999", "DCM" = "#B44D4D")
+)
+```
+
+```{r Heatmap_DEGs_Chaffin, fig.width=7, fig.height=5}
+counts_heatmap <- counts_Chaffin[arrange(signif_Chaffin, logFC)$gene, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  cellwidth = 15,
+  gaps_col = c(0,0)
+  )
+```
+
+```{r Heatmap_DEGs_Chaffin_clustered, fig.width=8, fig.height=5}
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.1,
+  cellwidth = 15,
+  gaps_col = c(0,0)
+  )
+```
+
+```{r Volcano_all_Chaffin, fig.height=4.5, fig.width=4}
+keyvals <- rep("grey", nrow(results_Chaffin))
+names(keyvals) <- rep("Not significant", nrow(results_Chaffin))
+keyvals[results_Chaffin$logFC > 0.5 & results_Chaffin$FDR < 0.1] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[results_Chaffin$logFC < -0.5 & results_Chaffin$FDR < 0.1] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano <- EnhancedVolcano(results_Chaffin,
+                           lab = results_Chaffin$gene,
+                           x = "logFC",
+                           y = "FDR",
+                           labSize = 0,
+                           titleLabSize = 16,
+                           subtitleLabSize = 14,
+                           axisLabSize = 12,
+                           captionLabSize = 9,
+                           pointSize = 0.5,
+                           FCcutoff = 0.5,
+                           pCutoff  = 0.1,
+                           ylim = c(0, 10),
+                           colCustom = keyvals,
+                           colAlpha = 1,
+                           drawConnectors = FALSE,
+                           subtitle = NULL,
+                           title = "Chaffin 2022\nPseudobulk all cells\nDCM (n = 11) vs HC (n = 16)"
+                           ) + 
+  theme(legend.position = "none")
+volcano
+```
+
+```{r}
+rm(Chaffin)
+```
+## Correct gene names
+
+```{r gn_Koenig}
+results_Koenig$Compatible_gene_symbol <- ifelse(
+  results_Koenig$gene %in% rownames(DCM_RV), "TRUE",
+  "FALSE"
+)
+table(results_Koenig$Compatible_gene_symbol)
+signif_Koenig$Compatible_gene_symbol <- ifelse(
+  signif_Koenig$gene %in% rownames(DCM_RV), "TRUE",
+  "FALSE"
+)
+table(signif_Koenig$Compatible_gene_symbol)
+
+print("Gene symbols have to be converted")
+```
+
+
+```{r gn_Reichart}
+results_Reichart$Compatible_gene_symbol <- ifelse(
+  results_Reichart$gene %in% rownames(DCM_RV), "TRUE",
+  "FALSE"
+)
+table(results_Reichart$Compatible_gene_symbol)
+signif_Reichart$Compatible_gene_symbol <- ifelse(
+  signif_Reichart$gene %in% rownames(DCM_RV), "TRUE",
+  "FALSE"
+)
+table(signif_Reichart$Compatible_gene_symbol)
+
+print("Gene symbols have to be converted")
+```
+
+```{r gn_Chaffin}
+results_Chaffin$Compatible_gene_symbol <- ifelse(
+  results_Chaffin$gene %in% rownames(DCM_RV), "TRUE",
+  "FALSE"
+)
+table(results_Chaffin$Compatible_gene_symbol)
+signif_Chaffin$Compatible_gene_symbol <- ifelse(
+  signif_Chaffin$gene %in% rownames(DCM_RV), "TRUE",
+  "FALSE"
+)
+table(signif_Chaffin$Compatible_gene_symbol)
+
+print("Gene symbols don't have to be converted")
+```
+
+```{r DE_Koenig convert gene_names}
+# Step 1: Connect to the Ensembl GRCh37 BioMart database
+grch37 <- useEnsembl(
+  biomart = "genes",
+  dataset = "hsapiens_gene_ensembl",
+  GRCh = 37
+)
+
+# Step 2: Convert GRCh37 gene symbols to Ensembl IDs
+gene_list <- results_Koenig$gene
+
+# Query BioMart to get Ensembl Gene IDs for the GRCh37 gene symbols
+grch37_gene_ids <- getBM(attributes = c("ensembl_gene_id", "external_gene_name"), 
+                         filters = "external_gene_name", 
+                         values = gene_list, 
+                         mart = grch37)
+
+# Identify unmatched genes
+unmapped_genes <- setdiff(gene_list, grch37_gene_ids$external_gene_name)
+
+# Step 5: Use the GRCh38 reference GTF file (from refdata-gex-GRCh38-2020-A) to match Ensembl IDs
+reference_genes <- readGFF(here::here("data", "refdata-gex-GRCh38-2020-A", "genes", "genes.gtf"))
+
+# dplyr::filter only gene-level annotations and select relevant columns
+reference_gene_mapping <- reference_genes %>%
+  dplyr::filter(type == "gene") %>%
+  dplyr::select(gene_id, gene_name)
+
+# Match the Ensembl IDs from GRCh37 with the GRCh38 reference
+matched_genes_grch38 <- reference_gene_mapping %>%
+  dplyr::filter(gene_id %in% grch37_gene_ids$ensembl_gene_id)
+
+unmatched_genes <- setdiff(grch37_gene_ids$ensembl_gene_id, matched_genes_grch38$gene_id) #Contains multiple ensembl gene ids from the same gene symbol
+
+# Join the data with GRCh37 Ensembl IDs and GRCh38 gene names
+results_Koenig <- results_Koenig %>%
+  left_join(grch37_gene_ids, by = c("gene" = "external_gene_name")) %>%
+  left_join(reference_gene_mapping, by = c("ensembl_gene_id" = "gene_id"))
+
+# Prefer rows with non-NA gene_name
+results_Koenig <- results_Koenig %>%
+  dplyr::group_by(gene) %>%
+  dplyr::arrange(desc(!is.na(gene_name))) %>%
+  dplyr::slice(1) %>%
+  dplyr::ungroup()
+
+# Check compatibility again after conversion
+results_Koenig$Compatible_gene_symbol <- ifelse(results_Koenig$gene_name %in% rownames(DCM_RV), "TRUE", "FALSE")
+table(results_Koenig$Compatible_gene_symbol)
+
+results_Koenig$Gene_name_conversion <- ifelse(results_Koenig$gene %in% unmapped_genes, "Unmapped to GRCh37", 
+                                         ifelse(results_Koenig$ensembl_gene_id %in% unmatched_genes, "Not matched to GRCh38", 
+                                                ifelse(results_Koenig$Compatible_gene_symbol == "TRUE", "Conversion OK", 
+                                                       "Not present in DCM_RV")))
+
+signif_Koenig <- results_Koenig %>% dplyr::filter(FDR < 0.1, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+table(signif_Koenig$Compatible_gene_symbol)
+
+table(signif_Koenig$Gene_name_conversion)
+
+print("Results are acceptable")
+
+rm(grch37, gene_list, grch37_gene_ids, unmapped_genes, matched_genes_grch38, unmatched_genes)
+```
+
+```{r DE_Reichart convert gene_names}
+results_Reichart <- left_join(results_Reichart, Reichart_gene_names, by = c("gene" = "gene_symbol"))
+
+unmatched_genes <- setdiff(results_Reichart$ensembl_id, reference_gene_mapping$gene_id)
+
+length(unmatched_genes)
+
+results_Reichart <- left_join(results_Reichart, reference_gene_mapping, by = c("ensembl_id" = "gene_id"))
+  
+# Check compatibility again after conversion
+results_Reichart$Compatible_gene_symbol <- ifelse(
+  results_Reichart$gene_name %in% rownames(DCM_RV), "TRUE",
+  "FALSE"
+)
+table(results_Reichart$Compatible_gene_symbol)
+
+signif_Reichart <- results_Reichart %>% dplyr::filter(FDR < 0.1, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+table(signif_Reichart$Compatible_gene_symbol)
+
+print("Results are acceptable")
+```
+
+```{r Correlation plot, fig.width=8, fig.height=8}
+# Merge the datasets by a common column, e.g., gene
+merged_data <- results_Koenig %>%
+  dplyr::select(gene, logFC_Koenig = logFC) %>%
+  inner_join(results_Chaffin %>% dplyr::select(gene, logFC_Chaffin = logFC), by = "gene") %>%
+  inner_join(results_Reichart %>% dplyr::select(gene, logFC_Reichart = logFC), by = "gene") %>%
+  inner_join(results_DCM_HC %>% dplyr::select(gene, logFC_RV = logFC), by = "gene")
+
+# Create a pairwise scatterplot with correlations
+ggpairs(
+  merged_data %>% dplyr::select(-gene), # Exclude the gene column for plotting
+  lower = list(continuous = wrap("smooth", method = "lm")), # Add linear fit
+  diag = list(continuous = "densityDiag"), # Density plot on diagonal
+  upper = list(continuous = wrap("cor", size = 4)) # Correlation and p-value in upper triangle
+) +
+  theme_minimal()
+```
+
+```{r UpSet_plot_intersect, fig.height=8, fig.width=12}
+gene_sets_up <- list(
+  DCM_RV = dplyr::filter(signif_DCM_HC, logFC > 0)$gene,
+  Chaffin = dplyr::filter(signif_Chaffin, logFC > 0)$gene,
+  Koenig = dplyr::filter(signif_Koenig, logFC > 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC > 0)$gene
+)
+gene_sets_up <- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_up, mode = "intersect", min_set_size = 1)
+p1 <- UpSet(m, column_title = "Upregulated genes - intersect", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down <- list(
+  DCM_RV = dplyr::filter(signif_DCM_HC, logFC < 0)$gene,
+  Chaffin = dplyr::filter(signif_Chaffin, logFC < 0)$gene,
+  Koenig = dplyr::filter(signif_Chaffin, logFC < 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC < 0)$gene
+)
+gene_sets_down <- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_down, mode = "intersect")
+p2 <- UpSet(m, column_title = "Downregulated genes - intersect", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(m, p1, p2, combined_plots)
+```
+
+```{r UpSet_plot_distinct, fig.height=8, fig.width=12}
+m <- make_comb_mat(gene_sets_up, mode = "distinct", min_set_size = 1)
+p1 <- UpSet(m, column_title = "Upregulated genes - distinct", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+m <- make_comb_mat(gene_sets_down, mode = "distinct")
+p2 <- UpSet(m, column_title = "Downregulated genes - distinct", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(m, p1, p2, combined_plots)
+```
+
+
+## Filter for dysregulated in LV
+
+```{r}
+signif_mPAP$Koenig <- ifelse(signif_mPAP$logFC > 0 & signif_mPAP$gene %in% dplyr::filter(signif_Koenig, logFC > 0)$gene, "Upregulated",
+                                   ifelse(signif_mPAP$logFC < 0 & signif_mPAP$gene %in% dplyr::filter(signif_Koenig, logFC < 0)$gene, "Downregulated", "Not significant"))
+
+signif_mPAP$Chaffin <- ifelse(signif_mPAP$logFC > 0 & signif_mPAP$gene %in% dplyr::filter(signif_Chaffin, logFC > 0)$gene, "Upregulated",
+                                   ifelse(signif_mPAP$logFC < 0 & signif_mPAP$gene %in% dplyr::filter(signif_Chaffin, logFC < 0)$gene, "Downregulated", "Not significant"))
+
+signif_mPAP$Reichart <- ifelse(signif_mPAP$logFC > 0 & signif_mPAP$gene %in% dplyr::filter(signif_Reichart, logFC > 0)$gene, "Upregulated",
+                                   ifelse(signif_mPAP$logFC < 0 & signif_mPAP$gene %in% dplyr::filter(signif_Reichart, logFC < 0)$gene, "Downregulated", "Not significant"))
+```
+
+```{r candidate_biomarkers}
+candidate_biomarkers <- signif_mPAP %>%
+  dplyr::filter(diff_exp_in_HC == "Yes") %>%
+  dplyr::filter(Detected_in_plasma == "Yes") %>%
+  dplyr::filter(Heart_specific == "Yes") %>%
+  rowwise() %>%
+  mutate(n_not_sig = sum(c(Koenig, Chaffin, Reichart) == "Not significant")) %>%
+  ungroup() %>%
+  dplyr::filter(n_not_sig >= 2) %>%
+  arrange(desc(logFC))
+
+nrow(candidate_biomarkers)
+reactable(candidate_biomarkers, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
