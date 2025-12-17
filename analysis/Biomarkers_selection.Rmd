@@ -25,15 +25,25 @@ current_file <- "Biomarkers_selection"
 
 # Load libraries
 library(here)
+library(dplyr)
+library(ggplot2)
+library(tibble)
 library(readr)
 library(readxl)
+library(knitr)
+library(patchwork)
+library(scales)
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+
+
 library(Seurat)
 library(DropletUtils)
 library(Matrix)
 library(scDblFinder)
 library(scCustomize)
-library(dplyr)
-library(ggplot2)
 library(magrittr)
 library(tidyverse)
 library(reshape2)
@@ -42,44 +52,30 @@ library(SingleCellExperiment)
 library(pheatmap)
 library(png)
 library(gridExtra)
-library(knitr)
-library(scales)
-library(RColorBrewer)
 library(Matrix.utils)
-library(tibble)
-library(ggplot2)
 library(scater)
-library(patchwork)
 library(statmod)
 library(clustree)
 library(harmony)
 library(gprofiler2)
-library(clusterProfiler)
-library(org.Hs.eg.db)
 library(AnnotationHub)
 library(ReactomePA)
-library(statmod)
-library(edgeR)
 library(speckle)
-library(EnhancedVolcano)
+library(limma)
+library(reactable)
 library(decoupleR)
 library(OmnipathR)
 library(dorothea)
-library(enrichplot)
-library(png)
-library(reactable)
-library(UpSetR)
+library(edgeR)
+library(rtracklayer)
+library(EnhancedVolcano)
 library(ComplexHeatmap)
-library(msigdbr)
-library(simplifyEnrichment)
-library(miloR)
-library(igraph)
-library(gridExtra) 
-library(ggpubr)
-library(biomaRt)
+library(UpSetR)
+library(cowplot)
 library(GGally)
 library(rtracklayer)
-library(cowplot)
+library(biomaRt)
+library(ggpubr)
 
 #Output paths
 output_dir_data <- here::here("output", current_file)
@@ -1127,6 +1123,7 @@ volcano
 ```{r}
 rm(Chaffin)
 ```
+
 ## Correct gene names
 
 ```{r gn_Koenig}
@@ -1177,11 +1174,17 @@ print("Gene symbols don't have to be converted")
 
 ```{r DE_Koenig convert gene_names}
 # Step 1: Connect to the Ensembl GRCh37 BioMart database
+library(httr)
+
+cfg <- httr::config(http_version = 1)
+
 grch37 <- useEnsembl(
   biomart = "genes",
   dataset = "hsapiens_gene_ensembl",
   GRCh = 37
 )
+
+grch37 <- useDataset("hsapiens_gene_ensembl", mart = grch37)
 
 # Step 2: Convert GRCh37 gene symbols to Ensembl IDs
 gene_list <- results_Koenig$gene
@@ -1355,6 +1358,12 @@ signif_mPAP$Reichart <- ifelse(signif_mPAP$logFC > 0 & signif_mPAP$gene %in% dpl
 ```
 
 ```{r}
+reactable(results_mPAP, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+
 reactable(signif_mPAP, 
           filterable = TRUE,
           searchable = TRUE,
@@ -1369,7 +1378,7 @@ candidate_biomarkers <- signif_mPAP %>%
   rowwise() %>%
   mutate(n_not_sig = sum(c(Koenig, Chaffin, Reichart) == "Not significant")) %>%
   ungroup() %>%
-  dplyr::filter(n_not_sig >= 2) %>%
+  dplyr::filter(n_not_sig >= 3) %>%
   arrange(desc(logFC))
 
 nrow(candidate_biomarkers)
@@ -1378,3 +1387,246 @@ reactable(candidate_biomarkers,
           searchable = TRUE,
           showPageSizeOptions = TRUE)
 ```
+
+```{r lm_candidate_biomarkers_mPAP, fig.width=6, fig.height=3}
+candidate_genes <- unique(candidate_biomarkers$gene)
+
+meta_plot <- metadata_mPAP %>%
+  dplyr::select(Sample, mPAP_mmHg, Age_years) %>%  
+  dplyr::filter(Sample %in% colnames(counts_mPAP)) %>%
+  dplyr::arrange(match(Sample, colnames(counts_mPAP)))
+
+expr_long <- counts_mPAP[candidate_genes, meta_plot$Sample, drop = FALSE] %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("gene") %>%
+  tidyr::pivot_longer(-gene, names_to = "Sample", values_to = "logCPM") %>%
+  dplyr::left_join(meta_plot, by = "Sample") %>%
+  dplyr::filter(!is.na(mPAP_mmHg), !is.na(logCPM))
+
+plots <- list()
+lm_stats <- data.frame()
+
+for (g in unique(expr_long$gene)) {
+  df <- dplyr::filter(expr_long, gene == g)
+
+  fit <- lm(logCPM ~ mPAP_mmHg + Age_years, data = df)
+  sm  <- summary(fit)
+  r2  <- sm$r.squared
+  p   <- sm$coefficients["mPAP_mmHg", "Pr(>|t|)"]
+  b   <- sm$coefficients["mPAP_mmHg", "Estimate"]
+
+  lm_stats <- rbind(lm_stats, data.frame(
+    gene = g,
+    n = nrow(df),
+    slope_per_mmHg = b,
+    r2 = r2,
+    p_value = p
+  ))
+
+  plots[[g]] <- ggplot(df, aes(x = mPAP_mmHg, y = logCPM)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = TRUE, color = "firebrick", size = 0.4) +
+    theme_minimal() +
+    labs(
+      title = paste0(g, "\nR² = ", round(r2, 3), "  p = ", signif(p, 3)),
+      x = "mPAP (mmHg)",
+      y = "Expression (logCPM)"
+    )
+}
+
+reactable::reactable(lm_stats, filterable = TRUE, searchable = TRUE)
+gridExtra::grid.arrange(grobs = plots, ncol = 2)
+```
+
+```{r cols}
+cell_type_cols <- c("#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A", "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600")
+```
+
+```{r VlnPlot_candidates, fig.width=6, fig.height=6}
+Idents(DCM_RV) <- "cell_type"
+Stacked_VlnPlot(DCM_RV, features = candidate_genes, x_lab_rotate = TRUE, colors_use = cell_type_cols)
+```
+
+```{r boxplot_candidate_biomarkers_DCM_vs_HC_all, fig.width=2.8, fig.height=6}
+meta_plot <- metadata %>%
+  dplyr::select(Sample, Group) %>%
+  dplyr::filter(Sample %in% colnames(counts_all)) %>%
+  dplyr::mutate(Group = factor(Group, levels = c("HC", "DCM"))) %>%
+  dplyr::arrange(match(Sample, colnames(counts_all)))
+
+df_box <- counts_all[candidate_genes, meta_plot$Sample, drop = FALSE] %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("gene") %>%
+  tidyr::pivot_longer(-gene, names_to = "Sample", values_to = "expr") %>%
+  dplyr::left_join(meta_plot, by = "Sample") %>%
+  dplyr::filter(!is.na(Group))
+
+# FDR labels from results_DCM_HC (no recalculation)
+stats_df <- results_DCM_HC %>%
+  as.data.frame() %>%
+  dplyr::filter(gene %in% candidate_genes) %>%
+  dplyr::transmute(gene, FDR, label = paste0("FDR = ", signif(FDR, 3)))
+
+# y-position per facet for the label
+y_pos <- df_box %>%
+  dplyr::group_by(gene) %>%
+  dplyr::summarise(
+    y = max(expr, na.rm = TRUE) + 0.10 * diff(range(expr, na.rm = TRUE)),
+    .groups = "drop"
+  )
+
+stats_df <- dplyr::left_join(stats_df, y_pos, by = "gene")
+
+group_cols <- c("HC" = "grey30", "DCM" = "firebrick")
+
+ggplot(df_box, aes(x = Group, y = expr, fill = Group)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, alpha = 0.35) +
+  geom_jitter(aes(color = Group), width = 0.12, size = 1.4, alpha = 0.85) +
+  facet_wrap(~ gene, scales = "free_y", nrow = 2) +
+  scale_fill_manual(values = group_cols) +
+  scale_color_manual(values = group_cols) +
+  geom_text(
+    data = stats_df,
+    aes(x = 1.5, y = y, label = label),
+    inherit.aes = FALSE, size = 3.4
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold", size = 12, color = "black"),
+    axis.title.x = element_blank(),
+    axis.text.x = element_text(size = 12, color = "black")
+  ) +
+  labs(y = "Expression (logCPM)")
+```
+
+```{r Barplot, fig.height=6, fig.width=4.5}
+signif_DCM_HC$Koenig <- ifelse(signif_DCM_HC$logFC > 0 & signif_DCM_HC$gene %in% dplyr::filter(signif_Koenig, logFC > 0)$gene, "Upregulated",
+                                   ifelse(signif_DCM_HC$logFC < 0 & signif_DCM_HC$gene %in% dplyr::filter(signif_Koenig, logFC < 0)$gene, "Downregulated", "Not significant"))
+
+signif_DCM_HC$Chaffin <- ifelse(signif_DCM_HC$logFC > 0 & signif_DCM_HC$gene %in% dplyr::filter(signif_Chaffin, logFC > 0)$gene, "Upregulated",
+                                   ifelse(signif_DCM_HC$logFC < 0 & signif_DCM_HC$gene %in% dplyr::filter(signif_Chaffin, logFC < 0)$gene, "Downregulated", "Not significant"))
+
+signif_DCM_HC$Reichart <- ifelse(signif_DCM_HC$logFC > 0 & signif_DCM_HC$gene %in% dplyr::filter(signif_Reichart, logFC > 0)$gene, "Upregulated",
+                                   ifelse(signif_DCM_HC$logFC < 0 & signif_DCM_HC$gene %in% dplyr::filter(signif_Reichart, logFC < 0)$gene, "Downregulated", "Not significant"))
+
+signif_DCM_HC$up_down <- ifelse(
+  signif_DCM_HC$logFC > 0, "Upregulated in RV",
+           "Downregulated in RV")
+
+signif_DCM_HC$Unique_overlapping_LV <- ifelse(
+  (signif_DCM_HC$logFC > 0 & (signif_DCM_HC$Chaffin == "Upregulated" | signif_DCM_HC$Koenig == "Upregulated" | signif_DCM_HC$Reichart == "Upregulated")) | (signif_DCM_HC$logFC < 0 & (signif_DCM_HC$Chaffin == "Downregulated" | signif_DCM_HC$Koenig == "Downregulated" | signif_DCM_HC$Reichart == "Downregulated")), "Overlapping with ≥1 LV dataset",
+  "Unique in RV")
+
+df <- as.data.frame(table(signif_DCM_HC$up_down, signif_DCM_HC$Unique_overlapping_LV))
+colnames(df) <- c("up_down", "Unique_overlapping_LV", "n")
+df$up_down <- factor(df$up_down, levels = c("Upregulated in RV", "Downregulated in RV"))
+
+ggplot(df, aes(fill = Unique_overlapping_LV, y = n, x = up_down)) + 
+  geom_bar(position = "stack", stat = "identity", width = 0.5) +
+  scale_fill_manual(values = c(
+    "Overlapping with ≥1 LV dataset" = "#A63A2A", 
+    "Unique in RV" = "#004C8C"
+  )) +
+  theme_bw() +
+  ggtitle(" ") + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.text.x = element_text(angle = 30, hjust = 1, color = "black", size = 17),
+    axis.text.y = element_text(color = "black", size = 17),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 20),
+    text = element_text(size = 20),
+    legend.text = element_text(size = 18),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.background = element_rect(fill = "white", color = NA),
+    plot.title = element_text(size = 14, hjust = 0.5),
+    plot.margin = margin(t = 1, r = 50, b = 1, l = 20)  # ← this is new
+  ) +
+  labs(y = "Number of Genes", fill = NULL) +
+  guides(fill = guide_legend(nrow = 2, byrow = TRUE))
+```
+
+```{r, fig.height=6, fig.width=12}
+make_plot <- function(up_down_col, title_text) {
+  df <- as.data.frame(table(signif_DCM_HC$up_down, up_down_col))
+  colnames(df) <- c("up_down", "LV_up_down", "n")
+
+  df$up_down <- factor(df$up_down, levels = c("Upregulated in RV", "Downregulated in RV"))
+  df$LV_up_down <- dplyr::recode(df$LV_up_down,
+    "Upregulated" = "Upregulated in LV",
+    "Downregulated" = "Downregulated in LV",
+    "Not significant" = "Not significant in LV"
+  )
+  df$LV_up_down <- factor(df$LV_up_down,
+    levels = c("Upregulated in LV", "Downregulated in LV", "Not significant in LV")
+  )
+
+  ggplot(df, aes(fill = LV_up_down, y = n, x = up_down)) +
+    geom_bar(position = "stack", stat = "identity", width = 0.5) +
+    scale_fill_manual(values = c(
+      "Upregulated in LV" = "#A63A2A",
+      "Downregulated in LV" = "#004C8C",
+      "Not significant in LV" = "grey50"
+    )) +
+    labs(x = NULL, y = "Number of Genes", fill = NULL) +
+    ggtitle(title_text) +
+    theme_bw() +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.text.x = element_text(angle = 30, hjust = 1, color = "black", size = 17),
+      axis.text.y = element_text(color = "black", size = 17),
+      axis.title.y = element_text(size = 20),
+      text = element_text(size = 20),
+      legend.text = element_text(size = 18),
+      legend.title = element_blank(),
+      plot.title = element_text(size = 17, hjust = 0.5),
+      plot.margin = margin(t = 5, r = 30, b = 5, l = 20)
+    )
+}
+
+# Create individual plots
+p1 <- make_plot(signif_DCM_HC$Koenig, "Koenig et al, Nature CVR 2022") + theme(legend.position = "none")
+p2 <- make_plot(signif_DCM_HC$Chaffin, "Chaffin et al, Nature 2022") + theme(legend.position = "none")
+p3 <- make_plot(signif_DCM_HC$Reichart, "Reichart et al, Science 2022")
+
+combined_plot <- (p1 + p2 + p3 + plot_layout(guides = "collect")) &
+  theme(
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.background = element_rect(fill = "white", color = NA),
+    legend.box.just = "center",
+    legend.key.size = unit(1.2, "lines"),
+    legend.spacing.x = unit(0.8, "lines"),
+    text = element_text(size = 20),
+    legend.text = element_text(size = 18)
+  )
+
+# Now apply guides separately (outside the theme)
+combined_plot <- combined_plot + 
+  plot_annotation() & 
+  guides(fill = guide_legend(nrow = 1, byrow = TRUE))
+
+combined_plot
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
