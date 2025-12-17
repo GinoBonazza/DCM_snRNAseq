@@ -1,0 +1,1576 @@
+---
+title: "Differential abundance and differential expression analysis in all cell types with all clinical parameters"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "DA_DE_all_cell_types_and_parameters"
+
+
+library(here)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(readr)
+library(readxl)
+library(knitr)
+library(patchwork)
+library(scales)
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+
+
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(Matrix.utils)
+library(scater)
+library(statmod)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(AnnotationHub)
+library(ReactomePA)
+library(speckle)
+library(limma)
+library(reactable)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(edgeR)
+library(EnhancedVolcano)
+library(ComplexHeatmap)
+library(UpSetR)
+library(cowplot)
+library(GGally)
+library(rtracklayer)
+library(biomaRt)
+library(ggpubr)
+
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+Load DCM_RV dataset
+
+```{r read CM}
+DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.rds"))
+```
+
+```{r NormalizeData}
+DefaultAssay(DCM_RV_integrated) <- "RNA"
+DCM_RV_integrated <- NormalizeData(DCM_RV_integrated)
+```
+
+## Differential abundance analysis
+
+```{r metadata}
+DCM_RV_integrated$TAPSE_sPAP <- DCM_RV_integrated$TAPSE_mm/DCM_RV_integrated$sPAP_mmHg
+table(DCM_RV_integrated$TAPSE_sPAP)
+
+metadata <- DCM_RV_integrated@meta.data %>%
+  dplyr::select(Sample:CO_l.min, TAPSE_sPAP) %>%
+  unique() %>%
+  dplyr::select(-LVID_mm, -RVIT_mm) 
+metadata <- metadata %>%
+  dplyr::select(1:3, 5, 6, 4, 7:ncol(metadata)) %>%
+  dplyr::arrange(match(Sample, names(table(DCM_RV_integrated$Sample))))
+
+rownames(metadata) <- metadata$Sample
+
+# Check if metadata$Sample matches names(table(DCM_RV_integrated$Sample))
+all.equal(metadata$Sample, names(table(DCM_RV_integrated$Sample)))
+
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+# Filter for Group == "DCM"
+metadata_DCM <- metadata %>%
+  dplyr::filter(Group == "DCM")
+```
+
+```{r Speckle_all}
+# Initialize an empty data frame for storing differential abundance results
+differential_abundance <- data.frame()
+props <- getTransformedProps(DCM_RV_integrated$cell_type, DCM_RV_integrated$Sample, transform="logit")
+
+# Loop through each metadata column from Age_years to CO_l.min
+for (i in 7:(length(metadata_DCM))) {
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  props_subset <- props
+  props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+  props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+  props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+  metadata_subset <- metadata_subset %>% 
+    arrange(Sample, colnames(props_subset$Proportions))
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  fit <- lmFit(props_subset$TransformedProps, design)
+  fit <- eBayes(fit, robust=TRUE)
+  differential_abundance_temp <- topTable(fit, n = Inf, coef = 2)
+  differential_abundance_temp$metadata <- colnames(metadata_subset[i])
+  differential_abundance_temp$cell_state <- rownames(differential_abundance_temp)
+  differential_abundance <- rbind(differential_abundance, differential_abundance_temp)
+}
+
+# Clean up the environment
+rm(metadata_subset, props_subset, design, fit, differential_abundance_temp)
+
+# Reset row names and arrange the results by adjusted p-value
+rownames(differential_abundance) <- NULL
+differential_abundance <- dplyr::arrange(differential_abundance, adj.P.Val)
+
+write.csv(differential_abundance, file = here::here(output_dir_data, "DCM_RV_Differential_Abundance.csv"), quote=F, row.names = F)
+
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Speckle_CO_l.min, fig.height=4, fig.width=4}
+metadata_subset <- metadata[complete.cases(metadata[["CO_l.min"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$CO_l.min + metadata_subset[["Age_years"]])
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,1), mar = c(5, 5, 3, 1))
+  plot(metadata_subset$CO_l.min, props_subset$Proportions[12,], main = rownames(props_subset$Proportions)[12],
+       pch=16, cex=2, ylab="Proportions", xlab="CO_l.min", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[12,1], b=fit.prop$coefficients[12,2], col=4,
+         lwd=1)
+
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+```{r Speckle_Group, fig.height=4, fig.width=20}
+design <- model.matrix(~ 0 + metadata$Group)
+colnames(design) <- c("DCM", "HC")
+mycontr <- makeContrasts(DCM-HC, levels=design)
+differential_abundance_HC <- propeller.ttest(props, design, contrasts = mycontr, robust=TRUE, trend=FALSE, sort=TRUE)
+
+write.csv(differential_abundance_HC, file = here::here(output_dir_data, "DCM_RV_Differential_Abundance_HC.csv"), quote=F, row.names = F)
+
+reactable(differential_abundance_HC, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+rm(design, mycontr)
+```
+
+```{r Cell_type_sample_table, fig.height=4, fig.width=10, message=FALSE, warning=FALSE}
+# Extract metadata
+metadata_tbl <- DCM_RV_integrated@meta.data
+
+# Create a contingency table with cell types as rows and samples as columns
+cell_type_sample_table <- table(metadata_tbl$cell_type, metadata_tbl$Sample)
+
+# Convert the table to a data frame for easier manipulation
+cell_type_sample_df <- as.data.frame.matrix(cell_type_sample_table)
+
+# Add the totals per sample (column-wise sum) as the last row
+cell_type_sample_df["Total", ] <- colSums(cell_type_sample_df)
+
+# Add the totals per cell type (row-wise sum) as the last column
+cell_type_sample_df$Total <- rowSums(cell_type_sample_df)
+
+table_plot <- tableGrob(cell_type_sample_df)
+
+ggsave(here::here(output_dir_figs, "cell_type_sample_table.png"), plot = table_plot, dpi = 600, width = 22, height = 6)
+
+# Include the image in the markdown document
+knitr::include_graphics(here::here(output_dir_figs, "cell_type_sample_table.png"), error = FALSE, dpi = 300)
+rm(table_plot, metadata_tbl, differential_abundance, differential_abundance_HC, props)
+```
+
+
+## DE Cardiomyocytes
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Cardiomyocytes}
+data <- subset(DCM_RV_integrated, cell_type == "Cardiomyocytes")
+```
+
+```{r Cardiomyocytes save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "Cardiomyocytes_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Cardiomyocytes pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Cardiomyocytes filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "Cardiomyocytes_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Cardiomyocytes empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Cardiomyocytes DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "Cardiomyocytes_pseudocounts.rds"))
+pseudocounts_DCM <- pseudocounts[, metadata_DCM$Sample]
+all.equal(metadata_DCM$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM))) {
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("Cardiomyocytes_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("Cardiomyocytes_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Cardiomyocytes", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "Cardiomyocytes_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Cardiomyocytes_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+```{r Cardiomyocytes_UpSet_plot_DE, fig.height=5, fig.width=9}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- signif[[i]]$gene
+  names(gene_sets)[i] <- names(signif)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+UpSet(m, column_title = "Cardiomyocytes", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+```
+
+```{r barplots_DEGs, fig.height=4.5, fig.width=10}
+n_de_genes <- data.frame()
+for (i in seq_along(signif)) {
+  parameter <- c(rep(names(signif)[i], 2))
+  effect <- c("Upregulated", "Downregulated")
+  n <- c(nrow(dplyr::filter(signif[[i]], logFC > 0)), nrow(dplyr::filter(signif[[i]], logFC < 0)))
+  de_tot <- nrow(signif[[i]])
+  n_de_genes <- rbind(n_de_genes, data.frame(parameter,effect,n, de_tot))
+}
+n_de_genes <- n_de_genes %>%
+  arrange(desc(de_tot))
+n_de_genes$parameter <- factor(n_de_genes$parameter, levels = unique(n_de_genes$parameter))
+
+# Plot with customizations
+ggplot(n_de_genes, aes(fill=effect, y=n, x=parameter)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("Upregulated" = "#A63A2A", "Downregulated" = "#004C8C")) +
+  theme(text = element_text(size = 15), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Clinical parameter", y = "Number of Genes", fill = "Effect") +
+  guides(fill = guide_legend(title = NULL))
+```
+
+```{r Cardiomyocytes rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m)
+```
+
+
+## DE Fibroblasts
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Fibroblasts}
+data <- subset(DCM_RV_integrated, cell_type == "Fibroblasts")
+```
+
+```{r Fibroblasts save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "Fibroblasts_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Fibroblasts pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Fibroblasts filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "Fibroblasts_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Fibroblasts empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Fibroblasts DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "Fibroblasts_pseudocounts.rds"))
+pseudocounts_DCM <- pseudocounts[, metadata_DCM$Sample]
+all.equal(metadata_DCM$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM))) {
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("Fibroblasts_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("Fibroblasts_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Fibroblasts", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "Fibroblasts_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Fibroblasts_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+```{r Fibroblasts_UpSet_plot_DE, fig.height=5, fig.width=9}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- signif[[i]]$gene
+  names(gene_sets)[i] <- names(signif)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+UpSet(m, column_title = "Fibroblasts", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+```
+
+```{r Fibroblasts rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m)
+```
+
+
+
+
+## DE Endothelial cells
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Endothelial_cells}
+data <- subset(DCM_RV_integrated, cell_type == "Endothelial cells")
+```
+
+```{r Endothelial_cells save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "Endothelial_cells_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Endothelial_cells pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Endothelial_cells filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "Endothelial_cells_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Endothelial_cells empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Endothelial_cells DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "Endothelial_cells_pseudocounts.rds"))
+pseudocounts_DCM <- pseudocounts[, metadata_DCM$Sample]
+all.equal(metadata_DCM$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM))) {
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("Endothelial_cells_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("Endothelial_cells_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Endothelial_cells", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "Endothelial_cells_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Endothelial_cells_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+```{r Endothelial_cells_UpSet_plot_DE, fig.height=5, fig.width=9}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- signif[[i]]$gene
+  names(gene_sets)[i] <- names(signif)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+UpSet(m, column_title = "Endothelial_cells", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+```
+
+```{r Endothelial_cells rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m)
+```
+
+
+## DE Pericytes
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Pericytes}
+data <- subset(DCM_RV_integrated, cell_type == "Pericytes")
+```
+
+```{r Pericytes save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "Pericytes_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Pericytes pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Pericytes filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "Pericytes_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Pericytes empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Pericytes DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "Pericytes_pseudocounts.rds"))
+metadata_DCM_subset <- dplyr::filter(metadata_DCM, Sample %in% pseudocounts$samples$sample)
+pseudocounts_DCM <- pseudocounts[, metadata_DCM_subset$Sample]
+all.equal(metadata_DCM_subset$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM_subset))) {
+  metadata_subset <- metadata_DCM_subset[complete.cases(metadata_DCM_subset[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("Pericytes_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("Pericytes_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Pericytes", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "Pericytes_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Pericytes_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+```{r Pericytes_UpSet_plot_DE, fig.height=5, fig.width=9}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- signif[[i]]$gene
+  names(gene_sets)[i] <- names(signif)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+UpSet(m, column_title = "Pericytes", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+```
+
+```{r Pericytes rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m, metadata_DCM_subset)
+```
+
+
+## DE Macrophages
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Macrophages}
+data <- subset(DCM_RV_integrated, cell_type == "Macrophages")
+```
+
+```{r Macrophages save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "Macrophages_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Macrophages pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Macrophages filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "Macrophages_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Macrophages empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Macrophages DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "Macrophages_pseudocounts.rds"))
+metadata_DCM_subset <- dplyr::filter(metadata_DCM, Sample %in% pseudocounts$samples$sample)
+pseudocounts_DCM <- pseudocounts[, metadata_DCM_subset$Sample]
+all.equal(metadata_DCM_subset$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM_subset))) {
+  metadata_subset <- metadata_DCM_subset[complete.cases(metadata_DCM_subset[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("Macrophages_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("Macrophages_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Macrophages", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "Macrophages_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Macrophages_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+```{r Macrophages_UpSet_plot_DE, fig.height=5, fig.width=9}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- signif[[i]]$gene
+  names(gene_sets)[i] <- names(signif)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+UpSet(m, column_title = "Macrophages", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+```
+
+```{r Macrophages rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m, metadata_DCM_subset)
+```
+
+
+## DE Lymphocytes
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Lymphocytes}
+data <- subset(DCM_RV_integrated, cell_type == "T lymphocytes")
+```
+
+```{r Lymphocytes save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "T_lymphocytes_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Lymphocytes pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Lymphocytes filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "T_lymphocytes_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Lymphocytes empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Lymphocytes DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "T_lymphocytes_pseudocounts.rds"))
+metadata_DCM_subset <- dplyr::filter(metadata_DCM, Sample %in% pseudocounts$samples$sample)
+pseudocounts_DCM <- pseudocounts[, metadata_DCM_subset$Sample]
+all.equal(metadata_DCM_subset$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM_subset))) {
+  metadata_subset <- metadata_DCM_subset[complete.cases(metadata_DCM_subset[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("T_lymphocytes_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("T_lymphocytes_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("T lymphocytes", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "T_lymphocytes_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Lymphocytes_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+
+```{r Lymphocytes rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m, metadata_DCM_subset)
+```
+
+
+## DE Smooth muscle cells
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Smooth_muscle_cells}
+data <- subset(DCM_RV_integrated, cell_type == "Smooth muscle cells")
+```
+
+```{r Smooth_muscle_cells save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "Smooth_muscle_cells_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Smooth_muscle_cells pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Smooth_muscle_cells filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "Smooth_muscle_cells_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Smooth_muscle_cells empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Smooth_muscle_cells DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "Smooth_muscle_cells_pseudocounts.rds"))
+metadata_DCM_subset <- dplyr::filter(metadata_DCM, Sample %in% pseudocounts$samples$sample)
+pseudocounts_DCM <- pseudocounts[, metadata_DCM_subset$Sample]
+all.equal(metadata_DCM_subset$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM_subset))) {
+  metadata_subset <- metadata_DCM_subset[complete.cases(metadata_DCM_subset[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("Smooth_muscle_cells_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("Smooth_muscle_cells_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Smooth_muscle_cells", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "Smooth_muscle_cells_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Smooth_muscle_cells_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+```{r Smooth_muscle_cells_UpSet_plot_DE, fig.height=5, fig.width=9}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- signif[[i]]$gene
+  names(gene_sets)[i] <- names(signif)[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 10]
+UpSet(m, column_title = "Smooth_muscle_cells", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+```
+
+```{r Smooth_muscle_cells rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m, metadata_DCM_subset)
+```
+
+
+## DE Neuronal cells
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Neuronal_cells}
+data <- subset(DCM_RV_integrated, cell_type == "Neuronal cells")
+```
+
+```{r Neuronal_cells save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "Neuronal_cells_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Neuronal_cells pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Neuronal_cells filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "Neuronal_cells_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Neuronal_cells empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Neuronal_cells DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "Neuronal_cells_pseudocounts.rds"))
+metadata_DCM_subset <- dplyr::filter(metadata_DCM, Sample %in% pseudocounts$samples$sample)
+pseudocounts_DCM <- pseudocounts[, metadata_DCM_subset$Sample]
+all.equal(metadata_DCM_subset$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM_subset))) {
+  metadata_subset <- metadata_DCM_subset[complete.cases(metadata_DCM_subset[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("Neuronal_cells_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("Neuronal_cells_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Neuronal_cells", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "Neuronal_cells_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Neuronal_cells_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+```{r Neuronal_cells rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m, metadata_DCM_subset)
+```
+
+
+## DE Endocardial cells
+
+Remove genes expressed in <1% of cells and MT and RP genes
+
+```{r subset Endocardial_cells}
+data <- subset(DCM_RV_integrated, cell_type == "Endocardial cells")
+```
+
+```{r Endocardial_cells save percent_stats, eval=FALSE}
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+write.csv(percent_stats, file = here::here(output_dir_data, "Endocardial_cells_percent_stats.csv"), quote=F, row.names = F)
+```
+
+Create and prepare pseudobulk object for differential expression analysis
+
+```{r Endocardial_cells pseudocounts}
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+```
+
+```{r Endocardial_cells filter pseudocounts}
+percent_stats <- read.csv(here::here(output_dir_data, "Endocardial_cells_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_genes)
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+```
+
+Create empty objects for the DE output
+
+```{r Endocardial_cells empty_objects_DE}
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+```
+
+```{r Endocardial_cells DE_all}
+saveRDS(pseudocounts, 
+        here::here(output_dir_data, "Endocardial_cells_pseudocounts.rds"))
+metadata_DCM_subset <- dplyr::filter(metadata_DCM, Sample %in% pseudocounts$samples$sample)
+pseudocounts_DCM <- pseudocounts[, metadata_DCM_subset$Sample]
+all.equal(metadata_DCM_subset$Sample, colnames(pseudocounts_DCM$counts))
+
+for (i in 7:(length(metadata_DCM_subset))) {
+  metadata_subset <- metadata_DCM_subset[complete.cases(metadata_DCM_subset[[i]]),]
+  metadata_subset[,i] <- rescale(metadata_subset[,i])
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  colnames(design)[2] <- colnames(metadata_subset[i])
+  
+  pseudocounts_subset <- pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+  
+  fit <- glmQLFit(pseudocounts_subset, design, robust=TRUE)
+  fit <- glmQLFTest(fit, coef = 2)
+  
+  results[[i-6]] <- topTags(fit, n = Inf)$table
+  results[[i-6]] <- merge(results[[i-6]], percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+  signif[[i-6]] <- results[[i-6]] %>% dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+  names(results)[i-6] <- colnames(metadata_subset[i])
+  names(signif)[i-6] <- colnames(metadata_subset[i])
+  
+  write.csv(results[[i-6]], file = here::here(output_dir_data, paste0("Endocardial_cells_DE_Results_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  write.csv(signif[[i-6]], file = here::here(output_dir_data, paste0("Endocardial_cells_DE_Significant_", colnames(metadata[i]), ".csv")), quote=F, row.names = F)
+  
+  n_de_genes_temp <- data.frame(metadata = colnames(metadata_subset[i]),
+                                n_upregulated = sum(signif[[i-6]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i-6]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i-6]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+  
+  keyvals <- rep("grey", nrow(results[[i-6]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i-6]]))
+  keyvals[results[[i-6]]$logFC > 0.5 & results[[i-6]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i-6]]$logFC < -0.5 & results[[i-6]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano[[i-6]] <- EnhancedVolcano(results[[i-6]],
+                  lab = results[[i-6]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3.5),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Endocardial_cells", "\n", colnames(metadata_subset[i]), "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i-6] <- colnames(metadata_subset[i])
+}
+write.csv(n_de_genes, file = here::here(output_dir_data, "Endocardial_cells_n_de_genes.csv"), quote=F, row.names = F)
+rm(metadata_subset, design, pseudocounts_subset, fit, n_de_genes_temp)
+```
+
+```{r Endocardial_cells_Volcano_all_metadata, fig.height=9, fig.width=21, dpi=300}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]] | volcano[[5]] | volcano[[6]] | volcano[[7]]) / 
+  (volcano[[8]] | volcano[[9]] | volcano[[10]] |  volcano[[11]] | volcano[[12]] | volcano[[13]] | volcano[[14]]))
+```
+
+```{r Endocardial_cells rm}
+rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de_genes, gene_sets, m, metadata_DCM_subset)
+```
+
+
+## Heatmap 
+
+```{r, fig.height=6, fig.width=6}
+# ---- Define cell types you analyzed ----
+cell_types <- c("Cardiomyocytes", "Fibroblasts", "Endothelial_cells", "Pericytes", 
+                "Macrophages", "T_lymphocytes", "Smooth_muscle_cells", "Neuronal_cells",
+                "Endocardial_cells")  # update as needed
+
+# ---- Read in all summary CSVs and build DEG matrix ----
+deg_summary_list <- lapply(cell_types, function(celltype) {
+  file <- file.path(output_dir_data, paste0(celltype, "_n_de_genes.csv"))
+  df <- read.csv(file)
+  df <- df %>% dplyr::select(metadata, n_tot) %>%
+    dplyr::rename(parameter = metadata) %>%
+    dplyr::mutate(cell_type = celltype)
+  return(df)
+})
+
+# Combine into long format and pivot
+deg_summary <- bind_rows(deg_summary_list)
+
+deg_mat <- deg_summary %>%
+  pivot_wider(names_from = cell_type, values_from = n_tot, values_fill = 0) %>%
+  column_to_rownames("parameter") %>%
+  as.matrix()
+
+# ---- Plot heatmap ----
+pheatmap(deg_mat,
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         color = colorRampPalette(c("grey95", "red", "darkred"))(100),
+         fontsize = 10,
+         main = "DEG Counts by Parameter and Cell Type",
+         border_color = NA,
+         display_numbers = TRUE,           # <- this adds the numbers
+         number_format = "%.0f",           # format as integer (no decimal)
+         number_color = "black")
+```
+
