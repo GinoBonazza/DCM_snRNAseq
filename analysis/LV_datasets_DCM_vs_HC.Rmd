@@ -1,0 +1,855 @@
+---
+title: "LV datasets DCM vs HC"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "LV_datasets_DCM_vs_HC"
+
+# Load libraries
+library(here)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(readr)
+library(readxl)
+library(knitr)
+library(patchwork)
+library(scales)
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+
+
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(Matrix.utils)
+library(scater)
+library(statmod)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(AnnotationHub)
+library(ReactomePA)
+library(speckle)
+library(limma)
+library(reactable)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(edgeR)
+library(rtracklayer)
+library(EnhancedVolcano)
+library(ComplexHeatmap)
+library(UpSetR)
+library(cowplot)
+library(GGally)
+library(rtracklayer)
+library(biomaRt)
+library(ggpubr)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+## Koenig 2022
+
+```{r Import Koenig}
+load("/scratch/gbonaz/Heart_datasets/Koenig_2022/GSE183852_DCM_Nuclei.Robj")
+Koenig <- nuclei
+rm(nuclei)
+```
+
+```{r new_cell_type Koenig}
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Cardiomyocytes"), "new_cell_type"] = "Cardiomyocytes"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Fibroblasts"), "new_cell_type"] = "Fibroblasts"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Endothelium"), "new_cell_type"] = "Endothelial_cells"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Macrophages", "Monocytes"), "new_cell_type"] = "Macrophages"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Pericytes"), "new_cell_type"] = "Pericytes"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("T/NK_Cells"), "new_cell_type"] = "T_lymphocytes"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Smooth_Muscle"), "new_cell_type"] = "Smooth_muscle_cells"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Neurons"), "new_cell_type"] = "Neuronal_cells"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Endocardium"), "new_cell_type"] = "Endocardial_cells"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Lymphatic"), "new_cell_type"] = "Lymphatic_cells"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Mast_Cells"), "new_cell_type"] = "Mast_cells"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Adipocytes"), "new_cell_type"] = "Adipocytes"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("B_Cells"), "new_cell_type"] = "B_lymphocytes"
+Koenig@meta.data[Koenig@meta.data$Names %in% c("Epicardium"), "new_cell_type"] = "Epicardial_cells"
+
+Koenig$new_cell_type <- factor(Koenig$new_cell_type, levels = c("Cardiomyocytes", 
+                                                        "Fibroblasts",
+                                                        "Endothelial_cells",
+                                                        "Pericytes",
+                                                        "Macrophages",
+                                                        "T_lymphocytes",
+                                                        "Smooth_muscle_cells",
+                                                        "Neuronal_cells",
+                                                        "Endocardial_cells",
+                                                        "Lymphatic_cells",
+                                                        "Mast_cells",
+                                                        "Adipocytes",
+                                                        "Epicardial_cells",
+                                                        "B_lymphocytes"))
+Idents(Koenig) <- Koenig$new_cell_type
+table(Koenig$new_cell_type)
+```
+
+```{r add metadata Koenig}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Koenig[["orig.ident"]], Clinical_data)
+row.names(add_metadata) <- row.names(Koenig[[]])
+Koenig <- AddMetaData(Koenig, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+Koenig$Group <- Koenig$Condition
+Koenig$Sample <- Koenig$orig.ident
+```
+
+```{r metadata Koenig}
+metadata_Koenig <- Koenig@meta.data %>%
+  dplyr::select(Sample, Age, Sex, Group, Pre_Op_EF, Pre_Op_CO_L_min, HTN) %>%
+  unique()
+
+rownames(metadata_Koenig) <- metadata_Koenig$Sample
+
+reactable(metadata_Koenig, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r DE Koenig}
+# ---- settings ----
+celltype_col <- "new_cell_type"   # your identity column
+sample_col   <- "Sample"          # pseudobulk sample id
+group_col    <- "Group"           # DCM vs Donor (HC)
+
+min_pct_cells_gene <- 1      # keep genes expressed in >1% of cells (within that cell type)
+min_libsize        <- 5e4    # keep samples with pseudobulk lib.size > 5e4
+fdr_thresh         <- 0.05
+lfc_thresh         <- 0.5
+
+out_dir <- here::here(output_dir_data, "DE_by_celltype_Koenig")
+if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+
+# ---- containers ----
+celltypes <- levels(Koenig[[celltype_col]][, 1])
+celltypes <- celltypes[!is.na(celltypes)]
+
+results_Koenig <- vector("list", length(celltypes))
+signif_Koenig  <- vector("list", length(celltypes))
+names(results_Koenig) <- celltypes
+names(signif_Koenig)  <- celltypes
+
+# optional: collect basic QC / status per celltype
+qc_Koenig <- data.frame(
+  cell_type = celltypes,
+  n_cells = NA_integer_,
+  n_samples_kept = NA_integer_,
+  n_genes_tested = NA_integer_,
+  stringsAsFactors = FALSE
+)
+
+# ---- loop ----
+for (ct in celltypes) {
+  message("Running DE for cell type: ", ct)
+
+  # subset to one cell type
+  data_ct <- subset(Koenig, subset = !!as.name(celltype_col) == ct)
+  qc_Koenig$n_cells[qc_Koenig$cell_type == ct] <- ncol(data_ct)
+
+  # if too few cells, skip
+  if (ncol(data_ct) < 100) {
+    warning("Skipping ", ct, " (too few cells: ", ncol(data_ct), ")")
+    next
+  }
+
+  # percent of cells expressing each gene (within this cell type)
+  expr_matrix <- GetAssayData(object = data_ct, assay = "RNA", slot = "counts")
+  non_zero_cells <- rowSums(expr_matrix > 0)
+  total_cells <- ncol(expr_matrix)
+  percent_cells <- (non_zero_cells / total_cells) * 100
+  percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+  keep_genes_pct <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+
+  # pseudobulk
+  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = celltype_col)
+  colnames(pb) <- pb$samples$sample
+
+  # keep genes based on % cells
+  pb <- pb[keep_genes_pct, ]
+
+  # keep samples by lib size
+  keep_samples <- pb$samples$lib.size > min_libsize
+  pb <- pb[, keep_samples, keep.lib.sizes = FALSE]
+  qc_Koenig$n_samples_kept[qc_Koenig$cell_type == ct] <- ncol(pb)
+
+  # if too few samples, skip
+  if (ncol(pb) < 10) {
+    warning("Skipping ", ct, " (too few samples after filtering: ", ncol(pb), ")")
+    next
+  }
+
+  # match metadata to pseudobulk samples
+  metadata_ct <- data_ct@meta.data %>%
+    dplyr::select(!!sample_col, Age, Sex, !!group_col, Pre_Op_EF, Pre_Op_CO_L_min, HTN) %>%
+    unique()
+  colnames(metadata_ct)[colnames(metadata_ct) == sample_col] <- "Sample"
+  rownames(metadata_ct) <- metadata_ct$Sample
+
+  metadata_ct <- metadata_ct[match(pb$samples$sample, metadata_ct$Sample), , drop = FALSE]
+
+  # sanity check
+  if (!all(metadata_ct$Sample == pb$samples$sample)) {
+    stop("Sample order mismatch for cell type: ", ct)
+  }
+
+  group <- factor(metadata_ct[[group_col]])
+  if (!all(c("DCM", "Donor") %in% levels(group))) {
+    warning("Skipping ", ct, " (Group levels not as expected: ", paste(levels(group), collapse=", "), ")")
+    next
+  }
+
+  design <- model.matrix(~ 0 + group)
+  colnames(design) <- levels(group)
+
+  contrast <- makeContrasts(
+    DCM_vs_HC = DCM - Donor,
+    levels = design
+  )
+
+  # edgeR pipeline (as in your code)
+  pb <- normLibSizes(pb)
+  pb <- estimateDisp(pb, design)
+
+  fit <- glmQLFit(pb, design, robust = TRUE)
+  fit <- glmQLFTest(fit, contrast = contrast)
+
+  results_ct <- topTags(fit, n = Inf)$table
+  results_ct$gene <- rownames(results_ct)
+
+  # merge percent expressed
+  results_ct <- merge(results_ct, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+
+  # up/down annotation (same thresholds as you used)
+  results_ct$diff_exp <- ifelse(
+    results_ct$logFC >  lfc_thresh & results_ct$FDR < fdr_thresh, "Increased",
+    ifelse(results_ct$logFC < -lfc_thresh & results_ct$FDR < fdr_thresh, "Decreased", "Not significant")
+  )
+
+  signif_ct <- results_ct %>%
+    dplyr::filter(FDR < fdr_thresh, abs(logFC) > lfc_thresh) %>%
+    dplyr::arrange(FDR)
+
+  qc_Koenig$n_genes_tested[qc_Koenig$cell_type == ct] <- nrow(results_ct)
+
+  # store in lists
+  results_Koenig[[ct]] <- results_ct
+  signif_Koenig[[ct]]  <- signif_ct
+
+  # write outputs
+  fn_all   <- file.path(out_dir, paste0("Results_DE_Koenig_", ct, ".csv"))
+  fn_sig   <- file.path(out_dir, paste0("Signif_DE_Koenig_", ct, ".csv"))
+  fn_qc    <- file.path(out_dir, paste0("QC_DE_Koenig_", ct, ".txt"))
+
+  write.csv(results_ct, file = fn_all, quote = FALSE, row.names = FALSE)
+  write.csv(signif_ct,  file = fn_sig, quote = FALSE, row.names = FALSE)
+
+  # optional: small text QC log per celltype
+  cat(
+    paste0("cell_type: ", ct), "\n",
+    paste0("n_cells: ", ncol(data_ct)), "\n",
+    paste0("n_samples_kept: ", ncol(pb)), "\n",
+    paste0("n_genes_tested: ", nrow(results_ct)), "\n",
+    paste0("group_levels: ", paste(levels(group), collapse = ", ")), "\n",
+    file = fn_qc
+  )
+
+  # cleanup inside loop (keeps memory stable)
+  rm(data_ct, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
+     keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
+     fit, results_ct, signif_ct)
+  gc(verbose = FALSE)
+}
+
+# optional: write a summary table
+write.csv(qc_Koenig, file = file.path(out_dir, "QC_summary_DE_Koenig_all_celltypes.csv"),
+          quote = FALSE, row.names = FALSE)
+```
+
+## Reichart 2022
+
+```{r Import Reichart}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds")
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+```
+
+```{r}
+Reichart <- subset(Reichart, cell_type != "unknown")
+```
+
+```{r new_cell_type Reichart}
+Reichart@meta.data[Reichart@meta.data$cell_type %in% c("cardiac muscle cell"), "new_cell_type"] = "Cardiomyocytes"
+Reichart@meta.data[Reichart@meta.data$cell_type %in% c("fibroblast of cardiac tissue"), "new_cell_type"] = "Fibroblasts"
+Reichart@meta.data[Reichart@meta.data$cell_states %in% c("EC1.0", "EC2.0", "EC5.0", "EC6.0"), "new_cell_type"] = "Endothelial_cells"
+Reichart@meta.data[Reichart@meta.data$cell_type %in% c("myeloid cell"), "new_cell_type"] = "Macrophages"
+Reichart@meta.data[Reichart@meta.data$cell_states %in% c("PC1", "PC2", "PC3"), "new_cell_type"] = "Pericytes"
+Reichart@meta.data[Reichart@meta.data$cell_states %in% c("CD4T_act", "CD4T_naive", "CD4T_reg", "CD8T_cytox", "CD8T_em", "CD8T_te", "CD8T_te_IFNGhi", "CD8T_trans", "MAIT-like", "NK_CD16hi", "NK_CD16hiIFNGhi", "NK_CD56hi", "ILC", "prolif_Lymphoids"), "new_cell_type"] = "T_lymphocytes"
+Reichart@meta.data[Reichart@meta.data$cell_states %in% c("SMC1.1", "SMC1.2", "SMC2"), "new_cell_type"] = "Smooth_muscle_cells"
+Reichart@meta.data[Reichart@meta.data$cell_type %in% c("cardiac neuron"), "new_cell_type"] = "Neuronal_cells"
+Reichart@meta.data[Reichart@meta.data$cell_states %in% c("EC7.0"), "new_cell_type"] = "Endocardial_cells"
+Reichart@meta.data[Reichart@meta.data$cell_states %in% c("EC8.0"), "new_cell_type"] = "Lymphatic_cells"
+Reichart@meta.data[Reichart@meta.data$cell_type %in% c("mast cell"), "new_cell_type"] = "Mast_cells"
+Reichart@meta.data[Reichart@meta.data$cell_type %in% c("adipocyte"), "new_cell_type"] = "Adipocytes"
+Reichart@meta.data[Reichart@meta.data$cell_states %in% c("B", "Plasma"), "new_cell_type"] = "B_lymphocytes"
+Reichart@meta.data[Reichart@meta.data$cell_states %in% c("Meso"), "new_cell_type"] = "Epicardial_cells"
+
+Reichart$new_cell_type <- factor(Reichart$new_cell_type, levels = c("Cardiomyocytes", 
+                                                        "Fibroblasts",
+                                                        "Endothelial_cells",
+                                                        "Pericytes",
+                                                        "Macrophages",
+                                                        "T_lymphocytes",
+                                                        "Smooth_muscle_cells",
+                                                        "Neuronal_cells",
+                                                        "Endocardial_cells",
+                                                        "Lymphatic_cells",
+                                                        "Mast_cells",
+                                                        "Adipocytes",
+                                                        "Epicardial_cells",
+                                                        "B_lymphocytes"))
+Idents(Reichart) <- Reichart$new_cell_type
+table(Reichart$new_cell_type)
+```
+
+```{r add metadata Reichart}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Reichart[[]])
+Reichart <- AddMetaData(Reichart, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+Reichart@meta.data[Reichart@meta.data$disease == "normal", "Group"] = "HC"
+Reichart@meta.data[Reichart@meta.data$disease == "dilated cardiomyopathy", "Group"] = "DCM"
+Reichart$Sample <- Reichart$donor_id
+```
+
+```{r}
+Reichart <- subset(Reichart, disease %in% c("dilated cardiomyopathy", "normal") & Region_x == "LV")
+```
+
+```{r metadata Reichart}
+metadata_Reichart <- Reichart@meta.data %>%
+   dplyr::select(Sample, Group, sex, Age_range, LVEF_percent, LVIDd_mm, LVIDs_mm, RVEDD_mm, TAPSE_mm, PAH, Hypertension, COPD) %>%
+  unique()
+
+rownames(metadata_Reichart) <- metadata_Reichart$Sample
+
+reactable(metadata_Reichart, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r DE Reichart}
+# ---- settings ----
+celltype_col <- "new_cell_type"   # your identity column
+sample_col   <- "Sample"          # pseudobulk sample id
+group_col    <- "Group"           # DCM vs HC
+
+min_pct_cells_gene <- 1      # keep genes expressed in >1% of cells (within that cell type)
+min_libsize        <- 5e4    # keep samples with pseudobulk lib.size > 5e4
+fdr_thresh         <- 0.05
+lfc_thresh         <- 0.5
+
+out_dir <- here::here(output_dir_data, "DE_by_celltype_Reichart")
+if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+
+# ---- containers ----
+celltypes <- levels(Reichart[[celltype_col]][, 1])
+celltypes <- celltypes[!is.na(celltypes)]
+
+results_Reichart <- vector("list", length(celltypes))
+signif_Reichart  <- vector("list", length(celltypes))
+names(results_Reichart) <- celltypes
+names(signif_Reichart)  <- celltypes
+
+# optional: collect basic QC / status per celltype
+qc_Reichart <- data.frame(
+  cell_type = celltypes,
+  n_cells = NA_integer_,
+  n_samples_kept = NA_integer_,
+  n_genes_tested = NA_integer_,
+  stringsAsFactors = FALSE
+)
+
+# ---- loop ----
+for (ct in celltypes) {
+  message("Running DE for cell type: ", ct)
+
+  # subset to one cell type
+  data_ct <- subset(Reichart, subset = !!as.name(celltype_col) == ct)
+  qc_Reichart$n_cells[qc_Reichart$cell_type == ct] <- ncol(data_ct)
+
+  # if too few cells, skip
+  if (ncol(data_ct) < 100) {
+    warning("Skipping ", ct, " (too few cells: ", ncol(data_ct), ")")
+    next
+  }
+
+  # percent of cells expressing each gene (within this cell type)
+  expr_matrix <- GetAssayData(object = data_ct, assay = "RNA", slot = "counts")
+  non_zero_cells <- rowSums(expr_matrix > 0)
+  total_cells <- ncol(expr_matrix)
+  percent_cells <- (non_zero_cells / total_cells) * 100
+  percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+  keep_genes_pct <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+
+  # pseudobulk
+  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = celltype_col)
+  colnames(pb) <- pb$samples$sample
+
+  # keep genes based on % cells
+  pb <- pb[keep_genes_pct, ]
+
+  # keep samples by lib size
+  keep_samples <- pb$samples$lib.size > min_libsize
+  pb <- pb[, keep_samples, keep.lib.sizes = FALSE]
+  qc_Reichart$n_samples_kept[qc_Reichart$cell_type == ct] <- ncol(pb)
+
+  # if too few samples, skip
+  if (ncol(pb) < 10) {
+    warning("Skipping ", ct, " (too few samples after filtering: ", ncol(pb), ")")
+    next
+  }
+
+  # match metadata to pseudobulk samples
+  metadata_ct <- data_ct@meta.data %>%
+    dplyr::select(!!sample_col, !!group_col, sex, Age_range, LVEF_percent, LVIDd_mm, LVIDs_mm, RVEDD_mm, TAPSE_mm, PAH, Hypertension, COPD) %>%
+    unique()
+  colnames(metadata_ct)[colnames(metadata_ct) == sample_col] <- "Sample"
+  rownames(metadata_ct) <- metadata_ct$Sample
+
+  metadata_ct <- metadata_ct[match(pb$samples$sample, metadata_ct$Sample), , drop = FALSE]
+
+  # sanity check
+  if (!all(metadata_ct$Sample == pb$samples$sample)) {
+    stop("Sample order mismatch for cell type: ", ct)
+  }
+
+  group <- factor(metadata_ct[[group_col]])
+  if (!all(c("DCM", "HC") %in% levels(group))) {
+    warning("Skipping ", ct, " (Group levels not as expected: ", paste(levels(group), collapse=", "), ")")
+    next
+  }
+
+  design <- model.matrix(~ 0 + group)
+  colnames(design) <- levels(group)
+
+  contrast <- makeContrasts(
+    DCM_vs_HC = DCM - HC,
+    levels = design
+  )
+
+  # edgeR pipeline (as in your code)
+  pb <- normLibSizes(pb)
+  pb <- estimateDisp(pb, design)
+
+  fit <- glmQLFit(pb, design, robust = TRUE)
+  fit <- glmQLFTest(fit, contrast = contrast)
+
+  results_ct <- topTags(fit, n = Inf)$table
+  results_ct$gene <- rownames(results_ct)
+
+  # merge percent expressed
+  results_ct <- merge(results_ct, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+
+  # up/down annotation (same thresholds as you used)
+  results_ct$diff_exp <- ifelse(
+    results_ct$logFC >  lfc_thresh & results_ct$FDR < fdr_thresh, "Increased",
+    ifelse(results_ct$logFC < -lfc_thresh & results_ct$FDR < fdr_thresh, "Decreased", "Not significant")
+  )
+
+  signif_ct <- results_ct %>%
+    dplyr::filter(FDR < fdr_thresh, abs(logFC) > lfc_thresh) %>%
+    dplyr::arrange(FDR)
+
+  qc_Reichart$n_genes_tested[qc_Reichart$cell_type == ct] <- nrow(results_ct)
+
+  # store in lists
+  results_Reichart[[ct]] <- results_ct
+  signif_Reichart[[ct]]  <- signif_ct
+
+  # write outputs
+  fn_all   <- file.path(out_dir, paste0("Results_DE_Reichart_", ct, ".csv"))
+  fn_sig   <- file.path(out_dir, paste0("Signif_DE_Reichart_", ct, ".csv"))
+  fn_qc    <- file.path(out_dir, paste0("QC_DE_Reichart_", ct, ".txt"))
+
+  write.csv(results_ct, file = fn_all, quote = FALSE, row.names = FALSE)
+  write.csv(signif_ct,  file = fn_sig, quote = FALSE, row.names = FALSE)
+
+  # optional: small text QC log per celltype
+  cat(
+    paste0("cell_type: ", ct), "\n",
+    paste0("n_cells: ", ncol(data_ct)), "\n",
+    paste0("n_samples_kept: ", ncol(pb)), "\n",
+    paste0("n_genes_tested: ", nrow(results_ct)), "\n",
+    paste0("group_levels: ", paste(levels(group), collapse = ", ")), "\n",
+    file = fn_qc
+  )
+
+  # cleanup inside loop (keeps memory stable)
+  rm(data_ct, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
+     keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
+     fit, results_ct, signif_ct)
+  gc(verbose = FALSE)
+}
+
+# optional: write a summary table
+write.csv(qc_Reichart, file = file.path(out_dir, "QC_summary_DE_Reichart_all_celltypes.csv"),
+          quote = FALSE, row.names = FALSE)
+```
+
+## Chaffin 2022
+
+```{r Import Chaffin}
+Chaffin <- readRDS("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin.rds")
+                   
+Chaffin[["RNA"]] <- Chaffin[["originalexp"]]
+
+DefaultAssay(Chaffin) <- "RNA"
+
+Chaffin[["originalexp"]] <- NULL
+```
+
+```{r new_cell_type Chaffin}
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Cardiomyocyte_I", "Cardiomyocyte_II", "Cardiomyocyte_III"), "new_cell_type"] = "Cardiomyocytes"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Activated_fibroblast", "Fibroblast_I", "Fibroblast_II"), "new_cell_type"] = "Fibroblasts"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Endothelial_I", "Endothelial_II", "Endothelial_III"), "new_cell_type"] = "Endothelial_cells"
+Chaffin@meta.data[Chaffin@meta.data$SubCluster %in% c("MP-FGF13", "MP-GCH1", "MP-TPRG1", "MP-ProlifMP"), "new_cell_type"] = "Macrophages"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Pericyte_I", "Pericyte_II"), "new_cell_type"] = "Pericytes"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Lymphocyte"), "new_cell_type"] = "T_lymphocytes"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("VSMC"), "new_cell_type"] = "Smooth_muscle_cells"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Neuronal"), "new_cell_type"] = "Neuronal_cells"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Endocardial"), "new_cell_type"] = "Endocardial_cells"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Lymphatic_endothelial"), "new_cell_type"] = "Lymphatic_cells"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Mast_cell"), "new_cell_type"] = "Mast_cells"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Adipocyte"), "new_cell_type"] = "Adipocytes"
+Chaffin@meta.data[Chaffin@meta.data$SubCluster %in% c("MP-B_cell"), "new_cell_type"] = "B_lymphocytes"
+Chaffin@meta.data[Chaffin@meta.data$cell_type_leiden0.6 %in% c("Epicardial"), "new_cell_type"] = "Epicardial_cells"
+
+Chaffin$new_cell_type <- factor(Chaffin$new_cell_type, levels = c("Cardiomyocytes", 
+                                                        "Fibroblasts",
+                                                        "Endothelial_cells",
+                                                        "Pericytes",
+                                                        "Macrophages",
+                                                        "T_lymphocytes",
+                                                        "Smooth_muscle_cells",
+                                                        "Neuronal_cells",
+                                                        "Endocardial_cells",
+                                                        "Lymphatic_cells",
+                                                        "Mast_cells",
+                                                        "Adipocytes",
+                                                        "Epicardial_cells",
+                                                        "B_lymphocytes"))
+Idents(Chaffin) <- Chaffin$new_cell_type
+table(Chaffin$new_cell_type)
+```
+
+```{r add metadata Chaffin}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Chaffin_2022/Chaffin_et al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Chaffin[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Chaffin[[]])
+Chaffin <- AddMetaData(Chaffin, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+Chaffin$Group <- Chaffin$disease
+Chaffin$Sample <- Chaffin$donor_id
+```
+
+```{r}
+Chaffin <- subset(Chaffin, disease %in% c("NF", "DCM"))
+```
+
+```{r metadata Chaffin}
+metadata_Chaffin <- Chaffin@meta.data %>%
+  dplyr::select(Sample, Group, sex, age, lvef, Body_Mass_Index_kg_m2, Heart_Weight_g, Left_Ventricular_Mass_g, Left_Ventricular_Mass_Index_g_m2, Left_Ventricular_End_Systolic_Dimension_cm, Left_Ventricular_End_Diastolic_Dimension_cm, Posterior_Wall_Thickness_cm) %>%
+  unique()
+
+rownames(metadata_Chaffin) <- metadata_Chaffin$Sample
+
+reactable(metadata_Chaffin, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r DE Chaffin}
+# ---- settings ----
+celltype_col <- "new_cell_type"   # your identity column
+sample_col   <- "Sample"          # pseudobulk sample id
+group_col    <- "Group"           # DCM vs NF
+
+min_pct_cells_gene <- 1      # keep genes expressed in >1% of cells (within that cell type)
+min_libsize        <- 5e4    # keep samples with pseudobulk lib.size > 5e4
+fdr_thresh         <- 0.05
+lfc_thresh         <- 0.5
+
+out_dir <- here::here(output_dir_data, "DE_by_celltype_Chaffin")
+if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+
+# ---- containers ----
+celltypes <- levels(Chaffin[[celltype_col]][, 1])
+celltypes <- celltypes[!is.na(celltypes)]
+
+results_Chaffin <- vector("list", length(celltypes))
+signif_Chaffin  <- vector("list", length(celltypes))
+names(results_Chaffin) <- celltypes
+names(signif_Chaffin)  <- celltypes
+
+# optional: collect basic QC / status per celltype
+qc_Chaffin <- data.frame(
+  cell_type = celltypes,
+  n_cells = NA_integer_,
+  n_samples_kept = NA_integer_,
+  n_genes_tested = NA_integer_,
+  stringsAsFactors = FALSE
+)
+
+# ---- loop ----
+for (ct in celltypes) {
+  message("Running DE for cell type: ", ct)
+
+  # subset to one cell type
+  data_ct <- subset(Chaffin, subset = !!as.name(celltype_col) == ct)
+  qc_Chaffin$n_cells[qc_Chaffin$cell_type == ct] <- ncol(data_ct)
+
+  # if too few cells, skip
+  if (ncol(data_ct) < 100) {
+    warning("Skipping ", ct, " (too few cells: ", ncol(data_ct), ")")
+    next
+  }
+
+  # percent of cells expressing each gene (within this cell type)
+  expr_matrix <- GetAssayData(object = data_ct, assay = "RNA", slot = "counts")
+  non_zero_cells <- rowSums(expr_matrix > 0)
+  total_cells <- ncol(expr_matrix)
+  percent_cells <- (non_zero_cells / total_cells) * 100
+  percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+  keep_genes_pct <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+
+  # pseudobulk
+  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = celltype_col)
+  colnames(pb) <- pb$samples$sample
+
+  # keep genes based on % cells
+  pb <- pb[keep_genes_pct, ]
+
+  # keep samples by lib size
+  keep_samples <- pb$samples$lib.size > min_libsize
+  pb <- pb[, keep_samples, keep.lib.sizes = FALSE]
+  qc_Chaffin$n_samples_kept[qc_Chaffin$cell_type == ct] <- ncol(pb)
+
+  # if too few samples, skip
+  if (ncol(pb) < 10) {
+    warning("Skipping ", ct, " (too few samples after filtering: ", ncol(pb), ")")
+    next
+  }
+
+  # match metadata to pseudobulk samples
+  metadata_ct <- data_ct@meta.data %>%
+    dplyr::select(!!sample_col, !!group_col, sex, age, lvef, Body_Mass_Index_kg_m2, Heart_Weight_g, Left_Ventricular_Mass_g, Left_Ventricular_Mass_Index_g_m2, Left_Ventricular_End_Systolic_Dimension_cm, Left_Ventricular_End_Diastolic_Dimension_cm, Posterior_Wall_Thickness_cm) %>%
+    unique()
+  colnames(metadata_ct)[colnames(metadata_ct) == sample_col] <- "Sample"
+  rownames(metadata_ct) <- metadata_ct$Sample
+
+  metadata_ct <- metadata_ct[match(pb$samples$sample, metadata_ct$Sample), , drop = FALSE]
+
+  # sanity check
+  if (!all(metadata_ct$Sample == pb$samples$sample)) {
+    stop("Sample order mismatch for cell type: ", ct)
+  }
+
+  group <- factor(metadata_ct[[group_col]])
+  if (!all(c("DCM", "NF") %in% levels(group))) {
+    warning("Skipping ", ct, " (Group levels not as expected: ", paste(levels(group), collapse=", "), ")")
+    next
+  }
+
+  design <- model.matrix(~ 0 + group)
+  colnames(design) <- levels(group)
+
+  contrast <- makeContrasts(
+    DCM_vs_HC = DCM - NF,
+    levels = design
+  )
+
+  # edgeR pipeline (as in your code)
+  pb <- normLibSizes(pb)
+  pb <- estimateDisp(pb, design)
+
+  fit <- glmQLFit(pb, design, robust = TRUE)
+  fit <- glmQLFTest(fit, contrast = contrast)
+
+  results_ct <- topTags(fit, n = Inf)$table
+  results_ct$gene <- rownames(results_ct)
+
+  # merge percent expressed
+  results_ct <- merge(results_ct, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+
+  # up/down annotation (same thresholds as you used)
+  results_ct$diff_exp <- ifelse(
+    results_ct$logFC >  lfc_thresh & results_ct$FDR < fdr_thresh, "Increased",
+    ifelse(results_ct$logFC < -lfc_thresh & results_ct$FDR < fdr_thresh, "Decreased", "Not significant")
+  )
+
+  signif_ct <- results_ct %>%
+    dplyr::filter(FDR < fdr_thresh, abs(logFC) > lfc_thresh) %>%
+    dplyr::arrange(FDR)
+
+  qc_Chaffin$n_genes_tested[qc_Chaffin$cell_type == ct] <- nrow(results_ct)
+
+  # store in lists
+  results_Chaffin[[ct]] <- results_ct
+  signif_Chaffin[[ct]]  <- signif_ct
+
+  # write outputs
+  fn_all   <- file.path(out_dir, paste0("Results_DE_Chaffin_", ct, ".csv"))
+  fn_sig   <- file.path(out_dir, paste0("Signif_DE_Chaffin_", ct, ".csv"))
+  fn_qc    <- file.path(out_dir, paste0("QC_DE_Chaffin_", ct, ".txt"))
+
+  write.csv(results_ct, file = fn_all, quote = FALSE, row.names = FALSE)
+  write.csv(signif_ct,  file = fn_sig, quote = FALSE, row.names = FALSE)
+
+  # optional: small text QC log per celltype
+  cat(
+    paste0("cell_type: ", ct), "\n",
+    paste0("n_cells: ", ncol(data_ct)), "\n",
+    paste0("n_samples_kept: ", ncol(pb)), "\n",
+    paste0("n_genes_tested: ", nrow(results_ct)), "\n",
+    paste0("group_levels: ", paste(levels(group), collapse = ", ")), "\n",
+    file = fn_qc
+  )
+
+  # cleanup inside loop (keeps memory stable)
+  rm(data_ct, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
+     keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
+     fit, results_ct, signif_ct)
+  gc(verbose = FALSE)
+}
+
+# optional: write a summary table
+write.csv(qc_Chaffin, file = file.path(out_dir, "QC_summary_DE_Chaffin_all_celltypes.csv"),
+          quote = FALSE, row.names = FALSE)
+```
+
+
+## Merge results
+
+```{r}
+celltypes <- sort(unique(c(
+  names(results_Koenig),
+  names(results_Reichart),
+  names(results_Chaffin)
+)))
+
+pick_and_rename <- function(df, tag) {
+  df %>%
+    dplyr::select(gene, logFC, FDR, percentCells, diff_exp) %>%
+    dplyr::rename(
+      !!paste0("logFC_", tag)        := logFC,
+      !!paste0("FDR_", tag)          := FDR,
+      !!paste0("percentCells_", tag) := percentCells,
+      !!paste0("diff_exp_", tag)     := diff_exp
+    )
+}
+
+merged_results_all <- setNames(vector("list", length(celltypes)), celltypes)
+
+for (ct in celltypes) {
+  dfs <- list(
+    Koenig   = results_Koenig[[ct]],
+    Reichart = results_Reichart[[ct]],
+    Chaffin  = results_Chaffin[[ct]]
+  )
+
+  dfs <- purrr::imap(dfs, ~ if (is.null(.x)) NULL else pick_and_rename(.x, .y)) %>%
+    purrr::compact()
+
+  if (length(dfs) == 0) {
+    merged_results_all[[ct]] <- NULL
+    next
+  }
+
+  merged_ct <- purrr::reduce(dfs, dplyr::full_join, by = "gene")
+
+# enforce column order
+ordered_cols <- c(
+  "gene",
+  paste0("diff_exp_",    c("Koenig", "Reichart", "Chaffin")),
+  paste0("logFC_",        c("Koenig", "Reichart", "Chaffin")),
+  paste0("FDR_",          c("Koenig", "Reichart", "Chaffin")),
+  paste0("percentCells_",c("Koenig", "Reichart", "Chaffin"))
+  
+)
+
+merged_results_all[[ct]] <- merged_ct[, intersect(ordered_cols, colnames(merged_ct))]
+
+}
+```
+
+```{r}
+merged_results_df <- imap_dfr(
+  merged_results_all,
+  ~ if (is.null(.x)) NULL else
+      dplyr::mutate(.x, cell_type = .y, .after = gene)
+)
+
+write.csv(merged_results_df, file = here::here(output_dir_data, "Diff_exp_merged_results.csv"), quote=F, row.names = F)
+
+reactable(merged_results_df, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
