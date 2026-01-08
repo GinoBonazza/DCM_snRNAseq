@@ -170,6 +170,9 @@ if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 celltypes <- levels(Koenig[[celltype_col]][, 1])
 celltypes <- celltypes[!is.na(celltypes)]
 
+# add "All_cells" as an extra pseudo cell type (runs DE on all cells together)
+celltypes <- c("All_cells", celltypes)
+
 results_Koenig <- vector("list", length(celltypes))
 signif_Koenig  <- vector("list", length(celltypes))
 names(results_Koenig) <- celltypes
@@ -188,9 +191,18 @@ qc_Koenig <- data.frame(
 for (ct in celltypes) {
   message("Running DE for cell type: ", ct)
 
-  # subset to one cell type
-  data_ct <- subset(Koenig, subset = !!as.name(celltype_col) == ct)
+  # subset to one cell type (special case: All_cells)
+  if (ct == "All_cells") {
+    data_ct <- Koenig
+    data_ct$celltype_all <- "All_cells"   # constant label for pseudobulk "cluster"
+    ct_cluster_col <- "celltype_all"
+  } else {
+    data_ct <- subset(Koenig, subset = !!as.name(celltype_col) == ct)
+    ct_cluster_col <- celltype_col
+  }
+
   qc_Koenig$n_cells[qc_Koenig$cell_type == ct] <- ncol(data_ct)
+
 
   # if too few cells, skip
   if (ncol(data_ct) < 100) {
@@ -208,7 +220,7 @@ for (ct in celltypes) {
   keep_genes_pct <- rownames(dplyr::filter(percent_stats, percentCells > 1))
 
   # pseudobulk
-  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = celltype_col)
+  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = ct_cluster_col)
   colnames(pb) <- pb$samples$sample
 
   # keep genes based on % cells
@@ -301,9 +313,10 @@ for (ct in celltypes) {
   )
 
   # cleanup inside loop (keeps memory stable)
-  rm(data_ct, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
-     keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
-     fit, results_ct, signif_ct)
+  rm(data_ct, ct_cluster_col, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
+   keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
+   fit, results_ct, signif_ct)
+
   gc(verbose = FALSE)
 }
 
@@ -408,6 +421,9 @@ if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 celltypes <- levels(Reichart[[celltype_col]][, 1])
 celltypes <- celltypes[!is.na(celltypes)]
 
+# add "All_cells" as an extra pseudo cell type (runs DE on all cells together)
+celltypes <- c("All_cells", celltypes)
+
 results_Reichart <- vector("list", length(celltypes))
 signif_Reichart  <- vector("list", length(celltypes))
 names(results_Reichart) <- celltypes
@@ -426,9 +442,18 @@ qc_Reichart <- data.frame(
 for (ct in celltypes) {
   message("Running DE for cell type: ", ct)
 
-  # subset to one cell type
-  data_ct <- subset(Reichart, subset = !!as.name(celltype_col) == ct)
-  qc_Reichart$n_cells[qc_Reichart$cell_type == ct] <- ncol(data_ct)
+  # subset to one cell type (special case: All_cells)
+  if (ct == "All_cells") {
+  data_ct <- Reichart
+    data_ct$celltype_all <- "All_cells"   # constant label for pseudobulk "cluster"
+    ct_cluster_col <- "celltype_all"
+  } else {
+    data_ct <- subset(Reichart, subset = !!as.name(celltype_col) == ct)
+    ct_cluster_col <- celltype_col
+  }
+
+qc_Reichart$n_cells[qc_Reichart$cell_type == ct] <- ncol(data_ct)
+
 
   # if too few cells, skip
   if (ncol(data_ct) < 100) {
@@ -446,7 +471,7 @@ for (ct in celltypes) {
   keep_genes_pct <- rownames(dplyr::filter(percent_stats, percentCells > 1))
 
   # pseudobulk
-  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = celltype_col)
+  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = ct_cluster_col)
   colnames(pb) <- pb$samples$sample
 
   # keep genes based on % cells
@@ -539,9 +564,9 @@ for (ct in celltypes) {
   )
 
   # cleanup inside loop (keeps memory stable)
-  rm(data_ct, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
-     keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
-     fit, results_ct, signif_ct)
+  rm(data_ct, ct_cluster_col, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
+   keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
+   fit, results_ct, signif_ct)
   gc(verbose = FALSE)
 }
 
@@ -641,6 +666,9 @@ if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 celltypes <- levels(Chaffin[[celltype_col]][, 1])
 celltypes <- celltypes[!is.na(celltypes)]
 
+# add "All_cells" as an extra pseudo cell type (runs DE on all cells together)
+celltypes <- c("All_cells", celltypes)
+
 results_Chaffin <- vector("list", length(celltypes))
 signif_Chaffin  <- vector("list", length(celltypes))
 names(results_Chaffin) <- celltypes
@@ -659,9 +687,17 @@ qc_Chaffin <- data.frame(
 for (ct in celltypes) {
   message("Running DE for cell type: ", ct)
 
-  # subset to one cell type
-  data_ct <- subset(Chaffin, subset = !!as.name(celltype_col) == ct)
-  qc_Chaffin$n_cells[qc_Chaffin$cell_type == ct] <- ncol(data_ct)
+  # subset to one cell type (special case: All_cells)
+  if (ct == "All_cells") {
+    data_ct <- Chaffin
+    data_ct$celltype_all <- "All_cells"   # constant label for pseudobulk "cluster"
+    ct_cluster_col <- "celltype_all"
+  } else {
+    data_ct <- subset(Chaffin, subset = !!as.name(celltype_col) == ct)
+    ct_cluster_col <- celltype_col
+  }
+
+qc_Chaffin$n_cells[qc_Chaffin$cell_type == ct] <- ncol(data_ct)
 
   # if too few cells, skip
   if (ncol(data_ct) < 100) {
@@ -679,7 +715,7 @@ for (ct in celltypes) {
   keep_genes_pct <- rownames(dplyr::filter(percent_stats, percentCells > 1))
 
   # pseudobulk
-  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = celltype_col)
+  pb <- Seurat2PB(data_ct, sample = sample_col, cluster = ct_cluster_col)
   colnames(pb) <- pb$samples$sample
 
   # keep genes based on % cells
@@ -772,9 +808,9 @@ for (ct in celltypes) {
   )
 
   # cleanup inside loop (keeps memory stable)
-  rm(data_ct, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
-     keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
-     fit, results_ct, signif_ct)
+  rm(data_ct, ct_cluster_col, expr_matrix, non_zero_cells, total_cells, percent_cells, percent_stats,
+   keep_genes_pct, pb, keep_samples, metadata_ct, group, design, contrast,
+   fit, results_ct, signif_ct)
   gc(verbose = FALSE)
 }
 
