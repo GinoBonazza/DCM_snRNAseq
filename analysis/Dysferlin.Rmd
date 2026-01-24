@@ -27,7 +27,6 @@ current_file <- "Dysferlin"
 library(here)
 library(readr)
 library(readxl)
-library(xlsx)
 library(Seurat)
 library(DropletUtils)
 library(Matrix)
@@ -52,7 +51,6 @@ library(ggplot2)
 library(scater)
 library(patchwork)
 library(statmod)
-library(ArchR)
 library(clustree)
 library(harmony)
 library(gprofiler2)
@@ -74,9 +72,8 @@ library(UpSetR)
 library(ComplexHeatmap)
 library(rtracklayer)
 library(cowplot)
-library(nichenetr)
-library(multinichenetr)
-library(muscat)
+library(anndata)
+library(reticulate)
 
 
 #Output paths
@@ -106,7 +103,7 @@ Idents(Reichart) <- Reichart$cell_type
 ```
 
 ```{r add metadata Reichart}
-Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+Clinical_data <- readxl::read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
 add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
 row.names(add_metadata) <- row.names(Reichart[[]])
 Reichart <- AddMetaData(Reichart, metadata = add_metadata)
@@ -133,12 +130,40 @@ FeaturePlot_scCustom(Reichart, features = "DYSF")+
   theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold"))
 ```
 
+```{r p_fR, fig.width=4, fig.height=4}
+p_fR <- FeaturePlot_scCustom(Reichart, features = "DYSF", pt.size = 2, order=T)+ 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), plot.title = element_blank())
+
+p_fR <- p_fR +
+  NoLegend() +
+  xlab("UMAP_1") +
+  ylab("UMAP_2") +
+  theme(
+    plot.margin = margin(t = 12, r = 5, b = 5, l = 5)
+  )
+p_fR
+```
+
 ```{r, fig.width=5, fig.height=5}
 p <- DimPlot(Reichart, group.by = "cell_type", reduction = "umap", label = F) + 
   NoLegend() + 
   theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
   theme(plot.title = element_blank())
 LabelClusters(p, id = "cell_type", fontface = "bold", size = 4.5, repel = T)
+```
+
+```{r p_uR, fig.width=4, fig.height=4}
+p_uR <- DimPlot(Reichart, group.by = "cell_type", reduction = "umap", label = F) +  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), plot.title = element_blank())
+
+p_uR <- p_uR +
+  NoLegend() +
+  xlab("UMAP_1") +
+  ylab("UMAP_2") +
+  theme(
+    plot.margin = margin(t = 12, r = 5, b = 5, l = 5)
+  )
+LabelClusters(p_uR, id = "cell_type", fontface = "bold", size = 4, repel = T)
 ```
 
 ```{r}
@@ -333,6 +358,125 @@ p_stack <- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
 print(p_stack)
 ```
 
+```{r pb_DYSF_selected_ct, fig.width=6, fig.height=3}
+# ---- pseudobulk (same as before) ----
+pb_ct <- Seurat2PB(Reichart, sample = "Sample", cluster = "cell_type")
+
+keep_cols <- pb_ct$samples$lib.size > 5e4
+pb_ct <- pb_ct[, keep_cols, keep.lib.sizes = FALSE]
+
+pb_ct <- edgeR::normLibSizes(pb_ct)
+logcpm_ct <- edgeR::cpm(pb_ct, log = TRUE)
+
+col_annot <- pb_ct$samples %>%
+  dplyr::transmute(Sample = .data$sample, cell_type = .data$cluster) %>%
+  dplyr::left_join(metadata, by = "Sample")
+
+colnames(logcpm_ct) <- paste(col_annot$Sample, col_annot$cell_type, sep = "::")
+
+counts_ct <- pb_ct$counts
+
+# ---- subset to selected cell types ----
+selected_ct <- c("cardiac muscle cell", "endothelial cell", "fibroblast of cardiac tissue")
+
+col_keep <- col_annot$cell_type %in% selected_ct
+logcpm_ct_sub <- logcpm_ct[, col_keep, drop = FALSE]
+counts_ct_sub <- counts_ct[, col_keep, drop = FALSE]
+col_annot_sub <- col_annot[col_keep, , drop = FALSE]
+
+# ---- genes of interest + detection filter (same logic) ----
+min_detect <- 10
+
+present_genes <- intersect(goi, rownames(counts_ct_sub))
+missing_genes <- setdiff(goi, rownames(counts_ct_sub))
+if (length(missing_genes) > 0) {
+  message("Warning: not found in pseudobulk matrix -> ", paste(missing_genes, collapse = ", "))
+}
+stopifnot(length(present_genes) > 0)
+
+det_tbl <- lapply(present_genes, function(g) {
+  data.frame(
+    cell_type = col_annot_sub$cell_type,
+    detected  = as.integer(counts_ct_sub[g, ] > 0)
+  ) |>
+    dplyr::group_by(cell_type) |>
+    dplyr::summarise(n_detect = sum(detected), .groups = "drop") |>
+    dplyr::mutate(gene = g)
+}) |>
+  dplyr::bind_rows()
+
+keep_pairs <- det_tbl |>
+  dplyr::filter(n_detect >= min_detect) |>
+  dplyr::transmute(key = paste(cell_type, gene, sep = "||")) |>
+  dplyr::pull(key)
+
+expr_long_ct_sel <- logcpm_ct_sub[present_genes, , drop = FALSE] |>
+  t() |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "col_id") |>
+  dplyr::mutate(
+    Sample    = sub("::.*$", "", col_id),
+    cell_type = sub("^.*::", "", col_id)
+  ) |>
+  dplyr::left_join(metadata, by = "Sample") |>
+  tidyr::pivot_longer(cols = all_of(present_genes),
+                      names_to = "gene", values_to = "logCPM") |>
+  dplyr::mutate(
+    key       = paste(cell_type, gene, sep = "||"),
+    keep      = key %in% keep_pairs,
+    Group     = factor(Group, levels = c("HC", "DCM")),
+    # keep your gene order and a nice facet order for cell types
+    gene      = factor(gene, levels = goi),
+    cell_type = factor(cell_type, levels = selected_ct)
+  ) |>
+  dplyr::filter(keep) |>
+  dplyr::select(-keep, -key) |>
+  droplevels()
+
+# ---- plotting function (same style, fewer facets) ----
+make_gene_plot_sel <- function(df, g, base_size = 11) {
+  df_g <- df %>% dplyr::filter(gene == g)
+
+  ggplot(df_g, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.7) +
+    geom_jitter(aes(color = Group), width = 0.12, height = 0, size = 1.8, alpha = 0.9) +
+    ggpubr::stat_compare_means(
+      method = "wilcox.test",
+      comparisons = list(c("HC","DCM")),
+      label = "p.format",
+      label.y.npc = 0.98,
+      vjust = 0,
+      size = 3
+    ) +
+    facet_wrap(~ cell_type, ncol = 3, scales = "free_y") +
+    labs(x = NULL, y = "logCPM",
+         title = paste("Reichart et al. 2022")) +
+    scale_fill_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_color_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.25))) +
+    coord_cartesian(clip = "off") +
+    theme_bw(base_size = base_size) +
+    theme(
+      axis.text.x = element_text(face="bold", size = 10),
+      panel.grid.major.x = element_blank(),
+      legend.position = "none",
+      strip.text = element_text(face = "bold"),
+      strip.background = element_rect(fill = "grey95"),
+      plot.margin = margin(4, 12, 4, 8)
+    )
+}
+
+genes_to_plot <- intersect(levels(expr_long_ct_sel$gene), goi)
+
+plots_sel <- lapply(genes_to_plot, function(g) make_gene_plot_sel(expr_long_ct_sel, g))
+
+# proportional heights (now always 1 facet row per gene: 3 cell types, ncol=3)
+heights_vec <- rep(1, length(plots_sel))
+
+p_stack_sel_R <- wrap_plots(plots_sel, ncol = 1) + plot_layout(heights = heights_vec)
+print(p_stack_sel_R)
+```
+
 ## Chaffin
 
 Load seurat object
@@ -375,9 +519,18 @@ table(unique(dplyr::select(Chaffin@meta.data, c("disease", "donor_id")))$disease
 VlnPlot_scCustom(Chaffin, features="DYSF", group.by="cell_type", num_columns=1, pt.size = 0) & theme(axis.title.x = element_blank()) + NoLegend()
 ```
 
-```{r, fig.width=5, fig.height=5}
-FeaturePlot_scCustom(Chaffin, features = "DYSF")+ 
-  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold"))
+```{r p_fC, fig.width=4, fig.height=4}
+p_fC <- FeaturePlot_scCustom(Chaffin, features = "DYSF", pt.size = 2, order=T)+ 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), plot.title = element_blank())
+
+p_fC <- p_fC +
+  NoLegend() +
+  xlab("UMAP_1") +
+  ylab("UMAP_2") +
+  theme(
+    plot.margin = margin(t = 12, r = 5, b = 5, l = 5)
+  )
+p_fC
 ```
 
 ```{r, fig.width=5, fig.height=5}
@@ -386,6 +539,20 @@ p <- DimPlot(Chaffin, group.by = "cell_type", label = F) +
   theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
   theme(plot.title = element_blank())
 LabelClusters(p, id = "cell_type", fontface = "bold", size = 4.5, repel = T)
+```
+
+```{r p_uC, fig.width=4, fig.height=4}
+p_uC <- DimPlot(Chaffin, group.by = "cell_type", reduction = "X_umap", label = F) +  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), plot.title = element_blank())
+
+p_uC <- p_uC +
+  NoLegend() +
+  xlab("UMAP_1") +
+  ylab("UMAP_2") +
+  theme(
+    plot.margin = margin(t = 12, r = 5, b = 5, l = 5)
+  )
+LabelClusters(p_uC, id = "cell_type", fontface = "bold", size = 4, repel = T)
 ```
 
 ```{r}
@@ -495,7 +662,7 @@ wilcox_ct <- expr_long_ct |>
   dplyr::mutate(p_adj_BH_within_gene = p.adjust(p_wilcox, method = "BH")) |>
   dplyr::ungroup()
 
-readr::write_csv(wilcox_ct, "Chaffin_wilcox.csv")
+readr::write_csv(wilcox_ct,  here::here(output_dir_data, "Chaffin_wilcox.csv"))
 
 # genes to plot (preserve your order)
 genes_to_plot <- intersect(levels(expr_long_ct$gene), goi)
@@ -517,6 +684,125 @@ p_stack <- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
 print(p_stack)
 ```
 
+```{r pb_DYSF_selected_ct_C, fig.width=6, fig.height=3}
+# ---- pseudobulk (same as before) ----
+pb_ct <- Seurat2PB(Chaffin, sample = "Sample", cluster = "cell_type")
+
+keep_cols <- pb_ct$samples$lib.size > 5e4
+pb_ct <- pb_ct[, keep_cols, keep.lib.sizes = FALSE]
+
+pb_ct <- edgeR::normLibSizes(pb_ct)
+logcpm_ct <- edgeR::cpm(pb_ct, log = TRUE)
+
+col_annot <- pb_ct$samples %>%
+  dplyr::transmute(Sample = .data$sample, cell_type = .data$cluster) %>%
+  dplyr::left_join(metadata, by = "Sample")
+
+colnames(logcpm_ct) <- paste(col_annot$Sample, col_annot$cell_type, sep = "::")
+
+counts_ct <- pb_ct$counts
+
+# ---- subset to selected cell types ----
+selected_ct <- c("Cardiomyocyte", "Endothelial", "Fibroblast")
+
+col_keep <- col_annot$cell_type %in% selected_ct
+logcpm_ct_sub <- logcpm_ct[, col_keep, drop = FALSE]
+counts_ct_sub <- counts_ct[, col_keep, drop = FALSE]
+col_annot_sub <- col_annot[col_keep, , drop = FALSE]
+
+# ---- genes of interest + detection filter (same logic) ----
+min_detect <- 10
+
+present_genes <- intersect(goi, rownames(counts_ct_sub))
+missing_genes <- setdiff(goi, rownames(counts_ct_sub))
+if (length(missing_genes) > 0) {
+  message("Warning: not found in pseudobulk matrix -> ", paste(missing_genes, collapse = ", "))
+}
+stopifnot(length(present_genes) > 0)
+
+det_tbl <- lapply(present_genes, function(g) {
+  data.frame(
+    cell_type = col_annot_sub$cell_type,
+    detected  = as.integer(counts_ct_sub[g, ] > 0)
+  ) |>
+    dplyr::group_by(cell_type) |>
+    dplyr::summarise(n_detect = sum(detected), .groups = "drop") |>
+    dplyr::mutate(gene = g)
+}) |>
+  dplyr::bind_rows()
+
+keep_pairs <- det_tbl |>
+  dplyr::filter(n_detect >= min_detect) |>
+  dplyr::transmute(key = paste(cell_type, gene, sep = "||")) |>
+  dplyr::pull(key)
+
+expr_long_ct_sel <- logcpm_ct_sub[present_genes, , drop = FALSE] |>
+  t() |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "col_id") |>
+  dplyr::mutate(
+    Sample    = sub("::.*$", "", col_id),
+    cell_type = sub("^.*::", "", col_id)
+  ) |>
+  dplyr::left_join(metadata, by = "Sample") |>
+  tidyr::pivot_longer(cols = all_of(present_genes),
+                      names_to = "gene", values_to = "logCPM") |>
+  dplyr::mutate(
+    key       = paste(cell_type, gene, sep = "||"),
+    keep      = key %in% keep_pairs,
+    Group     = factor(Group, levels = c("HC", "DCM")),
+    # keep your gene order and a nice facet order for cell types
+    gene      = factor(gene, levels = goi),
+    cell_type = factor(cell_type, levels = selected_ct)
+  ) |>
+  dplyr::filter(keep) |>
+  dplyr::select(-keep, -key) |>
+  droplevels()
+
+# ---- plotting function (same style, fewer facets) ----
+make_gene_plot_sel <- function(df, g, base_size = 11) {
+  df_g <- df %>% dplyr::filter(gene == g)
+
+  ggplot(df_g, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.7) +
+    geom_jitter(aes(color = Group), width = 0.12, height = 0, size = 1.8, alpha = 0.9) +
+    ggpubr::stat_compare_means(
+      method = "wilcox.test",
+      comparisons = list(c("HC","DCM")),
+      label = "p.format",
+      label.y.npc = 0.98,
+      vjust = 0,
+      size = 3
+    ) +
+    facet_wrap(~ cell_type, ncol = 3, scales = "free_y") +
+    labs(x = NULL, y = "logCPM",
+         title = paste("Chaffin et al. 2022")) +
+    scale_fill_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_color_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.25))) +
+    coord_cartesian(clip = "off") +
+    theme_bw(base_size = base_size) +
+    theme(
+      axis.text.x = element_text(face="bold", size = 10),
+      panel.grid.major.x = element_blank(),
+      legend.position = "none",
+      strip.text = element_text(face = "bold"),
+      strip.background = element_rect(fill = "grey95"),
+      plot.margin = margin(4, 12, 4, 8)
+    )
+}
+
+genes_to_plot <- intersect(levels(expr_long_ct_sel$gene), goi)
+
+plots_sel <- lapply(genes_to_plot, function(g) make_gene_plot_sel(expr_long_ct_sel, g))
+
+# proportional heights (now always 1 facet row per gene: 3 cell types, ncol=3)
+heights_vec <- rep(1, length(plots_sel))
+
+p_stack_sel_C <- wrap_plots(plots_sel, ncol = 1) + plot_layout(heights = heights_vec)
+print(p_stack_sel_C)
+```
+
 ## Koenig
 
 Load seurat object
@@ -533,7 +819,7 @@ Idents(Koenig) <- Koenig$cell_type
 ```
 
 ```{r add_metadata Koenig}
-Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx")
+Clinical_data <- readxl::read_excel("/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx")
 add_metadata <- left_join(Koenig[["orig.ident"]], Clinical_data)
 row.names(add_metadata) <- row.names(Koenig[[]])
 Koenig <- AddMetaData(Koenig, metadata = add_metadata)
@@ -554,12 +840,39 @@ FeaturePlot_scCustom(Koenig, features = "DYSF")+
   theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold"))
 ```
 
+```{r p_fK, fig.width=4, fig.height=4}
+p_fK <- FeaturePlot_scCustom(Koenig, features = "DYSF", pt.size = 2, order=T)+ 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), plot.title = element_blank())
+
+p_fK <- p_fK +
+  NoLegend() +
+  xlab("UMAP_1") +
+  ylab("UMAP_2") +
+  theme(
+    plot.margin = margin(t = 12, r = 5, b = 5, l = 5)
+  )
+p_fK
+```
 ```{r, fig.width=5, fig.height=5}
 p <- DimPlot(Koenig, group.by = "cell_type", label = F) + 
   NoLegend() + 
   theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
   theme(plot.title = element_blank())
 LabelClusters(p, id = "cell_type", fontface = "bold", size = 4.5, repel = T)
+```
+
+```{r p_uK, fig.width=4, fig.height=4}
+p_uK <- DimPlot(Koenig, group.by = "cell_type", reduction = "umap", label = F) +  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), plot.title = element_blank())
+
+p_uK <- p_uK +
+  NoLegend() +
+  xlab("UMAP_1") +
+  ylab("UMAP_2") +
+  theme(
+    plot.margin = margin(t = 12, r = 5, b = 5, l = 5)
+  )
+LabelClusters(p_uK, id = "cell_type", fontface = "bold", size = 4, repel = T)
 ```
 
 ```{r}
@@ -669,7 +982,7 @@ wilcox_ct <- expr_long_ct |>
   dplyr::mutate(p_adj_BH_within_gene = p.adjust(p_wilcox, method = "BH")) |>
   dplyr::ungroup()
 
-readr::write_csv(wilcox_ct, "Koenig_wilcox.csv")
+readr::write_csv(wilcox_ct,  here::here(output_dir_data, "Koenig_wilcox.csv"))
 
 # genes to plot (preserve your order)
 genes_to_plot <- intersect(levels(expr_long_ct$gene), goi)
@@ -689,5 +1002,197 @@ heights_vec <- rows_per_gene / sum(rows_per_gene)
 # stack with proportional heights
 p_stack <- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
 print(p_stack)
+```
+
+```{r pb_DYSF_selected_ct_K, fig.width=6, fig.height=3}
+# ---- pseudobulk (same as before) ----
+pb_ct <- Seurat2PB(Koenig, sample = "Sample", cluster = "cell_type")
+
+keep_cols <- pb_ct$samples$lib.size > 5e4
+pb_ct <- pb_ct[, keep_cols, keep.lib.sizes = FALSE]
+
+pb_ct <- edgeR::normLibSizes(pb_ct)
+logcpm_ct <- edgeR::cpm(pb_ct, log = TRUE)
+
+col_annot <- pb_ct$samples %>%
+  dplyr::transmute(Sample = .data$sample, cell_type = .data$cluster) %>%
+  dplyr::left_join(metadata, by = "Sample")
+
+colnames(logcpm_ct) <- paste(col_annot$Sample, col_annot$cell_type, sep = "::")
+
+counts_ct <- pb_ct$counts
+
+# ---- subset to selected cell types ----
+selected_ct <- c("Cardiomyocytes", "Endothelium", "Fibroblasts")
+
+col_keep <- col_annot$cell_type %in% selected_ct
+logcpm_ct_sub <- logcpm_ct[, col_keep, drop = FALSE]
+counts_ct_sub <- counts_ct[, col_keep, drop = FALSE]
+col_annot_sub <- col_annot[col_keep, , drop = FALSE]
+
+# ---- genes of interest + detection filter (same logic) ----
+min_detect <- 10
+
+present_genes <- intersect(goi, rownames(counts_ct_sub))
+missing_genes <- setdiff(goi, rownames(counts_ct_sub))
+if (length(missing_genes) > 0) {
+  message("Warning: not found in pseudobulk matrix -> ", paste(missing_genes, collapse = ", "))
+}
+stopifnot(length(present_genes) > 0)
+
+det_tbl <- lapply(present_genes, function(g) {
+  data.frame(
+    cell_type = col_annot_sub$cell_type,
+    detected  = as.integer(counts_ct_sub[g, ] > 0)
+  ) |>
+    dplyr::group_by(cell_type) |>
+    dplyr::summarise(n_detect = sum(detected), .groups = "drop") |>
+    dplyr::mutate(gene = g)
+}) |>
+  dplyr::bind_rows()
+
+keep_pairs <- det_tbl |>
+  dplyr::filter(n_detect >= min_detect) |>
+  dplyr::transmute(key = paste(cell_type, gene, sep = "||")) |>
+  dplyr::pull(key)
+
+expr_long_ct_sel <- logcpm_ct_sub[present_genes, , drop = FALSE] |>
+  t() |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "col_id") |>
+  dplyr::mutate(
+    Sample    = sub("::.*$", "", col_id),
+    cell_type = sub("^.*::", "", col_id)
+  ) |>
+  dplyr::left_join(metadata, by = "Sample") |>
+  tidyr::pivot_longer(cols = all_of(present_genes),
+                      names_to = "gene", values_to = "logCPM") |>
+  dplyr::mutate(
+    key       = paste(cell_type, gene, sep = "||"),
+    keep      = key %in% keep_pairs,
+    Group     = factor(Group, levels = c("HC", "DCM")),
+    # keep your gene order and a nice facet order for cell types
+    gene      = factor(gene, levels = goi),
+    cell_type = factor(cell_type, levels = selected_ct)
+  ) |>
+  dplyr::filter(keep) |>
+  dplyr::select(-keep, -key) |>
+  droplevels()
+
+# ---- plotting function (same style, fewer facets) ----
+make_gene_plot_sel <- function(df, g, base_size = 11) {
+  df_g <- df %>% dplyr::filter(gene == g)
+
+  ggplot(df_g, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.7) +
+    geom_jitter(aes(color = Group), width = 0.12, height = 0, size = 1.8, alpha = 0.9) +
+    ggpubr::stat_compare_means(
+      method = "wilcox.test",
+      comparisons = list(c("HC","DCM")),
+      label = "p.format",
+      label.y.npc = 0.98,
+      vjust = 0,
+      size = 3
+    ) +
+    facet_wrap(~ cell_type, ncol = 3, scales = "free_y") +
+    labs(x = NULL, y = "logCPM",
+         title = paste("Koenig et al. 2022")) +
+    scale_fill_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_color_manual(values = c(HC = "#4C78A8", DCM = "#F58518")) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.25))) +
+    coord_cartesian(clip = "off") +
+    theme_bw(base_size = base_size) +
+    theme(
+      axis.text.x = element_text(face="bold", size = 10),
+      panel.grid.major.x = element_blank(),
+      legend.position = "none",
+      strip.text = element_text(face = "bold"),
+      strip.background = element_rect(fill = "grey95"),
+      plot.margin = margin(4, 12, 4, 8)
+    )
+}
+
+genes_to_plot <- intersect(levels(expr_long_ct_sel$gene), goi)
+
+plots_sel <- lapply(genes_to_plot, function(g) make_gene_plot_sel(expr_long_ct_sel, g))
+
+# proportional heights (now always 1 facet row per gene: 3 cell types, ncol=3)
+heights_vec <- rep(1, length(plots_sel))
+
+p_stack_sel_K <- wrap_plots(plots_sel, ncol = 1) + plot_layout(heights = heights_vec)
+print(p_stack_sel_K)
+```
+
+## Litvinukova
+
+Load seurat object
+
+```{r Import Litvinukova}
+#library(SeuratDisk)
+
+#Convert(
+#  "/scratch/gbonaz/Heart_datasets/Litvinukova_2020/Global_raw.h5ad",
+#  dest = "h5seurat",
+#  overwrite = TRUE
+#)
+
+#Litvinukova <- LoadH5Seurat(
+#  "/scratch/gbonaz/Heart_datasets/Litvinukova_2020/Global_raw.h5seurat",
+#  images = FALSE
+#)
+
+#saveRDS(Litvinukova, "/scratch/gbonaz/Heart_datasets/Litvinukova_2020/Litvinukova.rds")
+
+Litvinukova <- readRDS("/scratch/gbonaz/Heart_datasets/Litvinukova_2020/Litvinukova.rds")
+
+
+DefaultAssay(Litvinukova) <- "RNA"
+Litvinukova <- NormalizeData(Litvinukova)
+
+Idents(Litvinukova) <- Litvinukova$cell_type
+```
+
+```{r p_fL, fig.width=4, fig.height=4}
+p_fL <- FeaturePlot_scCustom(Litvinukova, features = "DYSF", pt.size = 2, order=T)+ 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), plot.title = element_blank())
+
+p_fL <- p_fL +
+  NoLegend() +
+  xlab("UMAP_1") +
+  ylab("UMAP_2") +
+  theme(
+    plot.margin = margin(t = 12, r = 5, b = 5, l = 5)
+  )
+p_fL
+```
+
+```{r p_uL, fig.width=4, fig.height=4}
+p_uL <- DimPlot(Litvinukova, group.by = "cell_type", reduction = "umap", label = F) +  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), plot.title = element_blank())
+
+p_uL <- p_uL +
+  NoLegend() +
+  xlab("UMAP_1") +
+  ylab("UMAP_2") +
+  theme(
+    plot.margin = margin(t = 12, r = 5, b = 5, l = 5)
+  )
+LabelClusters(p_uL, id = "cell_type", fontface = "bold", size = 4, repel = T)
+```
+
+## New plots
+
+```{r, fig.height=8, fig.width=12}
+(p_fC | p_fR | p_fK) /
+              (LabelClusters(p_uC, id = "cell_type", fontface = "bold", size = 4, repel = T) | LabelClusters(p_uR, id = "cell_type", fontface = "bold", size = 4, repel = T) | LabelClusters(p_uK, id = "cell_type", fontface = "bold", size = 4, repel = T))
+```
+
+```{r, fig.height=8, fig.width=4}
+(p_fL) /
+(LabelClusters(p_uL, id = "cell_type", fontface = "bold", size = 4, repel = T))
+```
+
+```{r pb_DYSF_selected_ct_all, fig.width=6, fig.height=9}
+p_stack_sel_C / p_stack_sel_R / p_stack_sel_K
 ```
 
