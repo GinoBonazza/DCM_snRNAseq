@@ -889,3 +889,53 @@ reactable(merged_results_df,
           showPageSizeOptions = TRUE)
 ```
 
+```{r}
+library(survcomp)
+
+min_studies <- 1  
+
+meta_combined_results <- merged_results_df %>%
+  group_by(cell_type) %>%
+  group_modify(~{
+    lfc_cols <- grep("^logFC_", names(.x), value = TRUE)
+    fdr_cols <- grep("^FDR_",  names(.x), value = TRUE)
+    percent_cols <- grep("^percentCells_", names(.x), value = TRUE)
+
+    mean_logFC <- rowMeans(.x[, lfc_cols, drop = FALSE], na.rm = TRUE)
+    mean_percentCells <- rowMeans(.x[, percent_cols, drop = FALSE], na.rm = TRUE)
+
+    n_studies <- rowSums(!is.na(.x[, fdr_cols, drop = FALSE]))
+
+    combined_p <- apply(.x[, fdr_cols, drop = FALSE], 1, function(p) {
+      p <- as.numeric(p)
+      p <- p[!is.na(p)]
+      if (length(p) < min_studies) return(NA_real_)  
+      survcomp::combine.test(p, method = "fisher", na.rm = TRUE) 
+    })
+
+    meta_q <- p.adjust(combined_p, method = "BH")
+
+    tibble(
+      gene = .x$gene,
+      n_studies = n_studies,
+      mean_logFC = mean_logFC,
+      fishher_p = combined_p,
+      fishher_fdr = meta_q,
+      mean_percentCells = mean_percentCells
+    )
+  }) %>%
+  ungroup()
+
+write.csv(meta_combined_results, file = here::here(output_dir_data, "Diff_exp_meta_conbined_results.csv"), quote=F, row.names = F)
+
+reactable(meta_combined_results, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+
+
+
+
+
