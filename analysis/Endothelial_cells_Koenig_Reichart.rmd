@@ -1,0 +1,1544 @@
+---
+title: "Endothelial cells DCM vs HC"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Endothelial_cells_Koenig_Reichart"
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(gprofiler2)
+library(SeuratDisk)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(edgeR)
+library(EnhancedVolcano)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
+library(ComplexHeatmap)
+library(msigdbr)
+library(simplifyEnrichment)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+library(cowplot)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+## Koenig 2022
+
+```{r Import Koenig}
+load("/scratch/gbonaz/Heart_datasets/Koenig_2022/GSE183852_DCM_Nuclei.Robj")
+```
+
+```{r subset Koenig}
+Koenig_EC <- subset(nuclei, Names %in% c("Endothelium"))
+```
+
+```{r add metadata Koenig}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Koenig_2022/Koenig_et_al_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Koenig_EC[["orig.ident"]], Clinical_data)
+row.names(add_metadata) <- row.names(Koenig_EC[[]])
+Koenig_EC <- AddMetaData(Koenig_EC, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+```
+
+```{r metadata Koenig}
+metadata_Koenig <- Koenig_EC@meta.data %>%
+  dplyr::select(orig.ident, Age, Sex, Condition, Pre_Op_EF, Pre_Op_CO_L_min, HTN) %>%
+  unique()
+
+rownames(metadata_Koenig) <- metadata_Koenig$orig.ident
+
+reactable(metadata_Koenig, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r pseudocounts Koenig}
+expr_matrix <- GetAssayData(object = Koenig_EC, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- Koenig_EC[which(rownames(Koenig_EC) %in% keep_genes),]
+
+pseudocounts_Koenig <- Seurat2PB(data, sample="orig.ident", cluster = "Names")
+colnames(pseudocounts_Koenig) <- pseudocounts_Koenig$samples$sample
+pseudocounts_Koenig <- pseudocounts_Koenig[, match(metadata_Koenig$orig.ident, pseudocounts_Koenig$samples$sample)]
+all(metadata_Koenig$orig.ident == pseudocounts_Koenig$samples$sample)
+
+keep_samples <- pseudocounts_Koenig$samples$lib.size > 5e4
+pseudocounts_Koenig <- pseudocounts_Koenig[, keep_samples]
+
+metadata_Koenig$Condition <- factor(metadata_Koenig$Condition, levels = c("Donor", "DCM"))
+design<- model.matrix(~ Condition, data = metadata_Koenig)
+
+keep_genes <- filterByExpr(pseudocounts_Koenig, design = design)
+pseudocounts_Koenig <- pseudocounts_Koenig[keep_genes, ]
+
+pseudocounts_Koenig <- normLibSizes(pseudocounts_Koenig)
+counts_Koenig <- edgeR::cpm(pseudocounts_Koenig, log = TRUE)
+
+pseudocounts_Koenig <- estimateDisp(pseudocounts_Koenig, design)
+
+rm(expr_matrix, non_zero_cells, total_cells, percent_cells, keep_genes, data, keep_samples)
+```
+
+```{r mds Koenig}
+mds <- plotMDS(pseudocounts_Koenig, plot = FALSE)
+
+mds_df <- cbind(data.frame(mds[c("x", "y")]), metadata_Koenig)
+```
+
+```{r Koenig_mds_Sample, fig.height=4, fig.width=8}
+ggplot(mds_df, aes(x, y, col = orig.ident, label = orig.ident)) + 
+  geom_point(size = 3, alpha = 0.8) +
+  labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+  geom_text(vjust = -3, hjust = 0.5, size = 1.5) +  
+  ggtitle("Koenig 2022\nEndothelial cells - Sample") + 
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5)) +
+  coord_fixed() + 
+  guides(color = guide_legend(ncol = 3, title = "Sample"))
+```
+
+```{r Koenig_mds_plots, fig.width=12, fig.height=6}
+labels <- colnames(metadata_Koenig)[2:ncol(metadata_Koenig)]
+plots <- list()
+
+for (i in 1:length(labels)) {
+  plots[[i]] <- ggplot(mds_df, aes(x, y, col = .data[[labels[i]]])) + 
+    geom_point(size = 3, alpha = 0.8) + 
+    labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+    ggtitle(paste0("Koenig 2022\nEndothelial cells - ", labels[[i]])) + 
+    theme_bw() + 
+    theme(panel.grid.minor = element_blank(), plot.title = element_text(hjust = 0.5)) +
+    coord_fixed() + 
+    guides(color = guide_legend(ncol = 1, title = labels[[i]]))
+}
+
+combined_plots <- (plots[[1]] + plots[[2]] + plots[[3]] + plots[[4]] + plots[[5]] + plots[[6]]) + plot_layout(nrow = 2)
+combined_plots
+```
+
+```{r DE Koenig}
+fit <- glmQLFit(pseudocounts_Koenig, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Koenig <- topTags(fit, n = Inf)$table
+results_Koenig <- merge(results_Koenig, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Koenig$metric <- results_Koenig$logFC*-log10(results_Koenig$PValue)
+
+signif_Koenig <- results_Koenig %>%
+  dplyr::filter(FDR < 0.05) %>%
+  dplyr::filter(abs(logFC) > 0.5) %>%
+  arrange(desc(metric))
+
+write.csv(results_Koenig, file = here::here(output_dir_data, "EC_DE_Results_Koenig.csv"), quote=F, row.names = F)
+write.csv(signif_Koenig, file = here::here(output_dir_data, "EC_DE_Signif_Koenig.csv"), quote=F, row.names = F)
+
+rm(mds, mds_df, design, fit)
+```
+
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r GSEA Koenig}
+gene_counts <- rowSums(Koenig_EC@assays$RNA@counts > 0)
+universe_genes <- names(gene_counts[gene_counts >= 3])
+universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+rm(gene_counts)
+
+ranked_genes <- results_Koenig
+entrezid <- bitr(ranked_genes$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+ranked_genes <- merge(ranked_genes, entrezid, by.x = "gene", by.y = "SYMBOL")
+ranked_genes <- ranked_genes[!duplicated(ranked_genes$metric), ]
+write.csv(ranked_genes, file = here::here(output_dir_data, "Koenig_EC_ranked_genes.csv"), quote=F, row.names = F)
+
+genelist <- ranked_genes$metric
+names(genelist) <- ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+
+GSEA_Koenig <- gseGO(geneList = genelist,
+              OrgDb = org.Hs.eg.db,
+              ont = "ALL",
+              keyType = "ENTREZID",
+              nPermSimple = 10000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_Koenig@result <- GSEA_Koenig@result %>%
+  filter(str_count(core_enrichment, "/") >= 4)
+GSEA_Koenig <- setReadable(GSEA_Koenig, OrgDb = "org.Hs.eg.db")
+
+GSEA_Koenig <- reorder_GO_by_pvalue(GSEA_Koenig)
+
+rm(universe_genes, universe_entrez, up_genes, down_genes)
+```
+
+```{r GSEA_Koenig_dotplot, fig.height=8, fig.width=8}
+GSEA_simplified <-  clusterProfiler::simplify(
+  GSEA_Koenig,
+  cutoff = 0.8,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 7, split=".sign", title = paste0("Koenig 2022 - Endothelial cells", "\nGO Enrichment Analysis", "\nDCM vs HC"), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Koenig_emapplot, fig.height=8, fig.width=20}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+# Create two separate enrichResult objects
+gsea_activated <- GSEA_simplified
+gsea_activated@result <- activated_terms
+
+gsea_suppressed <- GSEA_simplified
+gsea_suppressed@result <- suppressed_terms
+
+# Plot activated terms
+p1 <- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 <- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r GO_similarity_up_Koenig, fig.height=5, fig.width=7}
+gseaGO_up_terms <- dplyr::filter(GSEA_Koenig@result, NES > 0)
+table(gseaGO_up_terms$ONTOLOGY)
+gseaGO_up_terms <- gseaGO_up_terms$ID
+mat1 = GO_similarity(gseaGO_up_terms, ont = "BP")
+BP <- simplifyGO(mat1, column_title = "31 GO Biological Process terms")
+mat2 = GO_similarity(gseaGO_up_terms, ont = "MF")
+MF <- simplifyGO(mat2, column_title = "11 GO Molecular Function terms")
+mat3 = GO_similarity(gseaGO_up_terms, ont = "CC")
+#CC <- simplifyGO(mat3, column_title = "11 GO Cellular Component terms")
+```
+
+```{r GO_similarity_down_Koenig, fig.height=5, fig.width=7}
+gseaGO_down_terms <- dplyr::filter(GSEA_Koenig@result, NES < 0)
+table(gseaGO_down_terms$ONTOLOGY)
+gseaGO_down_terms <- gseaGO_down_terms$ID
+mat1 = GO_similarity(gseaGO_down_terms, ont = "BP")
+BP <- simplifyGO(mat1, column_title = "55 GO Biological Process terms")
+mat2 = GO_similarity(gseaGO_down_terms, ont = "MF")
+MF <- simplifyGO(mat2, column_title = "35 GO Molecular Function terms")
+mat3 = GO_similarity(gseaGO_down_terms, ont = "CC")
+CC <- simplifyGO(mat3, column_title = "18 GO Cellular Component terms")
+```
+
+```{r GSEA_KEGG Koenig}
+GSEA_KEGG_Koenig <- gseKEGG(geneList = genelist,
+              organism = "hsa",
+              keyType = "kegg",
+              nPermSimple = 10000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_KEGG_Koenig <- reorder_GO_by_pvalue(GSEA_KEGG_Koenig)
+```
+
+```{r GSEA_KEGG_Koenig_dotplot, fig.height=8, fig.width=8}
+GSEA_KEGG_Koenig@result <- GSEA_KEGG_Koenig@result %>%
+  filter(str_count(core_enrichment, "/") >= 4)
+
+GSEA_KEGG_Koenig <- reorder_GO_by_pvalue(GSEA_KEGG_Koenig)
+
+dotplot(GSEA_KEGG_Koenig, showCategory = 7, split=".sign", title = paste0("Koenig 2022 - Endothelial cells", "\nKEGG Pathways Enrichment Analysis", "\nDCM vs HC"), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_KEGG_Koenig_emapplot, fig.height=8, fig.width=20}
+GSEA_simplified <- GSEA_KEGG_Koenig
+
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+# Create two separate enrichResult objects
+gsea_activated <- GSEA_simplified
+gsea_activated@result <- activated_terms
+
+gsea_suppressed <- GSEA_simplified
+gsea_suppressed@result <- suppressed_terms
+
+# Plot activated terms
+p1 <- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 <- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r Heatmap_DEGs_Koenig, fig.width=10, fig.height=10}
+metadata_heatmap <- metadata_Koenig %>%
+  dplyr::select(orig.ident, Sex, Pre_Op_EF, Condition)
+
+sig_counts <- counts_Koenig[rownames(counts_Koenig) %in% signif_Koenig$gene, ]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE,
+         scale = "row",
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) 
+```
+
+```{r Heatmap_DEGs_Koenig_top, fig.width=10, fig.height=10}
+DEGs_top_up <- signif_Koenig %>% 
+  dplyr::arrange(desc(metric))
+DEGs_top_down <- signif_Koenig %>% 
+  dplyr::arrange(metric)
+
+DEGs_top <- dplyr::bind_rows(head(DEGs_top_up, 20), head(DEGs_top_down, 20))
+sig_counts <- counts_Koenig[rownames(counts_Koenig) %in% DEGs_top$gene, ]
+sig_counts <- sig_counts[match(DEGs_top$gene, rownames(sig_counts)), ]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = FALSE,
+         scale = "row",
+         show_rownames = TRUE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) 
+```
+
+```{r rm Koenig}
+rm(activated_terms, BP, CC, combined_plot, combined_plots, DEGs_top, DEGs_top_down, DEGs_top_up, entrezid, gsea_activated, GSEA_simplified, gsea_suppressed, mat1, mat2, mat3, metadata_heatmap, MF, p1, p2, percent_stats, plots, sig_counts, suppressed_terms, genelist, gseaGO_down_terms, gseaGO_up_terms, i, labels)
+```
+
+```{r pseudocounts Koenig DCM}
+Koenig_EC_DCM <- subset(Koenig_EC, Condition=="DCM")
+expr_matrix <- GetAssayData(object = Koenig_EC_DCM, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats_K_DCM <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats_K_DCM, percentCells > 1))
+data <- Koenig_EC_DCM[which(rownames(Koenig_EC_DCM) %in% keep_genes),]
+
+metadata_Koenig_DCM <- metadata_Koenig %>%
+  dplyr::filter(Condition == "DCM")
+
+pseudocounts_Koenig_DCM <- Seurat2PB(data, sample="orig.ident", cluster = "Names")
+colnames(pseudocounts_Koenig_DCM) <- pseudocounts_Koenig_DCM$samples$sample
+pseudocounts_Koenig_DCM <- pseudocounts_Koenig_DCM[, match(metadata_Koenig_DCM$orig.ident, pseudocounts_Koenig_DCM$samples$sample)]
+all(pseudocounts_Koenig_DCM$orig.ident == pseudocounts_Koenig_DCM$samples$sample)
+
+keep_samples <- pseudocounts_Koenig_DCM$samples$lib.size > 5e4
+pseudocounts_Koenig_DCM <- pseudocounts_Koenig_DCM[, keep_samples]
+
+design<- model.matrix(~ rescale(metadata_Koenig_DCM$Pre_Op_EF))
+
+keep_genes <- filterByExpr(pseudocounts_Koenig_DCM, design = design)
+pseudocounts_Koenig_DCM <- pseudocounts_Koenig_DCM[keep_genes, ]
+
+pseudocounts_Koenig_DCM <- normLibSizes(pseudocounts_Koenig_DCM)
+counts_Koenig_DCM <- edgeR::cpm(pseudocounts_Koenig_DCM, log = TRUE)
+
+pseudocounts_Koenig_DCM <- estimateDisp(pseudocounts_Koenig_DCM, design)
+
+rm(expr_matrix, non_zero_cells, total_cells, percent_cells, keep_genes, data, keep_samples)
+```
+
+```{r DE Koenig DCM}
+fit <- glmQLFit(pseudocounts_Koenig_DCM, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Koenig_DCM <- topTags(fit, n = Inf)$table
+results_Koenig_DCM <- merge(results_Koenig_DCM, percent_stats_K_DCM[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Koenig_DCM$metric <- results_Koenig_DCM$logFC*-log10(results_Koenig_DCM$PValue)
+
+signif_Koenig_DCM <- results_Koenig_DCM %>%
+  dplyr::filter(FDR < 0.05) %>%
+  dplyr::filter(abs(logFC) > 0.5) %>%
+  arrange(desc(metric))
+
+write.csv(results_Koenig_DCM, file = here::here(output_dir_data, "EC_DE_Results_Koenig_DCM_EF.csv"), quote=F, row.names = F)
+write.csv(signif_Koenig_DCM, file = here::here(output_dir_data, "EC_DE_Signif_Koenig_DCM_EF.csv"), quote=F, row.names = F)
+```
+
+```{r Volcano_Koenig_LVEF, fig.width=3, fig.height=5}
+keyvals <- rep("grey", nrow(results_Koenig_DCM))
+names(keyvals) <- rep("Not significant", nrow(results_Koenig_DCM))
+
+keyvals[results_Koenig_DCM$gene %in% dplyr::filter(signif_Koenig_DCM, logFC>0)$gene] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Upregulated"
+keyvals[results_Koenig_DCM$gene%in% dplyr::filter(signif_Koenig_DCM, logFC<0)$gene] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Downregulated"
+
+EnhancedVolcano(results_Koenig_DCM,
+                lab = results_Koenig_DCM$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                axisLabSize = 12,
+                captionLabSize = 0,
+                pointSize = 0.3,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 11),
+                xlim = c(-8, 8),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "Koenig 2022\nEndothelial cells\nLVEF (n=13)",
+                colCustom = keyvals
+) + theme(legend.position = "none")
+```
+
+```{r mito_Koenig, fig.width=3, fig.height=3}
+VlnPlot(Koenig_EC, "percent.mito", group.by = "Condition", pt.size = 0) + NoLegend() + theme(axis.title.x = element_blank())
+```
+
+```{r mito_Koenig_2, fig.width=3, fig.height=3}
+per_patient_mito <- Koenig_EC@meta.data %>%
+  group_by(orig.ident, Condition) %>%
+  summarize(mean_percent_mito = mean(percent.mito, na.rm = TRUE))
+
+wilcox.test(mean_percent_mito ~ Condition, data = per_patient_mito)
+
+comparison <- list(c("DCM", "Donor"))
+
+ggplot(per_patient_mito, aes(x = Condition, y = mean_percent_mito, fill = Condition)) +
+  geom_violin(trim = FALSE, alpha = 0.7) +
+  geom_jitter(width = 0.1, size = 2) +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 3, fill = "white") +
+  stat_compare_means(
+    comparisons = list(c("DCM", "Donor")),
+    method = "wilcox.test",
+    label = "p.format",
+    tip.length = 0.05,
+    label.y = 1.8
+  ) +
+  scale_y_continuous(limits = c(0, 2)) + 
+  ylab("Average percent.mito per patient") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = 10, colour = "black"))
+```
+
+## Reichart 2022
+
+```{r Import Reichart}
+Reichart <- readRDS("/scratch/gbonaz/Heart_datasets/Reichart_2022/DCM_ACM_heart_cell_atlas.rds")
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+
+Idents(Reichart) <- Reichart$cell_type
+```
+
+```{r add metadata Reichart}
+Clinical_data <- read_excel("/scratch/gbonaz/Heart_datasets/Reichart_2022/Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+add_metadata <- left_join(Reichart[["donor_id"]], Clinical_data)
+row.names(add_metadata) <- row.names(Reichart[[]])
+Reichart <- AddMetaData(Reichart, metadata = add_metadata)
+rm(add_metadata, Clinical_data)
+```
+
+```{r subset Reichart}
+Reichart_EC <- subset(Reichart, cell_type == "endothelial cell" & disease %in% c("dilated cardiomyopathy", "normal") & tissue == "heart left ventricle")
+table(Reichart_EC$cell_type, Reichart_EC$disease)
+```
+
+```{r metadata Reichart}
+metadata_Reichart <- Reichart_EC@meta.data %>%
+  dplyr::select(donor_id, disease, sex, Age_range, LVEF_percent, LVIDd_mm, LVIDs_mm, RVEDD_mm, TAPSE_mm, PAH, Hypertension, COPD) %>%
+  unique()
+
+rownames(metadata_Reichart) <- metadata_Reichart$donor_id
+
+reactable(metadata_Reichart, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r pseudocounts Reichart}
+expr_matrix <- GetAssayData(object = Reichart_EC, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- Reichart_EC[which(rownames(Reichart_EC) %in% keep_genes),]
+
+pseudocounts_Reichart <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts_Reichart) <- pseudocounts_Reichart$samples$sample
+pseudocounts_Reichart <- pseudocounts_Reichart[, match(metadata_Reichart$donor_id, pseudocounts_Reichart$samples$sample)]
+all(metadata_Reichart$donor_id == pseudocounts_Reichart$samples$sample)
+
+keep_samples <- pseudocounts_Reichart$samples$lib.size > 5e4
+pseudocounts_Reichart <- pseudocounts_Reichart[, keep_samples]
+
+metadata_Reichart$disease <- factor(metadata_Reichart$disease, levels = c("normal", "dilated cardiomyopathy"))
+design<- model.matrix(~ disease, data = metadata_Reichart)
+
+keep_genes <- filterByExpr(pseudocounts_Reichart, design = design)
+pseudocounts_Reichart <- pseudocounts_Reichart[keep_genes, ]
+
+pseudocounts_Reichart <- normLibSizes(pseudocounts_Reichart)
+counts_Reichart <- edgeR::cpm(pseudocounts_Reichart, log = TRUE)
+
+pseudocounts_Reichart <- estimateDisp(pseudocounts_Reichart, design)
+
+rm(expr_matrix, non_zero_cells, total_cells, percent_cells, keep_genes, data, keep_samples)
+```
+
+```{r mds Reichart}
+mds <- plotMDS(pseudocounts_Reichart, plot = FALSE)
+
+mds_df <- cbind(data.frame(mds[c("x", "y")]), metadata_Reichart)
+```
+
+```{r Reichart_mds_Sample, fig.height=5, fig.width=8}
+ggplot(mds_df, aes(x, y, col = donor_id, label = donor_id)) + 
+  geom_point(size = 3, alpha = 0.8) +
+  labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+  geom_text(vjust = -3, hjust = 0.5, size = 1.5) +  
+  ggtitle("Reichart 2022\nEndothelial cells - Sample") + 
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5)) +
+  coord_fixed() + 
+  guides(color = guide_legend(ncol = 4, title = "Sample"))
+```
+
+```{r Reichart_mds_plots, fig.width=15, fig.height=8}
+labels <- colnames(metadata_Reichart)[2:ncol(metadata_Reichart)]
+plots <- list()
+
+for (i in 1:length(labels)) {
+  plots[[i]] <- ggplot(mds_df, aes(x, y, col = .data[[labels[i]]])) + 
+    geom_point(size = 3, alpha = 0.8) + 
+    labs(x = "MDS dim. 1", y = "MDS dim. 2") + 
+    ggtitle(paste0("Reichart 2022\nEndothelial cells\n", labels[[i]])) + 
+    theme_bw() + 
+    theme(panel.grid.minor = element_blank(), plot.title = element_text(hjust = 0.5, size = 10)) +
+    coord_fixed() + 
+    guides(color = guide_legend(ncol = 1, title = element_blank()))
+}
+
+combined_plots <- (plots[[1]] + plots[[2]] + plots[[3]] + plots[[4]] + plots[[5]] + plots[[6]] + plots[[7]] + plots[[8]] + plots[[9]] + plots[[10]] + plots[[11]]) + plot_layout(nrow = 3)
+combined_plots
+```
+
+```{r DE Reichart}
+fit <- glmQLFit(pseudocounts_Reichart, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Reichart <- topTags(fit, n = Inf)$table
+results_Reichart <- merge(results_Reichart, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Reichart$metric <- results_Reichart$logFC*-log10(results_Reichart$PValue)
+results_Reichart <- results_Reichart %>%
+  dplyr::select(-feature_biotype, -feature_is_filtered, -feature_name, -feature_reference, -feature_length)
+
+signif_Reichart <- results_Reichart %>%
+  dplyr::filter(FDR < 0.05) %>%
+  dplyr::filter(abs(logFC) > 0.5) %>%
+  arrange(desc(metric))
+
+write.csv(results_Reichart, file = here::here(output_dir_data, "EC_DE_Results_Reichart.csv"), quote=F, row.names = F)
+write.csv(signif_Reichart, file = here::here(output_dir_data, "EC_DE_Signif_Reichart.csv"), quote=F, row.names = F)
+
+
+rm(mds, mds_df, design, fit)
+```
+
+```{r GSEA Reichart}
+gene_counts <- rowSums(Reichart_EC@assays$RNA@counts > 0)
+universe_genes <- names(gene_counts[gene_counts >= 3])
+universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+rm(gene_counts)
+
+ranked_genes <- results_Reichart
+entrezid <- bitr(ranked_genes$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+ranked_genes <- merge(ranked_genes, entrezid, by.x = "gene", by.y = "SYMBOL")
+ranked_genes <- ranked_genes[!duplicated(ranked_genes$metric), ]
+write.csv(ranked_genes, file = here::here(output_dir_data, "Reichart_EC_ranked_genes.csv"), quote=F, row.names = F)
+
+genelist <- ranked_genes$metric
+names(genelist) <- ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+
+GSEA_Reichart <- gseGO(geneList = genelist,
+              OrgDb = org.Hs.eg.db,
+              ont = "ALL",
+              keyType = "ENTREZID",
+              nPermSimple = 100000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_Reichart@result <- GSEA_Reichart@result %>%
+  filter(str_count(core_enrichment, "/") >= 4)
+GSEA_Reichart <- setReadable(GSEA_Reichart, OrgDb = "org.Hs.eg.db")
+
+GSEA_Reichart <- reorder_GO_by_pvalue(GSEA_Reichart)
+
+rm(universe_genes, universe_entrez, up_genes, down_genes)
+```
+
+```{r GSEA_Reichart_dotplot, fig.height=8, fig.width=8}
+GSEA_simplified <-  clusterProfiler::simplify(
+  GSEA_Reichart,
+  cutoff = 0.8,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified@result <- GSEA_simplified@result %>%
+  filter(str_count(core_enrichment, "/") >= 4)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 7, split=".sign", title = paste0("Reichart 2022 - Endothelial cells", "\nGO Enrichment Analysis", "\nDCM vs HC"), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Reichart_emapplot, fig.height=8, fig.width=20}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+# Create two separate enrichResult objects
+gsea_activated <- GSEA_simplified
+gsea_activated@result <- activated_terms
+
+gsea_suppressed <- GSEA_simplified
+gsea_suppressed@result <- suppressed_terms
+
+# Plot activated terms
+p1 <- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 <- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r GO_similarity_up_Reichart, fig.height=5, fig.width=7}
+gseaGO_up_terms <- dplyr::filter(GSEA_Reichart@result, NES > 0)
+table(gseaGO_up_terms$ONTOLOGY)
+gseaGO_up_terms <- gseaGO_up_terms$ID
+mat1 = GO_similarity(gseaGO_up_terms, ont = "CC")
+#CC <- simplifyGO(mat1, column_title = "1 GO Cellular Component terms")
+mat2 = GO_similarity(gseaGO_up_terms, ont = "MF")
+MF <- simplifyGO(mat2, column_title = "13 GO Molecular Function terms")
+```
+
+```{r GO_similarity_down_Reichart, fig.height=5, fig.width=7}
+gseaGO_down_terms <- dplyr::filter(GSEA_Reichart@result, NES < 0)
+table(gseaGO_down_terms$ONTOLOGY)
+gseaGO_down_terms <- gseaGO_down_terms$ID
+mat1 = GO_similarity(gseaGO_down_terms, ont = "BP")
+BP <- simplifyGO(mat1, column_title = "65 GO Biological Process terms")
+mat2 = GO_similarity(gseaGO_down_terms, ont = "MF")
+MF <- simplifyGO(mat2, column_title = "49 GO Molecular Function terms")
+mat3 = GO_similarity(gseaGO_down_terms, ont = "CC")
+CC <- simplifyGO(mat3, column_title = "19 GO Cellular Component terms")
+```
+
+```{r GSEA_KEGG Reichart}
+GSEA_KEGG_Reichart <- gseKEGG(geneList = genelist,
+              organism = "hsa",
+              keyType = "kegg",
+              nPermSimple = 10000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_KEGG_Reichart <- reorder_GO_by_pvalue(GSEA_KEGG_Reichart)
+```
+
+```{r GSEA_KEGG_Reichart_dotplot, fig.height=8, fig.width=8}
+GSEA_KEGG_Reichart@result <- GSEA_KEGG_Reichart@result %>%
+  filter(str_count(core_enrichment, "/") >= 4)
+
+GSEA_KEGG_Reichart <- reorder_GO_by_pvalue(GSEA_KEGG_Reichart)
+
+dotplot(GSEA_KEGG_Reichart, showCategory = 7, split=".sign", title = paste0("Reichart 2022 - Endothelial cells", "\nKEGG Pathways Enrichment Analysis", "\nDCM vs HC"), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_KEGG_Reichart_emapplot, fig.height=8, fig.width=20}
+GSEA_simplified <- GSEA_KEGG_Reichart
+
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+# Split the GSEA results
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+# Create two separate enrichResult objects
+gsea_activated <- GSEA_simplified
+gsea_activated@result <- activated_terms
+
+gsea_suppressed <- GSEA_simplified
+gsea_suppressed@result <- suppressed_terms
+
+# Plot activated terms
+p1 <- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 <- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r Heatmap_DEGs_Reichart, fig.width=10, fig.height=10}
+metadata_heatmap <- metadata_Reichart %>%
+  dplyr::select(donor_id, sex, disease, LVEF_percent)
+
+sig_counts <- counts_Reichart[rownames(counts_Reichart) %in% signif_Reichart$gene, ]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = TRUE,
+         scale = "row",
+         show_rownames = FALSE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) 
+```
+
+```{r Heatmap_DEGs_Reichart_top, fig.width=10, fig.height=10}
+DEGs_top_up <- signif_Reichart %>% 
+  dplyr::arrange(desc(metric))
+DEGs_top_down <- signif_Reichart %>% 
+  dplyr::arrange(metric)
+
+DEGs_top <- dplyr::bind_rows(head(DEGs_top_up, 20), head(DEGs_top_down, 20))
+sig_counts <- counts_Reichart[rownames(counts_Reichart) %in% DEGs_top$gene, ]
+sig_counts <- sig_counts[match(DEGs_top$gene, rownames(sig_counts)), ]
+
+heat_colors <- rev(brewer.pal(11, "PuOr"))
+
+## Run pheatmap using the metadata data frame for the annotation
+pheatmap::pheatmap(sig_counts, 
+         color = heat_colors, 
+         cluster_rows = FALSE,
+         scale = "row",
+         show_rownames = TRUE,
+         annotation_col = metadata_heatmap, 
+         border_color = NA, 
+         fontsize = 10, 
+         cluster_cols=TRUE,
+         fontsize_row = 10, 
+         height = 20) 
+```
+
+```{r rm Reichart}
+rm(activated_terms, BP, CC, combined_plot, combined_plots, DEGs_top, DEGs_top_down, DEGs_top_up, entrezid, gsea_activated, GSEA_simplified, gsea_suppressed, mat1, mat2, mat3, metadata_heatmap, MF, p1, p2, percent_stats, plots, sig_counts, suppressed_terms, genelist, gseaGO_down_terms, gseaGO_up_terms, i, labels)
+```
+
+
+```{r pseudocounts Reichart DCM}
+metadata_Reichart_DCM <- metadata_Reichart %>%
+  dplyr::filter(disease == "dilated cardiomyopathy", !is.na(LVEF_percent))
+
+Reichart_EC_DCM <- subset(Reichart_EC, donor_id %in% metadata_Reichart_DCM$donor_id)
+
+
+expr_matrix <- GetAssayData(object = Reichart_EC_DCM, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- Reichart_EC_DCM[which(rownames(Reichart_EC_DCM) %in% keep_genes),]
+
+
+pseudocounts_Reichart_DCM <- Seurat2PB(data, sample="donor_id", cluster = "cell_type")
+colnames(pseudocounts_Reichart_DCM) <- pseudocounts_Reichart_DCM$samples$sample
+pseudocounts_Reichart_DCM <- pseudocounts_Reichart_DCM[, match(metadata_Reichart_DCM$donor_id, pseudocounts_Reichart_DCM$samples$sample)]
+all(metadata_Reichart_DCM$donor_id == pseudocounts_Reichart_DCM$samples$sample)
+
+keep_samples <- pseudocounts_Reichart_DCM$samples$lib.size > 5e4
+pseudocounts_Reichart_DCM <- pseudocounts_Reichart_DCM[, keep_samples]
+
+design<- model.matrix(~ rescale(metadata_Reichart_DCM$LVEF_percent))
+
+keep_genes <- filterByExpr(pseudocounts_Reichart_DCM, design = design)
+pseudocounts_Reichart_DCM <- pseudocounts_Reichart_DCM[keep_genes, ]
+
+pseudocounts_Reichart_DCM <- normLibSizes(pseudocounts_Reichart_DCM)
+counts_Reichart_DCM <- edgeR::cpm(pseudocounts_Reichart_DCM, log = TRUE)
+
+pseudocounts_Reichart_DCM <- estimateDisp(pseudocounts_Reichart_DCM, design)
+
+rm(expr_matrix, non_zero_cells, total_cells, percent_cells, keep_genes, data, keep_samples)
+```
+
+```{r DE Reichart DCM}
+fit <- glmQLFit(pseudocounts_Reichart_DCM, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_Reichart_DCM <- topTags(fit, n = Inf)$table
+results_Reichart_DCM <- merge(results_Reichart_DCM, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_Reichart_DCM$metric <- results_Reichart_DCM$logFC*-log10(results_Reichart_DCM$PValue)
+results_Reichart_DCM <- results_Reichart_DCM %>%
+  dplyr::select(-feature_biotype, -feature_is_filtered, -feature_name, -feature_reference, -feature_length)
+
+signif_Reichart_DCM <- results_Reichart_DCM %>%
+  dplyr::filter(FDR < 0.05) %>%
+  dplyr::filter(abs(logFC) > 0.5) %>%
+  arrange(desc(metric))
+
+write.csv(results_Reichart_DCM, file = here::here(output_dir_data, "EC_DE_results_Reichart_DCM_EF.csv"), quote=F, row.names = F)
+write.csv(signif_Reichart_DCM, file = here::here(output_dir_data, "EC_DE_Signif_Reichart_DCM_EF.csv"), quote=F, row.names = F)
+
+
+rm(mds, mds_df, design, fit)
+```
+
+```{r Volcano_Reichart_LVEF, fig.width=3, fig.height=5}
+keyvals <- rep("grey", nrow(results_Reichart_DCM))
+names(keyvals) <- rep("Not significant", nrow(results_Reichart_DCM))
+
+keyvals[results_Reichart_DCM$gene %in% dplyr::filter(signif_Reichart_DCM, logFC>0)$gene] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Upregulated"
+keyvals[results_Reichart_DCM$gene%in% dplyr::filter(signif_Reichart_DCM, logFC<0)$gene] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Downregulated"
+
+EnhancedVolcano(results_Reichart_DCM,
+                lab = results_Reichart_DCM$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                axisLabSize = 12,
+                captionLabSize = 0,
+                pointSize = 0.3,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 3),
+                xlim = c(-5, 5),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "Reichart 2022\nEndothelial cells\nLVEF (n=47)",
+                colCustom = keyvals
+) + theme(legend.position = "none")
+```
+
+```{r GSEA Reichart LVEF}
+ranked_genes <- results_Reichart_DCM
+entrezid <- bitr(ranked_genes$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+ranked_genes <- merge(ranked_genes, entrezid, by.x = "gene", by.y = "SYMBOL")
+ranked_genes <- ranked_genes[!duplicated(ranked_genes$metric), ]
+write.csv(ranked_genes, file = here::here(output_dir_data, "Reichart_EC_ranked_genes_DCM_EF.csv"), quote=F, row.names = F)
+
+genelist <- ranked_genes$metric
+names(genelist) <- ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+
+GSEA_Reichart_DCM <- gseGO(geneList = genelist,
+              OrgDb = org.Hs.eg.db,
+              ont = "ALL",
+              keyType = "ENTREZID",
+              nPermSimple = 10000,
+              minGSSize = 10,
+              eps = 0)
+
+GSEA_Reichart_DCM@result <- GSEA_Reichart_DCM@result %>%
+  filter(str_count(core_enrichment, "/") >= 4)
+GSEA_Reichart_DCM <- setReadable(GSEA_Reichart_DCM, OrgDb = "org.Hs.eg.db")
+
+GSEA_Reichart_DCM <- reorder_GO_by_pvalue(GSEA_Reichart_DCM)
+```
+
+```{r GSEA_Reichart_dotplot_LVEF, fig.height=8, fig.width=8}
+GSEA_simplified_DCM <-  clusterProfiler::simplify(
+  GSEA_Reichart_DCM,
+  cutoff = 0.8,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified_DCM@result <- GSEA_simplified_DCM@result %>%
+  filter(str_count(core_enrichment, "/") >= 4)
+
+GSEA_simplified_DCM <- reorder_GO_by_pvalue(GSEA_simplified_DCM)
+
+dotplot(GSEA_simplified_DCM, showCategory = 7, split=".sign", title = paste0("Reichart 2022 - Endothelial cells", "\nGO Enrichment Analysis", "\nDCM vs HC"), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Reichart_emapplot_LVEF, fig.height=8, fig.width=20}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+
+GSEA_simplified_DCM@result <- classify_terms(GSEA_simplified_DCM@result)
+# Split the GSEA results
+activated_terms <- subset(GSEA_simplified_DCM@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified_DCM@result, sign == "suppressed")
+
+# Create two separate enrichResult objects
+gsea_activated <- GSEA_simplified_DCM
+gsea_activated@result <- activated_terms
+
+gsea_suppressed <- GSEA_simplified_DCM
+gsea_suppressed@result <- suppressed_terms
+
+# Plot activated terms
+p1 <- emapplot(pairwise_termsim(gsea_activated), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Plot suppressed terms
+p2 <- emapplot(pairwise_termsim(gsea_suppressed), showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+# Combine the plots
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r mito_Reichart, fig.width=3, fig.height=3}
+VlnPlot(Reichart_EC, "percent_mito", group.by = "disease", pt.size = 0) + NoLegend() + theme(axis.title.x = element_blank())
+```
+
+```{r mito_Reichart_2, fig.width=3, fig.height=3}
+per_patient_mito <- Reichart_EC@meta.data %>%
+  group_by(donor_id, disease) %>%
+  summarize(mean_percent_mito = mean(percent_mito, na.rm = TRUE))
+
+wilcox.test(mean_percent_mito ~ disease, data = per_patient_mito)
+
+comparison <- list(c("dilated cardiomyopathy", "normal"))
+
+ggplot(per_patient_mito, aes(x = disease, y = mean_percent_mito, fill = disease)) +
+  geom_violin(trim = FALSE, alpha = 0.7) +
+  geom_jitter(width = 0.1, size = 2) +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 3, fill = "white") +
+  stat_compare_means(
+    comparisons = list(c("dilated cardiomyopathy", "normal")),
+    method = "wilcox.test",
+    label = "p.format",
+    tip.length = 0.05,
+    label.y = 0.0085
+  ) +
+  scale_y_continuous(limits = c(0, 0.01)) + 
+  ylab("Average percent.mito per patient") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = 10, colour = "black"))
+```
+
+## Volcano plots
+
+```{r Volcano, fig.height=5, fig.width=8}
+volcano <- list()
+
+keyvals <- rep("grey", nrow(results_Koenig))
+names(keyvals) <- rep("Not significant", nrow(results_Koenig))
+
+keyvals[results_Koenig$gene %in% dplyr::filter(signif_Koenig, logFC>0)$gene] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Upregulated"
+keyvals[results_Koenig$gene%in% dplyr::filter(signif_Koenig, logFC<0)$gene] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Downregulated"
+
+volcano[[1]] <- EnhancedVolcano(results_Koenig,
+                lab = results_Koenig$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 15,
+                titleLabSize = 16,
+                axisLabSize = 12,
+                captionLabSize = 0,
+                pointSize = 0.3,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 11),
+                xlim = c(-8, 8),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "Koenig 2022\nEndothelial cells\nDCM (n=13) vs HC (n=25)",
+                colCustom = keyvals
+) + theme(legend.position = "none")
+
+
+keyvals <- rep("grey", nrow(results_Reichart))
+names(keyvals) <- rep("Not significant", nrow(results_Reichart))
+
+keyvals[results_Reichart$gene %in% dplyr::filter(signif_Reichart, logFC>0)$gene] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Upregulated"
+keyvals[results_Reichart$gene%in% dplyr::filter(signif_Reichart, logFC<0)$gene] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Downregulated"
+
+volcano[[2]] <- EnhancedVolcano(results_Reichart,
+                lab = results_Reichart$gene,
+                x = "logFC",
+                y = "FDR",
+                labSize = 0,
+                legendLabSize = 0,
+                titleLabSize = 16,
+                axisLabSize = 12,
+                captionLabSize = 0,
+                pointSize = 0.3,
+                FCcutoff = 0.5,
+                pCutoff  = 0.05,
+                ylim = c(0, 11),
+                xlim = c(-8, 8),
+                colAlpha = 1,
+                drawConnectors = FALSE,
+                subtitle = NULL,
+                title = "Reichart 2022\nEndothelial cells\nDCM (n=52) vs HC (n=18)",
+                colCustom = keyvals
+) + theme(legend.position = "none")
+
+combined_plots <- volcano[[1]] + volcano[[2]] + plot_layout(nrow = 1)
+combined_plots
+```
+
+## Correlation plot
+
+```{r Correlation plot, fig.width=6, fig.height=5}
+library(GGally)
+
+# Merge the datasets by a common column, e.g., gene
+merged_data <- results_Koenig %>%
+  dplyr::select(gene, logFC_Koenig = logFC) %>%
+  inner_join(results_Reichart %>% dplyr::select(gene, logFC_Reichart = logFC), by = "gene")
+
+# Create a pairwise scatterplot with correlations
+ggpairs(
+  merged_data %>% dplyr::select(-gene), # Exclude the gene column for plotting
+  lower = list(continuous = wrap("smooth", method = "lm")), # Add linear fit
+  diag = list(continuous = "densityDiag"), # Density plot on diagonal
+  upper = list(continuous = wrap("cor", size = 4)) # Correlation and p-value in upper triangle
+) +
+  theme_minimal()
+```
+
+## Overlap
+
+```{r UpSet_plot_intersect, fig.height=6, fig.width=8}
+gene_sets_up <- list(
+  Koenig = dplyr::filter(signif_Koenig, logFC > 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC > 0)$gene
+)
+gene_sets_up <- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_up, mode = "intersect", min_set_size = 1)
+p1 <- UpSet(m, column_title = "Upregulated genes - intersect", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down <- list(
+  Koenig = dplyr::filter(signif_Koenig, logFC < 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC < 0)$gene
+)
+gene_sets_down <- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_down, mode = "intersect")
+p2 <- UpSet(m, column_title = "Downregulated genes - intersect", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(m, p1, p2, combined_plots)
+```
+
+```{r UpSet_plot_distinct, fig.height=6, fig.width=8}
+gene_sets_up <- list(
+  Koenig = dplyr::filter(signif_Koenig, logFC > 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC > 0)$gene
+)
+gene_sets_up <- lapply(gene_sets_up, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_up, mode = "distinct", min_set_size = 1)
+p1 <- UpSet(m, column_title = "Upregulated genes - distinct", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+gene_sets_down <- list(
+  Koenig = dplyr::filter(signif_Koenig, logFC < 0)$gene,
+  Reichart = dplyr::filter(signif_Reichart, logFC < 0)$gene
+)
+gene_sets_down <- lapply(gene_sets_down, function(x) x[!is.na(x)])
+
+m <- make_comb_mat(gene_sets_down, mode = "distinct")
+p2 <- UpSet(m, column_title = "Downregulated genes - distinct", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+
+p1 <- grid::grid.grabExpr(draw(p1))
+p2 <- grid::grid.grabExpr(draw(p2))
+
+combined_plots <- plot_grid(p1, p2, ncol = 1)
+
+print(combined_plots)
+rm(m, p1, p2, combined_plots)
+```
+
+
+```{r common genes}
+common_up <- Reduce(intersect, list(filter(signif_Koenig, logFC > 0.25)$gene,
+                                    filter(signif_Reichart, logFC > 0.25)$gene))
+
+common_down <- Reduce(intersect, list(filter(signif_Koenig, logFC < -0.25)$gene,
+                                      filter(signif_Reichart, logFC < -0.25)$gene))
+
+common_genes <- union(common_up, common_down)
+
+common_FC <- data.frame(
+  gene = sort(common_genes),
+  logFC_Koenig = signif_Koenig %>%
+    filter(gene %in% common_genes) %>%
+    arrange(gene) %>%
+    pull(logFC),
+  logFC_Reichart = signif_Reichart %>%
+    filter(gene %in% common_genes) %>%
+    arrange(gene) %>%
+    pull(logFC)
+) %>%
+  arrange(logFC_Koenig)
+
+common_universe <- Reduce(intersect, list(results_Koenig$gene,
+                                      results_Reichart$gene))
+```
+
+```{r common entrez}
+common_universe_entrez <- bitr(common_universe, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)$ENTREZID
+common_up_entrez <- bitr(common_up, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)$ENTREZID
+common_down_entrez <- bitr(common_down, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)$ENTREZID
+```
+
+```{r ORA_common}
+ORA_up <- enrichGO(common_up_entrez, OrgDb = "org.Hs.eg.db", universe = common_universe_entrez, ont = "ALL", readable = TRUE, pvalueCutoff = 0.2)
+nrow(ORA_up)
+ORA_up <- gsfilter(ORA_up, by = 'Count', min = 3)
+ORA_up <- reorder_GO_by_pvalue(ORA_up)
+ORA_up_simplified <-  clusterProfiler::simplify(
+  ORA_up,
+  cutoff = 0.7,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_up_simplified <- reorder_GO_by_pvalue(ORA_up_simplified)
+
+ORA_down <- enrichGO(common_down_entrez, OrgDb = "org.Hs.eg.db", universe = common_universe_entrez, ont = "ALL", readable = TRUE, pvalueCutoff = 0.2)
+nrow(ORA_down)
+ORA_down <- gsfilter(ORA_down, by = 'Count', min = 3)
+ORA_down <- reorder_GO_by_pvalue(ORA_down)
+ORA_down_simplified <-  clusterProfiler::simplify(
+  ORA_down,
+  cutoff = 0.7,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+ORA_down_simplified <- reorder_GO_by_pvalue(ORA_down_simplified)
+```
+
+```{r ORA_common_dotplot, fig.height=8, fig.width=13}
+p1 <- dotplot(ORA_up_simplified, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nUpregulated terms"), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(ORA_down_simplified, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nDownegulated terms"), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1|p2)
+```
+
+```{r ORA_common_emapplot, fig.height=8, fig.width=20}
+ORA_up_simplified <- pairwise_termsim(ORA_up_simplified)
+ORA_down_simplified <- pairwise_termsim(ORA_down_simplified)
+p1 <- emapplot(ORA_up_simplified, showCategory = 30, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Upregulated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+p2 <- emapplot(ORA_down_simplified, showCategory = 30, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Downregulated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+print(p1|p2)
+```
+
+```{r ORA_KEGG, eval=TRUE}
+ORA_KEGG_up_2 <- enrichKEGG(common_up_entrez, organism = "hsa", universe = common_universe_entrez, pvalueCutoff = 0.05, pAdjustMethod = "BH")
+nrow(ORA_KEGG_up_2)
+ORA_KEGG_up_2 <- gsfilter(ORA_KEGG_up_2, by = 'Count', min = 5)
+ORA_KEGG_up_2 <- reorder_GO_by_pvalue(ORA_KEGG_up_2)
+
+ORA_KEGG_down_2 <- enrichKEGG(common_down_entrez, organism = "hsa", universe = common_universe_entrez, pvalueCutoff = 0.05, pAdjustMethod = "BH")
+nrow(ORA_KEGG_down_2)
+ORA_KEGG_down_2 <- gsfilter(ORA_KEGG_down_2, by = 'Count', min = 5)
+ORA_KEGG_down_2 <- reorder_GO_by_pvalue(ORA_KEGG_down_2)
+```
+
+```{r ORA_KEGG_dotplot, fig.height=8, fig.width=13, eval=TRUE}
+p1 <- dotplot(ORA_KEGG_up_2, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nUpregulated terms"), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(ORA_KEGG_down_2, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nDownegulated terms"), label_format = 32, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1|p2)
+```
+
+```{r ORA_KEGG_emapplot, fig.height=8, fig.width=10, eval=TRUE}
+ORA_KEGG_down_2 <- pairwise_termsim(ORA_KEGG_down_2)
+p2 <- emapplot(ORA_KEGG_down_2, showCategory = 50, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Downregulated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+print(p2)
+```
+
+## UMAPS
+
+```{r, fig.width=7, fig.height=6}
+p1 <- DimPlot(nuclei, group.by = "Names", reduction = "umap", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p1, id = "Names", fontface = "bold", size = 5, repel = T)
+```
+
+
+```{r, fig.width=7, fig.height=6}
+p1 <- DimPlot(Reichart, group.by = "cell_type", reduction = "umap", label = F) + 
+  NoLegend() + 
+  theme(axis.text=element_text(size=10, face = "bold"), axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.title = element_blank())
+LabelClusters(p1, id = "cell_type", fontface = "bold", size = 5, repel = T)
+```
+
+
+## DEGs
+
+```{r}
+Reichart_GSEA_GO_df <- GSEA_Reichart@result
+Reichart_GSEA_KEGG_df <- GSEA_KEGG_Reichart@result
+
+Reichart_GSEA_KEGG_df$ONTOLOGY <- "KEGG"
+
+Reichart_GSEA_Combined <- bind_rows(Reichart_GSEA_GO_df, Reichart_GSEA_KEGG_df)
+
+Koenig_GSEA_GO_df <- GSEA_Koenig@result
+Koenig_GSEA_KEGG_df <- GSEA_KEGG_Koenig@result
+
+Koenig_GSEA_KEGG_df$ONTOLOGY <- "KEGG"
+
+Koenig_GSEA_Combined <- bind_rows(Koenig_GSEA_GO_df, Koenig_GSEA_KEGG_df)
+```
+
+```{r}
+r_mito_terms <- Reichart_GSEA_Combined %>%
+  filter(str_detect(Description, regex("mitochondr", ignore_case = TRUE)))
+
+r_mito_genes <- unique(unlist(strsplit(r_mito_terms$core_enrichment, split = "/", fixed = TRUE)))
+
+
+r_ribo_terms <- Reichart_GSEA_Combined %>%
+  filter(str_detect(Description, regex("ribosom", ignore_case = TRUE)))
+
+r_ribo_genes <- unique(unlist(strsplit(r_ribo_terms$core_enrichment, split = "/", fixed = TRUE)))
+
+r_kinase_terms <- Reichart_GSEA_Combined %>%
+  filter(str_detect(Description, regex("serine/threonine kinase", ignore_case = TRUE)))
+
+r_kinase_genes <- unique(unlist(strsplit(r_kinase_terms$core_enrichment, split = "/", fixed = TRUE)))
+```
+
+```{r}
+k_mito_terms <- Koenig_GSEA_Combined %>%
+  filter(str_detect(Description, regex("mitochondr", ignore_case = TRUE)))
+
+k_mito_genes <- unique(unlist(strsplit(k_mito_terms$core_enrichment, split = "/", fixed = TRUE)))
+
+
+k_ribo_terms <- Koenig_GSEA_Combined %>%
+  filter(str_detect(Description, regex("ribosom", ignore_case = TRUE)))
+
+k_ribo_genes <- unique(unlist(strsplit(k_ribo_terms$core_enrichment, split = "/", fixed = TRUE)))
+
+k_kinase_terms <- Koenig_GSEA_Combined %>%
+  filter(str_detect(Description, regex("serine/threonine kinase", ignore_case = TRUE)))
+
+k_kinase_genes <- unique(unlist(strsplit(k_kinase_terms$core_enrichment, split = "/", fixed = TRUE)))
+```
+
+```{r}
+Reichart_selected_degs <- signif_Reichart %>%
+  filter(gene %in% r_mito_genes | gene %in% r_ribo_genes | gene %in% r_kinase_genes) %>%
+  mutate(
+    Mitochondrial = ifelse(gene %in% r_mito_genes, "Yes", "No"),
+    Ribosomal = ifelse(gene %in% r_ribo_genes, "Yes", "No"),
+    Serine_Threonine_kinase = ifelse(gene %in% r_kinase_genes, "Yes", "No")
+  ) %>%
+  dplyr::filter(gene %in% signif_Koenig$gene)
+```
+
+```{r}
+Koenig_selected_degs <- signif_Koenig %>%
+  filter(gene %in% k_mito_genes | gene %in% k_ribo_genes) %>%
+  mutate(
+    Mitochondrial = ifelse(gene %in% k_mito_genes, "Yes", "No"),
+    Ribosomal = ifelse(gene %in% k_ribo_genes, "Yes", "No"),
+    Serine_Threonine_kinase = ifelse(gene %in% k_kinase_genes, "Yes", "No")
+    ) %>%
+  dplyr::filter(gene %in% signif_Reichart$gene)
+```
+
+```{r}
+Combined_DEGs <- full_join(
+  Reichart_selected_degs %>%
+    rename(
+      Reichart_logFC = logFC,
+      Reichart_logCPM = logCPM,
+      Reichart_F = F,
+      Reichart_PValue = PValue,
+      Reichart_FDR = FDR,
+      Reichart_percentCells = percentCells,
+      Reichart_metric = metric
+    ),
+  Koenig_selected_degs %>%
+    rename(
+      Koenig_logFC = logFC,
+      Koenig_logCPM = logCPM,
+      Koenig_F = F,
+      Koenig_PValue = PValue,
+      Koenig_FDR = FDR,
+      Koenig_percentCells = percentCells,
+      Koenig_metric = metric
+    ),
+  by = "gene"
+)
+
+# Ensure consistency in category annotations
+Combined_DEGs <- Combined_DEGs %>%
+  mutate(
+    Mitochondrial = ifelse(Mitochondrial.x == "Yes" | Mitochondrial.y == "Yes", "Yes", "No"),
+    Ribosomal = ifelse(Ribosomal.x == "Yes" | Ribosomal.y == "Yes", "Yes", "No"),
+    Serine_Threonine_kinase = ifelse(Serine_Threonine_kinase.x == "Yes" | Serine_Threonine_kinase.y == "Yes", "Yes", "No")
+  )
+```
+
+```{r}
+all_genes <- union(Reichart_selected_degs$gene, Koenig_selected_degs$gene)
+
+# Extract relevant info from both original DEG tables
+reichart_info <- signif_Reichart %>%
+  filter(gene %in% all_genes) %>%
+  dplyr::select(gene, logFC, FDR, logCPM, percentCells) %>%
+  rename_with(~ paste0("Reichart_", .), -gene)
+
+koenig_info <- signif_Koenig %>%
+  filter(gene %in% all_genes) %>%
+  dplyr::select(gene, logFC, FDR, logCPM, percentCells) %>%
+  rename_with(~ paste0("Koenig_", .), -gene)
+
+# Combine gene info
+combined_info <- full_join(reichart_info, koenig_info, by = "gene")
+
+# Combine functional annotation from either selected list
+functional_flags <- full_join(
+  Reichart_selected_degs %>% dplyr::select(gene, Mitochondrial, Ribosomal, Serine_Threonine_kinase),
+  Koenig_selected_degs %>% dplyr::select(gene, Mitochondrial, Ribosomal, Serine_Threonine_kinase),
+  by = "gene"
+) %>%
+  replace_na(list(
+    Mitochondrial.x = "No",
+    Mitochondrial.y = "No",
+    Ribosomal.x = "No",
+    Ribosomal.y = "No",
+    Serine_Threonine_kinase.x = "No",
+    Serine_Threonine_kinase.y = "No"
+  )) %>%
+  mutate(
+    Mitochondrial = ifelse(Mitochondrial.x == "Yes" | Mitochondrial.y == "Yes", "Yes", "No"),
+    Ribosomal = ifelse(Ribosomal.x == "Yes" | Ribosomal.y == "Yes", "Yes", "No"),
+    Serine_Threonine_kinase = ifelse(Serine_Threonine_kinase.x == "Yes" | Serine_Threonine_kinase.y == "Yes", "Yes", "No")
+  ) %>%
+  dplyr::select(gene, Mitochondrial, Ribosomal, Serine_Threonine_kinase)
+
+# Final combined table
+Final_DEG_Combined <- combined_info %>%
+  left_join(functional_flags, by = "gene")
+
+write.csv(Final_DEG_Combined, here::here(output_dir_data, "Endothelial_cells_DEGs_mito_ribo_stk.csv"))
+# View the output
+head(Final_DEG_Combined)
+```
