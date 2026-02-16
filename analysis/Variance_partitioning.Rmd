@@ -27,7 +27,6 @@ current_file <- "Variance_partitioning"
 library(here)
 library(readr)
 library(readxl)
-library(xlsx)
 library(Seurat)
 library(DropletUtils)
 library(Matrix)
@@ -52,7 +51,6 @@ library(ggplot2)
 library(scater)
 library(patchwork)
 library(statmod)
-library(ArchR)
 library(clustree)
 library(harmony)
 library(gprofiler2)
@@ -89,16 +87,12 @@ if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
 Load cardiomyocytes dataset
 
 ```{r read DCM_RV}
-DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_integrated_RNA.rds"))
+DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.rds"))
 DefaultAssay(DCM_RV) <- "RNA"
 ```
 
-```{r}
-DCM_RV_DCM <- subset(DCM_RV, Group=="DCM")
-```
-
 ```{r meta, fig.height=6, fig.width=12}
-meta <- DCM_RV_DCM@meta.data %>% 
+meta <- DCM_RV@meta.data %>% 
   dplyr::select(c("Sample",
                   "Age_years",
                   "mPAP_mmHg",
@@ -111,7 +105,7 @@ meta <- DCM_RV_DCM@meta.data %>%
                   "LVEDD_mm")
                 ) %>% 
   distinct() %>% 
-  arrange(match(Sample, unique(DCM_RV_DCM$Sample))) %>% 
+  arrange(match(Sample, unique(DCM_RV$Sample))) %>% 
   dplyr::rename(
     `Age (years)`    = Age_years,
     `mPAP (mmHg)`    = mPAP_mmHg,
@@ -127,10 +121,10 @@ meta <- DCM_RV_DCM@meta.data %>%
 
 rownames(meta) <- meta$Sample
 
-DCM_RV_DCM$pseudobulk <- "Pseudobulk"
+DCM_RV$pseudobulk <- "Pseudobulk"
 
 pb <- Seurat2PB(
-        DCM_RV_DCM,
+        DCM_RV,
         sample   = "Sample",
         cluster    = "pseudobulk")
 
@@ -166,13 +160,6 @@ varPart <- fitExtractVarPartModel(
 
 colnames(varPart) <- gsub("`", "", colnames(varPart))
 vp_mean <- sort(colMeans(varPart), decreasing = TRUE)
-
-barplot(vp_mean,
-        las  = 2,
-        ylab = "Mean fraction of variance explained",
-        main = "Variance partitioning across all genes\n(pseudobulk, all cell types)")
-
-plotVarPart(varPart)  
 ```
 
 ```{r Var_part_barplot, fig.height=4, fig.width=6}
@@ -234,4 +221,92 @@ p <- plotVarPart(varPart) +
 
 p
 ```
+
+```{r clinical_correlation_matrix, fig.height=8, fig.width=8, message=FALSE, warning=FALSE}
+library(Hmisc)
+library(ggtext)
+
+method <- "pearson" 
+
+dat <- meta %>%
+  dplyr::select(where(is.numeric)) %>%
+  dplyr::select(-any_of(c("LibSize", "log10_LibSize")))
+
+rc <- Hmisc::rcorr(as.matrix(dat), type = method)
+r_mat <- rc$r
+p_mat <- rc$P
+
+hc <- hclust(as.dist(1 - abs(r_mat)), method = "average")
+ord <- hc$labels[hc$order]
+
+r_mat <- r_mat[ord, ord, drop = FALSE]
+p_mat <- p_mat[ord, ord, drop = FALSE]
+
+r_long <- as.data.frame(r_mat) %>%
+  tibble::rownames_to_column("var1") %>%
+  pivot_longer(-var1, names_to = "var2", values_to = "r")
+
+p_long <- as.data.frame(p_mat) %>%
+  tibble::rownames_to_column("var1") %>%
+  pivot_longer(-var1, names_to = "var2", values_to = "p")
+
+df <- left_join(r_long, p_long, by = c("var1", "var2")) %>%
+  mutate(
+    var1 = factor(var1, levels = ord),
+    var2 = factor(var2, levels = ord),
+    i1 = as.integer(var1),
+    i2 = as.integer(var2)
+  )
+
+fmt_p <- function(p) {
+  ifelse(is.na(p), "",
+         ifelse(p < 0.001, "p < 0.001", paste0("p = ", formatC(p, format = "f", digits = 3))))
+}
+
+df <- df %>%
+  mutate(
+    r_txt = ifelse(is.na(r), "", sprintf("%.2f", r)),
+    p_txt = fmt_p(p),
+    strong = !is.na(r) & !is.na(p) & (abs(r) > 0.4) & (p < 0.05),
+    label = ifelse(
+      strong,
+      paste0("<b>", r_txt, "</b><br><b>", p_txt, "</b>"),
+      paste0(r_txt, "<br>", p_txt)
+    )
+  )
+
+ggplot(df, aes(x = var2, y = var1, fill = r)) +
+  # base tiles (uniform light borders)
+  geom_tile(color = "grey85", linewidth = 0.4) +
+
+  # overlay: strong correlations get a clean black outline on top
+  geom_tile(
+    data = dplyr::filter(df, strong),
+    aes(x = var2, y = var1),
+    fill = NA, color = "black", linewidth = 0.8
+  ) +
+
+  geom_richtext(
+    aes(label = label),
+    fill = NA, label.color = NA,
+    size = 3.2, lineheight = 0.95
+  ) +
+  scale_fill_gradient2(
+    low = "#2166AC", mid = "white", high = "#B2182B",
+    limits = c(-1, 1), oob = scales::squish,
+    name = paste0(method, " r")
+  ) +
+  coord_fixed() +
+  labs(title = "Correlation of clinical variables", x = NULL, y = NULL) +
+  theme_classic(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", color = "black"),
+    axis.text.y = element_text(face = "bold", color = "black"),
+    axis.line = element_blank()
+  )
+
+```
+
+
 
