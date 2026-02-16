@@ -27,7 +27,6 @@ current_file <- "QC_integration_annotation"
 library(here)
 library(readr)
 library(readxl)
-library(xlsx)
 library(Seurat)
 library(DropletUtils)
 library(Matrix)
@@ -52,7 +51,6 @@ library(ggplot2)
 library(scater)
 library(patchwork)
 library(statmod)
-library(ArchR)
 library(clustree)
 library(harmony)
 library(speckle)
@@ -97,15 +95,7 @@ cell_bender_merged <- Read_CellBender_h5_Multi_File(merge = TRUE,
                                                                     "cellbender_output_352751_1-153PK", 
                                                                     "cellbender_output_352751_2-211PK", 
                                                                     "cellbender_output_352751_3-323PK", 
-                                                                    "cellbender_output_352751_4-P5",
-                                                                    "cellbender_output_356841_1-CZD4",
-                                                                    "cellbender_output_356841_2-CZD5",
-                                                                    "cellbender_output_356841_3-CZD6",
-                                                                    "cellbender_output_356841_4-CZD7",
-                                                                    "cellbender_output_398631_1-CZD9",
-                                                                    "cellbender_output_398631_2-CZD13",
-                                                                    "cellbender_output_398631_3-CZD15",
-                                                                    "cellbender_output_398631_4-CZD16"
+                                                                    "cellbender_output_352751_4-P5"
                                                                     ),
                                                     sample_names = c("PK337", 
                                                                      "PK357", 
@@ -128,15 +118,7 @@ cell_bender_merged <- Read_CellBender_h5_Multi_File(merge = TRUE,
                                                                      "PK153", 
                                                                      "PK211", 
                                                                      "PK323", 
-                                                                     "P5",
-                                                                     "CZD4",
-                                                                     "CZD5",
-                                                                     "CZD6",
-                                                                     "CZD7",
-                                                                     "CZD9",
-                                                                     "CZD13",
-                                                                     "CZD15",
-                                                                     "CZD16")
+                                                                     "P5")
                                                     )
 
 cell_ranger_merged <- Read10X_h5_GEO(merge = TRUE,
@@ -163,15 +145,7 @@ cell_ranger_merged <- Read10X_h5_GEO(merge = TRUE,
                                                      "352751_1-153PK", 
                                                      "352751_2-211PK", 
                                                      "352751_3-323PK", 
-                                                     "352751_4-P5",
-                                                     "356841_1-CZD4",
-                                                     "356841_2-CZD5",
-                                                     "356841_3-CZD6",
-                                                     "356841_4-CZD7",
-                                                     "398631_1-CZD9",
-                                                     "398631_2-CZD13",
-                                                     "398631_3-CZD15",
-                                                     "398631_4-CZD16"),
+                                                     "352751_4-P5"),
                                      sample_names = c("PK337", 
                                                       "PK357", 
                                                       "PK345", 
@@ -193,15 +167,7 @@ cell_ranger_merged <- Read10X_h5_GEO(merge = TRUE,
                                                       "PK153", 
                                                       "PK211", 
                                                       "PK323", 
-                                                      "P5",
-                                                      "CZD4",
-                                                      "CZD5",
-                                                      "CZD6",
-                                                      "CZD7",
-                                                      "CZD9",
-                                                      "CZD13",
-                                                      "CZD15",
-                                                      "CZD16")
+                                                      "P5")
                                      )
 
 DCM_RV_preQC <- Create_CellBender_Merged_Seurat(raw_cell_bender_matrix = cell_bender_merged, 
@@ -217,7 +183,7 @@ Add metadata: percentage of mitochondrial and ribosomal genes, clinical data
 DCM_RV_preQC[["percent.mt"]] <- PercentageFeatureSet(DCM_RV_preQC, pattern = "^MT-")
 DCM_RV_preQC[["percent.rp"]] <- PercentageFeatureSet(DCM_RV_preQC, pattern = "^RP[SL]")
 DCM_RV_preQC$Sample <- DCM_RV_preQC$orig.ident
-Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_30.xlsx"))
+Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_22.xlsx"))
 add_metadata <- left_join(DCM_RV_preQC[["Sample"]], Clinical_data)
 row.names(add_metadata) <- row.names(DCM_RV_preQC[[]])
 DCM_RV_preQC <- AddMetaData(DCM_RV_preQC, metadata = add_metadata)
@@ -307,7 +273,7 @@ saveRDS(DCM_RV_preQC,
         here::here(output_dir_data, "DCM_RV_preQC.rds"))
 ```
 
-```{r read DCM_RV_preQC, eval=FALSE}
+```{r read DCM_RV_preQC, eval=TRUE}
 DCM_RV_preQC <- readRDS(here::here(output_dir_data, "DCM_RV_preQC.rds"))
 ```
 
@@ -420,11 +386,15 @@ QC_post_VlnPlots_zoom
 
 Normalization and scaling using SCTransform
 
-```{r SCTransform, message=FALSE}
+```{r SCTransform, message=FALSE, warning=FALSE}
 DefaultAssay(DCM_RV) <- "RNA"
 DCM_RV <- SplitObject(DCM_RV, split.by = "Sample")
 for (i in 1:length(DCM_RV)) {
-  DCM_RV[[i]] <- SCTransform(DCM_RV[[i]], vst.flavor = "v2", vars.to.regress = c("percent.mt"), return.only.var.genes = TRUE)
+  DCM_RV[[i]] <- SCTransform(DCM_RV[[i]], 
+                             vst.flavor = "v2", 
+                             vars.to.regress = c("percent.mt"), 
+                             return.only.var.genes = TRUE,
+                             method = "glmGamPoi")
 }
 ```
 
@@ -454,9 +424,9 @@ clustree::clustree(DCM_RV@meta.data[,grep("SCT_snn_res", colnames(DCM_RV@meta.da
                    prefix = "SCT_snn_res.")
 ```
 
-```{r UMAPs_not_integrated, fig.width=18, fig.height=10}
+```{r UMAPs_not_integrated, fig.width=12, fig.height=10}
 DimPlot(DCM_RV, reduction = "umap", shuffle = T,
-        group.by = c("SCT_snn_res.0.1", "Sample", "Batch_processing", "Batch_sequencing", "Group"), ncol = 3)
+        group.by = c("SCT_snn_res.0.1", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
 ```
 
 Integrate the samples
@@ -488,7 +458,7 @@ clustree::clustree(DCM_RV@meta.data[,grep("SCT_snn_res", colnames(DCM_RV@meta.da
 ```
 
 ```{r UMAPs_integrated_low_quality, fig.width=12, fig.height=10}
-DCM_RV$SCT_snn_res.0.2 <- factor(DCM_RV$SCT_snn_res.0.2, levels = c("0", "1", "2", "3", "4", "5","6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"))
+DCM_RV$SCT_snn_res.0.2 <- factor(DCM_RV$SCT_snn_res.0.2, levels = c("0", "1", "2", "3", "4", "5","6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"))
 
 DimPlot(DCM_RV, reduction = "umap", shuffle = T,
         group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2, label=T)
@@ -526,21 +496,21 @@ VlnPlot(DCM_RV, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percen
 ```
 
 ```{r QC_VlnPlots_low_quality_2, fig.width=20, fig.height=6}
-VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "11")$gene, num_columns = 5, pt.size = 0) + theme(axis.title.x = element_blank())
+VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "10")$gene, num_columns = 5, pt.size = 0) + theme(axis.title.x = element_blank())
 ```
 
 ```{r QC_VlnPlots_low_quality_3, fig.width=20, fig.height=6}
-VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "15")$gene, num_columns = 5, pt.size = 0) + theme(axis.title.x = element_blank())
+VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "14")$gene, num_columns = 5, pt.size = 0) + theme(axis.title.x = element_blank())
 ```
 
 ```{r QC_VlnPlots_low_quality_4, fig.width=20, fig.height=6}
-VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "17")$gene, num_columns = 5, pt.size = 0) + theme(axis.title.x = element_blank())
+VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "16")$gene, num_columns = 5, pt.size = 0) + theme(axis.title.x = element_blank())
 ```
 
 Remove low quality cells (clusters with low number of count and features and higher percentage of mt or rp genes)
 
 ```{r remove low quality, eval=FALSE}
-DCM_RV <- subset(DCM_RV, subset = SCT_snn_res.0.2 %in% c("0", "1", "2", "3", "4", "5","6", "7", "8", "9", "10", "12", "13", "14", "16"))
+DCM_RV <- subset(DCM_RV, subset = SCT_snn_res.0.2 %in% c("0", "1", "2", "3", "4", "5","6", "7", "8", "9", "11", "12", "13", "15"))
 ```
 
 ```{r save DCM_RV, eval=FALSE}
@@ -600,7 +570,7 @@ clustree(
 ```
 
 ```{r UMAPs_integrated, fig.width=12, fig.height=10}
-DCM_RV$SCT_snn_res.0.2 <- factor(DCM_RV$SCT_snn_res.0.2, levels = c("0", "1", "2", "3", "4", "5","6", "7", "8", "9", "10", "11", "12", "13", "14"))
+DCM_RV$SCT_snn_res.0.2 <- factor(DCM_RV$SCT_snn_res.0.2, levels = c("0", "1", "2", "3", "4", "5","6", "7", "8", "9", "10", "11", "12", "13"))
 DimPlot(DCM_RV, reduction = "umap", shuffle = T,
         group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
 ```
@@ -633,19 +603,19 @@ DimPlot(DCM_RV, reduction = "umap", shuffle = T,
 Annotate the clusters based on the characteristic markers
 
 ```{r annotation}
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("0", "5"), "cell_type"] = "Cardiomyocytes"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("0"), "cell_type"] = "Cardiomyocytes"
 DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("1"), "cell_type"] = "Fibroblasts"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("2", "8"), "cell_type"] = "Endothelial cells"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_type"] = "Macrophages"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_type"] = "Pericytes"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("2", "5"), "cell_type"] = "Endothelial cells"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_type"] = "Pericytes"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_type"] = "Macrophages"
 DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("6"), "cell_type"] = "T lymphocytes"
 DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("7"), "cell_type"] = "Smooth muscle cells"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("9"), "cell_type"] = "Neuronal cells"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("10"), "cell_type"] = "Endocardial cells"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("11"), "cell_type"] = "Lymphatic cells"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("12"), "cell_type"] = "Mast cells"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("13"), "cell_type"] = "Adipocytes"
-DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("14"), "cell_type"] = "B lymphocytes"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("8"), "cell_type"] = "Neuronal cells"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("9"), "cell_type"] = "Endocardial cells"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("10"), "cell_type"] = "Adipocytes"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("11"), "cell_type"] = "Mast cells"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("12"), "cell_type"] = "Lymphatic cells"
+DCM_RV@meta.data[DCM_RV@meta.data$SCT_snn_res.0.2 %in% c("13"), "cell_type"] = "B lymphocytes"
 
 DCM_RV$cell_type <- factor(DCM_RV$cell_type, levels = c("Cardiomyocytes", 
                                                         "Fibroblasts",
@@ -656,9 +626,9 @@ DCM_RV$cell_type <- factor(DCM_RV$cell_type, levels = c("Cardiomyocytes",
                                                         "Smooth muscle cells",
                                                         "Neuronal cells",
                                                         "Endocardial cells",
-                                                        "Lymphatic cells",
-                                                        "Mast cells",
                                                         "Adipocytes",
+                                                        "Mast cells",
+                                                        "Lymphatic cells",
                                                         "B lymphocytes"))
 Idents(DCM_RV) <- DCM_RV$cell_type
 ```
@@ -748,7 +718,7 @@ LabelClusters(p,
 ```
 
 ```{r DotPlot_markers_Manuscript, fig.width=10.5, fig.height=6}
-Markers_top3 <- Markers_top3[-c(28),]
+Markers_top3 <- Markers_top3[-c(34),]
 Idents(DCM_RV) <- factor(
   Idents(DCM_RV),
   levels = rev(levels(Idents(DCM_RV)))
@@ -768,7 +738,7 @@ p + theme(
 ```
 
 ```{r FeatPlot_markers, fig.width=18, fig.height=10}
-FeaturePlot_scCustom(DCM_RV, features = c("RYR2", "COL6A3", "VWF", "MRC1", "RGS5", "PTPRC", "RGS6", "NRXN1", "PKHD1L1", "MMRN1", "IL18R1", "ADIPOQ", "POU2AF1"), num_columns = 5, order = F)
+FeaturePlot_scCustom(DCM_RV, features = c("RYR2", "COL6A3", "VWF", "RGS5", "MRC1", "PTPRC", "RGS6", "NRXN1", "PKHD1L1", "ADIPOQ", "IL18R1", "MMRN1", "POU2AF1"), num_columns = 5, order = F)
 ```
 
 ```{r Barplot_Sample_Manuscript, fig.height=6, fig.width=15, message=FALSE}
@@ -798,14 +768,21 @@ barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = sample_co
 legend("topright", inset = c(-0.31, -0.065), legend = rownames(props$Proportions), fill = sample_cols, bty = "n", cex = 1.4, ncol = 2)
 ```
 
+```{r}
+dim(DCM_RV)
+table(DCM_RV$cell_type)
+```
+
 ```{r save DCM_RV final, eval = FALSE}
 saveRDS(DCM_RV, 
         here::here(output_dir_data, "DCM_RV.rds"))
 ```
 
 ```{r save DCM_RV_RNA, eval = FALSE}
-DCM_RV_RNA <-DCM_RV
+DCM_RV_RNA <- DCM_RV
 DCM_RV_RNA@assays[["SCT"]] <- NULL
+DefaultAssay(DCM_RV_RNA) <- "RNA"
+DCM_RV_RNA <- NormalizeData(DCM_RV_RNA)
 saveRDS(DCM_RV_RNA, 
         here::here(output_dir_data, "DCM_RV_RNA.rds"))
 rm(DCM_RV_RNA)
