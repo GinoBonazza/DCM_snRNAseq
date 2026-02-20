@@ -25,16 +25,25 @@ current_file <- "Cardiomyocytes_subclustering"
 
 # Load libraries
 library(here)
+library(dplyr)
+library(ggplot2)
+library(tibble)
 library(readr)
 library(readxl)
-library(xlsx)
+library(knitr)
+library(patchwork)
+library(scales)
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+
+
 library(Seurat)
 library(DropletUtils)
 library(Matrix)
 library(scDblFinder)
 library(scCustomize)
-library(dplyr)
-library(ggplot2)
 library(magrittr)
 library(tidyverse)
 library(reshape2)
@@ -43,21 +52,12 @@ library(SingleCellExperiment)
 library(pheatmap)
 library(png)
 library(gridExtra)
-library(knitr)
-library(scales)
-library(RColorBrewer)
 library(Matrix.utils)
-library(tibble)
-library(ggplot2)
 library(scater)
-library(patchwork)
 library(statmod)
-library(ArchR)
 library(clustree)
 library(harmony)
 library(gprofiler2)
-library(clusterProfiler)
-library(org.Hs.eg.db)
 library(AnnotationHub)
 library(ReactomePA)
 library(speckle)
@@ -66,8 +66,8 @@ library(reactable)
 library(decoupleR)
 library(OmnipathR)
 library(dorothea)
-library(enrichplot)
-library(SeuratDisk)
+library(edgeR)
+library(qs2)
 
 
 #Output paths
@@ -84,7 +84,7 @@ if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
 Load dataset and subset cardiomyocytes
 
 ```{r Load data, echo = TRUE, results= "hide"}
-DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.rds"))
+DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.qs2"), nthreads = 32)
 DefaultAssay(DCM_RV) <- "RNA"
 CM <- subset(DCM_RV, cell_type == "Cardiomyocytes")
 ```
@@ -93,10 +93,13 @@ CM <- subset(DCM_RV, cell_type == "Cardiomyocytes")
 
 Re-normalize and re-scale the subsetted object using SCTransform
 
-```{r SCTransform, message=FALSE}
+```{r SCTransform, message=FALSE, warning=FALSE}
 CM <- SplitObject(CM, split.by = "Sample")
 for (i in 1:length(CM)) {
-CM[[i]] <- SCTransform(CM[[i]], vst.flavor = "v2", vars.to.regress = "percent.mt", return.only.var.genes = TRUE, variable.features.n = 2000)
+CM[[i]] <- SCTransform(CM[[i]], vst.flavor = "v2", 
+                       vars.to.regress = "percent.mt", 
+                       return.only.var.genes = TRUE, 
+                       variable.features.n = 2000)
 }
 ```
 
@@ -117,7 +120,6 @@ Reintegrate the samples using Harmony
 
 ```{r RunHarmony}
 CM <- RunHarmony(CM, 
-                 assay.use="SCT", 
                  group.by.vars = "Sample", 
                  dims.use = 1:30, 
                  plot_convergence=TRUE, 
@@ -128,7 +130,7 @@ CM <- RunHarmony(CM,
 ```
 
 ```{r read CM}
-CM <- readRDS(here::here(output_dir_data, "CM.rds"))
+CM <- qs_read(here::here(output_dir_data, "CM.qs2"), nthreads = 32)
 ```
 
 Clustering after integration
@@ -146,7 +148,7 @@ clustree::clustree(CM@meta.data[,grep("SCT_snn_res", colnames(CM@meta.data))], p
 
 ```{r UMAPs_CM, fig.width=12, fig.height=10}
 DimPlot(CM, reduction = "umap", shuffle = T,
-        group.by = c("SCT_snn_res.0.2", "Sample", "Group", "Batch_processing"), ncol = 2)
+        group.by = c("SCT_snn_res.0.2", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
 ```
 
 ```{r FindAllMarkers}
@@ -193,9 +195,8 @@ CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("1"), "cell_state"] = "CM2"
 CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("2"), "cell_state"] = "CM3"
 CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_state"] = "CM4"
 CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_state"] = "CM5"
-CM@meta.data[CM@meta.data$SCT_snn_res.0.2 %in% c("5"), "cell_state"] = "CM6"
 
-CM$cell_state <- factor(CM$cell_state, levels = c("CM1", "CM2", "CM3","CM4","CM5", "CM6"))
+CM$cell_state <- factor(CM$cell_state, levels = c("CM1", "CM2", "CM3","CM4","CM5"))
 Idents(CM) <- CM$cell_state
 ```
 
@@ -264,11 +265,11 @@ Idents(CM) <- CM$cell_state
 
 
 ```{r VlnPlot_markers_CM, fig.width=12, fig.height=4}
-VlnPlot_scCustom(CM, features = c("LINC02388", "MIR646HG", "NRAP", "ARHGAP24", "DAPK2"), num_columns = 5, colors_use = cell_type_cols, pt.size = 0)
+VlnPlot_scCustom(CM, features = c("LINC02388", "ARHGAP24", "THSD4", "NRAP"), num_columns = 4, colors_use = cell_type_cols, pt.size = 0)
 ```
 
-```{r FeatPlot_markers_CM, fig.width=15, fig.height=3}
-FeaturePlot_scCustom(CM, features = c("LINC02388", "MIR646HG", "NRAP", "ARHGAP24", "DAPK2"), num_columns = 5)
+```{r FeatPlot_markers_CM, fig.width=13, fig.height=3}
+FeaturePlot_scCustom(CM, features = c("LINC02388", "ARHGAP24", "THSD4", "NRAP"), num_columns = 4)
 ```
 
 ```{r Barplot_CM_Sample, fig.height=6, fig.width=15, message=FALSE}
@@ -278,15 +279,6 @@ par(mar = c(7, 5, 1, 8), xpd = TRUE)
 barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = cell_type_cols, 
         cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
 legend("topright", inset = c(-0.1, 0.1), legend = rownames(props$Proportions), fill = cell_type_cols, bty = "n", cex = 2)
-```
-
-```{r Barplot_CM_Group, fig.height=6, fig.width=5, message=FALSE}
-props <- getTransformedProps(CM$cell_state, CM$Group, transform="logit")
-
-par(mar = c(7, 5, 1, 8), xpd = TRUE)
-barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = cell_type_cols, 
-        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
-legend("topright", inset = c(-0.65, 0.15), legend = rownames(props$Proportions), fill = cell_type_cols, bty = "n", cex = 2)
 ```
 
 ```{r bitr}
@@ -299,14 +291,12 @@ dfsample$CM2 = bitr(dfsample$CM2, fromType="SYMBOL", toType="ENTREZID", OrgDb="o
 dfsample$CM3 = bitr(dfsample$CM3, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 dfsample$CM4 = bitr(dfsample$CM4, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 dfsample$CM5 = bitr(dfsample$CM5, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
-dfsample$CM6 = bitr(dfsample$CM6, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 
 genelist <- list("CM1" = dfsample$CM1$ENTREZID, 
                  "CM2" = dfsample$CM2$ENTREZID,
                  "CM3" = dfsample$CM3$ENTREZID,
                  "CM4" = dfsample$CM4$ENTREZID,
-                 "CM5" = dfsample$CM5$ENTREZID,
-                 "CM6" = dfsample$CM6$ENTREZID
+                 "CM5" = dfsample$CM5$ENTREZID
 )
 
 gene_counts <- rowSums(CM@assays$RNA@counts > 0)
@@ -323,7 +313,7 @@ dotplot(GO, label_format = 35, title = "GO - Over-representation analysis")
 ```
 
 ```{r Pathways_GO_simplified, fig.height=8, fig.width=6}
-GO_simplified <- simplify(
+GO_simplified <- clusterProfiler::simplify(
   GO,
   cutoff = 0.5,
   by = "p.adjust",
@@ -401,7 +391,7 @@ reactable(differential_abundance,
           showPageSizeOptions = TRUE)
 ```
 
-```{r Speckle_LVEDD_mm, fig.height=8, fig.width=12}
+```{r Speckle_LVEDD_mm, fig.height=4, fig.width=20}
 metadata_subset <- metadata[complete.cases(metadata[["LVEDD_mm"]]),]
 
 props_subset <- props
@@ -415,8 +405,8 @@ metadata_subset <- metadata_subset %>%
 design <- model.matrix(~ metadata_subset$LVEDD_mm + metadata_subset$Age_years)
 fit.prop <- lmFit(props_subset$Proportions,design)
 
-par(mfrow=c(2,3), mar = c(5, 5, 3, 1))
-for(i in seq(1,6,1)){
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
   plot(metadata_subset$LVEDD_mm, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
        pch=16, cex=2, ylab="Proportions", xlab="LVEDD_mm", cex.lab=2, cex.axis=1.5,
        cex.main=2.5)
@@ -426,7 +416,7 @@ for(i in seq(1,6,1)){
 rm(metadata_subset, props_subset, design, fit.prop)
 ```
 
-```{r Speckle_LVEF_percent, fig.height=8, fig.width=12}
+```{r Speckle_LVEF_percent, fig.height=4, fig.width=20}
 metadata_subset <- metadata[complete.cases(metadata[["LVEF_percent"]]),]
 
 props_subset <- props
@@ -440,8 +430,8 @@ metadata_subset <- metadata_subset %>%
 design <- model.matrix(~ metadata_subset$LVEF_percent + metadata_subset$Age_years)
 fit.prop <- lmFit(props_subset$Proportions,design)
 
-par(mfrow=c(2,3), mar = c(5, 5, 3, 1))
-for(i in seq(1,6,1)){
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
   plot(metadata_subset$LVEF_percent, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
        pch=16, cex=2, ylab="Proportions", xlab="LVEF_percent", cex.lab=2, cex.axis=1.5,
        cex.main=2.5)
@@ -451,7 +441,7 @@ for(i in seq(1,6,1)){
 rm(metadata_subset, props_subset, design, fit.prop)
 ```
 
-```{r Speckle_mPAP_mmHg, fig.height=8, fig.width=12}
+```{r Speckle_mPAP_mmHg, fig.height=4, fig.width=20}
 metadata_subset <- metadata[complete.cases(metadata[["mPAP_mmHg"]]),]
 
 props_subset <- props
@@ -465,8 +455,8 @@ metadata_subset <- metadata_subset %>%
 design <- model.matrix(~ metadata_subset$mPAP_mmHg + metadata_subset$Age_years)
 fit.prop <- lmFit(props_subset$Proportions,design)
 
-par(mfrow=c(2,3), mar = c(5, 5, 3, 1))
-for(i in seq(1,6,1)){
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
   plot(metadata_subset$mPAP_mmHg, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
        pch=16, cex=2, ylab="Proportions", xlab="mPAP_mmHg", cex.lab=2, cex.axis=1.5,
        cex.main=2.5)
@@ -474,71 +464,6 @@ for(i in seq(1,6,1)){
          lwd=1)
 }
 rm(metadata_subset, props_subset, design, fit.prop)
-```
-
-```{r Speckle_Group, fig.height=3, fig.width=12}
-design <- model.matrix(~ 0 + metadata$Group)
-colnames(design) <- c("DCM", "HC")
-mycontr <- makeContrasts(DCM-HC, levels=design)
-differential_abundance_HC <- propeller.ttest(props, design, contrasts = mycontr, robust=TRUE, trend=FALSE, sort=TRUE)
-
-write.csv(differential_abundance_HC, file = here::here(output_dir_data, "CM_Differential_Abundance_HC.csv"), row.names = F)
-
-reactable(differential_abundance_HC, 
-          filterable = TRUE,
-          searchable = TRUE,
-          showPageSizeOptions = TRUE)
-
-prop_mat <- as.matrix(props$Proportions)
-stopifnot(is.matrix(prop_mat))
-
-# 2) Long format
-prop_long <- as.data.frame.matrix(prop_mat) %>%           # <-- important: *.matrix
-  tibble::rownames_to_column("state") %>%
-  pivot_longer(cols = -state, names_to = "Sample", values_to = "prop") %>%
-  mutate(Sample = as.character(Sample),
-         state    = factor(state, levels = rownames(prop_mat))) %>%
-  left_join(metadata %>% dplyr::select(Sample, Group) %>% distinct(),
-            by = "Sample") %>%
-  mutate(Group = factor(Group, levels = c("HC","DCM")))
-
-# ---- Build labels from propeller results ----
-# rownames of differential_abundance_HC should be the state names
-lab_df <- differential_abundance_HC %>%
-  mutate(state = rownames(differential_abundance_HC),
-         label = ifelse(FDR < 0.05, paste0("FDR=", signif(FDR, 2)), "ns")) %>%
-  dplyr::select(state, label)
-
-# y-position for labels (a little above the highest point per facet)
-y_pos <- prop_long %>%
-  group_by(state) %>%
-  summarise(y = max(prop, na.rm = TRUE) * 1.08, .groups = "drop")
-
-lab_plot <- left_join(lab_df, y_pos, by = "state")
-
-# ---- Colors (classic blue/red) ----
-cols <- c(HC = "#1f77b4", DCM = "#d62728")
-
-# ---- Plot ----
-p <- ggplot(prop_long, aes(x = Group, y = prop, fill = Group, color = Group)) +
-  geom_boxplot(width = 0.6, outlier.shape = NA, alpha = 0.35) +
-  geom_jitter(width = 0.12, size = 1.8, alpha = 0.9) +
-  facet_wrap(~ state, nrow = 1, scales = "free_y") +
-  geom_text(data = lab_plot, aes(x = 1.5, y = y, label = label),
-            inherit.aes = FALSE, size = 4.5) +
-  scale_fill_manual(values = cols) +
-  scale_color_manual(values = cols) +
-  labs(x = NULL, y = "Proportions") +
-  theme_classic(base_size = 14) +
-  theme(
-    legend.position = "none",
-    strip.text = element_text(face = "bold", size = 14),
-    axis.text.x = element_text(size = 12),
-    axis.title.y = element_text(size = 13),
-    panel.spacing = unit(1.5, "lines")
-  )
-
-p
 ```
 
 ```{r CM_proportions}
@@ -576,7 +501,7 @@ net <- net %>%
 ```
 
 ```{r TF_cols}
-TF_cols <- rev(colorRampPalette(brewer.pal(5, "BrBG"))(101))
+TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
 ```
 
 ```{r TF_tfsulm, eval=FALSE}
@@ -693,7 +618,7 @@ p1 <- Seurat::DimPlot(CM,
       Seurat::NoLegend() + 
       ggplot2::ggtitle('Cell states')
 
-p2 <- Seurat::FeaturePlot(CM, features = c("MEF2A"), pt.size = 0.1, order=T) + 
+p2 <- Seurat::FeaturePlot(CM, features = c("MEF2A"), pt.size = 0.1, order=F) + 
       ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = "white") +
       ggplot2::ggtitle('MEF2A activity')
 
@@ -701,6 +626,30 @@ DefaultAssay(object = CM) <- "RNA"
 p3 <- FeaturePlot_scCustom(CM, 
                           features = c("MEF2A"), pt.size = 0.1) + 
       ggplot2::ggtitle('MEF2A expression')
+
+Seurat::DefaultAssay(CM) <- "tfsulm"
+
+p <- p1 | p2 | p3
+p
+```
+
+```{r TF_Feat_SRF, fig.width=12, fig.height=4}
+Seurat::DefaultAssay(CM) <- "tfsulm"
+p1 <- Seurat::DimPlot(CM, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.1) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(CM, features = c("SRF"), pt.size = 0.1, order=F) + 
+      ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = "white") +
+      ggplot2::ggtitle('SRF activity')
+
+DefaultAssay(object = CM) <- "RNA"
+p3 <- FeaturePlot_scCustom(CM, 
+                          features = c("SRF"), pt.size = 0.1, order = F) + 
+      ggplot2::ggtitle('SRF expression')
 
 Seurat::DefaultAssay(CM) <- "tfsulm"
 
@@ -769,7 +718,7 @@ pheatmap::pheatmap(mat = top_acts_mat,
                    treeheight_col = 20) 
 ```
 
-```{r Pathway_Feat_Hypoxia, fig.width=8, fig.height=4}
+```{r Pathway_Feat_Trail, fig.width=8, fig.height=4}
 Seurat::DefaultAssay(object = CM) <- "pathwaysmlm"
 
 p1 <- Seurat::DimPlot(CM, 
@@ -779,11 +728,11 @@ p1 <- Seurat::DimPlot(CM,
       Seurat::NoLegend() + 
       ggplot2::ggtitle('Cell states')
 
-p2 <- Seurat::FeaturePlot(CM, features = c("Hypoxia"), 
-                      pt.size = 0.1, order=T) + 
+p2 <- Seurat::FeaturePlot(CM, features = c("Trail"), 
+                      pt.size = 0.1, order=F) + 
       ggplot2::scale_colour_gradientn(colors = Pathway_cols
                                       ) +
-      ggplot2::ggtitle('Hypoxia activity')
+      ggplot2::ggtitle('Trail activity')
 
 p <- p1 | p2
 p
@@ -802,13 +751,11 @@ write.csv(
 )
 ```
 
-```{r save CM final, eval = FALSE}
-saveRDS(CM, 
-        here::here(output_dir_data, "CM.rds"))
-```
-
-```{r h5ad, eval = FALSE}
-SaveH5Seurat(CM, here::here(output_dir_data, "CM.h5Seurat"), overwrite = TRUE)
-Convert(here::here(output_dir_data, "CM.h5Seurat"), dest = "h5ad", assay = "RNA")
+```{r save CM final, eval=FALSE}
+DefaultAssay(CM) <- "RNA"
+qs_save(CM,
+        file = here::here(output_dir_data, "CM.qs2"),
+        nthreads = 32
+        )
 ```
 
