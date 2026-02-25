@@ -1,5 +1,5 @@
 ---
-title: "QC, integration, annotation DCM and HC samples"
+title: "QC, integration, annotation all DCM samples"
 author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: workflowr::wflow_html
@@ -386,7 +386,7 @@ QC_post_VlnPlots_zoom
 
 Normalization and scaling using SCTransform
 
-```{r SCTransform, message=FALSE, warning=FALSE}
+```{r SCTransform, message=FALSE, warning=FALSE, echo = TRUE, results= "hide"}
 DefaultAssay(DCM_RV) <- "RNA"
 DCM_RV <- SplitObject(DCM_RV, split.by = "Sample")
 for (i in 1:length(DCM_RV)) {
@@ -750,15 +750,6 @@ barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = cell_type
 legend("topright", inset = c(-0.375, -0.065), legend = rownames(props$Proportions), fill = cell_type_cols, bty = "n", cex = 2)
 ```
 
-```{r Barplot_Groups, fig.height=6, fig.width=7, message=FALSE}
-props <- getTransformedProps(DCM_RV$cell_type, DCM_RV$Group, transform="logit")
-
-par(mar = c(7, 5, 1, 20), xpd = TRUE)
-barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = cell_type_cols, 
-        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
-legend("topright", inset = c(-2, -0.065), legend = rownames(props$Proportions), fill = cell_type_cols, bty = "n", cex = 2)
-```
-
 ```{r Barplot_cell_type, fig.height=6, fig.width=12, message=FALSE}
 props <- getTransformedProps(DCM_RV$Sample, DCM_RV$cell_type, transform="logit")
 
@@ -778,12 +769,20 @@ saveRDS(DCM_RV,
         here::here(output_dir_data, "DCM_RV.rds"))
 ```
 
+```{r save DCM_RV_qs2, eval = FALSE}
+qs_save(DCM_RV,
+        file = here::here(output_dir_data, "DCM_RV.qs2"),
+        nthreads = 32
+        )
+```
+
 ```{r save DCM_RV_RNA, eval = FALSE}
 DCM_RV_RNA <- DCM_RV
 DCM_RV_RNA@assays[["SCT"]] <- NULL
 DefaultAssay(DCM_RV_RNA) <- "RNA"
-DCM_RV_RNA <- NormalizeData(DCM_RV_RNA)
-saveRDS(DCM_RV_RNA, 
-        here::here(output_dir_data, "DCM_RV_RNA.rds"))
+qs_save(DCM_RV_RNA,
+        file = here::here(output_dir_data, "DCM_RV_RNA.qs2"),
+        nthreads = 32
+        )
 rm(DCM_RV_RNA)
 ```

@@ -67,6 +67,7 @@ library(decoupleR)
 library(OmnipathR)
 library(dorothea)
 library(edgeR)
+library(qs2)
 
 
 #Output paths
@@ -83,8 +84,9 @@ if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
 Load dataset and subset cardiomyocytes
 
 ```{r Load data, echo = TRUE, results= "hide"}
-DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.rds"))
+DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.qs2"), nthreads = 32)
 DefaultAssay(DCM_RV) <- "RNA"
+Idents(DCM_RV) <- "cell_type"
 FB <- subset(DCM_RV, cell_type == "Fibroblasts")
 ```
 
@@ -92,24 +94,27 @@ FB <- subset(DCM_RV, cell_type == "Fibroblasts")
 
 Re-normalize and re-scale the subsetted object using SCTransform
 
-```{r SCTransform, message=FALSE}
+```{r SCTransform, message=FALSE, warning=FALSE, echo = TRUE, results= "hide"}
 FB <- SplitObject(FB, split.by = "Sample")
 for (i in 1:length(FB)) {
-FB[[i]] <- SCTransform(FB[[i]], vst.flavor = "v2", vars.to.regress = c("percent.mt"), return.only.var.genes = TRUE, variable.features.n = 3000, min_cells = 0)
+FB[[i]] <- SCTransform(FB[[i]], vst.flavor = "v2", 
+                       vars.to.regress = "percent.mt", 
+                       return.only.var.genes = TRUE, 
+                       variable.features.n = 2000)
 }
 ```
 
 PCA
 
 ```{r PCA}
-features <- SelectIntegrationFeatures(object.list = FB, nfeatures = 3000)
+features <- SelectIntegrationFeatures(object.list = FB, nfeatures = 2000)
 FB <- merge(x = FB[[1]], y = FB[2:length(FB)], merge.data=TRUE)
 VariableFeatures(FB) <- features
-FB <- RunPCA(FB, npcs = 50)
+FB <- RunPCA(FB, npcs = 30)
 ```
 
 ```{r Elbow_FB, fig.width=4, fig.height=4}
-ElbowPlot(FB, ndims = 50)
+ElbowPlot(FB, ndims = 30)
 ```
 
 Reintegrate the samples using Harmony
@@ -118,7 +123,7 @@ Reintegrate the samples using Harmony
 FB <- RunHarmony(FB, 
                  assay.use="SCT", 
                  group.by.vars = "Sample", 
-                 dims.use = 1:50, 
+                 dims.use = 1:30, 
                  plot_convergence=TRUE, 
                  .options = harmony_options(
                    max.iter.cluster = 100,
@@ -126,16 +131,12 @@ FB <- RunHarmony(FB,
                  )
 ```
 
-```{r read FB}
-FB <- readRDS(here::here(output_dir_data, "FB.rds"))
-```
-
 Clustering after integration
 
-```{r clustering integrated, eval=FALSE}
+```{r clustering integrated}
 DefaultAssay(FB) <- "SCT"
-FB <- RunUMAP(FB, dims = 1:50, reduction = "harmony")
-FB <- FindNeighbors(FB, dims = 1:50, reduction = "harmony")
+FB <- RunUMAP(FB, dims = 1:30, reduction = "harmony")
+FB <- FindNeighbors(FB, dims = 1:30, reduction = "harmony")
 FB <- FindClusters(FB, resolution = seq(0.1, 0.8, by=0.1))
 ```
 
@@ -145,7 +146,7 @@ clustree::clustree(FB@meta.data[,grep("SCT_snn_res", colnames(FB@meta.data))], p
 
 ```{r UMAPs_FB, fig.width=12, fig.height=10}
 DimPlot(FB, reduction = "umap", shuffle = T,
-        group.by = c("SCT_snn_res.0.3", "Sample", "Group", "Batch_processing"), ncol = 2)
+        group.by = c("SCT_snn_res.0.3", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
 ```
 
 Find the markers that characterize each cell population
@@ -171,7 +172,7 @@ Heatmap
 ```
 
 ```{r cell_type_cols}
-cell_type_cols <- c("#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A", "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9")  
+cell_type_cols <- c("#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A", "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600")  
 ```
 
 Check QC parameters in each cluster
@@ -181,26 +182,54 @@ VlnPlot_scCustom(FB, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "p
 ```
 
 ```{r QC_VlnPlots_2, fig.width=8, fig.height=6}
-VlnPlot_scCustom(FB, features = c("RYR2", "TTN", "VWF", "scDblFinder.score"), assay="RNA", num_columns = 2, pt.size = 0.01, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())
+VlnPlot_scCustom(FB, features = c("RYR2", "TTN", "VWF", "scDblFinder.score"), assay="RNA", num_columns = 2, pt.size = 0.0, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())
+```
+
+```{r QC_VlnPlots_3, fig.width=20, fig.height=6}
+VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "5")$gene, num_columns = 5, pt.size = 0, colors_use = cell_type_cols) 
 ```
 
 ## Cell type annotation
 
 Annotate the clusters
 
-```{r cell_state}
+```{r FB_contamination, eval=FALSE}
 FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("0"), "cell_state"] = "FB1"
 FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("1"), "cell_state"] = "FB2"
 FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("2"), "cell_state"] = "FB3"
 FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("3"), "cell_state"] = "FB4"
 FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("4"), "cell_state"] = "FB5"
-FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("5"), "cell_state"] = "FB6"
+FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("5"), "cell_state"] = "FB_contamination"
 
-FB$cell_state <- factor(FB$cell_state, levels = c("FB1", "FB2", "FB3","FB4","FB5", "FB6"))
+FB$cell_state <- factor(FB$cell_state, levels = c("FB1", "FB2", "FB3","FB4", "FB5", "FB_contamination"))
 Idents(FB) <- FB$cell_state
 ```
 
+```{r FB_cell_states_contamination.csv, eval=FALSE}
+cell_states_contamination <- data.frame(
+  cell = colnames(subset(FB, cell_state %in% c("FB_contamination"))),
+  cell_state = subset(FB, cell_state %in% c("FB_contamination"))$cell_state
+)
+
+write.csv(
+  cell_states_contamination,
+  here::here(output_dir_data, "FB_cell_states_contamination.csv"),
+  row.names = FALSE
+)
+```
+
+Remove low quality cells
+
+```{r remove MC_contamination, eval=FALSE}
+FB <- subset(FB, cell_state %in% c("FB1", "FB2", "FB3","FB4", "FB5"))
+```
+
+```{r read FB}
+FB <- qs_read(here::here(output_dir_data, "FB.qs2"), nthreads = 32)
+```
+
 ```{r FindAllMarkers cell_state}
+FB$cell_state <- factor(FB$cell_state, levels = c("FB1", "FB2", "FB3","FB4", "FB5"))
 DefaultAssay(FB) <- "RNA"
 Markers <- FindAllMarkers(FB, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
 write.csv(Markers, here::here(output_dir_data, "FB_Markers_all_cell_state.csv"))
@@ -264,15 +293,15 @@ Idents(FB) <- FB$cell_state
 ```
 
 ```{r VlnPlot_markers_FB, fig.width=12, fig.height=4}
-VlnPlot_scCustom(FB, features = c("ACSM3", "PCOLCE2", "KAZN", "FGF14", "GPC6", "NFATC2"), num_columns = 6, colors_use = cell_type_cols, pt.size = 0)
+VlnPlot_scCustom(FB, features = c("ACSM3", "PDZRN4", "FGF14", "KAZN", "NFATC2"), num_columns = 5, colors_use = cell_type_cols, pt.size = 0)
 ```
 
-```{r FeatPlot_markers_FB, fig.width=9, fig.height=15}
+```{r FeatPlot_markers_FB, fig.width=9, fig.height=12.5}
 FeaturePlot_scCustom(FB, features = Markers_top3$gene, num_columns = 3)
 ```
 
-```{r FeatPlot_markers_myoFB, fig.width=16, fig.height=3}
-FeaturePlot_scCustom(FB, features = c("POSTN", "ACTA2", "FAP", "VIM", "COL1A1"), num_columns = 5)
+```{r FeatPlot_markers_myoFB, fig.width=9, fig.height=5}
+FeaturePlot_scCustom(FB, features = c("POSTN", "ACTA2", "FAP", "VIM", "COL1A1", "FN1"), num_columns = 3)
 ```
 
 ```{r Barplot_FB_Sample, fig.height=6, fig.width=15, message=FALSE}
@@ -282,15 +311,6 @@ par(mar = c(7, 5, 1, 8), xpd = TRUE)
 barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = cell_type_cols, 
         cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
 legend("topright", inset = c(-0.1, 0.1), legend = rownames(props$Proportions), fill = cell_type_cols, bty = "n", cex = 2)
-```
-
-```{r Barplot_FB_Group, fig.height=6, fig.width=5, message=FALSE}
-props <- getTransformedProps(FB$cell_state, FB$Group, transform="logit")
-
-par(mar = c(7, 5, 1, 8), xpd = TRUE)
-barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = cell_type_cols, 
-        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
-legend("topright", inset = c(-0.65, 0.15), legend = rownames(props$Proportions), fill = cell_type_cols, bty = "n", cex = 2)
 ```
 
 ```{r bitr}
@@ -303,14 +323,12 @@ dfsample$FB2 = bitr(dfsample$FB2, fromType="SYMBOL", toType="ENTREZID", OrgDb="o
 dfsample$FB3 = bitr(dfsample$FB3, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 dfsample$FB4 = bitr(dfsample$FB4, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 dfsample$FB5 = bitr(dfsample$FB5, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
-dfsample$FB6 = bitr(dfsample$FB6, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
 
 genelist <- list("FB1" = dfsample$FB1$ENTREZID, 
                  "FB2" = dfsample$FB2$ENTREZID,
                  "FB3" = dfsample$FB3$ENTREZID,
                  "FB4" = dfsample$FB4$ENTREZID,
-                 "FB5" = dfsample$FB5$ENTREZID,
-                 "FB6" = dfsample$FB6$ENTREZID
+                 "FB5" = dfsample$FB5$ENTREZID
 )
 
 gene_counts <- rowSums(FB@assays$RNA@counts > 0)
@@ -405,32 +423,6 @@ reactable(differential_abundance,
           showPageSizeOptions = TRUE)
 ```
 
-```{r Speckle_LVEDD_mm, fig.height=4, fig.width=20}
-metadata_subset <- metadata[complete.cases(metadata[["RVID_mm"]]),]
-
-props_subset <- props
-props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
-props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
-props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
-
-metadata_subset <- metadata_subset %>% 
-  arrange(Sample, colnames(props_subset$Proportions))
-
-design <- model.matrix(~ metadata_subset$RVID_mm + metadata_subset$Age_years)
-fit.prop <- lmFit(props_subset$Proportions,design)
-
-par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
-for(i in seq(1,5,1)){
-  plot(metadata_subset$RVID_mm, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
-       pch=16, cex=2, ylab="Proportions", xlab="RVID_mm", cex.lab=2, cex.axis=1.5,
-       cex.main=2.5)
-  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
-         lwd=1)
-}
-rm(metadata_subset, props_subset, design, fit.prop)
-```
-
-
 ```{r Speckle_mPAP_mmHg, fig.height=4, fig.width=20}
 metadata_subset <- metadata[complete.cases(metadata[["mPAP_mmHg"]]),]
 
@@ -454,71 +446,6 @@ for(i in seq(1,5,1)){
          lwd=1)
 }
 rm(metadata_subset, props_subset, design, fit.prop)
-```
-
-```{r Speckle_Group, fig.height=3, fig.width=12}
-design <- model.matrix(~ 0 + metadata$Group)
-colnames(design) <- c("DCM", "HC")
-mycontr <- makeContrasts(DCM-HC, levels=design)
-differential_abundance_HC <- propeller.ttest(props, design, contrasts = mycontr, robust=TRUE, trend=FALSE, sort=TRUE)
-
-write.csv(differential_abundance_HC, file = here::here(output_dir_data, "FB_Differential_Abundance_HC.csv"), row.names = F)
-
-reactable(differential_abundance_HC, 
-          filterable = TRUE,
-          searchable = TRUE,
-          showPageSizeOptions = TRUE)
-
-prop_mat <- as.matrix(props$Proportions)
-stopifnot(is.matrix(prop_mat))
-
-# 2) Long format
-prop_long <- as.data.frame.matrix(prop_mat) %>%           # <-- important: *.matrix
-  tibble::rownames_to_column("state") %>%
-  pivot_longer(cols = -state, names_to = "Sample", values_to = "prop") %>%
-  mutate(Sample = as.character(Sample),
-         state    = factor(state, levels = rownames(prop_mat))) %>%
-  left_join(metadata %>% dplyr::select(Sample, Group) %>% distinct(),
-            by = "Sample") %>%
-  mutate(Group = factor(Group, levels = c("HC","DCM")))
-
-# ---- Build labels from propeller results ----
-# rownames of differential_abundance_HC should be the state names
-lab_df <- differential_abundance_HC %>%
-  mutate(state = rownames(differential_abundance_HC),
-         label = ifelse(FDR < 0.05, paste0("FDR=", signif(FDR, 2)), "ns")) %>%
-  dplyr::select(state, label)
-
-# y-position for labels (a little above the highest point per facet)
-y_pos <- prop_long %>%
-  group_by(state) %>%
-  summarise(y = max(prop, na.rm = TRUE) * 1.08, .groups = "drop")
-
-lab_plot <- left_join(lab_df, y_pos, by = "state")
-
-# ---- Colors (classic blue/red) ----
-cols <- c(HC = "#1f77b4", DCM = "#d62728")
-
-# ---- Plot ----
-p <- ggplot(prop_long, aes(x = Group, y = prop, fill = Group, color = Group)) +
-  geom_boxplot(width = 0.6, outlier.shape = NA, alpha = 0.35) +
-  geom_jitter(width = 0.12, size = 1.8, alpha = 0.9) +
-  facet_wrap(~ state, nrow = 1, scales = "free_y") +
-  geom_text(data = lab_plot, aes(x = 1.5, y = y, label = label),
-            inherit.aes = FALSE, size = 4.5) +
-  scale_fill_manual(values = cols) +
-  scale_color_manual(values = cols) +
-  labs(x = NULL, y = "Proportions") +
-  theme_classic(base_size = 14) +
-  theme(
-    legend.position = "none",
-    strip.text = element_text(face = "bold", size = 14),
-    axis.text.x = element_text(size = 12),
-    axis.title.y = element_text(size = 13),
-    panel.spacing = unit(1.5, "lines")
-  )
-
-p
 ```
 
 ```{r FB_proportions}
@@ -688,6 +615,30 @@ p <- p1 | p2 | p3
 p
 ```
 
+```{r TF_Feat_NFATC2, fig.width=12, fig.height=4}
+Seurat::DefaultAssay(FB) <- "tfsulm"
+p1 <- Seurat::DimPlot(FB, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.1) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(FB, features = c("NFATC2"), pt.size = 0.1, order = T) + 
+      ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = "white") +
+      ggplot2::ggtitle('NFATC2 activity')
+
+DefaultAssay(object = FB) <- "RNA"
+p3 <- FeaturePlot_scCustom(FB, 
+                          features = c("NFATC2"), pt.size = 0.1) + 
+      ggplot2::ggtitle('NFATC2 expression')
+
+Seurat::DefaultAssay(FB) <- "tfsulm"
+
+p <- p1 | p2 | p3
+p
+```
+
 ## Pathway activity inference
 
 ```{r net_pathway}
@@ -782,7 +733,10 @@ write.csv(
 )
 ```
 
-```{r save FB final, eval = FALSE}
-saveRDS(FB, 
-        here::here(output_dir_data, "FB.rds"))
+```{r save FB final, eval=FALSE}
+DefaultAssay(FB) <- "RNA"
+qs_save(FB,
+        file = here::here(output_dir_data, "FB.qs2"),
+        nthreads = 32
+        )
 ```

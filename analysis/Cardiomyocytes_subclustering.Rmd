@@ -86,6 +86,7 @@ Load dataset and subset cardiomyocytes
 ```{r Load data, echo = TRUE, results= "hide"}
 DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.qs2"), nthreads = 32)
 DefaultAssay(DCM_RV) <- "RNA"
+Idents(DCM_RV) <- "cell_type"
 CM <- subset(DCM_RV, cell_type == "Cardiomyocytes")
 ```
 
@@ -93,7 +94,7 @@ CM <- subset(DCM_RV, cell_type == "Cardiomyocytes")
 
 Re-normalize and re-scale the subsetted object using SCTransform
 
-```{r SCTransform, message=FALSE, warning=FALSE}
+```{r SCTransform, message=FALSE, warning=FALSE, echo = TRUE, results= "hide"}
 CM <- SplitObject(CM, split.by = "Sample")
 for (i in 1:length(CM)) {
 CM[[i]] <- SCTransform(CM[[i]], vst.flavor = "v2", 
