@@ -14,7 +14,7 @@
 
 <title>Collaboration Luxembourg</title>
 
-<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
@@ -39,13 +39,13 @@
 <script src="site_libs/core-js-2.5.3/shim.min.js"></script>
 <script src="site_libs/react-18.2.0/react.min.js"></script>
 <script src="site_libs/react-18.2.0/react-dom.min.js"></script>
-<script src="site_libs/reactwidget-2.0.0/react-tools.umd.cjs"></script>
-<link href="site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet" />
+<script src="site_libs/reactwidget-2.0.0/react-tools.js"></script>
+<link href="site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet" />
 <script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
-<link href="site_libs/reactable-0.4.4/reactable.css" rel="stylesheet" />
-<script src="site_libs/reactable-binding-0.4.4/reactable.js"></script>
-<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link href="site_libs/reactable-0.4.5/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.5/reactable.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
 
 <link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
 <!-- Add a small amount of space between sections. -->
@@ -355,6 +355,9 @@ div.tocify {
       <a href="QC_integration_annotation.html">QC, integration, annotation</a>
     </li>
     <li>
+      <a href="Variance_partitioning.html">Variance partitioning</a>
+    </li>
+    <li>
       <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
     </li>
     <li>
@@ -373,7 +376,7 @@ div.tocify {
       <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
     </li>
     <li>
-      <a href="DE_all.html">Differential expression all cell types and parameters</a>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
     </li>
     <li>
       <a href="DE_mPAP.html">Differential expression mPAP</a>
@@ -385,21 +388,18 @@ div.tocify {
       <a href="Cell_cell_communication.html">Cell-cell communication</a>
     </li>
     <li>
-      <a href="HC_clustering.html">Clustering with healthy controls</a>
+      <a href="Olink_proteomics.html">Olink proteomics</a>
     </li>
     <li>
-      <a href="Comparison_LV.html">Comparison to LV datasets</a>
+      <a href="MS_proteomics.html">MS proteomics</a>
     </li>
     <li>
-      <a href="Biomarkers_selection.html">Biomarkers selection</a>
+      <a href="Integration_transcriptomics_proteomics.html">Integration transcriptomics and proteomics</a>
     </li>
   </ul>
 </li>
 <li>
   <a href="about.html">About</a>
-</li>
-<li>
-  <a href="license.html">License</a>
 </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -423,7 +423,7 @@ div.tocify {
 <h4 class="author">GinoBonazza (<a
 href="mailto:ginoandrea.bonazza@usz.ch"
 class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
-<h4 class="date">10 November, 2025</h4>
+<h4 class="date">02 April, 2026</h4>
 
 </div>
 
@@ -452,7 +452,7 @@ class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2025-11-10
+<strong>Last updated:</strong> 2026-04-02
 </p>
 <p>
 <strong>Checks:</strong> <span
@@ -470,7 +470,7 @@ title="This is the local directory in which the code in this file was executed."
 This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
 analysis was created with <a
   href="https://github.com/workflowr/workflowr">workflowr</a> (version
-1.7.1). The <em>Checks</em> tab describes the reproducibility checks
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
 that were applied when the results were created. The <em>Past
 versions</em> tab lists the development history.
 </p>
@@ -583,15 +583,15 @@ project makes it easier to run your code on other machines.</p>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreee4c35449ec8d64513e8892924c4112288865ee4btargetblanke4c3544a">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreead04fbb2caf88d05fd27fa42e8a721fb7a61b658targetblankad04fbba">
 <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span> <strong>Repository version:</strong>
-<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/e4c35449ec8d64513e8892924c4112288865ee4b" target="_blank">e4c3544</a>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/ad04fbb2caf88d05fd27fa42e8a721fb7a61b658" target="_blank">ad04fbb</a>
 </a>
 </p>
 </div>
 <div
-id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreee4c35449ec8d64513e8892924c4112288865ee4btargetblanke4c3544a"
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreead04fbb2caf88d05fd27fa42e8a721fb7a61b658targetblankad04fbba"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -601,7 +601,7 @@ reproducibility.
 </p>
 <p>
 The results in this page were generated with repository version
-<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/e4c35449ec8d64513e8892924c4112288865ee4b" target="_blank">e4c3544</a>.
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/ad04fbb2caf88d05fd27fa42e8a721fb7a61b658" target="_blank">ad04fbb</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -619,24 +619,27 @@ Ignored files:
     Ignored:    .Rhistory
     Ignored:    .Rproj.user/
     Ignored:    output/CellChat/
+    Ignored:    output/Cell_cell_communication_Macrophages/
     Ignored:    output/Chaffin_2022/
     Ignored:    output/Comparison_RV_bulk_RNAseq/
-    Ignored:    output/Figures_manuscript/
     Ignored:    output/Koenig_2022/
     Ignored:    output/SSc_PAH/
     Ignored:    output/Variance_partitioning/
 
 Untracked files:
+    Untracked:  .Rprofile
+    Untracked:  Chaffin_wilcox.csv
     Untracked:  GRCh38-2020-A_build/
+    Untracked:  Koenig_wilcox.csv
+    Untracked:  Pseudobulk_all.csv
+    Untracked:  Pseudobulk_byCellType_wilcox.csv
     Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Check_IMC_panel.Rmd
     Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
-    Untracked:  analysis/DA_DE_all_cell_types_and_parameters.Rmd
+    Untracked:  analysis/DE_Fibrosis_fibroblasts.Rmd
     Untracked:  analysis/DE_Group_all_cell_types.Rmd
     Untracked:  analysis/EC_capillary_angiogenic_boxplot_stats.csv
-    Untracked:  analysis/Endothelial_cells_Koenig_Reichart.rmd
     Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
-    Untracked:  analysis/Endothelial_cells_subclustering.Rmd
-    Untracked:  analysis/Endothelial_cells_subclustering.rmd
     Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
     Untracked:  analysis/Genes_Luxembourg.Rmd
     Untracked:  analysis/HC_DEGs_clustering.Rmd
@@ -644,16 +647,23 @@ Untracked files:
     Untracked:  analysis/Lymphocytes_subclustering.Rmd
     Untracked:  analysis/Macrophages_subclustering.Rmd
     Untracked:  analysis/Mass_Spec_RV_dysf.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics.Rmd
     Untracked:  analysis/Mural_cells_subclustering.Rmd
     Untracked:  analysis/Olink_RV_dysf.Rmd
     Untracked:  analysis/Olink_SSc_PAH.Rmd
     Untracked:  analysis/Olink_SSc_PAH_draft.Rmd
+    Untracked:  analysis/Olink_proteomics.Rmd
     Untracked:  analysis/Pseudobulk_all.csv
+    Untracked:  analysis/Pseudobulk_all_2.csv
     Untracked:  analysis/Pseudobulk_byCellType_facetGrid.pdf
     Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col.pdf
     Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col_proportional.pdf
     Untracked:  analysis/Pseudobulk_byCellType_wilcox.csv
     Untracked:  analysis/Pseudobulk_byCellType_wilcox.filtered.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox_2.csv
+    Untracked:  analysis/QC_integration_annotation_HC.Rmd
+    Untracked:  analysis/Reichart_ncRNA.Rmd
+    Untracked:  analysis/Reichart_wilcox.csv
     Untracked:  analysis/Selection_genes_histology.Rmd
     Untracked:  analysis/TOM/
     Untracked:  analysis/UntitledR.R
@@ -697,6 +707,7 @@ Untracked files:
     Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
     Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
     Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/Endothelial_cells_cubclustering_removed.Rmd
     Untracked:  code/PCA and CCA analysis test.R
     Untracked:  code/Pseudobulk DCM HC.R
     Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
@@ -709,12 +720,17 @@ Untracked files:
     Untracked:  code/old.R
     Untracked:  data/Cellbender_output/
     Untracked:  data/Cellranger_output/
-    Untracked:  data/DCM_Clinical_data.xlsx
+    Untracked:  data/DCM_Clinical_data_22.xlsx
     Untracked:  data/DCM_Clinical_data_26.xlsx
     Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/HMEC_RNAseq/
+    Untracked:  data/Heart_datasets/
+    Untracked:  data/Heart_specific_proteome.xlsx
     Untracked:  data/Homo_sapiens.GRCh38.93.gtf
     Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec/
     Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK/
     Untracked:  data/Published_datasets/
     Untracked:  data/Raw/
     Untracked:  data/SSc-PAH/
@@ -722,6 +738,7 @@ Untracked files:
     Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
     Untracked:  data/refdata-gex-GRCh38-2020-A/
     Untracked:  omnipathr-log/
+    Untracked:  output/Biomarkers_selection/
     Untracked:  output/CM_lncRNAs/
     Untracked:  output/Cardiomyocytes_DA_DE/
     Untracked:  output/Cardiomyocytes_subclustering/
@@ -729,47 +746,67 @@ Untracked files:
     Untracked:  output/Cell_cell_communication/
     Untracked:  output/Cell_cell_communication_LV/
     Untracked:  output/Cell_cell_communication_LV2/
+    Untracked:  output/Cell_cycle/
+    Untracked:  output/Check_IMC_panel/
     Untracked:  output/Comparison_LV/
     Untracked:  output/DA_DE_all_cell_types_and_parameters/
     Untracked:  output/DE_Fibrosis_all_cell_types/
+    Untracked:  output/DE_Fibrosis_fibroblasts/
     Untracked:  output/DE_Group_all_cell_types/
     Untracked:  output/DE_all_cell_types_mPAP/
     Untracked:  output/DE_mPAP_all_cell_types/
     Untracked:  output/Differential_expression_edgeR_All/
     Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Dysferlin/
     Untracked:  output/Endothelial_cells_Koenig_Reichart/
     Untracked:  output/Endothelial_cells_SGLT2_I/
     Untracked:  output/Endothelial_cells_published_datasets/
     Untracked:  output/Endothelial_cells_subclustering/
     Untracked:  output/Fibroblasts_DA_DE_26/
     Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/Figures_manuscript/
     Untracked:  output/Genes_Luxembourg/
+    Untracked:  output/Genes_Luxembourg_2/
     Untracked:  output/HC_DEGs_clustering/
+    Untracked:  output/HMEC/
     Untracked:  output/LV_Klaudia/
+    Untracked:  output/LV_datasets_DCM_vs_HC/
     Untracked:  output/Lymphocytes_subclustering/
     Untracked:  output/Macrophages_subclustering/
     Untracked:  output/Mass_Spec_RV_dysf/
+    Untracked:  output/Mass_Spec_proteomics/
     Untracked:  output/Mural_cells_subclustering/
     Untracked:  output/Olink_RV_dysf/
     Untracked:  output/Olink_SSc_PAH/
     Untracked:  output/Olink_SSc_PAH_draft/
+    Untracked:  output/Olink_proteomics/
     Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_HC/
+    Untracked:  output/Reichart2022_ventricle_specificity_noncoding/
     Untracked:  output/Reichart_DE_DCMvsHC/
     Untracked:  output/Selection_genes_histology/
     Untracked:  output/UntitledR.R
+    Untracked:  redsfewfref.R
     Untracked:  reference_sources/
+    Untracked:  renv.lock
+    Untracked:  renv/
 
 Unstaged changes:
     Modified:   analysis/CM_lncRNAs.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cell_cycle.Rmd
     Modified:   analysis/Comparison_LV.Rmd
-    Modified:   analysis/DE_mPAP_all_cell_types.Rmd
+    Modified:   analysis/DE_Fibrosis_all_cell_types.Rmd
     Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
     Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
     Modified:   analysis/Endothelial_cells_published_datasets.rmd
-    Modified:   analysis/Fibroblasts_subclustering.Rmd
+    Modified:   analysis/Endothelial_cells_subclustering.Rmd
+    Modified:   analysis/Figures_manuscript.Rmd
+    Modified:   analysis/HMEC.Rmd
     Modified:   analysis/LV_Klaudia.Rmd
     Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
     Modified:   analysis/SSc_PAH.Rmd
+    Modified:   analysis/_site.yml
 
 </code></pre>
 <p>
@@ -784,7 +821,6 @@ have uncommitted changes.
 <hr>
 </div>
 <div id="versions" class="tab-pane fade">
-
 <p>
 These are the previous versions of the repository in which changes were
 made to the R Markdown (<code>analysis/Genes_Luxembourg_2.Rmd</code>)
@@ -820,6 +856,40 @@ Message
 Rmd
 </td>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ad04fbb2caf88d05fd27fa42e8a721fb7a61b658/analysis/Genes_Luxembourg_2.Rmd" target="_blank">ad04fbb</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-02
+</td>
+<td>
+wflow_publish("analysis/Genes_Luxembourg_2.Rmd")
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/Genes_Luxembourg_2.html" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+<td>
+Build site.
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/e4c35449ec8d64513e8892924c4112288865ee4b/analysis/Genes_Luxembourg_2.Rmd" target="_blank">e4c3544</a>
 </td>
 <td>
@@ -842,13 +912,12 @@ wflow_publish("analysis/Genes_Luxembourg_2.Rmd")
 <div id="setup" class="section level2">
 <h2>Setup</h2>
 <pre class="r fold-hide"><code># Get current file name to make folder
-current_file &lt;- &quot;Genes_Luxembourg&quot;
+current_file &lt;- &quot;Genes_Luxembourg_2&quot;
 
 # Load libraries
 library(here)
 library(readr)
 library(readxl)
-library(xlsx)
 library(Seurat)
 library(Matrix)
 library(scCustomize)
@@ -887,6 +956,7 @@ library(biomaRt)
 library(igraph)
 library(gridExtra) 
 library(ggpubr)
+library(qs2)
 
 #Output paths
 output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
@@ -896,7 +966,7 @@ if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(he
 
 output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
 if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
-<pre class="r"><code>DCM_RV &lt;- readRDS(here::here(&quot;output&quot;, &quot;QC_integration_annotation&quot;, &quot;DCM_RV.rds&quot;))</code></pre>
+<pre class="r"><code>DCM_RV &lt;- qs_read(here::here(&quot;output&quot;, &quot;QC_integration_annotation_HC&quot;, &quot;DCM_RV.qs2&quot;), nthreads = 32)</code></pre>
 <pre class="r"><code>goi &lt;- c(&quot;TRHDE-AS1&quot;, &quot;SIGLEC10&quot;, &quot;FGFR4&quot;)</code></pre>
 <pre class="r"><code>Idents(DCM_RV) &lt;- &quot;cell_type&quot;
 DefaultAssay(DCM_RV) &lt;- &quot;RNA&quot;</code></pre>
@@ -914,6 +984,43 @@ p + theme(
                                   hjust = 1),
       axis.text.y  = element_text(size = 15))  </code></pre>
 <p><img src="figure/Genes_Luxembourg_2.Rmd/DotPlot_markers-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-DotPlot_markers-1">
+Past versions of DotPlot_markers-1.png
+</button>
+</p>
+<div id="fig-DotPlot_markers-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/DotPlot_markers-1.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>counts &lt;- GetAssayData(DCM_RV, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
 
 cell_types &lt;- levels(Idents(DCM_RV))
@@ -937,6 +1044,9 @@ names(pcts_total) &lt;- goi
 
 percent_df &lt;- rbind(pcts_by_type, tot = pcts_total)
 percent_df &lt;- as.data.frame(round(percent_df, 4))
+percent_df$Cell_type &lt;- rownames(percent_df)
+
+write_csv(percent_df, here::here(output_dir_data, &quot;Percent_per_cell_type.csv&quot;))
 
 reactable(percent_df, 
           filterable = TRUE,
@@ -944,17 +1054,128 @@ reactable(percent_df,
           showPageSizeOptions = TRUE,
           defaultPageSize = 14)</code></pre>
 <div class="reactable html-widget html-fill-item" id="htmlwidget-f843a680a1fcd62a0dd1" style="width:auto;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-f843a680a1fcd62a0dd1">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["Cardiomyocytes","Fibroblasts","Endothelial cells","Pericytes","Macrophages","T lymphocytes","Smooth muscle cells","Neuronal cells","Endocardial cells","Lymphatic cells","Mast cells","Adipocytes","B lymphocytes","tot"],"TRHDE-AS1":[0.0131,6.0638,0.0052,0.0637,0.0228,0,0.0834,6.1921,0.0525,0,0,78.6834,0,1.6942],"SIGLEC10":[0.085,0.066,0.0418,0.0347,2.3863,1.0314,0.0834,0,0.0525,0.1376,1.4245,0,2.8708,0.3062],"FGFR4":[0.1307,1.0205,0.0836,0.6428,0.0628,0,0.5563,0.0488,0.1574,0.8253,0,0.4702,0,0.3671]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"TRHDE-AS1","name":"TRHDE-AS1","type":"numeric"},{"id":"SIGLEC10","name":"SIGLEC10","type":"numeric"},{"id":"FGFR4","name":"FGFR4","type":"numeric"}],"filterable":true,"searchable":true,"defaultPageSize":14,"showPageSizeOptions":true,"dataKey":"d6f69cf49c7ffcb8b39bda2945903558"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<script type="application/json" data-for="htmlwidget-f843a680a1fcd62a0dd1">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["Cardiomyocytes","Fibroblasts","Endothelial cells","Pericytes","Macrophages","T lymphocytes","Smooth muscle cells","Neuronal cells","Endocardial cells","Lymphatic cells","Mast cells","Adipocytes","B lymphocytes","Epicardial cells","tot"],"TRHDE-AS1":[0.0163,6.1081,0.0052,0.0744,0.0229,0,0.0291,6.2196,0.0525,0,0.1422,78.5714,0,0,1.7058],"SIGLEC10":[0.0847,0.0659,0.0416,0.0401,2.3759,1.0444,0.1165,0,0.0525,0.1393,1.4225,0,2.8986,0,0.3054],"FGFR4":[0.1303,1.0235,0.0883,0.6353,0.0687,0,0.5533,0.0486,0.1575,0.6964,0,0.4658,0,3.7037,0.3682],"Cell_type":["Cardiomyocytes","Fibroblasts","Endothelial cells","Pericytes","Macrophages","T lymphocytes","Smooth muscle cells","Neuronal cells","Endocardial cells","Lymphatic cells","Mast cells","Adipocytes","B lymphocytes","Epicardial cells","tot"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"TRHDE-AS1","name":"TRHDE-AS1","type":"numeric"},{"id":"SIGLEC10","name":"SIGLEC10","type":"numeric"},{"id":"FGFR4","name":"FGFR4","type":"numeric"},{"id":"Cell_type","name":"Cell_type","type":"character"}],"filterable":true,"searchable":true,"defaultPageSize":14,"showPageSizeOptions":true,"dataKey":"2a52dff1c5ba98a8824e4809421ee7ee"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
 <pre class="r"><code>p &lt;- DimPlot(DCM_RV, group.by = &quot;cell_type&quot;, reduction = &quot;umap&quot;, label = F) + 
   NoLegend() + 
   theme(axis.text=element_text(size=10, face = &quot;bold&quot;), axis.title = element_text(size = 14, face = &quot;bold&quot;)) + 
   theme(plot.title = element_blank())
 LabelClusters(p, id = &quot;cell_type&quot;, fontface = &quot;bold&quot;, size = 5, repel = T)</code></pre>
 <p><img src="figure/Genes_Luxembourg_2.Rmd/UMAP_cell_type-1.png" width="1950" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-UMAP_cell_type-1">
+Past versions of UMAP_cell_type-1.png
+</button>
+</p>
+<div id="fig-UMAP_cell_type-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/UMAP_cell_type-1.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>FeaturePlot_scCustom(DCM_RV, features = goi, num_columns = 3, order = T)</code></pre>
 <p><img src="figure/Genes_Luxembourg_2.Rmd/FeatPlot_markers-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-FeatPlot_markers-1">
+Past versions of FeatPlot_markers-1.png
+</button>
+</p>
+<div id="fig-FeatPlot_markers-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/FeatPlot_markers-1.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>VlnPlot_scCustom(DCM_RV, features=goi, group.by=&quot;cell_type&quot;, num_columns=3, pt.size = 0.001) &amp; theme(axis.title.x = element_blank())</code></pre>
 <p><img src="figure/Genes_Luxembourg_2.Rmd/QC_cell_type_Manuscript-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-QC_cell_type_Manuscript-1">
+Past versions of QC_cell_type_Manuscript-1.png
+</button>
+</p>
+<div id="fig-QC_cell_type_Manuscript-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/QC_cell_type_Manuscript-1.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>DCM_RV$pseudobulk &lt;- &quot;pseudobulk&quot;
 
 pseudocounts_all &lt;- Seurat2PB(DCM_RV, sample=&quot;Sample&quot;, cluster = &quot;pseudobulk&quot;)
@@ -971,6 +1192,9 @@ counts_pseudocounts_all &lt;- cpm(pseudocounts_all, log = TRUE)</code></pre>
   dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
 
 rownames(metadata) &lt;- metadata$Sample
+
+write_csv(metadata, here::here(output_dir_data, &quot;Patients_metadata.csv&quot;))
+
 reactable(metadata, 
           filterable = TRUE,
           searchable = TRUE,
@@ -1016,9 +1240,9 @@ print(wilcox_tbl)</code></pre>
 <pre><code># A tibble: 3 × 8
   gene       n_HC n_DCM median_HC median_DCM diff_median p_wilcox p_adj_BH
   &lt;fct&gt;     &lt;int&gt; &lt;int&gt;     &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
-1 TRHDE-AS1     8    21      1.49       1.08     -0.411     0.720    0.830
-2 SIGLEC10      8    21     -1.77      -1.71      0.0646    0.830    0.830
-3 FGFR4         8    21     -1.48      -1.80     -0.317     0.168    0.503</code></pre>
+1 TRHDE-AS1     8    21      1.50       1.06      -0.447    0.793    0.905
+2 SIGLEC10      8    21     -1.86      -1.72       0.142    0.905    0.905
+3 FGFR4         8    21     -1.49      -1.77      -0.276    0.139    0.417</code></pre>
 <pre class="r"><code>write_csv(wilcox_tbl, &quot;Pseudobulk_all.csv&quot;)
 
 p &lt;- ggplot(expr_long, aes(x = Group, y = logCPM, fill = Group)) +
@@ -1046,6 +1270,43 @@ p &lt;- ggplot(expr_long, aes(x = Group, y = logCPM, fill = Group)) +
 
 print(p)</code></pre>
 <p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-6-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-6-1">
+Past versions of unnamed-chunk-6-1.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-6-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-6-1.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>pb_ct &lt;- Seurat2PB(DCM_RV, sample = &quot;Sample&quot;, cluster = &quot;cell_type&quot;)
 
 keep_cols &lt;- pb_ct$samples$lib.size &gt; 5e4
@@ -1125,6 +1386,8 @@ wilcox_ct &lt;- expr_long_ct |&gt;
   dplyr::mutate(p_adj_BH_within_gene = p.adjust(p_wilcox, method = &quot;BH&quot;)) |&gt;
   dplyr::ungroup()
 
+write_csv(expr_long_ct, here::here(output_dir_data, &quot;Pseudobulk_expr_cell_type.csv&quot;))
+
 readr::write_csv(wilcox_ct, &quot;Pseudobulk_byCellType_wilcox.csv&quot;)
 
 make_gene_plot &lt;- function(df, g, ncol_facets = 3, base_size = 11) {
@@ -1176,7 +1439,55 @@ heights_vec &lt;- rows_per_gene / sum(rows_per_gene)
 p_stack &lt;- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
 print(p_stack)</code></pre>
 <p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-7-1.png" width="1800" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>metadata_DCM &lt;- metadata %&gt;% filter(Group == &quot;DCM&quot;)
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-7-1">
+Past versions of unnamed-chunk-7-1.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-7-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-7-1.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>metadata &lt;- DCM_RV@meta.data %&gt;%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group,
+                mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm,
+                LVEF_percent, LVEDD_mm) %&gt;%
+  dplyr::mutate(
+    TAPSE_sPAP = dplyr::if_else(sPAP_mmHg &gt; 0, TAPSE_mm / sPAP_mmHg, NA_real_)
+  ) %&gt;%
+  unique() %&gt;%
+  dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
+
+rownames(metadata) &lt;- metadata$Sample
+metadata_DCM &lt;- metadata %&gt;% filter(Group == &quot;DCM&quot;)
 
 dcm_samples_all &lt;- intersect(colnames(counts_pseudocounts_all), metadata_DCM$Sample)
 
@@ -1221,6 +1532,43 @@ fig_allcells &lt;- (p_all_mpap / p_all_tapse) +
   patchwork::plot_annotation(title = &quot;Pseudobulk all cells&quot;)
 print(fig_allcells)</code></pre>
 <p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-8-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-8-1">
+Past versions of unnamed-chunk-8-1.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-8-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-8-1.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>is_dcm_ct       &lt;- col_annot$Sample %in% metadata_DCM$Sample
 logcpm_ct_DCM   &lt;- logcpm_ct[, is_dcm_ct, drop = FALSE]
 col_ann_DCM     &lt;- col_annot[is_dcm_ct, , drop = FALSE]
@@ -1280,6 +1628,43 @@ rows_tapse &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(TAPSE_mm)) %&g
 fig_ct_TRHDE &lt;- (p_ct_mpap / p_ct_tapse) + plot_layout(heights = c(rows_mpap, rows_tapse))
 print(fig_ct_TRHDE)</code></pre>
 <p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-8-2.png" width="2400" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-8-2">
+Past versions of unnamed-chunk-8-2.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-8-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-8-2.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>stopifnot(exists(&quot;expr_ct_long_DCM&quot;))
 if (!exists(&quot;plot_perct_vs&quot;)) {
   plot_perct_vs &lt;- function(df, gene_id, xvar, xlab, ncol_facets = 3) {
@@ -1307,7 +1692,881 @@ for (g in c(&quot;FGFR4&quot;, &quot;SIGLEC10&quot;)) {
   fig_ct &lt;- (p_ct_mpap / p_ct_tapse) + patchwork::plot_layout(heights = c(rows_mpap, rows_tapse))
   print(fig_ct)
 }</code></pre>
-<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-9-1.png" width="2400" style="display: block; margin: auto;" /><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-9-2.png" width="2400" style="display: block; margin: auto;" /></p>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-9-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-9-1">
+Past versions of unnamed-chunk-9-1.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-9-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-9-1.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-9-2.png" width="2400" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-9-2">
+Past versions of unnamed-chunk-9-2.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-9-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/b455abf10a5bbb8c33a4fc019b2b7fcd56c89011/docs/figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-9-2.png" target="_blank">b455abf</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2025-11-10
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code># Correlations for DCM only (by cell type), per cell_type × gene
+safe_cor_ct &lt;- function(df, xvar) {
+  df %&gt;%
+    dplyr::filter(!is.na(.data[[xvar]]), !is.na(logCPM)) %&gt;%
+    dplyr::group_by(cell_type, gene) %&gt;%
+    dplyr::summarise(
+      n        = dplyr::n(),
+      r        = suppressWarnings(cor(logCPM, .data[[xvar]], method = &quot;pearson&quot;)),
+      p_value  = tryCatch(cor.test(logCPM, .data[[xvar]], method = &quot;pearson&quot;)$p.value,
+                          error = function(e) NA_real_),
+      .groups = &quot;drop&quot;
+    ) %&gt;%
+    dplyr::mutate(
+      variable = xvar,
+      p_adj_BH = p.adjust(p_value, method = &quot;BH&quot;)
+    )
+}
+
+corr_byCT_DCM &lt;- dplyr::bind_rows(
+  safe_cor_ct(expr_ct_long_DCM, &quot;mPAP_mmHg&quot;),
+  safe_cor_ct(expr_ct_long_DCM, &quot;TAPSE_mm&quot;)
+)
+
+readr::write_csv(corr_byCT_DCM,
+                 here::here(output_dir_data, &quot;Correlations_byCellType_DCM.csv&quot;))</code></pre>
+<pre class="r"><code>metadata &lt;- DCM_RV@meta.data %&gt;%
+  dplyr::select(
+    Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group,
+    mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm,
+    LVEF_percent, LVEDD_mm
+  ) %&gt;%
+  dplyr::mutate(
+    TAPSE_sPAP = dplyr::if_else(sPAP_mmHg &gt; 0, TAPSE_mm / sPAP_mmHg, NA_real_)
+  ) %&gt;%
+  unique() %&gt;%
+  dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
+
+rownames(metadata) &lt;- metadata$Sample
+
+write_csv(metadata, here::here(output_dir_data, &quot;Patients_metadata.csv&quot;))
+
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-484ed42468d86de4a421" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-484ed42468d86de4a421">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["CZD13","CZD15","CZD16","CZD4","CZD5","CZD6","CZD7","CZD9","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Sample":["CZD13","CZD15","CZD16","CZD4","CZD5","CZD6","CZD7","CZD9","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Batch_processing":["Batch9","Batch9","Batch9","Batch8","Batch8","Batch8","Batch8","Batch9","Batch6","Batch7","Batch6","Batch7","Batch6","Batch6","Batch7","Batch1","Batch1","Batch1","Batch2","Batch2","Batch2","Batch3","Batch2","Batch3","Batch3","Batch4","Batch5","Batch4","Batch5"],"Batch_sequencing":["Batch8_seq","Batch8_seq","Batch8_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch8_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch5_seq","Batch6_seq","Batch1_seq","Batch1_seq","Batch1_seq","Batch2_seq","Batch2_seq","Batch2_seq","Batch3_seq","Batch3_seq","Batch3_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq"],"Age_years":["NA","NA","NA",46,55,33,37,47,19,36,37,28,49,49,45,32,29,61,56,53,58,41,61,41,52,66,16,57,40],"Sex":["M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M"],"Group":["HC","HC","HC","HC","HC","HC","HC","HC","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM"],"mPAP_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",25,26,27,33,22,30,41,43,39,36,21,29,43,30,"NA",29,19,"NA",34,48],"sPAP_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",35,37,41,48,33,38,51,56,54,51,31,45,55,44,"NA",42,26,"NA",41,58],"PCW_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",22,20,23,20,15,18,32,35,31,25,9,20,"NA",21,"NA",17,10,"NA",28,33],"PVR_WU":["NA","NA","NA","NA","NA","NA","NA","NA","NA",0.68,1.5,1.27,4.8,1.39,2.2,3.67,2.55,3.26,3.38,2.05,2.42,5.8,2.5,"NA",2.4,2.37,"NA",2.27,3.9],"TAPSE_mm":["NA","NA","NA","NA","NA","NA","NA","NA",13,9,13,24,9,20,12,16,17,15,15,20,17,18,15,12,22,19,7,19,15],"RVID_mm":["NA","NA","NA","NA","NA","NA","NA","NA",39,41,45,28,54,30,39,44,49,48,58,33,60,40,47,37,41,46,60,45,57],"LVEF_percent":["NA","NA","NA","NA","NA","NA","NA","NA",10,15,10,18,10,30,15,16,15,15,15,18,10,35,6,20,20,23,20,15,17],"LVEDD_mm":["NA","NA","NA","NA","NA","NA","NA","NA",76,80,98,72,92,69,75,67,88,71,74,82,84,58,83,63,89,69,58,98,81],"TAPSE_sPAP":["NA","NA","NA","NA","NA","NA","NA","NA","NA",0.257142857142857,0.351351351351351,0.585365853658537,0.1875,0.606060606060606,0.315789473684211,0.313725490196078,0.303571428571429,0.277777777777778,0.294117647058824,0.645161290322581,0.377777777777778,0.327272727272727,0.340909090909091,"NA",0.523809523809524,0.730769230769231,"NA",0.463414634146341,0.258620689655172]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"Sample","name":"Sample","type":"character"},{"id":"Batch_processing","name":"Batch_processing","type":"character"},{"id":"Batch_sequencing","name":"Batch_sequencing","type":"character"},{"id":"Age_years","name":"Age_years","type":"numeric"},{"id":"Sex","name":"Sex","type":"character"},{"id":"Group","name":"Group","type":"character"},{"id":"mPAP_mmHg","name":"mPAP_mmHg","type":"numeric"},{"id":"sPAP_mmHg","name":"sPAP_mmHg","type":"numeric"},{"id":"PCW_mmHg","name":"PCW_mmHg","type":"numeric"},{"id":"PVR_WU","name":"PVR_WU","type":"numeric"},{"id":"TAPSE_mm","name":"TAPSE_mm","type":"numeric"},{"id":"RVID_mm","name":"RVID_mm","type":"numeric"},{"id":"LVEF_percent","name":"LVEF_percent","type":"numeric"},{"id":"LVEDD_mm","name":"LVEDD_mm","type":"numeric"},{"id":"TAPSE_sPAP","name":"TAPSE_sPAP","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"4b292df3c6de9fe8ee730b32606173c9"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>metadata_DCM &lt;- metadata %&gt;% filter(Group == &quot;DCM&quot;)
+
+dcm_samples_all &lt;- intersect(colnames(counts_pseudocounts_all), metadata_DCM$Sample)
+
+counts_all_raw     &lt;- pseudocounts_all$counts
+present_genes_all  &lt;- intersect(goi, rownames(counts_all_raw))
+det_counts_all     &lt;- sapply(present_genes_all, function(g)
+  sum(counts_all_raw[g, dcm_samples_all, drop = FALSE] &gt; 0)
+)
+genes_keep_all     &lt;- names(det_counts_all[det_counts_all &gt;= 10])
+
+expr_all_long_DCM &lt;- counts_pseudocounts_all[genes_keep_all, dcm_samples_all, drop = FALSE] %&gt;%
+  t() %&gt;% as.data.frame() %&gt;%
+  tibble::rownames_to_column(&quot;Sample&quot;) %&gt;%
+  left_join(metadata_DCM, by = &quot;Sample&quot;) %&gt;%
+  pivot_longer(cols = all_of(genes_keep_all), names_to = &quot;gene&quot;, values_to = &quot;logCPM&quot;) %&gt;%
+  mutate(gene = factor(gene, levels = goi))
+
+make_allcells_panel &lt;- function(df, xvar, xlab) {
+  ggplot(df, aes_string(x = xvar, y = &quot;logCPM&quot;)) +
+    geom_point(size = 1.6, alpha = 0.9) +
+    geom_smooth(method = &quot;lm&quot;, se = TRUE, size = 0.5) +
+    ggpubr::stat_cor(method = &quot;pearson&quot;, label.y.npc = 0.95, size = 3) +
+    facet_wrap(~ gene, ncol = 3, scales = &quot;free_y&quot;) +
+    theme_minimal(base_size = 11) +
+    labs(x = xlab, y = &quot;logCPM&quot;)
+}
+
+genes_to_plot &lt;- intersect(goi, unique(as.character(expr_all_long_DCM$gene)))
+expr_all_long_DCM$gene &lt;- factor(expr_all_long_DCM$gene, levels = genes_to_plot)
+
+p_all_mpap &lt;- make_allcells_panel(
+  df   = expr_all_long_DCM %&gt;% filter(!is.na(mPAP_mmHg), !is.na(logCPM)),
+  xvar = &quot;mPAP_mmHg&quot;, xlab = &quot;mPAP (mmHg)&quot;
+)
+p_all_tapse &lt;- make_allcells_panel(
+  df   = expr_all_long_DCM %&gt;% filter(!is.na(TAPSE_mm), !is.na(logCPM)),
+  xvar = &quot;TAPSE_mm&quot;,  xlab = &quot;TAPSE (mm)&quot;
+)
+# NEW: TAPSE/sPAP ratio
+p_all_ratio &lt;- make_allcells_panel(
+  df   = expr_all_long_DCM %&gt;% filter(!is.na(TAPSE_sPAP), !is.na(logCPM)),
+  xvar = &quot;TAPSE_sPAP&quot;, xlab = &quot;TAPSE / sPAP&quot;
+)
+
+fig_allcells &lt;- (p_all_mpap / p_all_tapse / p_all_ratio) +
+  patchwork::plot_layout(heights = c(1, 1, 1.25)) +
+  patchwork::plot_annotation(title = &quot;Pseudobulk all cells&quot;)
+print(fig_allcells)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-12-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>expr_ct_long_DCM &lt;- logcpm_ct_DCM[present_genes_ct, , drop = FALSE] %&gt;%
+  t() %&gt;% as.data.frame() %&gt;%
+  tibble::rownames_to_column(&quot;col_id&quot;) %&gt;%
+  mutate(Sample = sub(&quot;::.*$&quot;, &quot;&quot;, col_id),
+         cell_type = sub(&quot;^.*::&quot;, &quot;&quot;, col_id)) %&gt;%
+  left_join(metadata_DCM, by = &quot;Sample&quot;) %&gt;%
+  pivot_longer(cols = all_of(present_genes_ct),
+               names_to = &quot;gene&quot;, values_to = &quot;logCPM&quot;) %&gt;%
+  mutate(key = paste(cell_type, gene, sep = &quot;||&quot;)) %&gt;%
+  filter(key %in% keep_pairs_DCM) %&gt;%
+  mutate(gene = factor(gene, levels = goi),
+         cell_type = droplevels(factor(cell_type))) %&gt;%
+  dplyr::select(-key, -col_id)
+
+# --- TRHDE-AS1 ---
+g &lt;- &quot;TRHDE-AS1&quot;
+p_ct_mpap  &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;mPAP_mmHg&quot;, &quot;mPAP (mmHg)&quot;)
+p_ct_tapse &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_mm&quot;,  &quot;TAPSE (mm)&quot;)
+# NEW: TAPSE/sPAP ratio
+p_ct_ratio &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_sPAP&quot;, &quot;TAPSE / sPAP&quot;)
+
+rows_mpap  &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(mPAP_mmHg)) %&gt;%
+               pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+rows_tapse &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(TAPSE_mm)) %&gt;%
+               pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+rows_ratio &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(TAPSE_sPAP)) %&gt;%
+               pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+
+fig_ct_TRHDE &lt;- (p_ct_mpap / p_ct_tapse / p_ct_ratio) +
+  patchwork::plot_layout(heights = c(rows_mpap, rows_tapse, rows_ratio))
+print(fig_ct_TRHDE)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-13-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># --- FGFR4 &amp; SIGLEC10 loop with 5 facets per row ---
+for (g in c(&quot;FGFR4&quot;, &quot;SIGLEC10&quot;)) {
+  p_ct_mpap  &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;mPAP_mmHg&quot;, &quot;mPAP (mmHg)&quot;,  ncol_facets = 5)
+  p_ct_tapse &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_mm&quot;,  &quot;TAPSE (mm)&quot;,   ncol_facets = 5)
+  p_ct_ratio &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_sPAP&quot;,&quot;TAPSE / sPAP&quot;, ncol_facets = 5)
+
+  rows_mpap  &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(mPAP_mmHg)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+  rows_tapse &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(TAPSE_mm)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+  rows_ratio &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(TAPSE_sPAP)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+
+  fig_ct &lt;- (p_ct_mpap / p_ct_tapse / p_ct_ratio) +
+            patchwork::plot_layout(heights = c(rows_mpap, rows_tapse, rows_ratio))
+  print(fig_ct)
+}</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-14-1.png" width="3150" style="display: block; margin: auto;" /><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-14-2.png" width="3150" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Correlations for DCM only (by cell type), per cell_type × gene
+safe_cor_ct &lt;- function(df, xvar) {
+  df %&gt;%
+    dplyr::filter(!is.na(.data[[xvar]]), !is.na(logCPM)) %&gt;%
+    dplyr::group_by(cell_type, gene) %&gt;%
+    dplyr::summarise(
+      n        = dplyr::n(),
+      r        = suppressWarnings(cor(logCPM, .data[[xvar]], method = &quot;pearson&quot;)),
+      p_value  = tryCatch(cor.test(logCPM, .data[[xvar]], method = &quot;pearson&quot;)$p.value,
+                          error = function(e) NA_real_),
+      .groups = &quot;drop&quot;
+    ) %&gt;%
+    dplyr::mutate(
+      variable = xvar,
+      p_adj_BH = p.adjust(p_value, method = &quot;BH&quot;)
+    )
+}
+
+corr_byCT_DCM &lt;- dplyr::bind_rows(
+  safe_cor_ct(expr_ct_long_DCM, &quot;mPAP_mmHg&quot;),
+  safe_cor_ct(expr_ct_long_DCM, &quot;TAPSE_mm&quot;),
+  safe_cor_ct(expr_ct_long_DCM, &quot;TAPSE_sPAP&quot;)
+)
+
+readr::write_csv(corr_byCT_DCM,
+                 here::here(output_dir_data, &quot;Correlations_byCellType_DCM.csv&quot;))</code></pre>
+</div>
+<div id="new-genes" class="section level2">
+<h2>New genes</h2>
+<pre class="r"><code>goi &lt;- c(&quot;LINC02158&quot;, &quot;ID2-AS1&quot;)</code></pre>
+<pre class="r"><code>Idents(DCM_RV) &lt;- &quot;cell_type&quot;
+DefaultAssay(DCM_RV) &lt;- &quot;RNA&quot;</code></pre>
+<pre class="r"><code>p &lt;- DotPlot_scCustom(
+        DCM_RV,
+        features       = goi,
+        x_lab_rotate   = TRUE,
+        flip_axes = TRUE
+)
+
+p + theme(
+      axis.text.x  = element_text(size = 12,        
+                                  angle = 60,          
+                                  vjust = 1,
+                                  hjust = 1),
+      axis.text.y  = element_text(size = 15))  </code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-18-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>counts &lt;- GetAssayData(DCM_RV, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+
+cell_types &lt;- levels(Idents(DCM_RV))
+
+# Function to compute % expressing for a given set of cells
+pct_expressing &lt;- function(cell_vec) {
+  m &lt;- counts[goi, cell_vec, drop = FALSE]
+  (Matrix::rowSums(m &gt; 0) / ncol(m)) * 100
+}
+
+pcts_by_type &lt;- sapply(cell_types, function(ct) {
+  cells_ct &lt;- Seurat::WhichCells(DCM_RV, idents = ct)
+  if (length(cells_ct) == 0) return(rep(NA_real_, length(goi)))
+  pct_expressing(cells_ct)
+}, simplify = &quot;matrix&quot;)
+
+pcts_by_type &lt;- t(pcts_by_type)               
+
+pcts_total &lt;- pct_expressing(colnames(DCM_RV))
+names(pcts_total) &lt;- goi
+
+percent_df &lt;- rbind(pcts_by_type, tot = pcts_total)
+percent_df &lt;- as.data.frame(round(percent_df, 4))
+percent_df$Cell_type &lt;- rownames(percent_df)
+
+write_csv(percent_df, here::here(output_dir_data, &quot;Percent_per_cell_type_2.csv&quot;))
+
+reactable(percent_df, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE,
+          defaultPageSize = 14)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-697d58abce2053a24549" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-697d58abce2053a24549">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["Cardiomyocytes","Fibroblasts","Endothelial cells","Pericytes","Macrophages","T lymphocytes","Smooth muscle cells","Neuronal cells","Endocardial cells","Lymphatic cells","Mast cells","Adipocytes","B lymphocytes","Epicardial cells","tot"],"LINC02158":[0.8763,0.1341,0.0909,0.1316,0.166,0.1187,0.1456,0.0972,0.105,0,0.2845,0,0.4831,0,0.3655],"ID2-AS1":[0.9611,0.3412,0.8575,0.1431,0.3321,0.1662,0.3203,1.5549,0.8399,0.1393,0.1422,1.8634,0,0,0.6422],"Cell_type":["Cardiomyocytes","Fibroblasts","Endothelial cells","Pericytes","Macrophages","T lymphocytes","Smooth muscle cells","Neuronal cells","Endocardial cells","Lymphatic cells","Mast cells","Adipocytes","B lymphocytes","Epicardial cells","tot"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"LINC02158","name":"LINC02158","type":"numeric"},{"id":"ID2-AS1","name":"ID2-AS1","type":"numeric"},{"id":"Cell_type","name":"Cell_type","type":"character"}],"filterable":true,"searchable":true,"defaultPageSize":14,"showPageSizeOptions":true,"dataKey":"df68f1c4705cb4a7d806faa5b16fe1b0"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>FeaturePlot_scCustom(DCM_RV, features = goi, num_columns = 2, order = T)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-20-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>VlnPlot_scCustom(DCM_RV, features=goi, group.by=&quot;cell_type&quot;, num_columns=2, pt.size = 0.001) &amp; theme(axis.title.x = element_blank())</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-21-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DCM_RV$pseudobulk &lt;- &quot;pseudobulk&quot;
+
+pseudocounts_all &lt;- Seurat2PB(DCM_RV, sample=&quot;Sample&quot;, cluster = &quot;pseudobulk&quot;)
+keep_samples &lt;- pseudocounts_all$samples$lib.size &gt; 5e4
+pseudocounts_all &lt;- pseudocounts_all[, keep_samples]
+
+pseudocounts_all &lt;- normLibSizes(pseudocounts_all)
+
+colnames(pseudocounts_all) &lt;- pseudocounts_all$samples$sample
+counts_pseudocounts_all &lt;- cpm(pseudocounts_all, log = TRUE)</code></pre>
+<pre class="r"><code>metadata &lt;- DCM_RV@meta.data %&gt;%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %&gt;%
+  unique() %&gt;%
+  dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
+
+rownames(metadata) &lt;- metadata$Sample
+
+write_csv(metadata, here::here(output_dir_data, &quot;Patients_metadata.csv&quot;))
+
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-29a56e939b13f92b7856" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-29a56e939b13f92b7856">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["CZD13","CZD15","CZD16","CZD4","CZD5","CZD6","CZD7","CZD9","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Sample":["CZD13","CZD15","CZD16","CZD4","CZD5","CZD6","CZD7","CZD9","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Batch_processing":["Batch9","Batch9","Batch9","Batch8","Batch8","Batch8","Batch8","Batch9","Batch6","Batch7","Batch6","Batch7","Batch6","Batch6","Batch7","Batch1","Batch1","Batch1","Batch2","Batch2","Batch2","Batch3","Batch2","Batch3","Batch3","Batch4","Batch5","Batch4","Batch5"],"Batch_sequencing":["Batch8_seq","Batch8_seq","Batch8_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch8_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch5_seq","Batch6_seq","Batch1_seq","Batch1_seq","Batch1_seq","Batch2_seq","Batch2_seq","Batch2_seq","Batch3_seq","Batch3_seq","Batch3_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq"],"Age_years":["NA","NA","NA",46,55,33,37,47,19,36,37,28,49,49,45,32,29,61,56,53,58,41,61,41,52,66,16,57,40],"Sex":["M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M"],"Group":["HC","HC","HC","HC","HC","HC","HC","HC","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM"],"mPAP_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",25,26,27,33,22,30,41,43,39,36,21,29,43,30,"NA",29,19,"NA",34,48],"sPAP_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",35,37,41,48,33,38,51,56,54,51,31,45,55,44,"NA",42,26,"NA",41,58],"PCW_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",22,20,23,20,15,18,32,35,31,25,9,20,"NA",21,"NA",17,10,"NA",28,33],"PVR_WU":["NA","NA","NA","NA","NA","NA","NA","NA","NA",0.68,1.5,1.27,4.8,1.39,2.2,3.67,2.55,3.26,3.38,2.05,2.42,5.8,2.5,"NA",2.4,2.37,"NA",2.27,3.9],"TAPSE_mm":["NA","NA","NA","NA","NA","NA","NA","NA",13,9,13,24,9,20,12,16,17,15,15,20,17,18,15,12,22,19,7,19,15],"RVID_mm":["NA","NA","NA","NA","NA","NA","NA","NA",39,41,45,28,54,30,39,44,49,48,58,33,60,40,47,37,41,46,60,45,57],"LVEF_percent":["NA","NA","NA","NA","NA","NA","NA","NA",10,15,10,18,10,30,15,16,15,15,15,18,10,35,6,20,20,23,20,15,17],"LVEDD_mm":["NA","NA","NA","NA","NA","NA","NA","NA",76,80,98,72,92,69,75,67,88,71,74,82,84,58,83,63,89,69,58,98,81]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"Sample","name":"Sample","type":"character"},{"id":"Batch_processing","name":"Batch_processing","type":"character"},{"id":"Batch_sequencing","name":"Batch_sequencing","type":"character"},{"id":"Age_years","name":"Age_years","type":"numeric"},{"id":"Sex","name":"Sex","type":"character"},{"id":"Group","name":"Group","type":"character"},{"id":"mPAP_mmHg","name":"mPAP_mmHg","type":"numeric"},{"id":"sPAP_mmHg","name":"sPAP_mmHg","type":"numeric"},{"id":"PCW_mmHg","name":"PCW_mmHg","type":"numeric"},{"id":"PVR_WU","name":"PVR_WU","type":"numeric"},{"id":"TAPSE_mm","name":"TAPSE_mm","type":"numeric"},{"id":"RVID_mm","name":"RVID_mm","type":"numeric"},{"id":"LVEF_percent","name":"LVEF_percent","type":"numeric"},{"id":"LVEDD_mm","name":"LVEDD_mm","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"0cbafaf41cbef2c49ea4006a5560b8a5"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>present_genes &lt;- intersect(goi, rownames(counts_pseudocounts_all))
+missing_genes &lt;- setdiff(goi, rownames(counts_pseudocounts_all))
+if (length(missing_genes) &gt; 0) {
+  message(&quot;Warning: not found in pseudobulk matrix -&gt; &quot;, paste(missing_genes, collapse=&quot;, &quot;))
+}
+stopifnot(length(present_genes) &gt; 0)
+
+expr_long &lt;- counts_pseudocounts_all[present_genes, , drop = FALSE] %&gt;%
+  t() %&gt;%
+  as.data.frame() %&gt;%
+  tibble::rownames_to_column(var = &quot;Sample&quot;) %&gt;%
+  left_join(metadata, by = &quot;Sample&quot;) %&gt;%
+  pivot_longer(cols = all_of(present_genes), names_to = &quot;gene&quot;, values_to = &quot;logCPM&quot;) %&gt;%
+  mutate(
+    Group = factor(Group, levels = c(&quot;HC&quot;,&quot;DCM&quot;)),
+    gene  = factor(gene, levels = goi) 
+  )
+
+stopifnot(all(expr_long$Sample %in% rownames(metadata)))
+
+wilcox_tbl &lt;- expr_long %&gt;%
+  group_by(gene) %&gt;%
+  summarise(
+    n_HC  = sum(Group == &quot;HC&quot;),
+    n_DCM = sum(Group == &quot;DCM&quot;),
+    median_HC  = median(logCPM[Group == &quot;HC&quot;], na.rm = TRUE),
+    median_DCM = median(logCPM[Group == &quot;DCM&quot;], na.rm = TRUE),
+    diff_median = median_DCM - median_HC,
+    p_wilcox = tryCatch(
+      wilcox.test(logCPM ~ Group)$p.value,
+      error = function(e) NA_real_
+    ),
+    .groups = &quot;drop&quot;
+  ) %&gt;%
+  mutate(p_adj_BH = p.adjust(p_wilcox, method = &quot;BH&quot;))
+print(wilcox_tbl)</code></pre>
+<pre><code># A tibble: 2 × 8
+  gene       n_HC n_DCM median_HC median_DCM diff_median p_wilcox p_adj_BH
+  &lt;fct&gt;     &lt;int&gt; &lt;int&gt;     &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
+1 LINC02158     8    21    -1.49      -1.36        0.134   0.867    0.867 
+2 ID2-AS1       8    21    -0.800     -0.520       0.279   0.0317   0.0634</code></pre>
+<pre class="r"><code>write_csv(wilcox_tbl, &quot;Pseudobulk_all_2.csv&quot;)
+
+p &lt;- ggplot(expr_long, aes(x = Group, y = logCPM, fill = Group)) +
+  geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.7) +
+  geom_jitter(aes(color = Group), width = 0.12, height = 0, size = 2, alpha = 0.9) +
+  facet_wrap(~ gene, nrow = 1, scales = &quot;free_y&quot;) +
+  stat_compare_means(
+    method = &quot;wilcox.test&quot;,
+    comparisons = list(c(&quot;HC&quot;,&quot;DCM&quot;)),
+    label = &quot;p.format&quot;,
+    label.y.npc = 0.98,
+    vjust = 0
+  ) +
+  labs(x = NULL, y = &quot;logCPM&quot;,
+       title = &quot;Pseudobulk all cells&quot;) +
+  scale_fill_manual(values = c(HC = &quot;#4C78A8&quot;, DCM = &quot;#F58518&quot;)) +
+  scale_color_manual(values = c(HC = &quot;#4C78A8&quot;, DCM = &quot;#F58518&quot;)) +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.25))) +
+  coord_cartesian(clip = &quot;off&quot;) +
+  theme_bw(base_size = 12) +
+  theme(panel.grid.major.x = element_blank(),
+        legend.position = &quot;none&quot;,
+        strip.text = element_text(face = &quot;bold&quot;),
+        plot.margin = margin(10, 20, 10, 10))
+
+print(p)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-24-1.png" width="1050" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pb_ct &lt;- Seurat2PB(DCM_RV, sample = &quot;Sample&quot;, cluster = &quot;cell_type&quot;)
+
+keep_cols &lt;- pb_ct$samples$lib.size &gt; 5e4
+pb_ct &lt;- pb_ct[, keep_cols, keep.lib.sizes = FALSE]
+
+pb_ct &lt;- edgeR::normLibSizes(pb_ct)
+logcpm_ct &lt;- edgeR::cpm(pb_ct, log = TRUE)
+
+col_annot &lt;- pb_ct$samples %&gt;%
+  dplyr::transmute(Sample = .data$sample, cell_type = .data$cluster) %&gt;%
+  dplyr::left_join(metadata, by = &quot;Sample&quot;)
+
+
+colnames(logcpm_ct) &lt;- paste(col_annot$Sample, col_annot$cell_type, sep = &quot;::&quot;)
+
+min_detect &lt;- 10
+
+counts_ct &lt;- pb_ct$counts                        
+present_genes &lt;- intersect(goi, rownames(counts_ct))
+missing_genes  &lt;- setdiff(goi, rownames(counts_ct))
+if (length(missing_genes) &gt; 0) {
+  message(&quot;Warning: not found in pseudobulk matrix -&gt; &quot;, paste(missing_genes, collapse = &quot;, &quot;))
+}
+stopifnot(length(present_genes) &gt; 0)
+
+det_tbl &lt;- lapply(present_genes, function(g) {
+  data.frame(
+    cell_type = col_annot$cell_type,
+    detected  = as.integer(counts_ct[g, ] &gt; 0)
+  ) |&gt;
+    dplyr::group_by(cell_type) |&gt;
+    dplyr::summarise(n_detect = sum(detected), .groups = &quot;drop&quot;) |&gt;
+    dplyr::mutate(gene = g)
+}) |&gt;
+  dplyr::bind_rows()
+
+keep_pairs &lt;- det_tbl |&gt;
+  dplyr::filter(n_detect &gt;= min_detect) |&gt;
+  dplyr::transmute(key = paste(cell_type, gene, sep = &quot;||&quot;)) |&gt;
+  dplyr::pull(key)
+
+expr_long_ct &lt;- logcpm_ct[present_genes, , drop = FALSE] |&gt;
+  t() |&gt;
+  as.data.frame() |&gt;
+  tibble::rownames_to_column(var = &quot;col_id&quot;) |&gt;
+  dplyr::mutate(
+    Sample    = sub(&quot;::.*$&quot;, &quot;&quot;, col_id),
+    cell_type = sub(&quot;^.*::&quot;, &quot;&quot;, col_id)
+  ) |&gt;
+  dplyr::left_join(metadata, by = &quot;Sample&quot;) |&gt;
+  tidyr::pivot_longer(cols = all_of(present_genes),
+                      names_to = &quot;gene&quot;, values_to = &quot;logCPM&quot;) |&gt;
+  dplyr::mutate(
+    key       = paste(cell_type, gene, sep = &quot;||&quot;),
+    keep      = key %in% keep_pairs,
+    Group     = factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;)),
+    gene      = factor(gene, levels = goi)
+  ) |&gt;
+  dplyr::filter(keep) |&gt;
+  dplyr::select(-keep, -key)
+
+
+expr_long_ct &lt;- droplevels(expr_long_ct)
+
+wilcox_ct &lt;- expr_long_ct |&gt;
+  dplyr::group_by(cell_type, gene) |&gt;
+  dplyr::summarise(
+    n_HC  = sum(Group == &quot;HC&quot;),
+    n_DCM = sum(Group == &quot;DCM&quot;),
+    median_HC  = median(logCPM[Group == &quot;HC&quot;], na.rm = TRUE),
+    median_DCM = median(logCPM[Group == &quot;DCM&quot;], na.rm = TRUE),
+    diff_median = median_DCM - median_HC,
+    p_wilcox = tryCatch(wilcox.test(logCPM ~ Group)$p.value, error = function(e) NA_real_),
+    .groups = &quot;drop&quot;
+  ) |&gt;
+  dplyr::group_by(gene) |&gt;
+  dplyr::mutate(p_adj_BH_within_gene = p.adjust(p_wilcox, method = &quot;BH&quot;)) |&gt;
+  dplyr::ungroup()
+
+write_csv(expr_long_ct, here::here(output_dir_data, &quot;Pseudobulk_expr_cell_type_2.csv&quot;))
+
+readr::write_csv(wilcox_ct, &quot;Pseudobulk_byCellType_wilcox_2.csv&quot;)
+
+make_gene_plot &lt;- function(df, g, ncol_facets = 3, base_size = 11) {
+  df_g &lt;- df %&gt;% filter(gene == g)
+  ggplot(df_g, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.6, alpha = 0.7) +
+    geom_jitter(aes(color = Group), width = 0.12, height = 0, size = 1.8, alpha = 0.9) +
+    ggpubr::stat_compare_means(
+      method = &quot;wilcox.test&quot;,
+      comparisons = list(c(&quot;HC&quot;,&quot;DCM&quot;)),
+      label = &quot;p.format&quot;,
+      label.y.npc = 0.98,
+      vjust = 0,
+      size = 3
+    ) +
+    facet_wrap(~ cell_type, ncol = ncol_facets, scales = &quot;free_y&quot;) +
+    labs(x = NULL, y = &quot;logCPM&quot;,
+         title = paste(&quot;Pseudobulk by cell type -&quot;, as.character(g))) +
+    scale_fill_manual(values = c(HC = &quot;#4C78A8&quot;, DCM = &quot;#F58518&quot;)) +
+    scale_color_manual(values = c(HC = &quot;#4C78A8&quot;, DCM = &quot;#F58518&quot;)) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.25))) +
+    coord_cartesian(clip = &quot;off&quot;) +
+    theme_bw(base_size = base_size) +
+    theme(
+      panel.grid.major.x = element_blank(),
+      legend.position = &quot;none&quot;,
+      strip.text = element_text(face = &quot;bold&quot;),
+      strip.background = element_rect(fill = &quot;grey95&quot;),
+      plot.margin = margin(8, 16, 8, 8)
+    )
+}
+
+# genes to plot (preserve your order)
+genes_to_plot &lt;- intersect(levels(expr_long_ct$gene), goi)
+
+# build plots
+plots &lt;- lapply(genes_to_plot, function(g) make_gene_plot(expr_long_ct, g, ncol_facets = 3))
+
+# compute number of facet rows per gene (for proportional heights)
+rows_per_gene &lt;- sapply(genes_to_plot, function(g) {
+  n_ct &lt;- expr_long_ct %&gt;% filter(gene == g) %&gt;% pull(cell_type) %&gt;% n_distinct()
+  ceiling(n_ct / 3)  # 3 columns
+})
+
+# scale to heights (each row gets the same height unit)
+heights_vec &lt;- rows_per_gene / sum(rows_per_gene)
+
+# stack with proportional heights
+p_stack &lt;- wrap_plots(plots, ncol = 1) + plot_layout(heights = heights_vec)
+print(p_stack)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-25-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>metadata &lt;- DCM_RV@meta.data %&gt;%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group,
+                mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm,
+                LVEF_percent, LVEDD_mm) %&gt;%
+  dplyr::mutate(
+    TAPSE_sPAP = dplyr::if_else(sPAP_mmHg &gt; 0, TAPSE_mm / sPAP_mmHg, NA_real_)
+  ) %&gt;%
+  unique() %&gt;%
+  dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
+
+rownames(metadata) &lt;- metadata$Sample
+metadata_DCM &lt;- metadata %&gt;% filter(Group == &quot;DCM&quot;)
+
+dcm_samples_all &lt;- intersect(colnames(counts_pseudocounts_all), metadata_DCM$Sample)
+
+counts_all_raw     &lt;- pseudocounts_all$counts
+present_genes_all  &lt;- intersect(goi, rownames(counts_all_raw))
+det_counts_all     &lt;- sapply(present_genes_all, function(g)
+  sum(counts_all_raw[g, dcm_samples_all, drop = FALSE] &gt; 0)
+)
+genes_keep_all     &lt;- names(det_counts_all[det_counts_all &gt;= 10])
+
+expr_all_long_DCM &lt;- counts_pseudocounts_all[genes_keep_all, dcm_samples_all, drop = FALSE] %&gt;%
+  t() %&gt;% as.data.frame() %&gt;%
+  tibble::rownames_to_column(&quot;Sample&quot;) %&gt;%
+  left_join(metadata_DCM, by = &quot;Sample&quot;) %&gt;%
+  pivot_longer(cols = all_of(genes_keep_all), names_to = &quot;gene&quot;, values_to = &quot;logCPM&quot;) %&gt;%
+  mutate(gene = factor(gene, levels = goi))
+
+make_allcells_panel &lt;- function(df, xvar, xlab) {
+  ggplot(df, aes_string(x = xvar, y = &quot;logCPM&quot;)) +
+    geom_point(size = 1.6, alpha = 0.9) +
+    geom_smooth(method = &quot;lm&quot;, se = TRUE, size = 0.5) +
+    ggpubr::stat_cor(method = &quot;pearson&quot;, label.y.npc = 0.95, size = 3) +
+    facet_wrap(~ gene, ncol = 3, scales = &quot;free_y&quot;) +
+    theme_minimal(base_size = 11) +
+    labs(x = xlab, y = &quot;logCPM&quot;)
+}
+
+genes_to_plot &lt;- intersect(goi, unique(as.character(expr_all_long_DCM$gene)))
+expr_all_long_DCM$gene &lt;- factor(expr_all_long_DCM$gene, levels = genes_to_plot)
+
+p_all_mpap &lt;- make_allcells_panel(
+  df   = expr_all_long_DCM %&gt;% filter(!is.na(mPAP_mmHg), !is.na(logCPM)),
+  xvar = &quot;mPAP_mmHg&quot;, xlab = &quot;mPAP (mmHg)&quot;
+)
+p_all_tapse &lt;- make_allcells_panel(
+  df   = expr_all_long_DCM %&gt;% filter(!is.na(TAPSE_mm), !is.na(logCPM)),
+  xvar = &quot;TAPSE_mm&quot;,  xlab = &quot;TAPSE (mm)&quot;
+)
+
+fig_allcells &lt;- (p_all_mpap / p_all_tapse) +
+  patchwork::plot_layout(heights = c(1, 1.25)) +
+  patchwork::plot_annotation(title = &quot;Pseudobulk all cells&quot;)
+print(fig_allcells)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-26-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>is_dcm_ct       &lt;- col_annot$Sample %in% metadata_DCM$Sample
+logcpm_ct_DCM   &lt;- logcpm_ct[, is_dcm_ct, drop = FALSE]
+col_ann_DCM     &lt;- col_annot[is_dcm_ct, , drop = FALSE]
+colnames(logcpm_ct_DCM) &lt;- paste(col_ann_DCM$Sample, col_ann_DCM$cell_type, sep = &quot;::&quot;)
+
+counts_ct_DCM    &lt;- counts_ct[, is_dcm_ct, drop = FALSE]
+present_genes_ct &lt;- intersect(goi, rownames(counts_ct_DCM))
+
+det_tbl_DCM &lt;- lapply(present_genes_ct, function(g) {
+  tibble(cell_type = col_ann_DCM$cell_type,
+         detected  = as.integer(counts_ct_DCM[g, ] &gt; 0)) %&gt;%
+    group_by(cell_type) %&gt;%
+    summarise(n_detect = sum(detected), .groups = &quot;drop&quot;) %&gt;%
+    mutate(gene = g)
+}) %&gt;% bind_rows()
+
+keep_pairs_DCM &lt;- det_tbl_DCM %&gt;%
+  filter(n_detect &gt;= 10) %&gt;%
+  transmute(key = paste(cell_type, gene, sep = &quot;||&quot;)) %&gt;%
+  pull(key)
+
+expr_ct_long_DCM &lt;- logcpm_ct_DCM[present_genes_ct, , drop = FALSE] %&gt;%
+  t() %&gt;% as.data.frame() %&gt;%
+  tibble::rownames_to_column(&quot;col_id&quot;) %&gt;%
+  mutate(Sample = sub(&quot;::.*$&quot;, &quot;&quot;, col_id),
+         cell_type = sub(&quot;^.*::&quot;, &quot;&quot;, col_id)) %&gt;%
+  left_join(metadata_DCM, by = &quot;Sample&quot;) %&gt;%
+  pivot_longer(cols = all_of(present_genes_ct),
+               names_to = &quot;gene&quot;, values_to = &quot;logCPM&quot;) %&gt;%
+  mutate(key = paste(cell_type, gene, sep = &quot;||&quot;)) %&gt;%
+  filter(key %in% keep_pairs_DCM) %&gt;%
+  mutate(gene = factor(gene, levels = goi),
+         cell_type = droplevels(factor(cell_type))) %&gt;%
+  dplyr::select(-key, -col_id)
+
+plot_perct_vs &lt;- function(df, gene_id, xvar, xlab, ncol_facets = 3) {
+  dfg &lt;- df %&gt;% filter(gene == gene_id, !is.na(.data[[xvar]]))
+  ggplot(dfg, aes_string(x = xvar, y = &quot;logCPM&quot;)) +
+    geom_point(size = 1.6, alpha = 0.9) +
+    geom_smooth(method = &quot;lm&quot;, se = TRUE, size = 0.5) +
+    ggpubr::stat_cor(method = &quot;pearson&quot;, label.y.npc = 0.95, size = 3) +
+    facet_wrap(~ cell_type, ncol = ncol_facets, scales = &quot;free_y&quot;) +
+    theme_minimal(base_size = 11) +
+    labs(title = paste0(as.character(gene_id), &quot; - per cell type&quot;),
+         x = xlab, y = &quot;logCPM&quot;)
+}
+
+g &lt;- &quot;LINC02158&quot;
+p_ct_mpap  &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;mPAP_mmHg&quot;, &quot;mPAP (mmHg)&quot;)
+p_ct_tapse &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_mm&quot;,  &quot;TAPSE (mm)&quot;)
+
+rows_mpap  &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(mPAP_mmHg)) %&gt;%
+               pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+rows_tapse &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(TAPSE_mm)) %&gt;%
+               pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+
+fig_ct_TRHDE &lt;- (p_ct_mpap / p_ct_tapse) + plot_layout(heights = c(rows_mpap, rows_tapse))
+print(fig_ct_TRHDE)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-26-2.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>stopifnot(exists(&quot;expr_ct_long_DCM&quot;))
+if (!exists(&quot;plot_perct_vs&quot;)) {
+  plot_perct_vs &lt;- function(df, gene_id, xvar, xlab, ncol_facets = 3) {
+    dfg &lt;- df %&gt;% dplyr::filter(gene == gene_id, !is.na(.data[[xvar]]))
+    ggplot(dfg, aes_string(x = xvar, y = &quot;logCPM&quot;)) +
+      geom_point(size = 1.6, alpha = 0.9) +
+      geom_smooth(method = &quot;lm&quot;, se = TRUE, size = 0.5) +
+      ggpubr::stat_cor(method = &quot;pearson&quot;, label.y.npc = 0.95, size = 3) +
+      facet_wrap(~ cell_type, ncol = ncol_facets, scales = &quot;free_y&quot;) +
+      theme_minimal(base_size = 11) +
+      labs(title = paste0(as.character(gene_id), &quot; - per cell type&quot;),
+           x = xlab, y = &quot;logCPM&quot;)
+  }
+}
+
+for (g in c(&quot;LINC02158&quot;, &quot;ID2-AS1&quot;)) {
+  p_ct_mpap  &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;mPAP_mmHg&quot;, &quot;mPAP (mmHg)&quot;)
+  p_ct_tapse &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_mm&quot;,  &quot;TAPSE (mm)&quot;)
+
+  rows_mpap  &lt;- expr_ct_long_DCM %&gt;% dplyr::filter(gene == g, !is.na(mPAP_mmHg)) %&gt;%
+                 dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+  rows_tapse &lt;- expr_ct_long_DCM %&gt;% dplyr::filter(gene == g, !is.na(TAPSE_mm)) %&gt;%
+                 dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+
+  fig_ct &lt;- (p_ct_mpap / p_ct_tapse) + patchwork::plot_layout(heights = c(rows_mpap, rows_tapse))
+  print(fig_ct)
+}</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-27-1.png" width="2400" style="display: block; margin: auto;" /><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-27-2.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Correlations for DCM only (by cell type), per cell_type × gene
+safe_cor_ct &lt;- function(df, xvar) {
+  df %&gt;%
+    dplyr::filter(!is.na(.data[[xvar]]), !is.na(logCPM)) %&gt;%
+    dplyr::group_by(cell_type, gene) %&gt;%
+    dplyr::summarise(
+      n        = dplyr::n(),
+      r        = suppressWarnings(cor(logCPM, .data[[xvar]], method = &quot;pearson&quot;)),
+      p_value  = tryCatch(cor.test(logCPM, .data[[xvar]], method = &quot;pearson&quot;)$p.value,
+                          error = function(e) NA_real_),
+      .groups = &quot;drop&quot;
+    ) %&gt;%
+    dplyr::mutate(
+      variable = xvar,
+      p_adj_BH = p.adjust(p_value, method = &quot;BH&quot;)
+    )
+}
+
+corr_byCT_DCM &lt;- dplyr::bind_rows(
+  safe_cor_ct(expr_ct_long_DCM, &quot;mPAP_mmHg&quot;),
+  safe_cor_ct(expr_ct_long_DCM, &quot;TAPSE_mm&quot;)
+)
+
+readr::write_csv(corr_byCT_DCM,
+                 here::here(output_dir_data, &quot;Correlations_byCellType_DCM_2.csv&quot;))</code></pre>
+<pre class="r"><code>metadata &lt;- DCM_RV@meta.data %&gt;%
+  dplyr::select(
+    Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group,
+    mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm,
+    LVEF_percent, LVEDD_mm
+  ) %&gt;%
+  dplyr::mutate(
+    TAPSE_sPAP = dplyr::if_else(sPAP_mmHg &gt; 0, TAPSE_mm / sPAP_mmHg, NA_real_)
+  ) %&gt;%
+  unique() %&gt;%
+  dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
+
+rownames(metadata) &lt;- metadata$Sample
+
+write_csv(metadata, here::here(output_dir_data, &quot;Patients_metadata_2.csv&quot;))
+
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-457827ab1876f7c57926" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-457827ab1876f7c57926">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["CZD13","CZD15","CZD16","CZD4","CZD5","CZD6","CZD7","CZD9","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Sample":["CZD13","CZD15","CZD16","CZD4","CZD5","CZD6","CZD7","CZD9","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Batch_processing":["Batch9","Batch9","Batch9","Batch8","Batch8","Batch8","Batch8","Batch9","Batch6","Batch7","Batch6","Batch7","Batch6","Batch6","Batch7","Batch1","Batch1","Batch1","Batch2","Batch2","Batch2","Batch3","Batch2","Batch3","Batch3","Batch4","Batch5","Batch4","Batch5"],"Batch_sequencing":["Batch8_seq","Batch8_seq","Batch8_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch8_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch5_seq","Batch6_seq","Batch1_seq","Batch1_seq","Batch1_seq","Batch2_seq","Batch2_seq","Batch2_seq","Batch3_seq","Batch3_seq","Batch3_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq"],"Age_years":["NA","NA","NA",46,55,33,37,47,19,36,37,28,49,49,45,32,29,61,56,53,58,41,61,41,52,66,16,57,40],"Sex":["M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M"],"Group":["HC","HC","HC","HC","HC","HC","HC","HC","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM"],"mPAP_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",25,26,27,33,22,30,41,43,39,36,21,29,43,30,"NA",29,19,"NA",34,48],"sPAP_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",35,37,41,48,33,38,51,56,54,51,31,45,55,44,"NA",42,26,"NA",41,58],"PCW_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",22,20,23,20,15,18,32,35,31,25,9,20,"NA",21,"NA",17,10,"NA",28,33],"PVR_WU":["NA","NA","NA","NA","NA","NA","NA","NA","NA",0.68,1.5,1.27,4.8,1.39,2.2,3.67,2.55,3.26,3.38,2.05,2.42,5.8,2.5,"NA",2.4,2.37,"NA",2.27,3.9],"TAPSE_mm":["NA","NA","NA","NA","NA","NA","NA","NA",13,9,13,24,9,20,12,16,17,15,15,20,17,18,15,12,22,19,7,19,15],"RVID_mm":["NA","NA","NA","NA","NA","NA","NA","NA",39,41,45,28,54,30,39,44,49,48,58,33,60,40,47,37,41,46,60,45,57],"LVEF_percent":["NA","NA","NA","NA","NA","NA","NA","NA",10,15,10,18,10,30,15,16,15,15,15,18,10,35,6,20,20,23,20,15,17],"LVEDD_mm":["NA","NA","NA","NA","NA","NA","NA","NA",76,80,98,72,92,69,75,67,88,71,74,82,84,58,83,63,89,69,58,98,81],"TAPSE_sPAP":["NA","NA","NA","NA","NA","NA","NA","NA","NA",0.257142857142857,0.351351351351351,0.585365853658537,0.1875,0.606060606060606,0.315789473684211,0.313725490196078,0.303571428571429,0.277777777777778,0.294117647058824,0.645161290322581,0.377777777777778,0.327272727272727,0.340909090909091,"NA",0.523809523809524,0.730769230769231,"NA",0.463414634146341,0.258620689655172]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"Sample","name":"Sample","type":"character"},{"id":"Batch_processing","name":"Batch_processing","type":"character"},{"id":"Batch_sequencing","name":"Batch_sequencing","type":"character"},{"id":"Age_years","name":"Age_years","type":"numeric"},{"id":"Sex","name":"Sex","type":"character"},{"id":"Group","name":"Group","type":"character"},{"id":"mPAP_mmHg","name":"mPAP_mmHg","type":"numeric"},{"id":"sPAP_mmHg","name":"sPAP_mmHg","type":"numeric"},{"id":"PCW_mmHg","name":"PCW_mmHg","type":"numeric"},{"id":"PVR_WU","name":"PVR_WU","type":"numeric"},{"id":"TAPSE_mm","name":"TAPSE_mm","type":"numeric"},{"id":"RVID_mm","name":"RVID_mm","type":"numeric"},{"id":"LVEF_percent","name":"LVEF_percent","type":"numeric"},{"id":"LVEDD_mm","name":"LVEDD_mm","type":"numeric"},{"id":"TAPSE_sPAP","name":"TAPSE_sPAP","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"4b292df3c6de9fe8ee730b32606173c9"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>metadata_DCM &lt;- metadata %&gt;% filter(Group == &quot;DCM&quot;)
+
+dcm_samples_all &lt;- intersect(colnames(counts_pseudocounts_all), metadata_DCM$Sample)
+
+counts_all_raw     &lt;- pseudocounts_all$counts
+present_genes_all  &lt;- intersect(goi, rownames(counts_all_raw))
+det_counts_all     &lt;- sapply(present_genes_all, function(g)
+  sum(counts_all_raw[g, dcm_samples_all, drop = FALSE] &gt; 0)
+)
+genes_keep_all     &lt;- names(det_counts_all[det_counts_all &gt;= 10])
+
+expr_all_long_DCM &lt;- counts_pseudocounts_all[genes_keep_all, dcm_samples_all, drop = FALSE] %&gt;%
+  t() %&gt;% as.data.frame() %&gt;%
+  tibble::rownames_to_column(&quot;Sample&quot;) %&gt;%
+  left_join(metadata_DCM, by = &quot;Sample&quot;) %&gt;%
+  pivot_longer(cols = all_of(genes_keep_all), names_to = &quot;gene&quot;, values_to = &quot;logCPM&quot;) %&gt;%
+  mutate(gene = factor(gene, levels = goi))
+
+make_allcells_panel &lt;- function(df, xvar, xlab) {
+  ggplot(df, aes_string(x = xvar, y = &quot;logCPM&quot;)) +
+    geom_point(size = 1.6, alpha = 0.9) +
+    geom_smooth(method = &quot;lm&quot;, se = TRUE, size = 0.5) +
+    ggpubr::stat_cor(method = &quot;pearson&quot;, label.y.npc = 0.95, size = 3) +
+    facet_wrap(~ gene, ncol = 3, scales = &quot;free_y&quot;) +
+    theme_minimal(base_size = 11) +
+    labs(x = xlab, y = &quot;logCPM&quot;)
+}
+
+genes_to_plot &lt;- intersect(goi, unique(as.character(expr_all_long_DCM$gene)))
+expr_all_long_DCM$gene &lt;- factor(expr_all_long_DCM$gene, levels = genes_to_plot)
+
+p_all_mpap &lt;- make_allcells_panel(
+  df   = expr_all_long_DCM %&gt;% filter(!is.na(mPAP_mmHg), !is.na(logCPM)),
+  xvar = &quot;mPAP_mmHg&quot;, xlab = &quot;mPAP (mmHg)&quot;
+)
+p_all_tapse &lt;- make_allcells_panel(
+  df   = expr_all_long_DCM %&gt;% filter(!is.na(TAPSE_mm), !is.na(logCPM)),
+  xvar = &quot;TAPSE_mm&quot;,  xlab = &quot;TAPSE (mm)&quot;
+)
+# NEW: TAPSE/sPAP ratio
+p_all_ratio &lt;- make_allcells_panel(
+  df   = expr_all_long_DCM %&gt;% filter(!is.na(TAPSE_sPAP), !is.na(logCPM)),
+  xvar = &quot;TAPSE_sPAP&quot;, xlab = &quot;TAPSE / sPAP&quot;
+)
+
+fig_allcells &lt;- (p_all_mpap / p_all_tapse / p_all_ratio) +
+  patchwork::plot_layout(heights = c(1, 1, 1.25)) +
+  patchwork::plot_annotation(title = &quot;Pseudobulk all cells&quot;)
+print(fig_allcells)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-30-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>expr_ct_long_DCM &lt;- logcpm_ct_DCM[present_genes_ct, , drop = FALSE] %&gt;%
+  t() %&gt;% as.data.frame() %&gt;%
+  tibble::rownames_to_column(&quot;col_id&quot;) %&gt;%
+  mutate(Sample = sub(&quot;::.*$&quot;, &quot;&quot;, col_id),
+         cell_type = sub(&quot;^.*::&quot;, &quot;&quot;, col_id)) %&gt;%
+  left_join(metadata_DCM, by = &quot;Sample&quot;) %&gt;%
+  pivot_longer(cols = all_of(present_genes_ct),
+               names_to = &quot;gene&quot;, values_to = &quot;logCPM&quot;) %&gt;%
+  mutate(key = paste(cell_type, gene, sep = &quot;||&quot;)) %&gt;%
+  filter(key %in% keep_pairs_DCM) %&gt;%
+  mutate(gene = factor(gene, levels = goi),
+         cell_type = droplevels(factor(cell_type))) %&gt;%
+  dplyr::select(-key, -col_id)
+
+# --- TRHDE-AS1 ---
+g &lt;- &quot;LINC02158&quot;
+p_ct_mpap  &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;mPAP_mmHg&quot;, &quot;mPAP (mmHg)&quot;)
+p_ct_tapse &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_mm&quot;,  &quot;TAPSE (mm)&quot;)
+# NEW: TAPSE/sPAP ratio
+p_ct_ratio &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_sPAP&quot;, &quot;TAPSE / sPAP&quot;)
+
+rows_mpap  &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(mPAP_mmHg)) %&gt;%
+               pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+rows_tapse &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(TAPSE_mm)) %&gt;%
+               pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+rows_ratio &lt;- expr_ct_long_DCM %&gt;% filter(gene == g, !is.na(TAPSE_sPAP)) %&gt;%
+               pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 3))}
+
+fig_ct_TRHDE &lt;- (p_ct_mpap / p_ct_tapse / p_ct_ratio) +
+  patchwork::plot_layout(heights = c(rows_mpap, rows_tapse, rows_ratio))
+print(fig_ct_TRHDE)</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-31-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># --- FGFR4 &amp; SIGLEC10 loop with 5 facets per row ---
+for (g in c(&quot;LINC02158&quot;)) {
+  p_ct_mpap  &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;mPAP_mmHg&quot;, &quot;mPAP (mmHg)&quot;,  ncol_facets = 6)
+  p_ct_tapse &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_mm&quot;,  &quot;TAPSE (mm)&quot;,   ncol_facets = 6)
+  p_ct_ratio &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_sPAP&quot;,&quot;TAPSE / sPAP&quot;, ncol_facets = 6)
+
+  rows_mpap  &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(mPAP_mmHg)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+  rows_tapse &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(TAPSE_mm)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+  rows_ratio &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(TAPSE_sPAP)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+
+  fig_ct &lt;- (p_ct_mpap / p_ct_tapse / p_ct_ratio) +
+            patchwork::plot_layout(heights = c(rows_mpap, rows_tapse, rows_ratio))
+  print(fig_ct)
+}</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-32-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># --- FGFR4 &amp; SIGLEC10 loop with 5 facets per row ---
+for (g in c(&quot;ID2-AS1&quot;)) {
+  p_ct_mpap  &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;mPAP_mmHg&quot;, &quot;mPAP (mmHg)&quot;,  ncol_facets = 6)
+  p_ct_tapse &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_mm&quot;,  &quot;TAPSE (mm)&quot;,   ncol_facets = 6)
+  p_ct_ratio &lt;- plot_perct_vs(expr_ct_long_DCM, g, &quot;TAPSE_sPAP&quot;,&quot;TAPSE / sPAP&quot;, ncol_facets = 6)
+
+  rows_mpap  &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(mPAP_mmHg)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+  rows_tapse &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(TAPSE_mm)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+  rows_ratio &lt;- expr_ct_long_DCM %&gt;%
+    dplyr::filter(gene == g, !is.na(TAPSE_sPAP)) %&gt;%
+    dplyr::pull(cell_type) %&gt;% n_distinct() %&gt;% {max(1, ceiling(. / 5))}
+
+  fig_ct &lt;- (p_ct_mpap / p_ct_tapse / p_ct_ratio) +
+            patchwork::plot_layout(heights = c(rows_mpap, rows_tapse, rows_ratio))
+  print(fig_ct)
+}</code></pre>
+<p><img src="figure/Genes_Luxembourg_2.Rmd/unnamed-chunk-33-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Correlations for DCM only (by cell type), per cell_type × gene
+safe_cor_ct &lt;- function(df, xvar) {
+  df %&gt;%
+    dplyr::filter(!is.na(.data[[xvar]]), !is.na(logCPM)) %&gt;%
+    dplyr::group_by(cell_type, gene) %&gt;%
+    dplyr::summarise(
+      n        = dplyr::n(),
+      r        = suppressWarnings(cor(logCPM, .data[[xvar]], method = &quot;pearson&quot;)),
+      p_value  = tryCatch(cor.test(logCPM, .data[[xvar]], method = &quot;pearson&quot;)$p.value,
+                          error = function(e) NA_real_),
+      .groups = &quot;drop&quot;
+    ) %&gt;%
+    dplyr::mutate(
+      variable = xvar,
+      p_adj_BH = p.adjust(p_value, method = &quot;BH&quot;)
+    )
+}
+
+corr_byCT_DCM &lt;- dplyr::bind_rows(
+  safe_cor_ct(expr_ct_long_DCM, &quot;mPAP_mmHg&quot;),
+  safe_cor_ct(expr_ct_long_DCM, &quot;TAPSE_mm&quot;),
+  safe_cor_ct(expr_ct_long_DCM, &quot;TAPSE_sPAP&quot;)
+)
+
+readr::write_csv(corr_byCT_DCM,
+                 here::here(output_dir_data, &quot;Correlations_byCellType_DCM_2.csv&quot;))</code></pre>
 <br>
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
@@ -1317,168 +2576,142 @@ Session information
 </p>
 <div id="workflowr-sessioninfo" class="collapse">
 <pre class="r"><code>sessionInfo()</code></pre>
-<pre><code>R version 4.3.1 (2023-06-16)
-Platform: x86_64-pc-linux-gnu (64-bit)
-Running under: Ubuntu 22.04.4 LTS
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
 
 Matrix products: default
 BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;  LAPACK version 3.10.0
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
 
 locale:
- [1] LC_CTYPE=en_US.UTF-8          LC_NUMERIC=C                 
- [3] LC_TIME=en_US.UTF-8           LC_COLLATE=en_US.UTF-8       
- [5] LC_MONETARY=en_US.UTF-8       LC_MESSAGES=en_US.UTF-8      
- [7] LC_PAPER=en_US.UTF-8          LC_NAME=en_US.UTF-8          
- [9] LC_ADDRESS=en_US.UTF-8        LC_TELEPHONE=en_US.UTF-8     
-[11] LC_MEASUREMENT=en_US.UTF-8    LC_IDENTIFICATION=en_US.UTF-8
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 time zone: Etc/UTC
 tzcode source: system (glibc)
 
 attached base packages:
-[1] grid      stats4    stats     graphics  grDevices utils     datasets 
-[8] methods   base     
+[1] stats4    stats     graphics  grDevices datasets  utils     methods  
+[8] base     
 
 other attached packages:
- [1] ggpubr_0.6.0                igraph_2.0.3               
- [3] biomaRt_2.58.2              simplifyEnrichment_1.12.0  
- [5] msigdbr_7.5.1               UpSetR_1.4.0               
- [7] reactable_0.4.4             rtracklayer_1.62.0         
- [9] speckle_1.2.0               edgeR_4.0.16               
-[11] limma_3.58.1                ReactomePA_1.46.0          
-[13] AnnotationHub_3.10.0        BiocFileCache_2.10.1       
-[15] dbplyr_2.4.0                org.Hs.eg.db_3.18.0        
-[17] AnnotationDbi_1.64.1        statmod_1.5.0              
-[19] patchwork_1.2.0             scater_1.30.1              
-[21] scuttle_1.12.0              Matrix.utils_0.9.7         
-[23] RColorBrewer_1.1-3          scales_1.3.0               
-[25] knitr_1.45                  gridExtra_2.3              
-[27] png_0.1-8                   pheatmap_1.0.12            
-[29] SingleCellExperiment_1.24.0 SummarizedExperiment_1.32.0
-[31] Biobase_2.62.0              GenomicRanges_1.54.1       
-[33] GenomeInfoDb_1.38.7         IRanges_2.36.0             
-[35] MatrixGenerics_1.14.0       matrixStats_1.2.0          
-[37] S4Vectors_0.40.2            BiocGenerics_0.48.1        
-[39] reshape2_1.4.4              lubridate_1.9.3            
-[41] forcats_1.0.0               stringr_1.5.1              
-[43] purrr_1.0.2                 tidyr_1.3.1                
-[45] tibble_3.2.1                tidyverse_2.0.0            
-[47] magrittr_2.0.3              ggplot2_3.5.0              
-[49] dplyr_1.1.4                 scCustomize_3.0.1          
-[51] Matrix_1.6-5                SeuratObject_5.0.2         
-[53] Seurat_4.4.0                xlsx_0.6.5                 
-[55] readxl_1.4.3                readr_2.1.5                
-[57] here_1.0.1                 
+ [1] qs2_0.1.7                   ggpubr_0.6.2               
+ [3] igraph_2.2.1                biomaRt_2.66.0             
+ [5] simplifyEnrichment_2.4.0    msigdbr_25.1.1             
+ [7] UpSetR_1.4.0                reactable_0.4.5            
+ [9] rtracklayer_1.70.0          speckle_1.10.0             
+[11] edgeR_4.8.0                 limma_3.66.0               
+[13] ReactomePA_1.54.0           AnnotationHub_4.0.0        
+[15] BiocFileCache_3.0.0         dbplyr_2.5.1               
+[17] org.Hs.eg.db_3.22.0         AnnotationDbi_1.72.0       
+[19] statmod_1.5.1               patchwork_1.3.2            
+[21] scater_1.38.0               scuttle_1.20.0             
+[23] Matrix.utils_0.9.7          RColorBrewer_1.1-3         
+[25] scales_1.4.0                knitr_1.50                 
+[27] gridExtra_2.3               png_0.1-8                  
+[29] pheatmap_1.0.13             SingleCellExperiment_1.32.0
+[31] SummarizedExperiment_1.40.0 Biobase_2.70.0             
+[33] GenomicRanges_1.62.0        Seqinfo_1.0.0              
+[35] IRanges_2.44.0              MatrixGenerics_1.22.0      
+[37] matrixStats_1.5.0           S4Vectors_0.48.0           
+[39] BiocGenerics_0.56.0         generics_0.1.4             
+[41] reshape2_1.4.5              lubridate_1.9.4            
+[43] forcats_1.0.1               stringr_1.6.0              
+[45] purrr_1.2.0                 tidyr_1.3.1                
+[47] tibble_3.3.0                tidyverse_2.0.0            
+[49] magrittr_2.0.4              ggplot2_4.0.1              
+[51] dplyr_1.1.4                 scCustomize_3.2.2          
+[53] Matrix_1.6-5                SeuratObject_5.0.2         
+[55] Seurat_4.4.0                readxl_1.4.5               
+[57] readr_2.1.6                 here_1.0.2                 
 
 loaded via a namespace (and not attached):
-  [1] vroom_1.6.5                   progress_1.2.3               
-  [3] goftest_1.2-3                 Biostrings_2.70.2            
-  [5] vctrs_0.6.5                   spatstat.random_3.2-3        
-  [7] digest_0.6.35                 shape_1.4.6.1                
-  [9] git2r_0.33.0                  ggrepel_0.9.5                
- [11] deldir_2.0-4                  parallelly_1.37.1            
- [13] MASS_7.3-60.0.1               foreach_1.5.2                
- [15] httpuv_1.6.14                 qvalue_2.34.0                
- [17] withr_3.0.0                   ggrastr_1.0.2                
- [19] xfun_0.42                     ggfun_0.1.4                  
- [21] ellipsis_0.3.2                survival_3.5-8               
- [23] proxyC_0.4.1                  memoise_2.0.1                
- [25] ggbeeswarm_0.7.2              janitor_2.2.0                
- [27] gson_0.1.0                    tidytree_0.4.6               
- [29] zoo_1.8-12                    GlobalOptions_0.1.2          
- [31] pbapply_1.7-2                 prettyunits_1.2.0            
- [33] rematch2_2.1.2                KEGGREST_1.42.0              
- [35] promises_1.2.1                httr_1.4.7                   
- [37] rstatix_0.7.2                 restfulr_0.0.15              
- [39] globals_0.16.3                fitdistrplus_1.1-11          
- [41] rstudioapi_0.15.0             miniUI_0.1.1.1               
- [43] generics_0.1.3                DOSE_3.28.2                  
- [45] reactome.db_1.86.2            babelgene_22.9               
- [47] curl_5.2.1                    zlibbioc_1.48.0              
- [49] ScaledMatrix_1.10.0           ggraph_2.2.1                 
- [51] polyclip_1.10-6               GenomeInfoDbData_1.2.11      
- [53] SparseArray_1.2.4             interactiveDisplayBase_1.40.0
- [55] doParallel_1.0.17             xtable_1.8-4                 
- [57] evaluate_0.23                 S4Arrays_1.2.1               
- [59] hms_1.1.3                     irlba_2.3.5.1                
- [61] colorspace_2.1-0              filelock_1.0.3               
- [63] NLP_0.3-0                     ROCR_1.0-11                  
- [65] reticulate_1.35.0             spatstat.data_3.0-4          
- [67] lmtest_0.9-40                 snakecase_0.11.1             
- [69] later_1.3.2                   viridis_0.6.5                
- [71] ggtree_3.10.1                 lattice_0.22-5               
- [73] spatstat.geom_3.2-9           future.apply_1.11.1          
- [75] scattermore_1.2               XML_3.99-0.16.1              
- [77] shadowtext_0.1.3              cowplot_1.1.3                
- [79] RcppAnnoy_0.0.22              pillar_1.9.0                 
- [81] nlme_3.1-164                  iterators_1.0.14             
- [83] compiler_4.3.1                beachmat_2.18.1              
- [85] stringi_1.8.3                 tensor_1.5                   
- [87] GenomicAlignments_1.38.2      plyr_1.8.9                   
- [89] BiocIO_1.12.0                 crayon_1.5.2                 
- [91] abind_1.4-5                   gridGraphics_0.5-1           
- [93] locfit_1.5-9.9                sp_2.1-3                     
- [95] graphlayouts_1.1.1            bit_4.0.5                    
- [97] fastmatch_1.1-4               whisker_0.4.1                
- [99] codetools_0.2-19              BiocSingular_1.18.0          
-[101] crosstalk_1.2.1               slam_0.1-53                  
-[103] bslib_0.6.1                   paletteer_1.6.0              
-[105] GetoptLong_1.0.5              tm_0.7-14                    
-[107] plotly_4.10.4                 mime_0.12                    
-[109] splines_4.3.1                 circlize_0.4.16              
-[111] Rcpp_1.0.12                   sparseMatrixStats_1.14.0     
-[113] prismatic_1.1.1               HDO.db_0.99.1                
-[115] cellranger_1.1.0              grr_0.9.5                    
-[117] blob_1.2.4                    utf8_1.2.4                   
-[119] clue_0.3-65                   BiocVersion_3.18.1           
-[121] fs_1.6.3                      listenv_0.9.1                
-[123] DelayedMatrixStats_1.24.0     ggsignif_0.6.4               
-[125] ggplotify_0.1.2               tzdb_0.4.0                   
-[127] tweenr_2.0.3                  pkgconfig_2.0.3              
-[129] tools_4.3.1                   cachem_1.0.8                 
-[131] RSQLite_2.3.5                 viridisLite_0.4.2            
-[133] DBI_1.2.2                     graphite_1.48.0              
-[135] fastmap_1.1.1                 rmarkdown_2.26               
-[137] ica_1.0-3                     Rsamtools_2.18.0             
-[139] broom_1.0.5                   sass_0.4.9                   
-[141] ggprism_1.0.4                 BiocManager_1.30.22          
-[143] dotCall64_1.1-1               carData_3.0-5                
-[145] graph_1.80.0                  RANN_2.6.1                   
-[147] farver_2.1.1                  mgcv_1.9-1                   
-[149] tidygraph_1.3.1               scatterpie_0.2.1             
-[151] yaml_2.3.8                    workflowr_1.7.1              
-[153] cli_3.6.2                     leiden_0.4.3.1               
-[155] lifecycle_1.0.4               uwot_0.1.16                  
-[157] backports_1.4.1               BiocParallel_1.36.0          
-[159] rjson_0.2.21                  timechange_0.3.0             
-[161] gtable_0.3.4                  ggridges_0.5.6               
-[163] progressr_0.14.0              parallel_4.3.1               
-[165] ape_5.7-1                     jsonlite_1.8.8               
-[167] bitops_1.0-7                  bit64_4.6.0-1                
-[169] Rtsne_0.17                    yulab.utils_0.1.4            
-[171] spatstat.utils_3.1-0          BiocNeighbors_1.20.2         
-[173] highr_0.10                    jquerylib_0.1.4              
-[175] GOSemSim_2.28.1               reactR_0.6.0                 
-[177] lazyeval_0.2.2                shiny_1.8.0                  
-[179] htmltools_0.5.8.1             rJava_1.0-11                 
-[181] enrichplot_1.22.0             GO.db_3.18.0                 
-[183] sctransform_0.4.1             rappdirs_0.3.3               
-[185] glue_1.7.0                    spam_2.10-0                  
-[187] XVector_0.42.0                RCurl_1.98-1.14              
-[189] rprojroot_2.0.4               treeio_1.26.0                
-[191] R6_2.5.1                      labeling_0.4.3               
-[193] xlsxjars_0.6.1                cluster_2.1.6                
-[195] aplot_0.2.2                   DelayedArray_0.28.0          
-[197] tidyselect_1.2.1              vipor_0.4.7                  
-[199] xml2_1.3.6                    ggforce_0.4.2                
-[201] car_3.1-2                     future_1.33.1                
-[203] rsvd_1.0.5                    munsell_0.5.0                
-[205] KernSmooth_2.23-22            data.table_1.15.2            
-[207] ComplexHeatmap_2.18.0         htmlwidgets_1.6.4            
-[209] fgsea_1.28.0                  rlang_1.1.6                  
-[211] spatstat.sparse_3.0-3         spatstat.explore_3.2-6       
-[213] fansi_1.0.6                   beeswarm_0.4.0               </code></pre>
+  [1] graph_1.88.0             ica_1.0-3                plotly_4.11.0           
+  [4] Formula_1.2-5            rematch2_2.1.2           tidyselect_1.2.1        
+  [7] bit_4.6.0                doParallel_1.0.17        clue_0.3-66             
+ [10] tm_0.7-16                lattice_0.22-7           rjson_0.2.23            
+ [13] blob_1.2.4               S4Arrays_1.10.1          parallel_4.5.2          
+ [16] cli_3.6.5                ggplotify_0.1.3          goftest_1.2-3           
+ [19] BiocIO_1.20.0            grr_0.9.5                BiocNeighbors_2.4.0     
+ [22] uwot_0.2.4               curl_7.0.0               mime_0.13               
+ [25] evaluate_1.0.5           tidytree_0.4.6           leiden_0.4.3.1          
+ [28] ComplexHeatmap_2.26.0    stringi_1.8.7            backports_1.5.0         
+ [31] XML_3.99-0.20            httpuv_1.6.16            paletteer_1.6.0         
+ [34] rappdirs_0.3.3           splines_4.5.2            ggraph_2.2.2            
+ [37] sctransform_0.4.2        ggbeeswarm_0.7.3         DBI_1.2.3               
+ [40] jquerylib_0.1.4          reactome.db_1.94.0       withr_3.0.2             
+ [43] git2r_0.36.2             systemfonts_1.3.1        rprojroot_2.1.1         
+ [46] enrichplot_1.30.4        lmtest_0.9-40            ggnewscale_0.5.2        
+ [49] tidygraph_1.3.1          BiocManager_1.30.27      htmlwidgets_1.6.4       
+ [52] fs_1.6.6                 ggrepel_0.9.6            labeling_0.4.3          
+ [55] SparseArray_1.10.4       cellranger_1.1.0         reticulate_1.44.1       
+ [58] zoo_1.8-14               XVector_0.50.0           timechange_0.3.0        
+ [61] foreach_1.5.2            grid_4.5.2               data.table_1.17.8       
+ [64] ggtree_4.0.1             R.oo_1.27.1              ggiraph_0.9.2           
+ [67] irlba_2.3.5.1            ggrastr_1.0.2            gridGraphics_0.5-1      
+ [70] lazyeval_0.2.2           yaml_2.3.11              survival_3.8-3          
+ [73] scattermore_1.2          BiocVersion_3.22.0       crayon_1.5.3            
+ [76] RcppAnnoy_0.0.22         progressr_0.18.0         tweenr_2.0.3            
+ [79] later_1.4.4              ggridges_0.5.7           codetools_0.2-20        
+ [82] GlobalOptions_0.1.3      KEGGREST_1.50.0          Rtsne_0.17              
+ [85] shape_1.4.6.1            reactR_0.6.1             gdtools_0.4.4           
+ [88] Rsamtools_2.26.0         filelock_1.0.3           pkgconfig_2.0.3         
+ [91] xml2_1.5.1               spatstat.univar_3.1-5    GenomicAlignments_1.46.0
+ [94] aplot_0.2.9              scatterplot3d_0.3-44     spatstat.sparse_3.1-0   
+ [97] ape_5.8-1                viridisLite_0.4.2        xtable_1.8-4            
+[100] car_3.1-3                plyr_1.8.9               httr_1.4.7              
+[103] tools_4.5.2              globals_0.18.0           beeswarm_0.4.0          
+[106] broom_1.0.11             nlme_3.1-168             crosstalk_1.2.2         
+[109] assertthat_0.2.1         digest_0.6.39            farver_2.1.2            
+[112] tzdb_0.5.0               yulab.utils_0.2.2        viridis_0.6.5           
+[115] glue_1.8.0               cachem_1.1.0             polyclip_1.10-7         
+[118] Biostrings_2.78.0        parallelly_1.45.1        ScaledMatrix_1.18.0     
+[121] fontBitstreamVera_0.1.1  carData_3.0-5            pbapply_1.7-4           
+[124] httr2_1.2.1              spam_2.11-1              vroom_1.6.7             
+[127] gson_0.1.0               utf8_1.2.6               graphlayouts_1.2.2      
+[130] ggsignif_0.6.4           shiny_1.12.0             tidydr_0.0.6            
+[133] R.utils_2.13.0           RCurl_1.98-1.17          memoise_2.0.1           
+[136] rmarkdown_2.30           R.methodsS3_1.8.2        future_1.68.0           
+[139] RANN_2.6.2               fontLiberation_0.1.0     renv_1.1.5              
+[142] Cairo_1.7-0              stringfish_0.18.0        spatstat.data_3.1-9     
+[145] rstudioapi_0.17.1        cluster_2.1.8.1          whisker_0.4.1           
+[148] janitor_2.2.1            spatstat.utils_3.2-0     hms_1.1.4               
+[151] fitdistrplus_1.2-4       cowplot_1.2.0            colorspace_2.1-2        
+[154] rlang_1.1.6              dotCall64_1.2            ggforce_0.5.0           
+[157] circlize_0.4.16          ggtangle_0.0.9           mgcv_1.9-3              
+[160] xfun_0.56                simona_1.8.0             iterators_1.0.14        
+[163] abind_1.4-8              GOSemSim_2.36.0          treeio_1.34.0           
+[166] bitops_1.0-9             promises_1.5.0           scatterpie_0.2.6        
+[169] RSQLite_2.4.5            qvalue_2.42.0            fgsea_1.36.0            
+[172] DelayedArray_0.36.0      GO.db_3.22.0             compiler_4.5.2          
+[175] prettyunits_1.2.0        beachmat_2.26.0          graphite_1.56.0         
+[178] listenv_0.10.0           Rcpp_1.1.0               fontquiver_0.2.1        
+[181] workflowr_1.7.2          BiocSingular_1.26.1      tensor_1.5.1            
+[184] MASS_7.3-65              progress_1.2.3           BiocParallel_1.44.0     
+[187] babelgene_22.9           spatstat.random_3.4-3    R6_2.6.1                
+[190] fastmap_1.2.0            fastmatch_1.1-6          rstatix_0.7.3           
+[193] vipor_0.4.7              ROCR_1.0-11              rsvd_1.0.5              
+[196] gtable_0.3.6             KernSmooth_2.23-26       miniUI_0.1.2            
+[199] deldir_2.0-4             htmltools_0.5.9          RcppParallel_5.1.11-1   
+[202] bit64_4.6.0-1            spatstat.explore_3.6-0   lifecycle_1.0.4         
+[205] ggprism_1.0.7            S7_0.2.1                 NLP_0.3-2               
+[208] restfulr_0.0.16          sass_0.4.10              vctrs_0.6.5             
+[211] Polychrome_1.5.4         slam_0.1-55              spatstat.geom_3.6-1     
+[214] snakecase_0.11.1         DOSE_4.4.0               ggfun_0.2.0             
+[217] sp_2.2-0                 future.apply_1.20.0      bslib_0.9.0             
+[220] pillar_1.11.1            prismatic_1.1.2          locfit_1.5-9.12         
+[223] otel_0.2.0               jsonlite_2.0.0           cigarillo_1.0.0         
+[226] GetoptLong_1.1.0        </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 </div>
 </div>
 
