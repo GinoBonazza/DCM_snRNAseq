@@ -75,6 +75,7 @@ library(GGally)
 library(rtracklayer)
 library(biomaRt)
 library(ggpubr)
+library(qs2)
 
 
 #Output paths
@@ -91,32 +92,32 @@ if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
 Load DCM_RV dataset
 
 ```{r read CM}
-DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.rds"))
+DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.qs2"), nthreads = 32)
 ```
 
 ```{r NormalizeData}
-DefaultAssay(DCM_RV_integrated) <- "RNA"
-DCM_RV_integrated <- NormalizeData(DCM_RV_integrated)
+DefaultAssay(DCM_RV) <- "RNA"
+DCM_RV <- NormalizeData(DCM_RV)
 ```
 
 ## Differential abundance analysis
 
 ```{r metadata}
-DCM_RV_integrated$TAPSE_sPAP <- DCM_RV_integrated$TAPSE_mm/DCM_RV_integrated$sPAP_mmHg
-table(DCM_RV_integrated$TAPSE_sPAP)
+DCM_RV$TAPSE_sPAP <- DCM_RV$TAPSE_mm/DCM_RV$sPAP_mmHg
+table(DCM_RV$TAPSE_sPAP)
 
-metadata <- DCM_RV_integrated@meta.data %>%
+metadata <- DCM_RV@meta.data %>%
   dplyr::select(Sample:CO_l.min, TAPSE_sPAP) %>%
   unique() %>%
   dplyr::select(-LVID_mm, -RVIT_mm) 
 metadata <- metadata %>%
   dplyr::select(1:3, 5, 6, 4, 7:ncol(metadata)) %>%
-  dplyr::arrange(match(Sample, names(table(DCM_RV_integrated$Sample))))
+  dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
 
 rownames(metadata) <- metadata$Sample
 
-# Check if metadata$Sample matches names(table(DCM_RV_integrated$Sample))
-all.equal(metadata$Sample, names(table(DCM_RV_integrated$Sample)))
+# Check if metadata$Sample matches names(table(DCM_RV$Sample))
+all.equal(metadata$Sample, names(table(DCM_RV$Sample)))
 
 reactable(metadata, 
           filterable = TRUE,
@@ -131,7 +132,7 @@ metadata_DCM <- metadata %>%
 ```{r Speckle_all}
 # Initialize an empty data frame for storing differential abundance results
 differential_abundance <- data.frame()
-props <- getTransformedProps(DCM_RV_integrated$cell_type, DCM_RV_integrated$Sample, transform="logit")
+props <- getTransformedProps(DCM_RV$cell_type, DCM_RV$Sample, transform="logit")
 
 # Loop through each metadata column from Age_years to CO_l.min
 for (i in 7:(length(metadata_DCM))) {
@@ -181,34 +182,18 @@ design <- model.matrix(~ metadata_subset$CO_l.min + metadata_subset[["Age_years"
 fit.prop <- lmFit(props_subset$Proportions,design)
 
 par(mfrow=c(1,1), mar = c(5, 5, 3, 1))
-  plot(metadata_subset$CO_l.min, props_subset$Proportions[12,], main = rownames(props_subset$Proportions)[12],
+  plot(metadata_subset$CO_l.min, props_subset$Proportions[10,], main = rownames(props_subset$Proportions)[10],
        pch=16, cex=2, ylab="Proportions", xlab="CO_l.min", cex.lab=2, cex.axis=1.5,
        cex.main=2.5)
-  abline(a=fit.prop$coefficients[12,1], b=fit.prop$coefficients[12,2], col=4,
+  abline(a=fit.prop$coefficients[10,1], b=fit.prop$coefficients[10,2], col=4,
          lwd=1)
 
 rm(metadata_subset, props_subset, design, fit.prop)
 ```
 
-```{r Speckle_Group, fig.height=4, fig.width=20}
-design <- model.matrix(~ 0 + metadata$Group)
-colnames(design) <- c("DCM", "HC")
-mycontr <- makeContrasts(DCM-HC, levels=design)
-differential_abundance_HC <- propeller.ttest(props, design, contrasts = mycontr, robust=TRUE, trend=FALSE, sort=TRUE)
-
-write.csv(differential_abundance_HC, file = here::here(output_dir_data, "DCM_RV_Differential_Abundance_HC.csv"), quote=F, row.names = F)
-
-reactable(differential_abundance_HC, 
-          filterable = TRUE,
-          searchable = TRUE,
-          showPageSizeOptions = TRUE)
-
-rm(design, mycontr)
-```
-
 ```{r Cell_type_sample_table, fig.height=4, fig.width=10, message=FALSE, warning=FALSE}
 # Extract metadata
-metadata_tbl <- DCM_RV_integrated@meta.data
+metadata_tbl <- DCM_RV@meta.data
 
 # Create a contingency table with cell types as rows and samples as columns
 cell_type_sample_table <- table(metadata_tbl$cell_type, metadata_tbl$Sample)
@@ -222,13 +207,23 @@ cell_type_sample_df["Total", ] <- colSums(cell_type_sample_df)
 # Add the totals per cell type (row-wise sum) as the last column
 cell_type_sample_df$Total <- rowSums(cell_type_sample_df)
 
-table_plot <- tableGrob(cell_type_sample_df)
+# Create table grob
+table_plot <- gridExtra::tableGrob(cell_type_sample_df)
 
-ggsave(here::here(output_dir_figs, "cell_type_sample_table.png"), plot = table_plot, dpi = 600, width = 22, height = 6)
+# Show directly in the knitted document
+grid::grid.newpage()
+grid::grid.draw(table_plot)
 
-# Include the image in the markdown document
-knitr::include_graphics(here::here(output_dir_figs, "cell_type_sample_table.png"), error = FALSE, dpi = 300)
-rm(table_plot, metadata_tbl, differential_abundance, differential_abundance_HC, props)
+# Save separately if you still want the png file
+ggplot2::ggsave(
+  here::here(output_dir_figs, "cell_type_sample_table.png"),
+  plot = table_plot,
+  dpi = 600,
+  width = 22,
+  height = 6
+)
+
+rm(table_plot, metadata_tbl)
 ```
 
 
@@ -237,7 +232,7 @@ rm(table_plot, metadata_tbl, differential_abundance, differential_abundance_HC, 
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Cardiomyocytes}
-data <- subset(DCM_RV_integrated, cell_type == "Cardiomyocytes")
+data <- subset(DCM_RV, cell_type == "Cardiomyocytes")
 ```
 
 ```{r Cardiomyocytes save percent_stats, eval=FALSE}
@@ -405,7 +400,7 @@ rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Fibroblasts}
-data <- subset(DCM_RV_integrated, cell_type == "Fibroblasts")
+data <- subset(DCM_RV, cell_type == "Fibroblasts")
 ```
 
 ```{r Fibroblasts save percent_stats, eval=FALSE}
@@ -553,7 +548,7 @@ rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Endothelial_cells}
-data <- subset(DCM_RV_integrated, cell_type == "Endothelial cells")
+data <- subset(DCM_RV, cell_type == "Endothelial cells")
 ```
 
 ```{r Endothelial_cells save percent_stats, eval=FALSE}
@@ -699,7 +694,7 @@ rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Pericytes}
-data <- subset(DCM_RV_integrated, cell_type == "Pericytes")
+data <- subset(DCM_RV, cell_type == "Pericytes")
 ```
 
 ```{r Pericytes save percent_stats, eval=FALSE}
@@ -846,7 +841,7 @@ rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Macrophages}
-data <- subset(DCM_RV_integrated, cell_type == "Macrophages")
+data <- subset(DCM_RV, cell_type == "Macrophages")
 ```
 
 ```{r Macrophages save percent_stats, eval=FALSE}
@@ -993,7 +988,7 @@ rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Lymphocytes}
-data <- subset(DCM_RV_integrated, cell_type == "T lymphocytes")
+data <- subset(DCM_RV, cell_type == "T lymphocytes")
 ```
 
 ```{r Lymphocytes save percent_stats, eval=FALSE}
@@ -1127,7 +1122,7 @@ rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Smooth_muscle_cells}
-data <- subset(DCM_RV_integrated, cell_type == "Smooth muscle cells")
+data <- subset(DCM_RV, cell_type == "Smooth muscle cells")
 ```
 
 ```{r Smooth_muscle_cells save percent_stats, eval=FALSE}
@@ -1274,7 +1269,7 @@ rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Neuronal_cells}
-data <- subset(DCM_RV_integrated, cell_type == "Neuronal cells")
+data <- subset(DCM_RV, cell_type == "Neuronal cells")
 ```
 
 ```{r Neuronal_cells save percent_stats, eval=FALSE}
@@ -1407,7 +1402,7 @@ rm(pseudocounts, pseudocounts_DCM, percent_stats, results, signif, volcano, n_de
 Remove genes expressed in <1% of cells and MT and RP genes
 
 ```{r subset Endocardial_cells}
-data <- subset(DCM_RV_integrated, cell_type == "Endocardial cells")
+data <- subset(DCM_RV, cell_type == "Endocardial cells")
 ```
 
 ```{r Endocardial_cells save percent_stats, eval=FALSE}
