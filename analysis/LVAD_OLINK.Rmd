@@ -1,0 +1,772 @@
+---
+title: "LVAD_OLINK"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "LVAD_OLINK"
+
+library(here)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(readxl)
+library(qs2)
+library(glmnet)
+library(ggpubr)
+library(patchwork)
+library(pROC)
+library(scales)
+library(tibble)
+library(broom)
+library(SummarizedExperiment)
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"), recursive = TRUE)
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+cols_groups <- c("Healthy" = "#004C8C", "LVAD" = "#A63A2A")
+cols_tapse <- c("≥0.32" = "#9CA3AF", "<0.32" = "#A63A2A")
+
+# absolute paths
+path_ssc <- "/home/gbonaz/data/SSc-PAH"
+path_dcm <- "/home/gbonaz/data/DCM_snRNAseq"
+path_lvad <- "/home/gbonaz/data/DCM_snRNAseq/data/OLINK_LVAD"
+
+# candidate proteins
+panel_tapse_lasso <- c("CLSTN2", "SIGLEC8", "LRRN1", "CXCL17", "IL15")
+panel_mpap <- c("C1QTNF1", "LDB3")
+panel_tapse_extra <- c("C1QTNF1", "LDB3")
+proteins_to_keep <- unique(c(panel_tapse_lasso, panel_mpap, panel_tapse_extra))
+```
+
+## Import LVAD Olink NPX data
+
+```{r read_lvad_npx}
+npx_raw <- read.delim(
+  file.path(path_lvad, "pre_quant.csv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+LVAD_clinical <- read.csv(
+  file.path(path_lvad, "LVAD organ database full.csv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+```
+
+## Clean LVAD clinical data
+
+```{r clean_lvad_clinical}
+LVAD_clinical_clean <- LVAD_clinical %>%
+  mutate(across(
+    .cols = -c(`LVAD no.`, `Data implantacji`, Etiologia),
+    .fns = ~ case_when(
+      . == ">60" ~ 60,
+      . == "" ~ NA_real_,
+      TRUE ~ suppressWarnings(as.numeric(.))
+    )
+  )) %>%
+  dplyr::rename(
+    LVAD.no. = `LVAD no.`,
+    Age = Age,
+    TAPSE_sPAP = `TAPSE/sPAP`,
+    mPAP = mPAP
+  ) %>%
+  dplyr::filter(LVAD.no. != "LV35") %>%
+  mutate(
+    TAPSE_group = case_when(
+      is.na(TAPSE_sPAP) ~ NA_character_,
+      TAPSE_sPAP < 0.32 ~ "<0.32",
+      TAPSE_sPAP >= 0.32 ~ "≥0.32"
+    ),
+    TAPSE_group = factor(TAPSE_group, levels = c("≥0.32", "<0.32")),
+    Disease_group = "LVAD"
+  )
+
+glimpse(LVAD_clinical_clean)
+```
+
+## Clean LVAD Olink NPX data and build wide matrix
+
+```{r clean_lvad_npx}
+npx_lvad_all <- npx_raw %>%
+  filter(SampleType == "SAMPLE") %>%
+  filter(AssayType == "assay") %>%
+  filter(AssayQC == "PASS", SampleQC == "PASS") %>%
+  dplyr::select(SampleID, Group_Name1, Assay, NPX)
+
+npx_lvad_all <- npx_lvad_all %>%
+  filter(Assay %in% proteins_to_keep)
+
+npx_matrix_all <- npx_lvad_all %>%
+  tidyr::pivot_wider(
+    names_from = Assay,
+    values_from = NPX
+  )
+
+glimpse(npx_matrix_all)
+```
+
+## Build LVAD-only validation table
+
+```{r build_lvad_validation_table}
+npx_matrix_lvad <- npx_matrix_all %>%
+  filter(Group_Name1 == "LVAD") %>%
+  dplyr::rename(LVAD.no. = SampleID)
+
+lvad_data_full <- LVAD_clinical_clean %>%
+  inner_join(npx_matrix_lvad, by = "LVAD.no.")
+
+dim(lvad_data_full)
+
+lvad_data_full %>%
+  dplyr::select(LVAD.no., Age, TAPSE_sPAP, mPAP, all_of(proteins_to_keep)) %>%
+  head()
+```
+
+## Build all-sample table for LVAD versus healthy plots
+
+```{r build_allsample_table}
+all_samples_wide <- npx_matrix_all %>%
+  mutate(
+    Disease_group = case_when(
+      Group_Name1 == "LVAD" ~ "LVAD",
+      Group_Name1 == "Healthy" ~ "Healthy",
+      TRUE ~ Group_Name1
+    )
+  )
+
+all_samples_wide$Disease_group <- factor(all_samples_wide$Disease_group, levels = c("Healthy", "LVAD"))
+
+table(all_samples_wide$Disease_group)
+```
+
+## Import SSc-PAH Olink cohorts
+
+```{r import_ssc_olink}
+data_z <- qs_read(file.path(path_ssc, "data", "o37198_2025-02-27_olink_SummarizedExperiment.qs2"))
+clin_z <- read_excel(file.path(path_ssc, "data", "Metadata_Olink_analysis.xlsx"))
+
+meta_z <- colData(data_z) %>% data.frame()
+isOutlierColumn <- meta_z$Plate == "P0194" & meta_z$Col %in% c("3", "4")
+use <- meta_z$SampleType %in% c("Serum") & meta_z$Group %in% c("SSc-PAH", "SSc-noPAH") & !isOutlierColumn
+
+data_z <- data_z[, use]
+meta_z <- meta_z[use, ]
+rownames(meta_z) <- gsub("_P0194", "", rownames(meta_z))
+meta_z$Barcode <- rownames(meta_z)
+rownames(data_z) <- data_z@elementMetadata@listData[["Gene"]]
+rownames(data_z@assays@data@listData[["npx"]]) <- data_z@elementMetadata@listData[["Gene"]]
+data_z <- assay(data_z, "npx")
+data_z <- as.data.frame(data_z[-c(1:3), ])
+colnames(data_z) <- rownames(meta_z)
+
+clin_z <- clin_z %>%
+  dplyr::filter(Barcode %in% colnames(data_z)) %>%
+  mutate(
+    Age = as.numeric(Age),
+    TAPSE_sPAP = as.numeric(TAPSE_sPAP),
+    Sex = factor(Sex)
+  )
+
+
+data_p <- read.delim(
+  file.path(path_ssc, "data", "OLINK_PL", "quant.xls"),
+  sep = "\t",
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+clin_p <- read_excel(file.path(path_ssc, "data", "OLINK_PL", "Metadata_Olink_PL.xlsx"))
+
+rownames(data_p) <- sub("_.*", "", data_p$SampleID)
+data_p <- data_p[, -1]
+keep <- intersect(colnames(data_p), clin_p$Barcode)
+data_p <- data_p[, keep, drop = FALSE]
+
+clin_p <- clin_p %>%
+  dplyr::filter(Barcode %in% colnames(data_p)) %>%
+  mutate(
+    Age = as.numeric(Age),
+    TAPSE_sPAP = as.numeric(TAPSE_sPAP),
+    Sex = factor(Sex)
+  )
+```
+
+## Refit the TAPSE/sPAP LASSO model in the SSc-PAH cohort
+
+```{r fit_tapse_lasso_ssc}
+cutoff <- 0.32
+
+train_p <- clin_p %>%
+  dplyr::filter(Group == "SSc-PAH") %>%
+  dplyr::filter(!is.na(TAPSE_sPAP), !is.na(Age), !is.na(Sex)) %>%
+  dplyr::filter(Barcode %in% colnames(data_p))
+
+test_z <- clin_z %>%
+  dplyr::filter(Group == "SSc-PAH") %>%
+  dplyr::filter(!is.na(TAPSE_sPAP), !is.na(Age), !is.na(Sex)) %>%
+  dplyr::filter(Barcode %in% colnames(data_z))
+
+y_tr <- ifelse(as.numeric(train_p$TAPSE_sPAP) < cutoff, 1, 0)
+y_te <- ifelse(as.numeric(test_z$TAPSE_sPAP) < cutoff, 1, 0)
+
+Xtr_prot <- t(as.matrix(data_p[panel_tapse_lasso, train_p$Barcode, drop = FALSE]))
+Xte_prot <- t(as.matrix(data_z[panel_tapse_lasso, test_z$Barcode, drop = FALSE]))
+
+cov_tr <- data.frame(Age = as.numeric(train_p$Age), Sex = factor(train_p$Sex))
+cov_te <- data.frame(Age = as.numeric(test_z$Age), Sex = factor(test_z$Sex, levels = levels(cov_tr$Sex)))
+
+Xtr_cov <- model.matrix(~ Age + Sex, data = cov_tr)[, -1, drop = FALSE]
+Xte_cov <- model.matrix(~ Age + Sex, data = cov_te)[, -1, drop = FALSE]
+
+Xtr <- cbind(Xtr_cov, Xtr_prot)
+Xte <- cbind(Xte_cov, Xte_prot)
+
+pf <- c(rep(0, ncol(Xtr_cov)), rep(1, ncol(Xtr_prot)))
+
+set.seed(1)
+cvfit_tapse <- cv.glmnet(
+  x = Xtr,
+  y = y_tr,
+  family = "binomial",
+  alpha = 1,
+  penalty.factor = pf,
+  standardize = TRUE,
+  nfolds = 5,
+  type.measure = "auc"
+)
+
+lambdas <- cvfit_tapse$glmnet.fit$lambda
+beta_mat <- as.matrix(coef(cvfit_tapse$glmnet.fit, s = lambdas))
+feat_names <- rownames(beta_mat)
+prot_idx <- which(feat_names %in% panel_tapse_lasso)
+nprot <- apply(beta_mat[prot_idx, , drop = FALSE] != 0, 2, sum)
+
+ok <- which(nprot >= 3 & nprot <= 10)
+if (length(ok) > 0) {
+  j <- ok[which.min(cvfit_tapse$cvm[match(lambdas[ok], cvfit_tapse$lambda)])]
+  lambda_use <- lambdas[j]
+} else {
+  j <- which.min(abs(nprot - 5))
+  lambda_use <- lambdas[j]
+}
+
+coef_tapse_lasso <- as.matrix(coef(cvfit_tapse, s = lambda_use))
+coef_tapse_lasso <- data.frame(
+  feature = rownames(coef_tapse_lasso),
+  coefficient = coef_tapse_lasso[, 1],
+  row.names = NULL
+)
+coef_tapse_lasso
+
+write.csv(
+  coef_tapse_lasso,
+  file = here::here(output_dir_data, "coefficients_TAPSE_lasso_Poland_train.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
+## Check training and test performance in the original SSc-PAH cohorts
+
+```{r check_tapse_lasso_original_cohorts, fig.width=5.2, fig.height=3.8}
+train_prob <- as.numeric(predict(cvfit_tapse, newx = Xtr, s = lambda_use, type = "response"))
+test_prob <- as.numeric(predict(cvfit_tapse, newx = Xte, s = lambda_use, type = "response"))
+
+roc_tr <- pROC::roc(y_tr, train_prob, quiet = TRUE)
+roc_te <- pROC::roc(y_te, test_prob, quiet = TRUE)
+
+auc_tr <- as.numeric(pROC::auc(roc_tr))
+auc_te <- as.numeric(pROC::auc(roc_te))
+
+ggplot() +
+  geom_line(
+    data = data.frame(tpr = rev(roc_tr$sensitivities), fpr = rev(1 - roc_tr$specificities)),
+    aes(fpr, tpr),
+    color = "red"
+  ) +
+  geom_line(
+    data = data.frame(tpr = rev(roc_te$sensitivities), fpr = rev(1 - roc_te$specificities)),
+    aes(fpr, tpr),
+    color = "black"
+  ) +
+  geom_abline(linetype = 2) +
+  labs(
+    x = "False positive rate",
+    y = "True positive rate",
+    title = paste0("TAPSE/sPAP lasso\nPoland train AUC = ", round(auc_tr, 2),
+                   " | Zurich test AUC = ", round(auc_te, 2))
+  ) +
+  theme_classic(base_size = 12)
+```
+
+## Score the LVAD cohort with the TAPSE/sPAP LASSO model
+
+```{r score_lvad_with_tapse_lasso}
+# full score: only available in LVAD samples with Age
+cov_lvad <- data.frame(
+  Age = as.numeric(lvad_data_full$Age),
+  Sex = factor(rep(levels(cov_tr$Sex)[1], nrow(lvad_data_full)), levels = levels(cov_tr$Sex))
+)
+
+Xlvad_cov <- model.matrix(~ Age + Sex, data = cov_lvad)[, -1, drop = FALSE]
+Xlvad_prot <- as.matrix(lvad_data_full[, panel_tapse_lasso, drop = FALSE])
+Xlvad <- cbind(Xlvad_cov, Xlvad_prot)
+
+lvad_data_full$lasso_prob_full <- as.numeric(
+  predict(cvfit_tapse, newx = Xlvad, s = lambda_use, type = "response")
+)
+
+lvad_data_full$lasso_eta_full <- as.numeric(
+  predict(cvfit_tapse, newx = Xlvad, s = lambda_use, type = "link")
+)
+
+# protein-only score: can also be used for HC because clinical data are not available there
+coef_tbl <- coef_tapse_lasso %>%
+  dplyr::filter(feature != "(Intercept)")
+
+intercept_lasso <- coef_tapse_lasso %>%
+  dplyr::filter(feature == "(Intercept)") %>%
+  dplyr::pull(coefficient)
+
+protein_coef_tbl <- coef_tbl %>%
+  dplyr::filter(feature %in% panel_tapse_lasso)
+
+all_samples_score <- all_samples_wide
+all_samples_score$lasso_eta_protein_only <- intercept_lasso
+
+for (i in seq_len(nrow(protein_coef_tbl))) {
+  this_prot <- protein_coef_tbl$feature[i]
+  this_beta <- protein_coef_tbl$coefficient[i]
+  all_samples_score$lasso_eta_protein_only <- all_samples_score$lasso_eta_protein_only + all_samples_score[[this_prot]] * this_beta
+}
+
+all_samples_score$lasso_prob_protein_only <- plogis(all_samples_score$lasso_eta_protein_only)
+
+lvad_data_full <- lvad_data_full %>%
+  left_join(
+    all_samples_score %>%
+      dplyr::select(SampleID, lasso_eta_protein_only, lasso_prob_protein_only),
+    by = c("LVAD.no." = "SampleID")
+  )
+```
+
+## Correlation of individual TAPSE/sPAP candidate proteins with TAPSE/sPAP in LVAD
+
+```{r corr_tapse_candidates_lvad}
+cor_results_tapse <- data.frame()
+
+for (prot in panel_tapse_lasso) {
+  df <- lvad_data_full %>%
+    dplyr::select(LVAD.no., Age, TAPSE_sPAP, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(!is.na(TAPSE_sPAP), !is.na(NPX))
+
+  ct <- cor.test(df$NPX, df$TAPSE_sPAP, method = "spearman", exact = FALSE)
+  fit <- lm(NPX ~ TAPSE_sPAP + Age, data = df)
+  sm <- summary(fit)
+
+  cor_results_tapse <- rbind(
+    cor_results_tapse,
+    data.frame(
+      protein = prot,
+      n = nrow(df),
+      spearman_rho = unname(ct$estimate),
+      spearman_p = ct$p.value,
+      beta_TAPSE_sPAP_adjAge = sm$coefficients["TAPSE_sPAP", "Estimate"],
+      p_TAPSE_sPAP_adjAge = sm$coefficients["TAPSE_sPAP", "Pr(>|t|)"],
+      beta_Age = sm$coefficients["Age", "Estimate"],
+      p_Age = sm$coefficients["Age", "Pr(>|t|)"],
+      r_squared = sm$r.squared
+    )
+  )
+}
+
+cor_results_tapse$FDR_spearman <- p.adjust(cor_results_tapse$spearman_p, method = "BH")
+cor_results_tapse$FDR_adjAge <- p.adjust(cor_results_tapse$p_TAPSE_sPAP_adjAge, method = "BH")
+cor_results_tapse <- cor_results_tapse %>% arrange(FDR_spearman)
+cor_results_tapse
+
+write.csv(
+  cor_results_tapse,
+  file = here::here(output_dir_data, "correlations_TAPSE_candidates_LVAD.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
+## Correlation plots for TAPSE/sPAP candidate proteins
+
+```{r corr_tapse_candidates_plots, fig.width=12, fig.height=7}
+plot_list_tapse <- list()
+
+for (prot in panel_tapse_lasso) {
+  ann <- cor_results_tapse %>% dplyr::filter(protein == prot)
+
+  df <- lvad_data_full %>%
+    dplyr::select(LVAD.no., TAPSE_sPAP, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(!is.na(TAPSE_sPAP), !is.na(NPX))
+
+  plot_list_tapse[[prot]] <- ggplot(df, aes(x = TAPSE_sPAP, y = NPX)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 0.5) +
+    theme_classic(base_size = 12) +
+    labs(
+      title = paste0(
+        prot,
+        "\nρ = ", round(ann$spearman_rho, 2),
+        "  p = ", signif(ann$spearman_p, 2)
+      ),
+      x = "TAPSE/sPAP",
+      y = "NPX"
+    )
+}
+
+wrap_plots(plot_list_tapse, ncol = 3)
+```
+
+## TAPSE/sPAP LASSO score versus TAPSE/sPAP in LVAD
+
+```{r corr_tapse_lasso_score_lvad, fig.width=9, fig.height=3.8}
+score_results_tapse <- lvad_data_full %>%
+  dplyr::select(LVAD.no., Age, TAPSE_sPAP, lasso_eta_full, lasso_prob_full, lasso_eta_protein_only, lasso_prob_protein_only) %>%
+  dplyr::filter(!is.na(TAPSE_sPAP), !is.na(lasso_eta_full))
+
+ct_eta <- cor.test(score_results_tapse$lasso_eta_full, score_results_tapse$TAPSE_sPAP, method = "spearman", exact = FALSE)
+fit_eta <- lm(lasso_eta_full ~ TAPSE_sPAP + Age, data = score_results_tapse)
+summary(fit_eta)
+
+p1 <- ggplot(score_results_tapse, aes(x = TAPSE_sPAP, y = lasso_eta_full)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.5) +
+  theme_classic(base_size = 12) +
+  labs(
+    title = paste0("Lasso score (eta)\nρ = ", round(unname(ct_eta$estimate), 2),
+                   "  p = ", signif(ct_eta$p.value, 2)),
+    x = "TAPSE/sPAP",
+    y = "Score"
+  )
+
+ct_prob <- cor.test(score_results_tapse$lasso_prob_full, score_results_tapse$TAPSE_sPAP, method = "spearman", exact = FALSE)
+
+p2 <- ggplot(score_results_tapse, aes(x = TAPSE_sPAP, y = lasso_prob_full)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.5) +
+  theme_classic(base_size = 12) +
+  labs(
+    title = paste0("Lasso score (probability)\nρ = ", round(unname(ct_prob$estimate), 2),
+                   "  p = ", signif(ct_prob$p.value, 2)),
+    x = "TAPSE/sPAP",
+    y = "Predicted probability"
+  )
+
+p1 + p2
+```
+
+## Boxplots by TAPSE/sPAP group in LVAD
+
+```{r boxplots_tapse_lvad, fig.width=13, fig.height=8}
+box_list_tapse <- list()
+
+for (prot in panel_tapse_lasso) {
+  df <- lvad_data_full %>%
+    dplyr::select(LVAD.no., TAPSE_group, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(!is.na(TAPSE_group), !is.na(NPX))
+
+  box_list_tapse[[prot]] <- ggplot(df, aes(x = TAPSE_group, y = NPX, fill = TAPSE_group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.65) +
+    geom_jitter(width = 0.12, size = 1.8) +
+    stat_compare_means(comparisons = list(c("≥0.32", "<0.32")), method = "wilcox.test", label = "p.format") +
+    scale_fill_manual(values = cols_tapse) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = "none") +
+    labs(title = prot, x = "TAPSE/sPAP group", y = "NPX")
+}
+
+box_list_tapse[["Lasso_score"]] <- ggplot(
+  lvad_data_full %>% dplyr::filter(!is.na(TAPSE_group), !is.na(lasso_eta_full)),
+  aes(x = TAPSE_group, y = lasso_eta_full, fill = TAPSE_group)
+) +
+  geom_boxplot(outlier.shape = NA, width = 0.65) +
+  geom_jitter(width = 0.12, size = 1.8) +
+  stat_compare_means(comparisons = list(c("≥0.32", "<0.32")), method = "wilcox.test", label = "p.format") +
+  scale_fill_manual(values = cols_tapse) +
+  theme_classic(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(title = "Lasso score", x = "TAPSE/sPAP group", y = "Score")
+
+wrap_plots(box_list_tapse, ncol = 3)
+```
+
+## HC versus LVAD for TAPSE/sPAP candidate proteins and protein-only score
+
+```{r boxplots_hc_vs_lvad_tapse, fig.width=13, fig.height=8}
+box_list_hc_lvad_tapse <- list()
+
+for (prot in panel_tapse_lasso) {
+  df <- all_samples_wide %>%
+    dplyr::select(SampleID, Disease_group, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(Disease_group %in% c("Healthy", "LVAD")) %>%
+    dplyr::filter(!is.na(Disease_group), !is.na(NPX))
+
+  box_list_hc_lvad_tapse[[prot]] <- ggplot(df, aes(x = Disease_group, y = NPX, fill = Disease_group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.65) +
+    geom_jitter(width = 0.12, size = 1.8) +
+    stat_compare_means(comparisons = list(c("Healthy", "LVAD")), method = "wilcox.test", label = "p.format") +
+    scale_fill_manual(values = cols_groups) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = "none") +
+    labs(title = prot, x = NULL, y = "NPX")
+}
+
+box_list_hc_lvad_tapse[["Protein_only_score"]] <- ggplot(
+  all_samples_score %>%
+    dplyr::filter(Disease_group %in% c("Healthy", "LVAD"), !is.na(lasso_eta_protein_only)),
+  aes(x = Disease_group, y = lasso_eta_protein_only, fill = Disease_group)
+) +
+  geom_boxplot(outlier.shape = NA, width = 0.65) +
+  geom_jitter(width = 0.12, size = 1.8) +
+  stat_compare_means(comparisons = list(c("Healthy", "LVAD")), method = "wilcox.test", label = "p.format") +
+  scale_fill_manual(values = cols_groups) +
+  theme_classic(base_size = 12) +
+  theme(legend.position = "none") +
+  labs(title = "Protein-only lasso score", x = NULL, y = "Score")
+
+wrap_plots(box_list_hc_lvad_tapse, ncol = 3)
+```
+
+## Correlation of mPAP biomarkers with mPAP in LVAD
+
+```{r corr_mpap_candidates_lvad}
+cor_results_mpap <- data.frame()
+
+for (prot in panel_mpap) {
+  df <- lvad_data_full %>%
+    dplyr::select(LVAD.no., Age, mPAP, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(!is.na(mPAP), !is.na(NPX))
+
+  ct <- cor.test(df$NPX, df$mPAP, method = "spearman", exact = FALSE)
+  fit <- lm(NPX ~ mPAP + Age, data = df)
+  sm <- summary(fit)
+
+  cor_results_mpap <- rbind(
+    cor_results_mpap,
+    data.frame(
+      protein = prot,
+      n = nrow(df),
+      spearman_rho = unname(ct$estimate),
+      spearman_p = ct$p.value,
+      beta_mPAP_adjAge = sm$coefficients["mPAP", "Estimate"],
+      p_mPAP_adjAge = sm$coefficients["mPAP", "Pr(>|t|)"],
+      beta_Age = sm$coefficients["Age", "Estimate"],
+      p_Age = sm$coefficients["Age", "Pr(>|t|)"],
+      r_squared = sm$r.squared
+    )
+  )
+}
+
+cor_results_mpap$FDR_spearman <- p.adjust(cor_results_mpap$spearman_p, method = "BH")
+cor_results_mpap$FDR_adjAge <- p.adjust(cor_results_mpap$p_mPAP_adjAge, method = "BH")
+cor_results_mpap
+
+write.csv(
+  cor_results_mpap,
+  file = here::here(output_dir_data, "correlations_mPAP_candidates_LVAD.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
+## Correlation plots for mPAP biomarkers
+
+```{r corr_mpap_candidates_plots, fig.width=8, fig.height=3.8}
+plot_list_mpap <- list()
+
+for (prot in panel_mpap) {
+  ann <- cor_results_mpap %>% dplyr::filter(protein == prot)
+
+  df <- lvad_data_full %>%
+    dplyr::select(LVAD.no., mPAP, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(!is.na(mPAP), !is.na(NPX))
+
+  plot_list_mpap[[prot]] <- ggplot(df, aes(x = mPAP, y = NPX)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 0.5) +
+    theme_classic(base_size = 12) +
+    labs(
+      title = paste0(
+        prot,
+        "\nρ = ", round(ann$spearman_rho, 2),
+        "  p = ", signif(ann$spearman_p, 2)
+      ),
+      x = "mPAP",
+      y = "NPX"
+    )
+}
+
+plot_list_mpap[[1]] + plot_list_mpap[[2]]
+```
+
+## HC versus LVAD for mPAP biomarkers
+
+```{r boxplots_hc_vs_lvad_mpap, fig.width=7.5, fig.height=3.8}
+plot_list_mpap_hc <- list()
+
+for (prot in panel_mpap) {
+  df <- all_samples_wide %>%
+    dplyr::select(SampleID, Disease_group, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(Disease_group %in% c("Healthy", "LVAD")) %>%
+    dplyr::filter(!is.na(Disease_group), !is.na(NPX))
+
+  plot_list_mpap_hc[[prot]] <- ggplot(df, aes(x = Disease_group, y = NPX, fill = Disease_group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.65) +
+    geom_jitter(width = 0.12, size = 1.8) +
+    stat_compare_means(comparisons = list(c("Healthy", "LVAD")), method = "wilcox.test", label = "p.format") +
+    scale_fill_manual(values = cols_groups) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = "none") +
+    labs(title = prot, x = NULL, y = "NPX")
+}
+
+plot_list_mpap_hc[[1]] + plot_list_mpap_hc[[2]]
+```
+
+## Save final validation tables
+
+```{r save_final_tables}
+write.csv(
+  lvad_data_full,
+  file = here::here(output_dir_data, "LVAD_validation_table_with_scores.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+write.csv(
+  all_samples_score,
+  file = here::here(output_dir_data, "LVAD_and_Healthy_NPX_with_protein_only_score.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
+## Correlation of C1QTNF1 and LDB3 with TAPSE/sPAP in LVAD
+
+```{r corr_mpap_markers_with_tapse_lvad}
+cor_results_tapse_extra <- data.frame()
+
+for (prot in panel_tapse_extra) {
+  df <- lvad_data_full %>%
+    dplyr::select(LVAD.no., Age, TAPSE_sPAP, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(!is.na(TAPSE_sPAP), !is.na(NPX))
+
+  ct <- cor.test(df$NPX, df$TAPSE_sPAP, method = "spearman", exact = FALSE)
+  fit <- lm(NPX ~ TAPSE_sPAP + Age, data = df)
+  sm <- summary(fit)
+
+  cor_results_tapse_extra <- rbind(
+    cor_results_tapse_extra,
+    data.frame(
+      protein = prot,
+      n = nrow(df),
+      spearman_rho = unname(ct$estimate),
+      spearman_p = ct$p.value,
+      beta_TAPSE_sPAP_adjAge = sm$coefficients["TAPSE_sPAP", "Estimate"],
+      p_TAPSE_sPAP_adjAge = sm$coefficients["TAPSE_sPAP", "Pr(>|t|)"],
+      beta_Age = sm$coefficients["Age", "Estimate"],
+      p_Age = sm$coefficients["Age", "Pr(>|t|)"],
+      r_squared = sm$r.squared
+    )
+  )
+}
+
+cor_results_tapse_extra$FDR_spearman <- p.adjust(cor_results_tapse_extra$spearman_p, method = "BH")
+cor_results_tapse_extra$FDR_adjAge <- p.adjust(cor_results_tapse_extra$p_TAPSE_sPAP_adjAge, method = "BH")
+cor_results_tapse_extra
+```
+
+```{r corr_mpap_markers_with_tapse_plots, fig.width=8, fig.height=3.8}
+plot_list_tapse_extra <- list()
+
+for (prot in panel_tapse_extra) {
+  ann <- cor_results_tapse_extra %>% dplyr::filter(protein == prot)
+
+  df <- lvad_data_full %>%
+    dplyr::select(LVAD.no., TAPSE_sPAP, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(!is.na(TAPSE_sPAP), !is.na(NPX))
+
+  plot_list_tapse_extra[[prot]] <- ggplot(df, aes(x = TAPSE_sPAP, y = NPX)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 0.5) +
+    theme_classic(base_size = 12) +
+    labs(
+      title = paste0(
+        prot,
+        "\nρ = ", round(ann$spearman_rho, 2),
+        "  p = ", signif(ann$spearman_p, 2)
+      ),
+      x = "TAPSE/sPAP",
+      y = "NPX"
+    )
+}
+
+plot_list_tapse_extra[[1]] + plot_list_tapse_extra[[2]]
+```
+
+
+## Boxplots of C1QTNF1 and LDB3 by TAPSE/sPAP group in LVAD
+
+```{r boxplots_mpap_markers_by_tapse_group, fig.width=7.5, fig.height=4}
+plot_list_tapse_group_extra <- list()
+
+for (prot in panel_tapse_extra) {
+  df <- lvad_data_full %>%
+    dplyr::select(LVAD.no., TAPSE_group, all_of(prot)) %>%
+    dplyr::rename(NPX = all_of(prot)) %>%
+    dplyr::filter(!is.na(TAPSE_group), !is.na(NPX))
+
+  plot_list_tapse_group_extra[[prot]] <- ggplot(df, aes(x = TAPSE_group, y = NPX, fill = TAPSE_group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.65) +
+    geom_jitter(width = 0.12, size = 1.8) +
+    stat_compare_means(
+      comparisons = list(c("≥0.32", "<0.32")),
+      method = "wilcox.test",
+      label = "p.format"
+    ) +
+    scale_fill_manual(values = cols_tapse) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = "none") +
+    labs(title = prot, x = "TAPSE/sPAP group", y = "NPX")
+}
+
+plot_list_tapse_group_extra[[1]] + plot_list_tapse_group_extra[[2]]
+```
+
