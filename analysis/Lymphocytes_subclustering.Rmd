@@ -1,0 +1,864 @@
+---
+title: "Lymphocytes subclustering"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Lymphocytes_subclustering"
+
+# Load libraries
+library(here)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(readr)
+library(readxl)
+library(knitr)
+library(patchwork)
+library(scales)
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+
+
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(Matrix.utils)
+library(scater)
+library(statmod)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(AnnotationHub)
+library(ReactomePA)
+library(speckle)
+library(limma)
+library(reactable)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(edgeR)
+library(qs2)
+
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+Load dataset and subset cardiomyocytes
+
+```{r Load data, echo = TRUE, results= "hide"}
+DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.qs2"), nthreads = 32)
+DefaultAssay(DCM_RV) <- "RNA"
+Idents(DCM_RV) <- "cell_type"
+LC <- subset(DCM_RV, cell_type %in% c("T lymphocytes", "B lymphocytes"))
+```
+
+## Integration and clustering
+
+Re-normalize and re-scale the subsetted object using SCTransform
+
+```{r SCTransform, message=FALSE, warning=FALSE, echo = TRUE, results= "hide"}
+LC <- SplitObject(LC, split.by = "Sample")
+for (i in 1:length(LC)) {
+LC[[i]] <- SCTransform(LC[[i]], vst.flavor = "v2", 
+                       vars.to.regress = "percent.mt", 
+                       return.only.var.genes = TRUE, 
+                       variable.features.n = 1000,
+                       min_cells = 0)
+}
+```
+
+PCA
+
+```{r PCA}
+features <- SelectIntegrationFeatures(object.list = LC, nfeatures = 1000)
+LC <- merge(x = LC[[1]], y = LC[2:length(LC)], merge.data=TRUE)
+VariableFeatures(LC) <- features
+LC <- RunPCA(LC, npcs = 30)
+```
+
+```{r Elbow_LC, fig.width=4, fig.height=4}
+ElbowPlot(LC, ndims = 30)
+```
+
+Reintegrate the samples using Harmony
+
+```{r RunHarmony}
+LC <- RunHarmony(LC, 
+                 assay.use="SCT", 
+                 group.by.vars = "Sample", 
+                 dims.use = 1:30, 
+                 plot_convergence=TRUE, 
+                 .options = harmony_options(
+                   max.iter.cluster = 100,
+                   )
+                 )
+```
+
+Clustering after integration
+
+```{r clustering integrated}
+DefaultAssay(LC) <- "SCT"
+LC <- RunUMAP(LC, dims = 1:30, reduction = "harmony")
+LC <- FindNeighbors(LC, dims = 1:30, reduction = "harmony")
+LC <- FindClusters(LC, resolution = seq(0.1, 0.8, by=0.1))
+```
+
+```{r Clustree_LC, fig.width=6, fig.height=9}
+clustree::clustree(LC@meta.data[,grep("SCT_snn_res", colnames(LC@meta.data))], prefix = "SCT_snn_res.")
+```
+
+```{r UMAPs_LC, fig.width=12, fig.height=10}
+DimPlot(LC, reduction = "umap", shuffle = T,
+        group.by = c("SCT_snn_res.0.4", "Sample", "Batch_processing", "Batch_sequencing"), ncol = 2)
+```
+
+Find the markers that characterize each cell population
+
+```{r FindAllMarkers}
+DefaultAssay(LC) <- "RNA"
+LC <- NormalizeData(LC)
+Idents(LC) <- "SCT_snn_res.0.4"
+Markers <- FindAllMarkers(LC, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+```
+
+```{r Heatmap_LC, fig.width=15, fig.height=10}
+heatmap_cols <- colorRampPalette(RColorBrewer::brewer.pal(9,"RdBu"))(256)
+heatmap_cols <- rev(heatmap_cols[1:256])
+Heatmap <- DoHeatmap(LC, label = FALSE, draw.line = F, features = Markers_top10$gene, assay = "SCT") +
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(axis.text.y = element_text(size = 5)) +
+  theme(plot.margin = unit(c(0.1, 0, 0, 0), 
+                           "inches"))
+Heatmap
+```
+
+```{r cell_type_cols}
+cell_type_cols <- c("#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A", "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600")  
+```
+
+Check QC parameters in each cluster
+
+```{r QC_VlnPlots_LC, fig.width=8, fig.height=6}
+VlnPlot_scCustom(LC, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp"), num_columns = 2, pt.size = 0, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())
+```
+
+```{r QC_VlnPlots_2, fig.width=8, fig.height=6}
+VlnPlot_scCustom(LC, features = c("RYR2", "TTN", "VWF", "scDblFinder.score"), assay="RNA", num_columns = 2, pt.size = 0.0, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())
+```
+
+```{r QC_VlnPlots_3, fig.width=20, fig.height=6}
+VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "10")$gene, num_columns = 5, pt.size = 0, colors_use = cell_type_cols) 
+```
+
+```{r QC_VlnPlots_4, fig.width=20, fig.height=6}
+VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "7")$gene, num_columns = 5, pt.size = 0, colors_use = cell_type_cols) 
+```
+
+```{r, fig.width=9, fig.height=15}
+## Pan-lymphoid and lineage identity
+lc_pan <- c(
+  "PTPRC", "IKZF1", "TCF7", "LEF1",
+  # T cells
+  "CD3D", "CD3E", "CD3G", "TRAC", "TRBC1", "TRBC2",
+  # B cells
+  "MS4A1", "CD79A", "CD79B", "BLK", "BANK1",
+  # Cytotoxic / NK
+  "NKG7", "GNLY", "PRF1", "GZMB", "KLRD1", "KLRF1", "KLRK1"
+)
+
+## T cell subtypes
+
+# Naive / central memory
+lc_t_naive <- c(
+  "IL7R", "LEF1", "TCF7", "BACH2", "CCR7", "SELL"
+)
+
+# Effector / cytotoxic CD8+
+lc_t_effector <- c(
+  "GZMB", "PRF1", "GNLY", "NKG7", "IFNG", "CX3CR1", "ZEB2", "TBX21", "EOMES"
+)
+
+# Effector memory / exhausted
+lc_t_exhausted <- c(
+  "PDCD1", "TOX", "HOPX", "LAG3", "HAVCR2", "PRDM1", "CXCL13"
+)
+
+# Activated / regulatory (Treg-like)
+lc_t_regulatory <- c(
+  "IL2RA", "FOXP3", "IKZF2", "TNFRSF4", "CTLA4", "TIGIT"
+)
+
+# γδ T cells
+lc_t_gammadelta <- c(
+  "TRDC", "TRGC1", "TRGC2", "KLRK1", "KLRD1", "SOX13"
+)
+
+# MAIT-like
+lc_t_mait <- c(
+  "ZBTB16", "KLRB1", "TXK", "IL18RAP", "SLC4A10"
+)
+
+## NK cells
+lc_nk <- c(
+  # Core cytotoxic
+  "NKG7", "GNLY", "PRF1", "GZMB", "GZMH",
+  # Receptors
+  "KLRD1", "KLRF1", "KLRK1", "KLRC1", "KLRC2", "KLRC3", "FCGR3A",
+  # TFs
+  "EOMES", "TBX21"
+)
+
+## 🧬 B cells
+lc_b <- c(
+  # Naive / memory B
+  "MS4A1", "CD79A", "CD79B", "BANK1", "BLK", "PAX5",
+  # Plasma
+  "MZB1", "XBP1", "JCHAIN", "PRDM1"
+)
+
+## Functional / state markers
+lc_activation <- c("CD69", "CD40LG", "HLA-DRA", "CD83")
+lc_interferon <- c("ISG15", "IFIT3", "MX1")
+lc_proliferation <- c("MKI67", "TOP2A")
+
+lc_all_markers <- unique(c(
+  lc_pan,
+  lc_t_naive, lc_t_effector, lc_t_exhausted, lc_t_regulatory, lc_t_gammadelta, lc_t_mait,
+  lc_nk, lc_b,
+  lc_activation, lc_interferon, lc_proliferation
+))
+
+```
+
+```{r, fig.height=25, fig.width=50}
+FeaturePlot_scCustom(LC, features = lc_all_markers, num_columns = 12, pt.size = 0.1)
+
+```
+
+```{r, fig.height=25, fig.width=50}
+FeaturePlot_scCustom(LC, features = lc_all_markers, num_columns = 12, pt.size = 0.1, order=F)
+
+```
+
+```{r, fig.height=15, fig.width=20}
+FeaturePlot_scCustom(LC, features = c(
+  "TRGC1", "TRGC2", "CD3D", "CD3E",
+  "KLRB1", "SLC4A10", "ZBTB16", "RORC",
+  "NCR1", "KLRD1", "NKG7", "GNLY",
+  "KLRC1", "KLRC2", "CD4", "CD8A",
+  "PRF1", "GZMB", "ZNF683", "TXK"
+), num_columns = 5, pt.size = 0.1, order=T)
+
+```
+
+## Cell type annotation
+
+Annotate the clusters
+
+```{r LC_contamination, eval=FALSE}
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("0"), "cell_state"] = "LC_T_CD4_memory"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("1"), "cell_state"] = "LC_T_CD8_activated"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("2"), "cell_state"] = "LC_NK"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("3"), "cell_state"] = "LC_T_CD4_naive"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("4"), "cell_state"] = "LC_T_CD8_cytotoxic"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("5"), "cell_state"] = "LC_T_γδ"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("6"), "cell_state"] = "LC_T_innate_like"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("7"), "cell_state"] = "LC_contamination"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("8"), "cell_state"] = "LC_plasma_cells"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("9"), "cell_state"] = "LC_T_reg"
+LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("10"), "cell_state"] = "LC_B_cells"
+
+LC$cell_state <- factor(LC$cell_state, levels = c("LC_T_CD4_memory", "LC_T_CD8_activated", "LC_NK","LC_T_CD4_naive", "LC_T_CD8_cytotoxic", "LC_T_γδ", "LC_T_innate_like", "LC_contamination", "LC_plasma_cells", "LC_T_reg", "LC_B_cells"))
+Idents(LC) <- LC$cell_state
+```
+
+```{r LC_cell_states_contamination.csv, eval=FALSE}
+cell_states_contamination <- data.frame(
+  cell = colnames(subset(LC, cell_state %in% c("LC_contamination"))),
+  cell_state = subset(LC, cell_state %in% c("LC_contamination"))$cell_state
+)
+
+write.csv(
+  cell_states_contamination,
+  here::here(output_dir_data, "LC_cell_states_contamination.csv"),
+  row.names = FALSE
+)
+```
+
+Remove low quality cells
+
+```{r remove MC_contamination, eval=FALSE}
+LC <- subset(LC, cell_state %in% c("LC_T_CD4_memory", "LC_T_CD8_activated", "LC_NK","LC_T_CD4_naive", "LC_T_CD8_cytotoxic", "LC_T_γδ", "LC_T_innate_like", "LC_plasma_cells", "LC_T_reg", "LC_B_cells"))
+```
+
+```{r read LC}
+LC <- qs_read(here::here(output_dir_data, "LC.qs2"), nthreads = 32)
+```
+
+```{r FindAllMarkers cell_state}
+LC$cell_state <- factor(LC$cell_state, levels = c("LC_T_CD4_memory", "LC_T_CD8_activated", "LC_NK","LC_T_CD4_naive", "LC_T_CD8_cytotoxic", "LC_T_γδ", "LC_T_innate_like", "LC_plasma_cells", "LC_T_reg", "LC_B_cells"))
+DefaultAssay(LC) <- "RNA"
+Markers <- FindAllMarkers(LC, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
+write.csv(Markers, here::here(output_dir_data, "LC_Markers_all_cell_state.csv"))
+Markers_top10 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC))
+write.csv(Markers_top10, here::here(output_dir_data, "LC_Markers_top10_cell_state.csv"))
+Markers_top3 <- as.data.frame(Markers %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers_top3, here::here(output_dir_data, "LC_Markers_top3_cell_state.csv"))
+```
+
+```{r Heatmap_cell_state, fig.width=10, fig.height=10.5}
+Heatmap <- DoHeatmap(LC, label = TRUE, draw.line = F, features = Markers_top10$gene, assay = "SCT", size = 4) + 
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(text = element_text(size = 12), 
+        axis.text.y = element_text(size = 8)) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "inches")) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) + guides(color = "none") 
+Heatmap
+```
+
+```{r UMAP_cell_type_2, fig.width=7, fig.height=6}
+p <- DimPlot(
+        LC,
+        group.by  = "cell_state",
+        reduction = "umap",
+        cols      = cell_type_cols,       
+        label     = FALSE,
+        shuffle=T,
+        pt.size = 0.1
+        ) +
+     NoLegend() +
+     theme(axis.text  = element_text(size = 8, face = "bold"),
+           axis.title = element_text(size = 12, face = "bold"),
+           plot.title = element_blank())
+
+LabelClusters(p,
+              id       = "cell_state",
+              fontface = "bold",
+              size     = 6,
+              repel    = TRUE)
+```
+
+```{r DotPlot_markers, fig.width=10, fig.height=4}
+Idents(LC) <- factor(
+  Idents(LC),
+  levels = rev(levels(Idents(LC)))
+)
+
+Markers_top3_2 <- Markers_top3
+Markers_top3_2 <- Markers_top3_2[-27, ]
+
+p <- DotPlot_scCustom(
+        LC,
+        features       = Markers_top3_2$gene,
+        x_lab_rotate   = TRUE
+)
+
+p + theme(
+      axis.text.x  = element_text(size = 12,        
+                                  angle = 60,          
+                                  vjust = 1,
+                                  hjust = 1),
+      axis.text.y  = element_text(size = 15))  
+Idents(LC) <- LC$cell_state
+```
+
+```{r VlnPlot_markers_LC, fig.width=15, fig.height=8}
+VlnPlot_scCustom(LC, features = c("RBPJ", "DTHD1", "KLRF1", "LEF1", "AGPAT4", "KLRC2", "ATP8B4", "TXNDC5", "RTKN2", "BANK1"), num_columns = 5, colors_use = cell_type_cols, pt.size = 0)
+```
+
+```{r FeatPlot_markers_LC, fig.width=9, fig.height=24}
+FeaturePlot_scCustom(LC, features = Markers_top3$gene, num_columns = 3)
+```
+
+```{r FeatPlot_markers_myoLC, fig.width=12, fig.height=7.5}
+FeaturePlot_scCustom(LC, features = c("RBPJ", "DTHD1", "KLRF1", "LEF1", "AGPAT4", "KLRC2", "ATP8B4", "TXNDC5", "RTKN2", "BANK1"), num_columns = 4, order=T)
+```
+
+```{r Barplot_LC_Sample, fig.height=6, fig.width=17.5, message=FALSE}
+props <- getTransformedProps(LC$cell_state, LC$Sample, transform="logit")
+
+par(mar = c(7, 5, 1, 22), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = "Proportions", col = cell_type_cols, 
+        cex.names = 2, las = 2, font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend("topright", inset = c(-0.35, 0.1), legend = rownames(props$Proportions), fill = cell_type_cols, bty = "n", cex = 2)
+```
+
+```{r bitr}
+df <- Markers[, 7:6]
+dfsample <- split(df$gene, df$cluster)
+length(dfsample)
+
+dfsample <- lapply(dfsample, function(x) {
+  bitr(x, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = "org.Hs.eg.db")
+})
+
+genelist <- lapply(dfsample, function(x) x$ENTREZID)
+
+gene_counts <- rowSums(LC@assays$RNA@counts > 0)
+
+universe_genes <- names(gene_counts[gene_counts >= 3])
+
+universe_entrez <- bitr(
+  universe_genes,
+  fromType = "SYMBOL",
+  toType = "ENTREZID",
+  OrgDb = org.Hs.eg.db
+)$ENTREZID
+```
+
+```{r Pathways_GO, fig.height=8, fig.width=8}
+GO <- compareCluster(geneCluster = genelist, fun = "enrichGO", ont = "ALL",  OrgDb = "org.Hs.eg.db", universe = universe_entrez)
+GO <- gsfilter(GO, by = 'Count', min = 3)
+dotplot(GO, label_format = 50, title = "GO - Over-representation analysis") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(lineheight = 0.5)
+  )
+```
+
+```{r Pathways_GO_simplified, fig.height=8, fig.width=10}
+GO_simplified <- clusterProfiler::simplify(
+  GO,
+  cutoff = 0.5,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+dotplot(GO_simplified, label_format = 70, title = "GO - Over-representation analysis") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(lineheight = 0.5)
+  )
+```
+
+```{r Pathways_KEGG, fig.height=8, fig.width=10}
+KEGG <- compareCluster(geneCluster = genelist, fun = "enrichKEGG", organism = 'hsa', universe = universe_entrez)
+KEGG <- gsfilter(KEGG, by = 'Count', min = 3)
+dotplot(KEGG, label_format = 40, title = "KEGG Pathways") + 
+    theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
+    )
+```
+
+```{r Pathways_REACTOME, fig.height=8, fig.width=10}
+REACTOME <- compareCluster(geneCluster = genelist, fun = "enrichPathway", organism = 'human', universe = universe_entrez)
+REACTOME <- gsfilter(REACTOME, by = 'Count', min = 3)
+dotplot(REACTOME, label_format = 60, title = "REACTOME", showCategory = 4) + 
+    theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
+    )
+```
+
+## Differential abundance analysis
+
+```{r metadata}
+metadata <- LC@meta.data %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %>%
+  unique() %>%
+  dplyr::arrange(match(Sample, names(table(LC$Sample))))
+
+rownames(metadata) <- metadata$Sample
+all.equal(metadata$Sample, names(table(LC$Sample)))
+
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+metadata_DCM <- metadata %>%
+  dplyr::filter(Group == "DCM")
+```
+
+```{r Speckle_all}
+differential_abundance <- data.frame()
+props <- getTransformedProps(LC$cell_state, LC$Sample, transform="logit")
+
+for (i in 7:(length(metadata_DCM))) {
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  props_subset <- props
+  props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+  props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+  props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+  metadata_subset <- metadata_subset %>% 
+    arrange(Sample, colnames(props_subset$Proportions))
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  fit <- lmFit(props_subset$TransformedProps, design)
+  fit <- eBayes(fit, robust=TRUE)
+  differential_abundance_temp <- topTable(fit, n = Inf, coef = 2)
+  differential_abundance_temp$metadata <- colnames(metadata_subset[i])
+  differential_abundance_temp$cell_state <- rownames(differential_abundance_temp)
+  differential_abundance <- rbind(differential_abundance, differential_abundance_temp)
+}
+
+rm(metadata_subset, props_subset, design, fit, differential_abundance_temp)
+
+rownames(differential_abundance) <- NULL
+differential_abundance <- dplyr::arrange(differential_abundance, adj.P.Val)
+
+write.csv(differential_abundance, file = here::here(output_dir_data, "LC_Differential_Abundance.csv"), row.names = F)
+
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Speckle_mPAP_mmHg, fig.height=8, fig.width=20}
+metadata_subset <- metadata[complete.cases(metadata[["mPAP_mmHg"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$mPAP_mmHg + metadata_subset$Age_years)
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(2,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,10,1)){
+  plot(metadata_subset$mPAP_mmHg, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab="Proportions", xlab="mPAP_mmHg", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+```{r LC_proportions}
+LC_proportions <- as.data.frame(props$Proportions) %>%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+write.csv(LC_proportions, file = here::here(output_dir_data, "LC_Proportions.csv"), row.names = F)
+```
+
+```{r rm differential_abundance, eval = FALSE}
+rm(differential_abundance, differential_abundance_HC, props, LC_proportions)
+```
+
+
+## Transcription factor inference analysis
+
+```{r net}
+net <- get_collectri(organism='human', split_complexes=FALSE)
+```
+
+```{r percent_stats}
+expr_matrix <- GetAssayData(object = LC, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+```
+
+```{r filter percent_stats}
+net <- net %>% 
+  dplyr::filter(source %in% filter(percent_stats, percentCells > 1)$gene)
+```
+
+```{r TF_cols}
+TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
+```
+
+```{r TF_tfsulm, eval=FALSE}
+mat <- as.matrix(LC@assays$RNA@data)
+
+acts <- decoupleR::run_ulm(mat = mat, 
+                           net = net, 
+                           .source = 'source', 
+                           .target = 'target',
+                           .mor='mor', 
+                           minsize = 10)
+
+LC[['tfsulm']] <- acts %>%
+                    tidyr::pivot_wider(id_cols = 'source', 
+                                       names_from = 'condition',
+                                       values_from = 'score') %>%
+                    tibble::column_to_rownames('source') %>%
+                    Seurat::CreateAssayObject(.)
+
+DefaultAssay(object = LC) <- "tfsulm"
+
+LC <- Seurat::ScaleData(LC)
+LC@assays$tfsulm@data <- LC@assays$tfsulm@scale.data
+```
+
+```{r TF_heatmap_cluster_10, fig.width=5, fig.height=3}
+n_tfs <- 10
+
+df <- t(as.matrix(LC@assays$tfsulm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(LC)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+
+tfs <- df %>%
+       dplyr::group_by(source) %>%
+       dplyr::summarise(std = stats::sd(mean)) %>%
+       dplyr::arrange(-abs(std)) %>%
+       head(n_tfs) %>%
+       dplyr::pull(source)
+
+top_acts_mat <- df %>%
+                dplyr::filter(source %in% tfs) %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames('cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-2, 0, length.out = ceiling(101 / 2) + 1),
+               seq(0.05, 2, length.out = floor(101 / 2)))
+
+# Plot
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = TF_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+```{r TF_heatmap_cluster_20, fig.width=7, fig.height=3}
+n_tfs <- 20
+
+df <- t(as.matrix(LC@assays$tfsulm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(LC)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+
+tfs <- df %>%
+       dplyr::group_by(source) %>%
+       dplyr::summarise(std = stats::sd(mean)) %>%
+       dplyr::arrange(-abs(std)) %>%
+       head(n_tfs) %>%
+       dplyr::pull(source)
+
+top_acts_mat <- df %>%
+                dplyr::filter(source %in% tfs) %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames('cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-2, 0, length.out = ceiling(100 / 2) + 1),
+               seq(0.05, 2, length.out = floor(100 / 2)))
+
+# Plot
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = TF_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+```{r TF_Feat_PAX5, fig.width=12, fig.height=4}
+Seurat::DefaultAssay(LC) <- "tfsulm"
+p1 <- Seurat::DimPlot(LC, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.1) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(LC, features = c("PAX5"), pt.size = 0.1, order = T) + 
+      ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = "white") +
+      ggplot2::ggtitle('PAX5 activity')
+
+DefaultAssay(object = LC) <- "RNA"
+p3 <- FeaturePlot_scCustom(LC, 
+                          features = c("PAX5"), pt.size = 0.1) + 
+      ggplot2::ggtitle('PAX5 expression')
+
+Seurat::DefaultAssay(LC) <- "tfsulm"
+
+p <- p1 | p2 | p3
+p
+```
+
+```{r TF_Feat_XBP1, fig.width=12, fig.height=4}
+Seurat::DefaultAssay(LC) <- "tfsulm"
+p1 <- Seurat::DimPlot(LC, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.1) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(LC, features = c("XBP1"), pt.size = 0.1, order = T) + 
+      ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = "white") +
+      ggplot2::ggtitle('XBP1 activity')
+
+DefaultAssay(object = LC) <- "RNA"
+p3 <- FeaturePlot_scCustom(LC, 
+                          features = c("XBP1"), pt.size = 0.1) + 
+      ggplot2::ggtitle('XBP1 expression')
+
+Seurat::DefaultAssay(LC) <- "tfsulm"
+
+p <- p1 | p2 | p3
+p
+```
+
+## Pathway activity inference
+
+```{r net_pathway}
+net_path <- get_progeny(organism = 'human', top = 100000)
+```
+
+```{r Pathway_cols}
+Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FEC233"))(101)
+```
+
+```{r Pathway_pathwaysmlm, eval=FALSE}
+acts_pathway <- decoupleR::run_mlm(mat = mat, 
+                           net = net_path, 
+                           .source = 'source', 
+                           .target = 'target',
+                           .mor = 'weight', 
+                           minsize = 10)
+
+LC[['pathwaysmlm']] <- acts_pathway %>%
+                         tidyr::pivot_wider(id_cols = 'source', 
+                                            names_from = 'condition',
+                                            values_from = 'score') %>%
+                         tibble::column_to_rownames(var = 'source') %>%
+                         Seurat::CreateAssayObject(.)
+
+Seurat::DefaultAssay(object = LC) <- "pathwaysmlm"
+
+LC <- Seurat::ScaleData(LC)
+LC@assays$pathwaysmlm@data <- LC@assays$pathwaysmlm@scale.data
+```
+
+```{r Pathway_Feat_TGFb, fig.width=8, fig.height=4}
+Seurat::DefaultAssay(object = LC) <- "pathwaysmlm"
+
+p1 <- Seurat::DimPlot(LC, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.11) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(LC, features = c("TGFb"), 
+                      pt.size = 0.1, order = T) + 
+      ggplot2::scale_colour_gradientn(colors = Pathway_cols
+                                      ) +
+      ggplot2::ggtitle('TGFb activity')
+
+p <- p1 | p2
+p
+```
+
+```{r Pathway_heatmap_cluster, fig.width=7, fig.height=4}
+df_pathway <- t(as.matrix(LC@assays$pathwaysmlm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(LC)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+
+top_acts_mat <- df_pathway %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames(var = 'cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-1.25, 0, length.out = ceiling(101 / 2) + 1),
+               seq(0.05, 1.25, length.out = floor(101 / 2)))
+
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = Pathway_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 20,
+                   cellheight = 20,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+```{r LC_cell_states.csv, eval=FALSE}
+cell_states <- data.frame(
+  cell = colnames(LC),
+  cell_state = LC$cell_state
+)
+
+write.csv(
+  cell_states,
+  here::here(output_dir_data, "LC_cell_states.csv"),
+  row.names = FALSE
+)
+```
+
+```{r save LC final, eval=FALSE}
+DefaultAssay(LC) <- "RNA"
+qs_save(LC,
+        file = here::here(output_dir_data, "LC.qs2"),
+        nthreads = 32
+        )
+```
+
