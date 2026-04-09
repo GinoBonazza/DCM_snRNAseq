@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>LVAD_OLINK</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Variance_partitioning.html">Variance partitioning</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="Fibrosis_hypertrophy.html">Fibrosis and hypertrophy</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="Olink_proteomics.html">Olink proteomics</a>
+    </li>
+    <li>
+      <a href="MS_proteomics.html">MS proteomics</a>
+    </li>
+    <li>
+      <a href="Integration_transcriptomics_proteomics.html">Integration transcriptomics and proteomics</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">LVAD_OLINK</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">09 April, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> </a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-04-09
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 6
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 1
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongabsolute">
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> <strong>File paths:</strong> absolute </a>
+</p>
+</div>
+<div id="strongFilepathsstrongabsolute" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Using absolute paths to the files within your workflowr project makes it
+difficult for you and others to run your code on a different machine.
+Change the absolute path(s) below to the suggested relative path(s) to
+make your code more reproducible.
+</p>
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th style="text-align:left;">
+absolute
+</th>
+<th style="text-align:left;">
+relative
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+/home/gbonaz/data/DCM_snRNAseq
+</td>
+<td style="text-align:left;">
+.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+/home/gbonaz/data/DCM_snRNAseq/data/OLINK_LVAD
+</td>
+<td style="text-align:left;">
+data/OLINK_LVAD
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree257ed120fa4f76107fa84bfa3ea89925a8b7d3f8targetblank257ed12a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/257ed120fa4f76107fa84bfa3ea89925a8b7d3f8" target="_blank">257ed12</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree257ed120fa4f76107fa84bfa3ea89925a8b7d3f8targetblank257ed12a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/257ed120fa4f76107fa84bfa3ea89925a8b7d3f8" target="_blank">257ed12</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/figure/
+    Ignored:    output/CellChat/
+    Ignored:    output/Cell_cell_communication_Macrophages/
+    Ignored:    output/Chaffin_2022/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/Koenig_2022/
+    Ignored:    output/Mass_Spec_proteomics_2/
+    Ignored:    output/SSc_PAH/
+    Ignored:    output/Variance_partitioning/
+
+Untracked files:
+    Untracked:  .Rprofile
+    Untracked:  Chaffin_wilcox.csv
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  Koenig_wilcox.csv
+    Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Check_IMC_panel.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DE_Fibrosis_fibroblasts.Rmd
+    Untracked:  analysis/DE_Group_all_cell_types.Rmd
+    Untracked:  analysis/EC_capillary_angiogenic_boxplot_stats.csv
+    Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
+    Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
+    Untracked:  analysis/Genes_Luxembourg.Rmd
+    Untracked:  analysis/HC_DEGs_clustering.Rmd
+    Untracked:  analysis/Koenig_2022.Rmd
+    Untracked:  analysis/Mass_Spec_RV_dysf.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_2.Rmd
+    Untracked:  analysis/Olink_RV_dysf.Rmd
+    Untracked:  analysis/Olink_SSc_PAH.Rmd
+    Untracked:  analysis/Olink_SSc_PAH_draft.Rmd
+    Untracked:  analysis/Olink_proteomics.Rmd
+    Untracked:  analysis/Pseudobulk_all.csv
+    Untracked:  analysis/Pseudobulk_all_2.csv
+    Untracked:  analysis/Pseudobulk_byCellType_facetGrid.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col_proportional.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.filtered.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox_2.csv
+    Untracked:  analysis/QC_integration_annotation_HC.Rmd
+    Untracked:  analysis/Reichart_ncRNA.Rmd
+    Untracked:  analysis/Reichart_wilcox.csv
+    Untracked:  analysis/Selection_genes_histology.Rmd
+    Untracked:  analysis/TOM/
+    Untracked:  analysis/UntitledR.R
+    Untracked:  analysis/VennDiagram.2024-09-16_14-12-56.160498.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-17.340014.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-57.942673.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-22-50.621507.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-24-47.010131.log
+    Untracked:  analysis/VennDiagram.2024-09-18_11-22-29.278827.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-35.50458.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-41.199096.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-59.64245.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-45-11.922474.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-50-36.483812.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-56-46.244322.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-58-30.74362.log
+    Untracked:  analysis/VennDiagram.2025-03-26_15-54-09.244636.log
+    Untracked:  analysis/VennDiagram.2025-06-11_14-53-30.499963.log
+    Untracked:  analysis/ec_Reichart_logCPM.csv
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/Endothelial_cells_cubclustering_removed.Rmd
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/Removed_chunks.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/HMEC_RNAseq/
+    Untracked:  data/Heart_datasets/
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec/
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK/
+    Untracked:  data/OLINK_LVAD/
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Biomarkers_selection/
+    Untracked:  output/CM_lncRNAs/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Cell_cell_communication/
+    Untracked:  output/Cell_cell_communication_LV/
+    Untracked:  output/Cell_cell_communication_LV2/
+    Untracked:  output/Cell_cycle/
+    Untracked:  output/Check_IMC_panel/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_Fibrosis_all_cell_types/
+    Untracked:  output/DE_Fibrosis_fibroblasts/
+    Untracked:  output/DE_Group_all_cell_types/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Dysferlin/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart/
+    Untracked:  output/Endothelial_cells_SGLT2_I/
+    Untracked:  output/Endothelial_cells_published_datasets/
+    Untracked:  output/Endothelial_cells_subclustering/
+    Untracked:  output/Fibroblasts_DA_DE_26/
+    Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/Figures_manuscript/
+    Untracked:  output/Genes_Luxembourg/
+    Untracked:  output/Genes_Luxembourg_2/
+    Untracked:  output/HC_DEGs_clustering/
+    Untracked:  output/HMEC/
+    Untracked:  output/LVAD_OLINK/
+    Untracked:  output/LV_Klaudia/
+    Untracked:  output/LV_datasets_DCM_vs_HC/
+    Untracked:  output/Lymphocytes_subclustering/
+    Untracked:  output/Macrophages_subclustering/
+    Untracked:  output/Mass_Spec_RV_dysf/
+    Untracked:  output/Mass_Spec_proteomics/
+    Untracked:  output/Mural_cells_subclustering/
+    Untracked:  output/Olink_RV_dysf/
+    Untracked:  output/Olink_SSc_PAH/
+    Untracked:  output/Olink_SSc_PAH_draft/
+    Untracked:  output/Olink_proteomics/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_HC/
+    Untracked:  output/Reichart2022_ventricle_specificity_noncoding/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/Selection_genes_histology/
+    Untracked:  output/UntitledR.R
+    Untracked:  redsfewfref.R
+    Untracked:  reference_sources/
+    Untracked:  renv.lock
+    Untracked:  renv/
+
+Unstaged changes:
+    Modified:   analysis/CM_lncRNAs.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cell_cycle.Rmd
+    Modified:   analysis/Comparison_LV.Rmd
+    Modified:   analysis/DE_Fibrosis_all_cell_types.Rmd
+    Modified:   analysis/DE_mPAP_all_cell_types.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+    Modified:   analysis/Endothelial_cells_published_datasets.rmd
+    Modified:   analysis/Endothelial_cells_subclustering.Rmd
+    Modified:   analysis/Figures_manuscript.Rmd
+    Modified:   analysis/HMEC.Rmd
+    Modified:   analysis/LV_Klaudia.Rmd
+    Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
+    Modified:   analysis/SSc_PAH.Rmd
+    Modified:   analysis/_site.yml
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown (<code>analysis/LVAD_OLINK.Rmd</code>) and HTML
+(<code>docs/LVAD_OLINK.html</code>) files. If you’ve configured a remote
+Git repository (see <code>?wflow_git_remote</code>), click on the
+hyperlinks in the table below to view the files as they were in that
+past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/257ed120fa4f76107fa84bfa3ea89925a8b7d3f8/analysis/LVAD_OLINK.Rmd" target="_blank">257ed12</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-09
+</td>
+<td>
+wflow_publish("analysis/LVAD_OLINK.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code>current_file &lt;- &quot;LVAD_OLINK&quot;
+
+library(here)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(readxl)
+library(qs2)
+library(glmnet)
+library(ggpubr)
+library(patchwork)
+library(pROC)
+library(scales)
+library(tibble)
+library(broom)
+library(SummarizedExperiment)
+
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;), recursive = TRUE)
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+cols_groups &lt;- c(&quot;Healthy&quot; = &quot;#004C8C&quot;, &quot;LVAD&quot; = &quot;#A63A2A&quot;)
+cols_tapse &lt;- c(&quot;≥0.32&quot; = &quot;#9CA3AF&quot;, &quot;&lt;0.32&quot; = &quot;#A63A2A&quot;)
+
+# absolute paths
+path_ssc &lt;- &quot;/home/gbonaz/data/SSc-PAH&quot;
+path_dcm &lt;- &quot;/home/gbonaz/data/DCM_snRNAseq&quot;
+path_lvad &lt;- &quot;/home/gbonaz/data/DCM_snRNAseq/data/OLINK_LVAD&quot;
+
+# candidate proteins
+panel_tapse_lasso &lt;- c(&quot;CLSTN2&quot;, &quot;SIGLEC8&quot;, &quot;LRRN1&quot;, &quot;CXCL17&quot;, &quot;IL15&quot;)
+panel_mpap &lt;- c(&quot;C1QTNF1&quot;, &quot;LDB3&quot;)
+panel_tapse_extra &lt;- c(&quot;C1QTNF1&quot;, &quot;LDB3&quot;)
+proteins_to_keep &lt;- unique(c(panel_tapse_lasso, panel_mpap, panel_tapse_extra))</code></pre>
+</div>
+<div id="import-lvad-olink-npx-data" class="section level2">
+<h2>Import LVAD Olink NPX data</h2>
+<pre class="r"><code>npx_raw &lt;- read.delim(
+  file.path(path_lvad, &quot;pre_quant.csv&quot;),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+LVAD_clinical &lt;- read.csv(
+  file.path(path_lvad, &quot;LVAD organ database full.csv&quot;),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)</code></pre>
+</div>
+<div id="clean-lvad-clinical-data" class="section level2">
+<h2>Clean LVAD clinical data</h2>
+<pre class="r"><code>LVAD_clinical_clean &lt;- LVAD_clinical %&gt;%
+  mutate(across(
+    .cols = -c(`LVAD no.`, `Data implantacji`, Etiologia),
+    .fns = ~ case_when(
+      . == &quot;&gt;60&quot; ~ 60,
+      . == &quot;&quot; ~ NA_real_,
+      TRUE ~ suppressWarnings(as.numeric(.))
+    )
+  )) %&gt;%
+  dplyr::rename(
+    LVAD.no. = `LVAD no.`,
+    Age = Age,
+    TAPSE_sPAP = `TAPSE/sPAP`,
+    mPAP = mPAP
+  ) %&gt;%
+  dplyr::filter(LVAD.no. != &quot;LV35&quot;) %&gt;%
+  mutate(
+    TAPSE_group = case_when(
+      is.na(TAPSE_sPAP) ~ NA_character_,
+      TAPSE_sPAP &lt; 0.32 ~ &quot;&lt;0.32&quot;,
+      TAPSE_sPAP &gt;= 0.32 ~ &quot;≥0.32&quot;
+    ),
+    TAPSE_group = factor(TAPSE_group, levels = c(&quot;≥0.32&quot;, &quot;&lt;0.32&quot;)),
+    Disease_group = &quot;LVAD&quot;
+  )
+
+glimpse(LVAD_clinical_clean)</code></pre>
+<pre><code>Rows: 74
+Columns: 66
+$ LVAD.no.               &lt;chr&gt; &quot;LV6&quot;, &quot;LV7&quot;, &quot;LV8&quot;, &quot;LV9&quot;, &quot;LV10&quot;, &quot;LV11&quot;, &quot;LV…
+$ `Data implantacji`     &lt;chr&gt; &quot;15.03.2023&quot;, &quot;15.03.2023&quot;, &quot;22.03.2023&quot;, &quot;24.0…
+$ Storage                &lt;dbl&gt; 996, 996, 989, 956, 953, 945, 931, 883, 883, 87…
+$ Age                    &lt;dbl&gt; 66, 42, 40, 46, 46, 68, 63, 63, 58, 45, 61, 62,…
+$ BMI                    &lt;dbl&gt; 21.68, 35.46, 32.70, 20.52, 32.95, 32.00, 28.34…
+$ Etiologia              &lt;chr&gt; &quot;HCM&quot;, &quot;DCM&quot;, &quot;ICM&quot;, &quot;DCM&quot;, &quot;ICM&quot;, &quot;ICM&quot;, &quot;ICM&quot;…
+$ Bilirubin              &lt;dbl&gt; 0.93, 2.01, 2.61, 1.07, 1.69, 1.72, 1.17, 1.29,…
+$ `HTB index`            &lt;dbl&gt; 10.50, 26.00, 31.00, 37.50, 24.50, 14.50, 20.50…
+$ Albumin                &lt;dbl&gt; 4.1, 4.6, 3.2, 3.7, 4.4, 3.9, 4.3, 3.6, 3.8, 4.…
+$ Creatinine             &lt;dbl&gt; 1.38, 1.70, 1.27, 1.05, 1.06, 1.81, 1.49, 0.84,…
+$ GFR                    &lt;dbl&gt; 51.6, 52.5, 60.0, 60.0, 60.0, 37.5, 47.6, 60.0,…
+$ Hemoglobin             &lt;dbl&gt; 13.4, 14.7, 12.0, 11.7, 17.4, 13.5, 14.1, 9.5, …
+$ Ferritin               &lt;dbl&gt; 1068.00, 103.00, 55.90, 264.00, 188.00, 258.00,…
+$ `IIR index`            &lt;dbl&gt; 17.3464968, 10.9754098, 0.4757447, 14.4603015, …
+$ `IUE index`            &lt;dbl&gt; 0.3939700, 1.7411650, 4.0357782, 0.8819318, 1.2…
+$ CRP                    &lt;dbl&gt; 0.510, 1.300, 0.160, 1.090, 0.530, 1.070, 0.170…
+$ `Neutr-to-lymph ratio` &lt;dbl&gt; 3.769784, 1.888889, 3.700000, 4.693431, 1.97156…
+$ `CRP-Lymphocyte ratio` &lt;dbl&gt; 0.3669065, 0.6018519, 0.2666667, 0.7956204, 0.2…
+$ `GCI index`            &lt;dbl&gt; 0.11568293, 0.56804348, 0.13050000, 0.31521622,…
+$ `GC index`             &lt;dbl&gt; 0.22682927, 0.43695652, 0.81562500, 0.28918919,…
+$ ASPAT                  &lt;dbl&gt; 2.0, 23.0, 51.0, 50.0, 27.0, 19.0, 21.0, 21.0, …
+$ ALAT                   &lt;dbl&gt; 19, 29, 11, 25, 22, 10, 20, 34, 15, 31, 13, 31,…
+$ TSAT                   &lt;dbl&gt; 31.40000, 12.20000, 18.80000, 19.90000, 13.2000…
+$ neutr                  &lt;dbl&gt; 5.24, 4.08, 2.22, 6.43, 4.16, 6.05, 4.71, 5.45,…
+$ limf                   &lt;dbl&gt; 1.39, 2.16, 0.60, 1.37, 2.11, 0.63, 1.30, 0.95,…
+$ LVEDd                  &lt;dbl&gt; 61, 94, 72, 75, 82, 65, 83, 67, 77, 89, 72, 67,…
+$ LVESd                  &lt;dbl&gt; 54, 83, 68, 64, 71, NA, 77, 57, 73, 84, 66, 65,…
+$ LVVol                  &lt;dbl&gt; NA, 400, NA, NA, NA, NA, NA, NA, NA, 346, NA, N…
+$ `LA (mm)`              &lt;dbl&gt; 49, NA, 60, 51, 55, 53, 53, NA, 58, 42, 55, 50,…
+$ `LAA (cm2)`            &lt;dbl&gt; 34.0, 45.0, 37.0, 32.0, 36.0, 37.0, 40.0, NA, 4…
+$ LAVol                  &lt;dbl&gt; 120, NA, NA, 123, NA, 136, NA, NA, NA, NA, NA, …
+$ EF                     &lt;dbl&gt; 30, 10, 20, 12, 23, 15, 18, 26, 12, 25, 23, 17,…
+$ RVIT                   &lt;dbl&gt; NA, NA, 45, 50, 40, 46, 50, NA, 55, 38, 46, 49,…
+$ RVOT                   &lt;dbl&gt; 29, 54, 52, 46, 39, 45, 39, NA, 42, NA, 40, 45,…
+$ TAPSE                  &lt;dbl&gt; 18, 14, 16, 9, 21, 10, 17, NA, 13, 17, 11, 15, …
+$ RVS                    &lt;dbl&gt; 10.0, NA, NA, 7.0, 11.0, 4.0, 8.0, NA, 6.0, 11.…
+$ `sPAP (ECHO)`          &lt;dbl&gt; 30, 39, 31, 36, 27, 55, NA, 64, 43, 40, 60, 43,…
+$ TAPSE_sPAP             &lt;dbl&gt; 0.6000000, 0.3589744, 0.5161290, 0.2500000, 0.7…
+$ sPAP                   &lt;dbl&gt; 54, 68, 64, NA, 81, 56, 70, 92, 44, 32, 53, NA,…
+$ dPAP                   &lt;dbl&gt; 26, 36, 35, NA, 38, 30, 32, 37, 30, 12, 25, NA,…
+$ mPAP                   &lt;dbl&gt; 39, 48, 44, NA, 52, 39, 43, 52, 35, 19, 34, NA,…
+$ mPCW                   &lt;dbl&gt; 44, 33, 34, NA, 25, 26, 26, 46, 26, 11, 17, NA,…
+$ TPG                    &lt;dbl&gt; NA, 15, 10, NA, 27, 13, 17, 6, 9, 8, 17, NA, 6,…
+$ mRA                    &lt;dbl&gt; 19, 17, 22, NA, 17, 18, 11, 67, 15, NA, 9, 6, 1…
+$ PulVR                  &lt;dbl&gt; 0.32, 3.70, 2.30, NA, 9.84, 3.22, 4.90, 2.40, 2…
+$ CO                     &lt;dbl&gt; 2.9, 4.1, 4.3, NA, 2.7, 4.0, 3.5, 2.9, 3.8, NA,…
+$ PMI                    &lt;dbl&gt; 16.020343, 19.720859, NA, 11.340740, 9.356045, …
+$ PMD                    &lt;dbl&gt; 38.42295, 43.20015, NA, 41.19705, 44.88765, 19.…
+$ `Cardiac index`        &lt;dbl&gt; 1.602210, 1.614173, 1.861472, NA, 1.336634, 1.7…
+$ `NT-proBNP-lab`        &lt;dbl&gt; 2580.0, 7113.0, 1801.0, 10893.0, 809.0, 5994.0,…
+$ `ACE-I`                &lt;dbl&gt; 2, 1, 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2,…
+$ Sartan                 &lt;dbl&gt; 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,…
+$ ARNI                   &lt;dbl&gt; 1, 2, 1, 2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 1, 2, 1,…
+$ `Beta-blocker`         &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
+$ MRA                    &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
+$ `SGLT2-I`              &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1,…
+$ Statin                 &lt;dbl&gt; 1, 2, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1,…
+$ Metformin              &lt;dbl&gt; 2, 1, 1, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,…
+$ Insulin                &lt;dbl&gt; 2, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2,…
+$ `Pressor amine`        &lt;dbl&gt; 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 2, 1, 2, 2, 2, 2,…
+$ Diabetes               &lt;dbl&gt; 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2, 2,…
+$ Hypertension           &lt;dbl&gt; 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2,…
+$ CAD                    &lt;dbl&gt; 2, 2, 1, 2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 2, 2,…
+$ AF                     &lt;dbl&gt; 1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 1, 2, 2, 2, 2, 1,…
+$ TAPSE_group            &lt;fct&gt; ≥0.32, ≥0.32, ≥0.32, &lt;0.32, ≥0.32, &lt;0.32, NA, N…
+$ Disease_group          &lt;chr&gt; &quot;LVAD&quot;, &quot;LVAD&quot;, &quot;LVAD&quot;, &quot;LVAD&quot;, &quot;LVAD&quot;, &quot;LVAD&quot;,…</code></pre>
+</div>
+<div id="clean-lvad-olink-npx-data-and-build-wide-matrix"
+class="section level2">
+<h2>Clean LVAD Olink NPX data and build wide matrix</h2>
+<pre class="r"><code>npx_lvad_all &lt;- npx_raw %&gt;%
+  filter(SampleType == &quot;SAMPLE&quot;) %&gt;%
+  filter(AssayType == &quot;assay&quot;) %&gt;%
+  filter(AssayQC == &quot;PASS&quot;, SampleQC == &quot;PASS&quot;) %&gt;%
+  dplyr::select(SampleID, Group_Name1, Assay, NPX)
+
+npx_lvad_all &lt;- npx_lvad_all %&gt;%
+  filter(Assay %in% proteins_to_keep)
+
+npx_matrix_all &lt;- npx_lvad_all %&gt;%
+  tidyr::pivot_wider(
+    names_from = Assay,
+    values_from = NPX
+  )
+
+glimpse(npx_matrix_all)</code></pre>
+<pre><code>Rows: 86
+Columns: 9
+$ SampleID    &lt;chr&gt; &quot;LV62&quot;, &quot;LV41&quot;, &quot;LV67&quot;, &quot;K18&quot;, &quot;LV10&quot;, &quot;K21&quot;, &quot;LV14&quot;, &quot;LV3…
+$ Group_Name1 &lt;chr&gt; &quot;LVAD&quot;, &quot;LVAD&quot;, &quot;LVAD&quot;, &quot;Healthy&quot;, &quot;LVAD&quot;, &quot;Healthy&quot;, &quot;LVA…
+$ LDB3        &lt;dbl&gt; -0.26536104, -0.20935906, 0.37194905, 2.03919268, 0.756891…
+$ LRRN1       &lt;dbl&gt; 0.6407987, 0.3800162, -0.1617030, 1.5169885, -0.6337115, 1…
+$ CLSTN2      &lt;dbl&gt; 0.007740526, 0.910457373, -0.345252305, -1.086706161, 0.75…
+$ CXCL17      &lt;dbl&gt; -0.86093825, 0.48422936, -0.60416073, -0.23545262, 1.11800…
+$ IL15        &lt;dbl&gt; 0.16336286, 0.19765756, -0.01361419, -0.07699909, -0.76577…
+$ SIGLEC8     &lt;dbl&gt; 1.23631859, 0.06066199, 1.06790888, -0.75899166, -0.542910…
+$ C1QTNF1     &lt;dbl&gt; 0.067282565, -0.112900540, 0.139513671, -1.183346987, 0.34…</code></pre>
+</div>
+<div id="build-lvad-only-validation-table" class="section level2">
+<h2>Build LVAD-only validation table</h2>
+<pre class="r"><code>npx_matrix_lvad &lt;- npx_matrix_all %&gt;%
+  filter(Group_Name1 == &quot;LVAD&quot;) %&gt;%
+  dplyr::rename(LVAD.no. = SampleID)
+
+lvad_data_full &lt;- LVAD_clinical_clean %&gt;%
+  inner_join(npx_matrix_lvad, by = &quot;LVAD.no.&quot;)
+
+dim(lvad_data_full)</code></pre>
+<pre><code>[1] 69 74</code></pre>
+<pre class="r"><code>lvad_data_full %&gt;%
+  dplyr::select(LVAD.no., Age, TAPSE_sPAP, mPAP, all_of(proteins_to_keep)) %&gt;%
+  head()</code></pre>
+<pre><code>  LVAD.no. Age TAPSE_sPAP mPAP     CLSTN2     SIGLEC8      LRRN1     CXCL17
+1      LV9  46  0.2500000   NA  0.2627896 -0.21549083 -1.4889734 -0.3103547
+2     LV10  46  0.7777778   52  0.7530666 -0.54291004 -0.6337115  1.1180018
+3     LV11  68  0.1818182   39  1.6035627  0.88503307 -0.5197452  0.7787494
+4     LV12  63         NA   43  0.1394999  0.41139364 -0.1369184 -0.2229311
+5     LV13  63         NA   52 -0.4206102  0.95558614 -2.0580437 -0.0387114
+6     LV14  58  0.3023256   35  1.8334697 -0.05914981 -0.2746747  0.1523659
+         IL15     C1QTNF1       LDB3
+1 -0.36073765 -0.50854534 -0.3422999
+2 -0.76577759  0.34999263  0.7568914
+3  0.44967896  0.20250906 -0.7901880
+4 -0.06662655  0.02585352  0.2458507
+5  0.36200058 -0.19540164 -0.4092967
+6  0.56980097 -0.13271704 -0.9189269</code></pre>
+</div>
+<div id="build-all-sample-table-for-lvad-versus-healthy-plots"
+class="section level2">
+<h2>Build all-sample table for LVAD versus healthy plots</h2>
+<pre class="r"><code>all_samples_wide &lt;- npx_matrix_all %&gt;%
+  mutate(
+    Disease_group = case_when(
+      Group_Name1 == &quot;LVAD&quot; ~ &quot;LVAD&quot;,
+      Group_Name1 == &quot;Healthy&quot; ~ &quot;Healthy&quot;,
+      TRUE ~ Group_Name1
+    )
+  )
+
+all_samples_wide$Disease_group &lt;- factor(all_samples_wide$Disease_group, levels = c(&quot;Healthy&quot;, &quot;LVAD&quot;))
+
+table(all_samples_wide$Disease_group)</code></pre>
+<pre><code>
+Healthy    LVAD 
+     16      70 </code></pre>
+</div>
+<div id="import-ssc-pah-olink-cohorts" class="section level2">
+<h2>Import SSc-PAH Olink cohorts</h2>
+<pre class="r"><code>data_z &lt;- qs_read(file.path(path_ssc, &quot;data&quot;, &quot;o37198_2025-02-27_olink_SummarizedExperiment.qs2&quot;))
+clin_z &lt;- read_excel(file.path(path_ssc, &quot;data&quot;, &quot;Metadata_Olink_analysis.xlsx&quot;))
+
+meta_z &lt;- colData(data_z) %&gt;% data.frame()
+isOutlierColumn &lt;- meta_z$Plate == &quot;P0194&quot; &amp; meta_z$Col %in% c(&quot;3&quot;, &quot;4&quot;)
+use &lt;- meta_z$SampleType %in% c(&quot;Serum&quot;) &amp; meta_z$Group %in% c(&quot;SSc-PAH&quot;, &quot;SSc-noPAH&quot;) &amp; !isOutlierColumn
+
+data_z &lt;- data_z[, use]
+meta_z &lt;- meta_z[use, ]
+rownames(meta_z) &lt;- gsub(&quot;_P0194&quot;, &quot;&quot;, rownames(meta_z))
+meta_z$Barcode &lt;- rownames(meta_z)
+rownames(data_z) &lt;- data_z@elementMetadata@listData[[&quot;Gene&quot;]]
+rownames(data_z@assays@data@listData[[&quot;npx&quot;]]) &lt;- data_z@elementMetadata@listData[[&quot;Gene&quot;]]
+data_z &lt;- assay(data_z, &quot;npx&quot;)
+data_z &lt;- as.data.frame(data_z[-c(1:3), ])
+colnames(data_z) &lt;- rownames(meta_z)
+
+clin_z &lt;- clin_z %&gt;%
+  dplyr::filter(Barcode %in% colnames(data_z)) %&gt;%
+  mutate(
+    Age = as.numeric(Age),
+    TAPSE_sPAP = as.numeric(TAPSE_sPAP),
+    Sex = factor(Sex)
+  )
+
+
+data_p &lt;- read.delim(
+  file.path(path_ssc, &quot;data&quot;, &quot;OLINK_PL&quot;, &quot;quant.xls&quot;),
+  sep = &quot;\t&quot;,
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+clin_p &lt;- read_excel(file.path(path_ssc, &quot;data&quot;, &quot;OLINK_PL&quot;, &quot;Metadata_Olink_PL.xlsx&quot;))
+
+rownames(data_p) &lt;- sub(&quot;_.*&quot;, &quot;&quot;, data_p$SampleID)
+data_p &lt;- data_p[, -1]
+keep &lt;- intersect(colnames(data_p), clin_p$Barcode)
+data_p &lt;- data_p[, keep, drop = FALSE]
+
+clin_p &lt;- clin_p %&gt;%
+  dplyr::filter(Barcode %in% colnames(data_p)) %&gt;%
+  mutate(
+    Age = as.numeric(Age),
+    TAPSE_sPAP = as.numeric(TAPSE_sPAP),
+    Sex = factor(Sex)
+  )</code></pre>
+</div>
+<div id="refit-the-tapsespap-lasso-model-in-the-ssc-pah-cohort"
+class="section level2">
+<h2>Refit the TAPSE/sPAP LASSO model in the SSc-PAH cohort</h2>
+<pre class="r"><code>cutoff &lt;- 0.32
+
+train_p &lt;- clin_p %&gt;%
+  dplyr::filter(Group == &quot;SSc-PAH&quot;) %&gt;%
+  dplyr::filter(!is.na(TAPSE_sPAP), !is.na(Age), !is.na(Sex)) %&gt;%
+  dplyr::filter(Barcode %in% colnames(data_p))
+
+test_z &lt;- clin_z %&gt;%
+  dplyr::filter(Group == &quot;SSc-PAH&quot;) %&gt;%
+  dplyr::filter(!is.na(TAPSE_sPAP), !is.na(Age), !is.na(Sex)) %&gt;%
+  dplyr::filter(Barcode %in% colnames(data_z))
+
+y_tr &lt;- ifelse(as.numeric(train_p$TAPSE_sPAP) &lt; cutoff, 1, 0)
+y_te &lt;- ifelse(as.numeric(test_z$TAPSE_sPAP) &lt; cutoff, 1, 0)
+
+Xtr_prot &lt;- t(as.matrix(data_p[panel_tapse_lasso, train_p$Barcode, drop = FALSE]))
+Xte_prot &lt;- t(as.matrix(data_z[panel_tapse_lasso, test_z$Barcode, drop = FALSE]))
+
+cov_tr &lt;- data.frame(Age = as.numeric(train_p$Age), Sex = factor(train_p$Sex))
+cov_te &lt;- data.frame(Age = as.numeric(test_z$Age), Sex = factor(test_z$Sex, levels = levels(cov_tr$Sex)))
+
+Xtr_cov &lt;- model.matrix(~ Age + Sex, data = cov_tr)[, -1, drop = FALSE]
+Xte_cov &lt;- model.matrix(~ Age + Sex, data = cov_te)[, -1, drop = FALSE]
+
+Xtr &lt;- cbind(Xtr_cov, Xtr_prot)
+Xte &lt;- cbind(Xte_cov, Xte_prot)
+
+pf &lt;- c(rep(0, ncol(Xtr_cov)), rep(1, ncol(Xtr_prot)))
+
+set.seed(1)
+cvfit_tapse &lt;- cv.glmnet(
+  x = Xtr,
+  y = y_tr,
+  family = &quot;binomial&quot;,
+  alpha = 1,
+  penalty.factor = pf,
+  standardize = TRUE,
+  nfolds = 5,
+  type.measure = &quot;auc&quot;
+)
+
+lambdas &lt;- cvfit_tapse$glmnet.fit$lambda
+beta_mat &lt;- as.matrix(coef(cvfit_tapse$glmnet.fit, s = lambdas))
+feat_names &lt;- rownames(beta_mat)
+prot_idx &lt;- which(feat_names %in% panel_tapse_lasso)
+nprot &lt;- apply(beta_mat[prot_idx, , drop = FALSE] != 0, 2, sum)
+
+ok &lt;- which(nprot &gt;= 3 &amp; nprot &lt;= 10)
+if (length(ok) &gt; 0) {
+  j &lt;- ok[which.min(cvfit_tapse$cvm[match(lambdas[ok], cvfit_tapse$lambda)])]
+  lambda_use &lt;- lambdas[j]
+} else {
+  j &lt;- which.min(abs(nprot - 5))
+  lambda_use &lt;- lambdas[j]
+}
+
+coef_tapse_lasso &lt;- as.matrix(coef(cvfit_tapse, s = lambda_use))
+coef_tapse_lasso &lt;- data.frame(
+  feature = rownames(coef_tapse_lasso),
+  coefficient = coef_tapse_lasso[, 1],
+  row.names = NULL
+)
+coef_tapse_lasso</code></pre>
+<pre><code>      feature  coefficient
+1 (Intercept) -1.097288087
+2         Age  0.003883338
+3        SexM -0.729194030
+4      CLSTN2  1.443884661
+5     SIGLEC8  0.777310918
+6       LRRN1 -0.584267784
+7      CXCL17  0.529814239
+8        IL15  0.872527914</code></pre>
+<pre class="r"><code>write.csv(
+  coef_tapse_lasso,
+  file = here::here(output_dir_data, &quot;coefficients_TAPSE_lasso_Poland_train.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)</code></pre>
+</div>
+<div
+id="check-training-and-test-performance-in-the-original-ssc-pah-cohorts"
+class="section level2">
+<h2>Check training and test performance in the original SSc-PAH
+cohorts</h2>
+<pre class="r"><code>train_prob &lt;- as.numeric(predict(cvfit_tapse, newx = Xtr, s = lambda_use, type = &quot;response&quot;))
+test_prob &lt;- as.numeric(predict(cvfit_tapse, newx = Xte, s = lambda_use, type = &quot;response&quot;))
+
+roc_tr &lt;- pROC::roc(y_tr, train_prob, quiet = TRUE)
+roc_te &lt;- pROC::roc(y_te, test_prob, quiet = TRUE)
+
+auc_tr &lt;- as.numeric(pROC::auc(roc_tr))
+auc_te &lt;- as.numeric(pROC::auc(roc_te))
+
+ggplot() +
+  geom_line(
+    data = data.frame(tpr = rev(roc_tr$sensitivities), fpr = rev(1 - roc_tr$specificities)),
+    aes(fpr, tpr),
+    color = &quot;red&quot;
+  ) +
+  geom_line(
+    data = data.frame(tpr = rev(roc_te$sensitivities), fpr = rev(1 - roc_te$specificities)),
+    aes(fpr, tpr),
+    color = &quot;black&quot;
+  ) +
+  geom_abline(linetype = 2) +
+  labs(
+    x = &quot;False positive rate&quot;,
+    y = &quot;True positive rate&quot;,
+    title = paste0(&quot;TAPSE/sPAP lasso\nPoland train AUC = &quot;, round(auc_tr, 2),
+                   &quot; | Zurich test AUC = &quot;, round(auc_te, 2))
+  ) +
+  theme_classic(base_size = 12)</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/check_tapse_lasso_original_cohorts-1.png" width="1560" style="display: block; margin: auto;" /></p>
+</div>
+<div id="score-the-lvad-cohort-with-the-tapsespap-lasso-model"
+class="section level2">
+<h2>Score the LVAD cohort with the TAPSE/sPAP LASSO model</h2>
+<pre class="r"><code># full score: only available in LVAD samples with Age
+cov_lvad &lt;- data.frame(
+  Age = as.numeric(lvad_data_full$Age),
+  Sex = factor(rep(levels(cov_tr$Sex)[1], nrow(lvad_data_full)), levels = levels(cov_tr$Sex))
+)
+
+Xlvad_cov &lt;- model.matrix(~ Age + Sex, data = cov_lvad)[, -1, drop = FALSE]
+Xlvad_prot &lt;- as.matrix(lvad_data_full[, panel_tapse_lasso, drop = FALSE])
+Xlvad &lt;- cbind(Xlvad_cov, Xlvad_prot)
+
+lvad_data_full$lasso_prob_full &lt;- as.numeric(
+  predict(cvfit_tapse, newx = Xlvad, s = lambda_use, type = &quot;response&quot;)
+)
+
+lvad_data_full$lasso_eta_full &lt;- as.numeric(
+  predict(cvfit_tapse, newx = Xlvad, s = lambda_use, type = &quot;link&quot;)
+)
+
+# protein-only score: can also be used for HC because clinical data are not available there
+coef_tbl &lt;- coef_tapse_lasso %&gt;%
+  dplyr::filter(feature != &quot;(Intercept)&quot;)
+
+intercept_lasso &lt;- coef_tapse_lasso %&gt;%
+  dplyr::filter(feature == &quot;(Intercept)&quot;) %&gt;%
+  dplyr::pull(coefficient)
+
+protein_coef_tbl &lt;- coef_tbl %&gt;%
+  dplyr::filter(feature %in% panel_tapse_lasso)
+
+all_samples_score &lt;- all_samples_wide
+all_samples_score$lasso_eta_protein_only &lt;- intercept_lasso
+
+for (i in seq_len(nrow(protein_coef_tbl))) {
+  this_prot &lt;- protein_coef_tbl$feature[i]
+  this_beta &lt;- protein_coef_tbl$coefficient[i]
+  all_samples_score$lasso_eta_protein_only &lt;- all_samples_score$lasso_eta_protein_only + all_samples_score[[this_prot]] * this_beta
+}
+
+all_samples_score$lasso_prob_protein_only &lt;- plogis(all_samples_score$lasso_eta_protein_only)
+
+lvad_data_full &lt;- lvad_data_full %&gt;%
+  left_join(
+    all_samples_score %&gt;%
+      dplyr::select(SampleID, lasso_eta_protein_only, lasso_prob_protein_only),
+    by = c(&quot;LVAD.no.&quot; = &quot;SampleID&quot;)
+  )</code></pre>
+</div>
+<div
+id="correlation-of-individual-tapsespap-candidate-proteins-with-tapsespap-in-lvad"
+class="section level2">
+<h2>Correlation of individual TAPSE/sPAP candidate proteins with
+TAPSE/sPAP in LVAD</h2>
+<pre class="r"><code>cor_results_tapse &lt;- data.frame()
+
+for (prot in panel_tapse_lasso) {
+  df &lt;- lvad_data_full %&gt;%
+    dplyr::select(LVAD.no., Age, TAPSE_sPAP, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(!is.na(TAPSE_sPAP), !is.na(NPX))
+
+  ct &lt;- cor.test(df$NPX, df$TAPSE_sPAP, method = &quot;spearman&quot;, exact = FALSE)
+  fit &lt;- lm(NPX ~ TAPSE_sPAP + Age, data = df)
+  sm &lt;- summary(fit)
+
+  cor_results_tapse &lt;- rbind(
+    cor_results_tapse,
+    data.frame(
+      protein = prot,
+      n = nrow(df),
+      spearman_rho = unname(ct$estimate),
+      spearman_p = ct$p.value,
+      beta_TAPSE_sPAP_adjAge = sm$coefficients[&quot;TAPSE_sPAP&quot;, &quot;Estimate&quot;],
+      p_TAPSE_sPAP_adjAge = sm$coefficients[&quot;TAPSE_sPAP&quot;, &quot;Pr(&gt;|t|)&quot;],
+      beta_Age = sm$coefficients[&quot;Age&quot;, &quot;Estimate&quot;],
+      p_Age = sm$coefficients[&quot;Age&quot;, &quot;Pr(&gt;|t|)&quot;],
+      r_squared = sm$r.squared
+    )
+  )
+}
+
+cor_results_tapse$FDR_spearman &lt;- p.adjust(cor_results_tapse$spearman_p, method = &quot;BH&quot;)
+cor_results_tapse$FDR_adjAge &lt;- p.adjust(cor_results_tapse$p_TAPSE_sPAP_adjAge, method = &quot;BH&quot;)
+cor_results_tapse &lt;- cor_results_tapse %&gt;% arrange(FDR_spearman)
+cor_results_tapse</code></pre>
+<pre><code>  protein  n spearman_rho spearman_p beta_TAPSE_sPAP_adjAge p_TAPSE_sPAP_adjAge
+1    IL15 47  -0.37124434 0.01019551             -1.4102116        0.0001348517
+2  CLSTN2 47  -0.32150605 0.02754864             -1.4054911        0.0753353576
+3   LRRN1 47   0.16228566 0.27577493              0.3286480        0.5550582696
+4  CXCL17 47   0.12336255 0.40873614              2.8891174        0.0125993469
+5 SIGLEC8 47   0.04239322 0.77722711             -0.9797175        0.1553345624
+       beta_Age       p_Age  r_squared FDR_spearman   FDR_adjAge
+1  0.0185287014 0.002430131 0.43128800   0.05097755 0.0006742587
+2  0.0154242429 0.248303706 0.11233397   0.06887160 0.1255589294
+3 -0.0041875665 0.659541061 0.01474967   0.45962488 0.5550582696
+4  0.0230255257 0.231420793 0.14367552   0.51092017 0.0314983672
+5 -0.0004813786 0.967023724 0.04622988   0.77722711 0.1941682029</code></pre>
+<pre class="r"><code>write.csv(
+  cor_results_tapse,
+  file = here::here(output_dir_data, &quot;correlations_TAPSE_candidates_LVAD.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)</code></pre>
+</div>
+<div id="correlation-plots-for-tapsespap-candidate-proteins"
+class="section level2">
+<h2>Correlation plots for TAPSE/sPAP candidate proteins</h2>
+<pre class="r"><code>plot_list_tapse &lt;- list()
+
+for (prot in panel_tapse_lasso) {
+  ann &lt;- cor_results_tapse %&gt;% dplyr::filter(protein == prot)
+
+  df &lt;- lvad_data_full %&gt;%
+    dplyr::select(LVAD.no., TAPSE_sPAP, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(!is.na(TAPSE_sPAP), !is.na(NPX))
+
+  plot_list_tapse[[prot]] &lt;- ggplot(df, aes(x = TAPSE_sPAP, y = NPX)) +
+    geom_point() +
+    geom_smooth(method = &quot;lm&quot;, se = FALSE, linewidth = 0.5) +
+    theme_classic(base_size = 12) +
+    labs(
+      title = paste0(
+        prot,
+        &quot;\nρ = &quot;, round(ann$spearman_rho, 2),
+        &quot;  p = &quot;, signif(ann$spearman_p, 2)
+      ),
+      x = &quot;TAPSE/sPAP&quot;,
+      y = &quot;NPX&quot;
+    )
+}
+
+wrap_plots(plot_list_tapse, ncol = 3)</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/corr_tapse_candidates_plots-1.png" width="3600" style="display: block; margin: auto;" /></p>
+</div>
+<div id="tapsespap-lasso-score-versus-tapsespap-in-lvad"
+class="section level2">
+<h2>TAPSE/sPAP LASSO score versus TAPSE/sPAP in LVAD</h2>
+<pre class="r"><code>score_results_tapse &lt;- lvad_data_full %&gt;%
+  dplyr::select(LVAD.no., Age, TAPSE_sPAP, lasso_eta_full, lasso_prob_full, lasso_eta_protein_only, lasso_prob_protein_only) %&gt;%
+  dplyr::filter(!is.na(TAPSE_sPAP), !is.na(lasso_eta_full))
+
+ct_eta &lt;- cor.test(score_results_tapse$lasso_eta_full, score_results_tapse$TAPSE_sPAP, method = &quot;spearman&quot;, exact = FALSE)
+fit_eta &lt;- lm(lasso_eta_full ~ TAPSE_sPAP + Age, data = score_results_tapse)
+summary(fit_eta)</code></pre>
+<pre><code>
+Call:
+lm(formula = lasso_eta_full ~ TAPSE_sPAP + Age, data = score_results_tapse)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-5.0070 -0.9159  0.4164  0.8378  2.6133 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)  
+(Intercept) -1.70386    1.58690  -1.074   0.2888  
+TAPSE_sPAP  -2.68268    1.52739  -1.756   0.0860 .
+Age          0.05659    0.02610   2.169   0.0356 *
+---
+Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+
+Residual standard error: 1.598 on 44 degrees of freedom
+Multiple R-squared:  0.1752,    Adjusted R-squared:  0.1377 
+F-statistic: 4.673 on 2 and 44 DF,  p-value: 0.01444</code></pre>
+<pre class="r"><code>p1 &lt;- ggplot(score_results_tapse, aes(x = TAPSE_sPAP, y = lasso_eta_full)) +
+  geom_point() +
+  geom_smooth(method = &quot;lm&quot;, se = FALSE, linewidth = 0.5) +
+  theme_classic(base_size = 12) +
+  labs(
+    title = paste0(&quot;Lasso score (eta)\nρ = &quot;, round(unname(ct_eta$estimate), 2),
+                   &quot;  p = &quot;, signif(ct_eta$p.value, 2)),
+    x = &quot;TAPSE/sPAP&quot;,
+    y = &quot;Score&quot;
+  )
+
+ct_prob &lt;- cor.test(score_results_tapse$lasso_prob_full, score_results_tapse$TAPSE_sPAP, method = &quot;spearman&quot;, exact = FALSE)
+
+p2 &lt;- ggplot(score_results_tapse, aes(x = TAPSE_sPAP, y = lasso_prob_full)) +
+  geom_point() +
+  geom_smooth(method = &quot;lm&quot;, se = FALSE, linewidth = 0.5) +
+  theme_classic(base_size = 12) +
+  labs(
+    title = paste0(&quot;Lasso score (probability)\nρ = &quot;, round(unname(ct_prob$estimate), 2),
+                   &quot;  p = &quot;, signif(ct_prob$p.value, 2)),
+    x = &quot;TAPSE/sPAP&quot;,
+    y = &quot;Predicted probability&quot;
+  )
+
+p1 + p2</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/corr_tapse_lasso_score_lvad-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="boxplots-by-tapsespap-group-in-lvad" class="section level2">
+<h2>Boxplots by TAPSE/sPAP group in LVAD</h2>
+<pre class="r"><code>box_list_tapse &lt;- list()
+
+for (prot in panel_tapse_lasso) {
+  df &lt;- lvad_data_full %&gt;%
+    dplyr::select(LVAD.no., TAPSE_group, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(!is.na(TAPSE_group), !is.na(NPX))
+
+  box_list_tapse[[prot]] &lt;- ggplot(df, aes(x = TAPSE_group, y = NPX, fill = TAPSE_group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.65) +
+    geom_jitter(width = 0.12, size = 1.8) +
+    stat_compare_means(comparisons = list(c(&quot;≥0.32&quot;, &quot;&lt;0.32&quot;)), method = &quot;wilcox.test&quot;, label = &quot;p.format&quot;) +
+    scale_fill_manual(values = cols_tapse) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = &quot;none&quot;) +
+    labs(title = prot, x = &quot;TAPSE/sPAP group&quot;, y = &quot;NPX&quot;)
+}
+
+box_list_tapse[[&quot;Lasso_score&quot;]] &lt;- ggplot(
+  lvad_data_full %&gt;% dplyr::filter(!is.na(TAPSE_group), !is.na(lasso_eta_full)),
+  aes(x = TAPSE_group, y = lasso_eta_full, fill = TAPSE_group)
+) +
+  geom_boxplot(outlier.shape = NA, width = 0.65) +
+  geom_jitter(width = 0.12, size = 1.8) +
+  stat_compare_means(comparisons = list(c(&quot;≥0.32&quot;, &quot;&lt;0.32&quot;)), method = &quot;wilcox.test&quot;, label = &quot;p.format&quot;) +
+  scale_fill_manual(values = cols_tapse) +
+  theme_classic(base_size = 12) +
+  theme(legend.position = &quot;none&quot;) +
+  labs(title = &quot;Lasso score&quot;, x = &quot;TAPSE/sPAP group&quot;, y = &quot;Score&quot;)
+
+wrap_plots(box_list_tapse, ncol = 3)</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/boxplots_tapse_lvad-1.png" width="3900" style="display: block; margin: auto;" /></p>
+</div>
+<div
+id="hc-versus-lvad-for-tapsespap-candidate-proteins-and-protein-only-score"
+class="section level2">
+<h2>HC versus LVAD for TAPSE/sPAP candidate proteins and protein-only
+score</h2>
+<pre class="r"><code>box_list_hc_lvad_tapse &lt;- list()
+
+for (prot in panel_tapse_lasso) {
+  df &lt;- all_samples_wide %&gt;%
+    dplyr::select(SampleID, Disease_group, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(Disease_group %in% c(&quot;Healthy&quot;, &quot;LVAD&quot;)) %&gt;%
+    dplyr::filter(!is.na(Disease_group), !is.na(NPX))
+
+  box_list_hc_lvad_tapse[[prot]] &lt;- ggplot(df, aes(x = Disease_group, y = NPX, fill = Disease_group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.65) +
+    geom_jitter(width = 0.12, size = 1.8) +
+    stat_compare_means(comparisons = list(c(&quot;Healthy&quot;, &quot;LVAD&quot;)), method = &quot;wilcox.test&quot;, label = &quot;p.format&quot;) +
+    scale_fill_manual(values = cols_groups) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = &quot;none&quot;) +
+    labs(title = prot, x = NULL, y = &quot;NPX&quot;)
+}
+
+box_list_hc_lvad_tapse[[&quot;Protein_only_score&quot;]] &lt;- ggplot(
+  all_samples_score %&gt;%
+    dplyr::filter(Disease_group %in% c(&quot;Healthy&quot;, &quot;LVAD&quot;), !is.na(lasso_eta_protein_only)),
+  aes(x = Disease_group, y = lasso_eta_protein_only, fill = Disease_group)
+) +
+  geom_boxplot(outlier.shape = NA, width = 0.65) +
+  geom_jitter(width = 0.12, size = 1.8) +
+  stat_compare_means(comparisons = list(c(&quot;Healthy&quot;, &quot;LVAD&quot;)), method = &quot;wilcox.test&quot;, label = &quot;p.format&quot;) +
+  scale_fill_manual(values = cols_groups) +
+  theme_classic(base_size = 12) +
+  theme(legend.position = &quot;none&quot;) +
+  labs(title = &quot;Protein-only lasso score&quot;, x = NULL, y = &quot;Score&quot;)
+
+wrap_plots(box_list_hc_lvad_tapse, ncol = 3)</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/boxplots_hc_vs_lvad_tapse-1.png" width="3900" style="display: block; margin: auto;" /></p>
+</div>
+<div id="correlation-of-mpap-biomarkers-with-mpap-in-lvad"
+class="section level2">
+<h2>Correlation of mPAP biomarkers with mPAP in LVAD</h2>
+<pre class="r"><code>cor_results_mpap &lt;- data.frame()
+
+for (prot in panel_mpap) {
+  df &lt;- lvad_data_full %&gt;%
+    dplyr::select(LVAD.no., Age, mPAP, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(!is.na(mPAP), !is.na(NPX))
+
+  ct &lt;- cor.test(df$NPX, df$mPAP, method = &quot;spearman&quot;, exact = FALSE)
+  fit &lt;- lm(NPX ~ mPAP + Age, data = df)
+  sm &lt;- summary(fit)
+
+  cor_results_mpap &lt;- rbind(
+    cor_results_mpap,
+    data.frame(
+      protein = prot,
+      n = nrow(df),
+      spearman_rho = unname(ct$estimate),
+      spearman_p = ct$p.value,
+      beta_mPAP_adjAge = sm$coefficients[&quot;mPAP&quot;, &quot;Estimate&quot;],
+      p_mPAP_adjAge = sm$coefficients[&quot;mPAP&quot;, &quot;Pr(&gt;|t|)&quot;],
+      beta_Age = sm$coefficients[&quot;Age&quot;, &quot;Estimate&quot;],
+      p_Age = sm$coefficients[&quot;Age&quot;, &quot;Pr(&gt;|t|)&quot;],
+      r_squared = sm$r.squared
+    )
+  )
+}
+
+cor_results_mpap$FDR_spearman &lt;- p.adjust(cor_results_mpap$spearman_p, method = &quot;BH&quot;)
+cor_results_mpap$FDR_adjAge &lt;- p.adjust(cor_results_mpap$p_mPAP_adjAge, method = &quot;BH&quot;)
+cor_results_mpap</code></pre>
+<pre><code>  protein  n spearman_rho spearman_p beta_mPAP_adjAge p_mPAP_adjAge
+1 C1QTNF1 49   0.08499776  0.5614581     0.0003615357     0.9648476
+2    LDB3 49   0.14711151  0.3131195     0.0164083171     0.2100216
+      beta_Age     p_Age  r_squared FDR_spearman FDR_adjAge
+1 -0.011212653 0.2347667 0.03080553    0.5614581  0.9648476
+2 -0.001289048 0.9306588 0.03445535    0.5614581  0.4200432</code></pre>
+<pre class="r"><code>write.csv(
+  cor_results_mpap,
+  file = here::here(output_dir_data, &quot;correlations_mPAP_candidates_LVAD.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)</code></pre>
+</div>
+<div id="correlation-plots-for-mpap-biomarkers" class="section level2">
+<h2>Correlation plots for mPAP biomarkers</h2>
+<pre class="r"><code>plot_list_mpap &lt;- list()
+
+for (prot in panel_mpap) {
+  ann &lt;- cor_results_mpap %&gt;% dplyr::filter(protein == prot)
+
+  df &lt;- lvad_data_full %&gt;%
+    dplyr::select(LVAD.no., mPAP, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(!is.na(mPAP), !is.na(NPX))
+
+  plot_list_mpap[[prot]] &lt;- ggplot(df, aes(x = mPAP, y = NPX)) +
+    geom_point() +
+    geom_smooth(method = &quot;lm&quot;, se = FALSE, linewidth = 0.5) +
+    theme_classic(base_size = 12) +
+    labs(
+      title = paste0(
+        prot,
+        &quot;\nρ = &quot;, round(ann$spearman_rho, 2),
+        &quot;  p = &quot;, signif(ann$spearman_p, 2)
+      ),
+      x = &quot;mPAP&quot;,
+      y = &quot;NPX&quot;
+    )
+}
+
+plot_list_mpap[[1]] + plot_list_mpap[[2]]</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/corr_mpap_candidates_plots-1.png" width="2400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="hc-versus-lvad-for-mpap-biomarkers" class="section level2">
+<h2>HC versus LVAD for mPAP biomarkers</h2>
+<pre class="r"><code>plot_list_mpap_hc &lt;- list()
+
+for (prot in panel_mpap) {
+  df &lt;- all_samples_wide %&gt;%
+    dplyr::select(SampleID, Disease_group, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(Disease_group %in% c(&quot;Healthy&quot;, &quot;LVAD&quot;)) %&gt;%
+    dplyr::filter(!is.na(Disease_group), !is.na(NPX))
+
+  plot_list_mpap_hc[[prot]] &lt;- ggplot(df, aes(x = Disease_group, y = NPX, fill = Disease_group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.65) +
+    geom_jitter(width = 0.12, size = 1.8) +
+    stat_compare_means(comparisons = list(c(&quot;Healthy&quot;, &quot;LVAD&quot;)), method = &quot;wilcox.test&quot;, label = &quot;p.format&quot;) +
+    scale_fill_manual(values = cols_groups) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = &quot;none&quot;) +
+    labs(title = prot, x = NULL, y = &quot;NPX&quot;)
+}
+
+plot_list_mpap_hc[[1]] + plot_list_mpap_hc[[2]]</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/boxplots_hc_vs_lvad_mpap-1.png" width="2250" style="display: block; margin: auto;" /></p>
+</div>
+<div id="save-final-validation-tables" class="section level2">
+<h2>Save final validation tables</h2>
+<pre class="r"><code>write.csv(
+  lvad_data_full,
+  file = here::here(output_dir_data, &quot;LVAD_validation_table_with_scores.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+write.csv(
+  all_samples_score,
+  file = here::here(output_dir_data, &quot;LVAD_and_Healthy_NPX_with_protein_only_score.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)</code></pre>
+</div>
+<div id="correlation-of-c1qtnf1-and-ldb3-with-tapsespap-in-lvad"
+class="section level2">
+<h2>Correlation of C1QTNF1 and LDB3 with TAPSE/sPAP in LVAD</h2>
+<pre class="r"><code>cor_results_tapse_extra &lt;- data.frame()
+
+for (prot in panel_tapse_extra) {
+  df &lt;- lvad_data_full %&gt;%
+    dplyr::select(LVAD.no., Age, TAPSE_sPAP, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(!is.na(TAPSE_sPAP), !is.na(NPX))
+
+  ct &lt;- cor.test(df$NPX, df$TAPSE_sPAP, method = &quot;spearman&quot;, exact = FALSE)
+  fit &lt;- lm(NPX ~ TAPSE_sPAP + Age, data = df)
+  sm &lt;- summary(fit)
+
+  cor_results_tapse_extra &lt;- rbind(
+    cor_results_tapse_extra,
+    data.frame(
+      protein = prot,
+      n = nrow(df),
+      spearman_rho = unname(ct$estimate),
+      spearman_p = ct$p.value,
+      beta_TAPSE_sPAP_adjAge = sm$coefficients[&quot;TAPSE_sPAP&quot;, &quot;Estimate&quot;],
+      p_TAPSE_sPAP_adjAge = sm$coefficients[&quot;TAPSE_sPAP&quot;, &quot;Pr(&gt;|t|)&quot;],
+      beta_Age = sm$coefficients[&quot;Age&quot;, &quot;Estimate&quot;],
+      p_Age = sm$coefficients[&quot;Age&quot;, &quot;Pr(&gt;|t|)&quot;],
+      r_squared = sm$r.squared
+    )
+  )
+}
+
+cor_results_tapse_extra$FDR_spearman &lt;- p.adjust(cor_results_tapse_extra$spearman_p, method = &quot;BH&quot;)
+cor_results_tapse_extra$FDR_adjAge &lt;- p.adjust(cor_results_tapse_extra$p_TAPSE_sPAP_adjAge, method = &quot;BH&quot;)
+cor_results_tapse_extra</code></pre>
+<pre><code>  protein  n spearman_rho spearman_p beta_TAPSE_sPAP_adjAge p_TAPSE_sPAP_adjAge
+1 C1QTNF1 47   -0.2607791 0.07665297             -1.1163492           0.0479863
+2    LDB3 47    0.1852462 0.21254071              0.7315074           0.3879531
+      beta_Age     p_Age  r_squared FDR_spearman FDR_adjAge
+1 -0.008191944 0.3870265 0.09140326    0.1533059 0.09597259
+2  0.006802939 0.6373915 0.01939842    0.2125407 0.38795306</code></pre>
+<pre class="r"><code>plot_list_tapse_extra &lt;- list()
+
+for (prot in panel_tapse_extra) {
+  ann &lt;- cor_results_tapse_extra %&gt;% dplyr::filter(protein == prot)
+
+  df &lt;- lvad_data_full %&gt;%
+    dplyr::select(LVAD.no., TAPSE_sPAP, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(!is.na(TAPSE_sPAP), !is.na(NPX))
+
+  plot_list_tapse_extra[[prot]] &lt;- ggplot(df, aes(x = TAPSE_sPAP, y = NPX)) +
+    geom_point() +
+    geom_smooth(method = &quot;lm&quot;, se = FALSE, linewidth = 0.5) +
+    theme_classic(base_size = 12) +
+    labs(
+      title = paste0(
+        prot,
+        &quot;\nρ = &quot;, round(ann$spearman_rho, 2),
+        &quot;  p = &quot;, signif(ann$spearman_p, 2)
+      ),
+      x = &quot;TAPSE/sPAP&quot;,
+      y = &quot;NPX&quot;
+    )
+}
+
+plot_list_tapse_extra[[1]] + plot_list_tapse_extra[[2]]</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/corr_mpap_markers_with_tapse_plots-1.png" width="2400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="boxplots-of-c1qtnf1-and-ldb3-by-tapsespap-group-in-lvad"
+class="section level2">
+<h2>Boxplots of C1QTNF1 and LDB3 by TAPSE/sPAP group in LVAD</h2>
+<pre class="r"><code>plot_list_tapse_group_extra &lt;- list()
+
+for (prot in panel_tapse_extra) {
+  df &lt;- lvad_data_full %&gt;%
+    dplyr::select(LVAD.no., TAPSE_group, all_of(prot)) %&gt;%
+    dplyr::rename(NPX = all_of(prot)) %&gt;%
+    dplyr::filter(!is.na(TAPSE_group), !is.na(NPX))
+
+  plot_list_tapse_group_extra[[prot]] &lt;- ggplot(df, aes(x = TAPSE_group, y = NPX, fill = TAPSE_group)) +
+    geom_boxplot(outlier.shape = NA, width = 0.65) +
+    geom_jitter(width = 0.12, size = 1.8) +
+    stat_compare_means(
+      comparisons = list(c(&quot;≥0.32&quot;, &quot;&lt;0.32&quot;)),
+      method = &quot;wilcox.test&quot;,
+      label = &quot;p.format&quot;
+    ) +
+    scale_fill_manual(values = cols_tapse) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = &quot;none&quot;) +
+    labs(title = prot, x = &quot;TAPSE/sPAP group&quot;, y = &quot;NPX&quot;)
+}
+
+plot_list_tapse_group_extra[[1]] + plot_list_tapse_group_extra[[2]]</code></pre>
+<p><img src="figure/LVAD_OLINK.Rmd/boxplots_mpap_markers_by_tapse_group-1.png" width="2250" style="display: block; margin: auto;" /></p>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats4    stats     graphics  grDevices datasets  utils     methods  
+[8] base     
+
+other attached packages:
+ [1] SummarizedExperiment_1.40.0 Biobase_2.70.0             
+ [3] GenomicRanges_1.62.0        Seqinfo_1.0.0              
+ [5] IRanges_2.44.0              S4Vectors_0.48.0           
+ [7] BiocGenerics_0.56.0         generics_0.1.4             
+ [9] MatrixGenerics_1.22.0       matrixStats_1.5.0          
+[11] broom_1.0.11                tibble_3.3.0               
+[13] scales_1.4.0                pROC_1.19.0.1              
+[15] patchwork_1.3.2             ggpubr_0.6.2               
+[17] glmnet_4.1-10               Matrix_1.6-5               
+[19] qs2_0.1.7                   readxl_1.4.5               
+[21] readr_2.1.6                 ggplot2_4.0.1              
+[23] tidyr_1.3.1                 dplyr_1.1.4                
+[25] here_1.0.2                 
+
+loaded via a namespace (and not attached):
+ [1] tidyselect_1.2.1      farver_2.1.2          S7_0.2.1             
+ [4] fastmap_1.2.0         promises_1.5.0        stringfish_0.18.0    
+ [7] digest_0.6.39         lifecycle_1.0.4       survival_3.8-3       
+[10] magrittr_2.0.4        compiler_4.5.2        rlang_1.1.6          
+[13] sass_0.4.10           tools_4.5.2           yaml_2.3.11          
+[16] knitr_1.50            ggsignif_0.6.4        labeling_0.4.3       
+[19] S4Arrays_1.10.1       DelayedArray_0.36.0   RColorBrewer_1.1-3   
+[22] abind_1.4-8           workflowr_1.7.2       withr_3.0.2          
+[25] purrr_1.2.0           grid_4.5.2            git2r_0.36.2         
+[28] iterators_1.0.14      cli_3.6.5             rmarkdown_2.30       
+[31] otel_0.2.0            RcppParallel_5.1.11-1 rstudioapi_0.17.1    
+[34] tzdb_0.5.0            cachem_1.1.0          stringr_1.6.0        
+[37] splines_4.5.2         XVector_0.50.0        BiocManager_1.30.27  
+[40] cellranger_1.1.0      vctrs_0.6.5           jsonlite_2.0.0       
+[43] carData_3.0-5         car_3.1-3             hms_1.1.4            
+[46] rstatix_0.7.3         Formula_1.2-5         foreach_1.5.2        
+[49] jquerylib_0.1.4       glue_1.8.0            codetools_0.2-20     
+[52] stringi_1.8.7         shape_1.4.6.1         gtable_0.3.6         
+[55] later_1.4.4           pillar_1.11.1         htmltools_0.5.9      
+[58] R6_2.6.1              rprojroot_2.1.1       evaluate_1.0.5       
+[61] lattice_0.22-7        backports_1.5.0       renv_1.1.5           
+[64] httpuv_1.6.16         bslib_0.9.0           Rcpp_1.1.0           
+[67] nlme_3.1-168          SparseArray_1.10.4    mgcv_1.9-3           
+[70] whisker_0.4.1         xfun_0.56             fs_1.6.6             
+[73] pkgconfig_2.0.3      </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
