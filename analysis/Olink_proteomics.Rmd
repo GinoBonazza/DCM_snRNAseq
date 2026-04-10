@@ -1,0 +1,1510 @@
+---
+title: "Olink_proteomics"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Olink_proteomics"
+
+# Load libraries
+library(EnhancedVolcano)
+library(here)
+library(enrichplot)
+library(readr)
+library(readxl)
+library(Matrix)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(qs2)
+library(statmod)
+library(rtracklayer)
+library(png)
+library(reactable)
+library(UpSetR)
+library(limma)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+library(DESeq2)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(UpSetR)
+library(ComplexHeatmap)
+library(survival)
+library(broom)
+library(circlize)
+library(variancePartition)
+library(Seurat)
+library(edgeR)
+library(ggrepel)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+## Import data
+
+```{r read data}
+data <- read.delim(here::here("data", "OLINK", "quant.xls"), sep = "\t", check.names = FALSE)
+
+clin <- read_excel("/home/gbonaz/data/DCM_snRNAseq/data/Baza_dla_Gino_AP.xlsx") %>%
+  dplyr::select(-dplyr::matches("^Unnamed")) %>%
+  dplyr::filter(!Sample %in% c("PK211", "P11")) %>%
+  dplyr::mutate(
+    Age_years = as.numeric(Age_years),
+    LVEF_percent = as.numeric(LVEF_percent),
+    LVID_mm = as.numeric(LVID_mm),
+    LVEDD_mm = as.numeric(LVEDD_mm),
+    RVOT_mm = as.numeric(RVOT_mm),
+    TAPSE_mm = as.numeric(TAPSE_mm),
+    RVIT_mm = as.numeric(RVIT_mm),
+    RAA_cm2 = as.numeric(RAA_cm2),
+    RVS_cm.s = as.numeric(RVS_cm.s),
+    RVSP_mmHg = as.numeric(RVSP_mmHg),
+    sPAP_mmHg = as.numeric(sPAP_mmHg),
+    mPAP_mmHg = as.numeric(mPAP_mmHg),
+    PCW_mmHg = as.numeric(PCW_mmHg),
+    PVR_WU = as.numeric(PVR_WU),
+    TPG_mmHg = as.numeric(TPG_mmHg),
+    CO_l.min = as.numeric(CO_l.min),
+    TAPSE_sPAP = TAPSE_mm / sPAP_mmHg
+  )
+
+meta <-  read_excel(here::here("data", "OLINK", "Samples_RV_Olink.xlsx"))
+meta <- meta %>%
+  dplyr::filter(Olink == "Yes", !Sample %in% c("PK211", "P11"))
+  
+rownames(data) <- sub("_.*", "", data$SampleID)
+data <- data[, -1]
+
+
+keep <- intersect(colnames(data), meta$Sample)
+data <- data[, keep, drop = FALSE]
+dim(data)
+```
+
+## Heatmaps, PCA
+
+```{r, fig.height=8, fig.width=10.8}
+barcodes <- colnames(data)
+
+grp <- meta$Group[match(barcodes, meta$Sample)]
+btc <- meta$Batch[match(barcodes, meta$Sample)]
+btc <- factor(btc, levels = c("1","2"))
+bca <- meta$BCA_mg_ml[match(barcodes, meta$Sample)]
+bca <- as.numeric(bca)
+
+# --- colors ---
+cols_group <- c("HC"="#004C8C", "DCM"="#A63A2A")
+cols_batch <- c("1"="orange", "2"="purple")
+
+# BCA greyscale (light -> dark)
+bca_cols <- colorRampPalette(c("grey80", "grey20"))(100)
+bca_col_fun <- circlize::colorRamp2(
+  c(min(bca, na.rm = TRUE),
+    median(bca, na.rm = TRUE),
+    max(bca, na.rm = TRUE)),
+  c(bca_cols[1], bca_cols[50], bca_cols[100])
+)
+
+# --- z-score per protein (row) ---
+matz <- t(scale(t(data)))
+matz[is.nan(matz)] <- 0
+
+# heatmap colors
+hm_cols <- colorRamp2(c(-2, 0, 2), c("#2166AC", "white", "#B2182B"))
+
+# column annotations
+ha <- HeatmapAnnotation(
+  Group = grp,
+  Batch = btc,
+  BCA_mg_ml = bca,
+  col = list(
+    Group = cols_group,
+    Batch = cols_batch,
+    BCA_mg_ml = bca_col_fun
+  ),
+  na_col = "#E5E7EB",
+  annotation_legend_param = list(
+    Group = list(title = "Group"),
+    Batch = list(title = "Batch"),
+    BCA_mg_ml = list(title = "BCA (mg/mL)")
+  )
+)
+
+# --- draw (all proteins, no row names, default clustering, no group split) ---
+Heatmap(
+  matz,
+  name = "Z-score",
+  col = hm_cols,
+  top_annotation = ha,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  column_names_gp = gpar(fontsize = 9),
+  row_title = NULL,
+  column_title = NULL
+) |>
+  draw(heatmap_legend_side = "right", annotation_legend_side = "right")
+```
+
+```{r heatmap_top100var, fig.height=10.88, fig.width=10.8}
+# --- pick top 100 variable proteins (rows) ---
+vars <- apply(data, 1, var, na.rm = TRUE)
+top100 <- names(sort(vars, decreasing = TRUE))[1:100]
+mat_top <- as.matrix(data[top100, , drop = FALSE])
+
+# --- z-score per protein (row) ---
+matz <- t(scale(t(mat_top)))
+matz[is.nan(matz)] <- 0
+
+Heatmap(
+  matz,
+  name = "Z-score",
+  col = hm_cols,
+  top_annotation = ha,
+  show_row_names = TRUE,              # set FALSE if you want to hide protein names
+  row_names_gp = gpar(fontsize = 7),
+  show_column_names = TRUE,
+  column_names_gp = gpar(fontsize = 8.5),
+  row_title = "Top 100 variable proteins",
+  column_title = NULL
+) |>
+  draw(heatmap_legend_side = "right", annotation_legend_side = "right")
+```
+
+```{r, fig.height=3.5, fig.width=5.4}
+pca <- prcomp(t(as.matrix(data)), scale. = TRUE)
+pvar <- (pca$sdev^2) / sum(pca$sdev^2) * 100
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  Group = meta$Group[match(rownames(pca$x), meta$Sample)]
+)
+
+cols_group <- c("HC" = "#004C8C", "DCM" = "#A63A2A")
+
+ggplot(df, aes(PC1, PC2, color = Group)) +
+  stat_ellipse(aes(fill = Group), type = "norm", level = 0.95,
+               geom = "polygon", alpha = 0.10, color = NA) +
+  stat_ellipse(type = "norm", level = 0.95, linewidth = 0.3) +
+  geom_point(size = 3) +
+  scale_color_manual(values = cols_group) +
+  scale_fill_manual(values = cols_group) +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)")
+  ) +
+  theme_minimal()
+
+```
+
+```{r, fig.height=4.5, fig.width=7.2}
+df <- data.frame(
+  Sample = rownames(pca$x),
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  Group = meta$Group[match(rownames(pca$x), meta$Sample)]
+)
+
+ggplot(df, aes(PC1, PC2, color = Group, label = Sample)) +
+  geom_point(size = 2.7) +
+  ggrepel::geom_text_repel(size = 3, max.overlaps = Inf, show.legend = FALSE) +
+  scale_color_manual(values = cols_group) +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)")
+  ) +
+  theme_minimal()
+```
+
+```{r, fig.height=3.5, fig.width=5.4}
+pca <- prcomp(t(as.matrix(data)), scale. = TRUE)
+pvar <- (pca$sdev^2) / sum(pca$sdev^2) * 100
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  Batch = meta$Batch[match(rownames(pca$x), meta$Sample)]
+)
+df$Batch <- factor(df$Batch, levels = c("1","2"))
+
+cols_group <- c("1" = "orange", "2" = "purple")
+
+ggplot(df, aes(PC1, PC2, color = Batch)) +
+  stat_ellipse(aes(fill = Batch), type = "norm", level = 0.95,
+               geom = "polygon", alpha = 0.10, color = NA) +
+  stat_ellipse(type = "norm", level = 0.95, linewidth = 0.3) +
+  geom_point(size = 3) +
+  scale_color_manual(values = cols_group) +
+  scale_fill_manual(values = cols_group) +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)")
+  ) +
+  theme_minimal()
+```
+
+```{r}
+keep <- intersect(colnames(data), clin$Sample[clin$Group == "DCM"])
+data_21 <- data[, keep, drop = FALSE]
+data_21 <- data_21[, clin$Sample[clin$Group == "DCM" & clin$Sample %in% colnames(data_21)], drop = FALSE]
+```
+
+```{r, fig.height=3.5, fig.width=5.4}
+pca <- prcomp(t(as.matrix(data_21)), scale. = TRUE)
+pvar <- (pca$sdev^2) / sum(pca$sdev^2) * 100
+
+#mPAP
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  mPAP_mmHg = clin$mPAP_mmHg[match(rownames(pca$x), clin$Sample)]
+)
+df$mPAP_mmHg <- as.numeric(df$mPAP_mmHg)
+
+grey_pal <- colorRampPalette(c("grey80", "grey20"))(100)
+
+ggplot(df, aes(PC1, PC2, color = mPAP_mmHg)) +
+  geom_point(size = 3) +
+  scale_color_gradientn(colors = grey_pal, na.value = "grey90") +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+    color = "mPAP (mmHg)"
+  ) +
+  theme_minimal()
+
+#LVEF
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  LVEF_percent = clin$LVEF_percent[match(rownames(pca$x), clin$Sample)]
+)
+df$mPAP_mmHg <- as.numeric(df$LVEF_percent)
+
+grey_pal <- colorRampPalette(c("grey80", "grey20"))(100)
+
+ggplot(df, aes(PC1, PC2, color = LVEF_percent)) +
+  geom_point(size = 3) +
+  scale_color_gradientn(colors = grey_pal, na.value = "grey90") +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+    color = "LVEF (%)"
+  ) +
+  theme_minimal()
+
+#LVEDD
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  LVEDD_mm = clin$LVEDD_mm[match(rownames(pca$x), clin$Sample)]
+)
+df$LVEDD_mm <- as.numeric(df$LVEDD_mm)
+
+grey_pal <- colorRampPalette(c("grey80", "grey20"))(100)
+
+ggplot(df, aes(PC1, PC2, color = LVEDD_mm)) +
+  geom_point(size = 3) +
+  scale_color_gradientn(colors = grey_pal, na.value = "grey90") +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+    color = "LVEDD (mm)"
+  ) +
+  theme_minimal()
+
+#RVID
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  RVOT_mm = clin$RVOT_mm[match(rownames(pca$x), clin$Sample)]
+)
+df$RVOT_mm <- as.numeric(df$RVOT_mm)
+
+grey_pal <- colorRampPalette(c("grey80", "grey20"))(100)
+
+ggplot(df, aes(PC1, PC2, color = RVOT_mm)) +
+  geom_point(size = 3) +
+  scale_color_gradientn(colors = grey_pal, na.value = "grey90") +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+    color = "RVOT (mm)"
+  ) +
+  theme_minimal()
+
+#TAPSE
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  TAPSE_mm = clin$TAPSE_mm[match(rownames(pca$x), clin$Sample)]
+)
+df$TAPSE_mm <- as.numeric(df$TAPSE_mm)
+
+grey_pal <- colorRampPalette(c("grey80", "grey20"))(100)
+
+ggplot(df, aes(PC1, PC2, color = TAPSE_mm)) +
+  geom_point(size = 3) +
+  scale_color_gradientn(colors = grey_pal, na.value = "grey90") +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+    color = "TAPSE (mm)"
+  ) +
+  theme_minimal()
+
+#PVR
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  PVR_WU = clin$PVR_WU[match(rownames(pca$x), clin$Sample)]
+)
+df$PVR_WU <- as.numeric(df$PVR_WU)
+
+grey_pal <- colorRampPalette(c("grey80", "grey20"))(100)
+
+ggplot(df, aes(PC1, PC2, color = PVR_WU)) +
+  geom_point(size = 3) +
+  scale_color_gradientn(colors = grey_pal, na.value = "grey90") +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+    color = "PVR (WU)"
+  ) +
+  theme_minimal()
+
+#PCWP
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  PCW_mmHg = clin$PCW_mmHg[match(rownames(pca$x), clin$Sample)]
+)
+df$PCW_mmHg <- as.numeric(df$PCW_mmHg)
+
+grey_pal <- colorRampPalette(c("grey80", "grey20"))(100)
+
+ggplot(df, aes(PC1, PC2, color = PCW_mmHg)) +
+  geom_point(size = 3) +
+  scale_color_gradientn(colors = grey_pal, na.value = "grey90") +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+    color = "PCWP (mmHg)"
+  ) +
+  theme_minimal()
+
+#BCA_mg_ml
+
+df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  BCA_mg_ml = meta$BCA_mg_ml[match(rownames(pca$x), meta$Sample)]
+)
+df$BCA_mg_ml <- as.numeric(df$BCA_mg_ml)
+
+grey_pal <- colorRampPalette(c("grey80", "grey20"))(100)
+
+ggplot(df, aes(PC1, PC2, color = BCA_mg_ml)) +
+  geom_point(size = 3) +
+  scale_color_gradientn(colors = grey_pal, na.value = "grey90") +
+  labs(
+    x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+    color = "BCA_mg_ml"
+  ) +
+  theme_minimal()
+
+
+```
+
+```{r}
+samples_to_remove_downstream <- c("PK69", "PK61", "PK63", "P11")
+
+clin_dcm <- clin %>%
+  dplyr::filter(
+    Group == "DCM",
+    Sample %in% colnames(data),
+    !Sample %in% samples_to_remove_downstream
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+data_dcm_analysis <- data[, clin_dcm$Sample, drop = FALSE]
+data_dcm_analysis <- data_dcm_analysis[, clin_dcm$Sample, drop = FALSE]
+
+meta_dcm <- meta %>%
+  dplyr::filter(Sample %in% colnames(data_dcm_analysis)) %>%
+  dplyr::left_join(
+    clin_dcm %>% dplyr::select(Sample, Group, Sex) %>% dplyr::distinct(),
+    by = c("Sample", "Group")
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+```
+
+## Variance partitioning
+
+```{r vp_z_all_group_batch, fig.height=4.5, fig.width=6.5}
+# expression: proteins x samples
+expr <- as.matrix(data)
+
+# meta_pdata aligned to columns of expr
+meta_p <- meta |>
+  dplyr::left_join(
+    clin %>% dplyr::select(Sample, Group, Sex) %>% dplyr::distinct(),
+    by = c("Sample", "Group")
+  ) |>
+  dplyr::distinct(Sample, .keep_all = TRUE) |>
+  dplyr::filter(Sample %in% colnames(expr)) |>
+  tibble::column_to_rownames("Sample")
+
+expr <- expr[, rownames(meta_p), drop = FALSE]
+
+# variables for this model (Zurich: NO Origin in all-samples model)
+vars <- c("Group", "Batch", "Sex", "BCA_mg_ml")
+meta_p <- meta_p |>
+  dplyr::mutate(
+    Group = factor(Group),
+    Batch = factor(Batch),
+    Sex = factor(Sex)
+  )
+
+# keep complete cases for model variables
+n_before <- nrow(meta_p)
+
+meta_p <- meta_p[complete.cases(meta_p[, vars]), , drop = FALSE]
+expr <- expr[, rownames(meta_p), drop = FALSE]
+
+n_after <- nrow(meta_p)
+message("All: ", n_after, " / ", n_before, " samples used")
+
+form <- ~ Group + Batch + Sex
+
+vp <- fitExtractVarPartModel(expr, form, meta_p)
+colnames(vp) <- gsub("`", "", colnames(vp))
+
+# quick summaries
+vp_mean <- sort(colMeans(vp), decreasing = TRUE)
+df <- data.frame(variable = names(vp_mean), value = vp_mean)
+
+ggplot(df, aes(x = reorder(variable, -value), y = value)) +
+  geom_col() +
+  labs(x = NULL, y = "Mean fraction of variance explained",
+       title = "All samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plotVarPart(vp) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r vp_z_all_group_bca, fig.height=4.5, fig.width=6.5}
+# expression: proteins x samples
+expr <- as.matrix(data)
+
+# meta_pdata aligned to columns of expr
+meta_p <- meta |>
+  dplyr::left_join(
+    clin %>% dplyr::select(Sample, Group, Sex) %>% dplyr::distinct(),
+    by = c("Sample", "Group")
+  ) |>
+  dplyr::distinct(Sample, .keep_all = TRUE) |>
+  dplyr::filter(Sample %in% colnames(expr)) |>
+  tibble::column_to_rownames("Sample")
+
+expr <- expr[, rownames(meta_p), drop = FALSE]
+
+# variables for this model (now using BCA as the "technical" covariate)
+vars <- c("Group", "Sex", "BCA_mg_ml")
+
+meta_p <- meta_p |>
+  dplyr::mutate(
+    Group = factor(Group),
+    Sex = factor(Sex),
+    BCA_mg_ml = as.numeric(BCA_mg_ml)
+  )
+
+# keep complete cases for model variables
+n_before <- nrow(meta_p)
+
+meta_p <- meta_p[complete.cases(meta_p[, vars]), , drop = FALSE]
+expr <- expr[, rownames(meta_p), drop = FALSE]
+
+n_after <- nrow(meta_p)
+message("All: ", n_after, " / ", n_before, " samples used")
+
+# variance partitioning model (BCA is continuous)
+form <- ~ Group + Sex + BCA_mg_ml
+
+vp <- fitExtractVarPartModel(expr, form, meta_p)
+colnames(vp) <- gsub("`", "", colnames(vp))
+
+# quick summaries
+vp_mean <- sort(colMeans(vp), decreasing = TRUE)
+df <- data.frame(variable = names(vp_mean), value = vp_mean)
+
+ggplot(df, aes(x = reorder(variable, -value), y = value)) +
+  geom_col() +
+  labs(x = NULL, y = "Mean fraction of variance explained",
+       title = "All samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plotVarPart(vp) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r, fig.height=4.5, fig.width=6.5}
+# expression: proteins x samples
+expr <- as.matrix(data_dcm_analysis)
+
+meta_21 <- meta_dcm %>%
+  left_join(clin_dcm, by = c("Sample", "Group", "Sex")) %>%
+  dplyr::filter(Sample %in% colnames(data_dcm_analysis))
+
+# meta_pdata aligned to columns of expr
+meta_p <- meta_21 |>
+  dplyr::distinct(Sample, .keep_all = TRUE) |>
+  dplyr::filter(Sample %in% colnames(expr)) |>
+  tibble::column_to_rownames("Sample")
+
+expr <- expr[, rownames(meta_p), drop = FALSE]
+
+# variables for this model (now using BCA as the "technical" covariate)
+vars <- c("BCA_mg_ml", "Age_years", "Sex", "mPAP_mmHg", "TAPSE_mm")
+
+meta_p <- meta_p |>
+  dplyr::mutate(
+    BCA_mg_ml = as.numeric(BCA_mg_ml),
+    Age_years = as.numeric(Age_years),
+    Sex = factor(Sex),
+    mPAP_mmHg = as.numeric(mPAP_mmHg),
+    TAPSE_mm = as.numeric(TAPSE_mm)
+  )
+
+# keep complete cases for model variables
+n_before <- nrow(meta_p)
+
+meta_p <- meta_p[complete.cases(meta_p[, vars]), , drop = FALSE]
+expr <- expr[, rownames(meta_p), drop = FALSE]
+
+n_after <- nrow(meta_p)
+message("21: ", n_after, " / ", n_before, " samples used")
+
+# variance partitioning model (BCA is continuous)
+form <- ~ BCA_mg_ml + Age_years + Sex + mPAP_mmHg + TAPSE_mm
+
+vp <- fitExtractVarPartModel(expr, form, meta_p)
+colnames(vp) <- gsub("`", "", colnames(vp))
+
+# quick summaries
+vp_mean <- sort(colMeans(vp), decreasing = TRUE)
+df <- data.frame(variable = names(vp_mean), value = vp_mean)
+
+ggplot(df, aes(x = reorder(variable, -value), y = value)) +
+  geom_col() +
+  labs(x = NULL, y = "Mean fraction of variance explained",
+       title = "DCM cohort after exclusion") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plotVarPart(vp) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Differential expression analysis
+
+```{r de_group_zurich}
+meta_21$TAPSE_sPAP <- meta_21$TAPSE_mm/meta_21$sPAP_mmHg
+colnames(meta_21)
+```
+
+```{r de_mPAP_olink}
+meta_de <- meta_21 %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::filter(Sample %in% colnames(data_dcm_analysis)) %>%
+  dplyr::mutate(
+    Age_years   = as.numeric(Age_years),
+    Sex         = factor(Sex),
+    mPAP_mmHg   = as.numeric(mPAP_mmHg),
+    BCA_mg_ml   = as.numeric(BCA_mg_ml)
+  ) %>%
+  tibble::column_to_rownames("Sample")
+
+meta_de <- meta_de[complete.cases(meta_de[, c("Age_years", "Sex", "mPAP_mmHg", "BCA_mg_ml")]), , drop = FALSE]
+
+expr_de <- as.matrix(data_dcm_analysis[, rownames(meta_de), drop = FALSE])
+
+design <- model.matrix(~ mPAP_mmHg + Age_years + Sex + BCA_mg_ml, data = meta_de)
+design[, "Age_years"] <- rescale(design[, "Age_years"])
+design[, "mPAP_mmHg"] <- rescale(design[, "mPAP_mmHg"])
+design[, "BCA_mg_ml"] <- rescale(design[, "BCA_mg_ml"])
+
+fit <- lmFit(expr_de, design)
+fit <- eBayes(fit)
+
+coef_group <- grep("^mPAP_mmHg", colnames(design), value = TRUE)[1]
+
+DE_mpap_olink <- topTable(fit, coef = coef_group, number = Inf, adjust.method = "BH")
+DE_mpap_olink$Gene <- rownames(DE_mpap_olink)
+
+DE_mpap_olink_signif <- DE_mpap_olink %>%
+  dplyr::filter(adj.P.Val < 0.1, abs(logFC) > 0.5) %>%
+  dplyr::arrange(P.Value)
+
+write.csv(DE_mpap_olink,
+          file = here::here(output_dir_data, "DE_Results_mPAP.csv"),
+          quote = FALSE, row.names = FALSE)
+write.csv(DE_mpap_olink_signif,
+          file = here::here(output_dir_data, "DE_Significant_mPAP.csv"),
+          quote = FALSE, row.names = FALSE)
+```
+
+```{r}
+expr_all <- as.matrix(data_dcm_analysis)
+
+clin_params <- c(
+  "LVEF_percent","LVID_mm","LVEDD_mm","RVOT_mm",
+  "TAPSE_mm","RVIT_mm","RAA_cm2","RVS_cm.s","RVSP_mmHg","sPAP_mmHg","mPAP_mmHg",
+  "PCW_mmHg","PVR_WU","TPG_mmHg","CO_l.min","TAPSE_sPAP"
+)
+
+meta_de0 <- meta_21 %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::filter(Sample %in% colnames(expr_all)) %>%
+  dplyr::mutate(
+    Age_years = as.numeric(Age_years),
+    Sex = factor(Sex),
+    BCA_mg_ml = as.numeric(BCA_mg_ml),
+    across(all_of(clin_params), as.numeric)
+  ) %>%
+  tibble::column_to_rownames("Sample")
+
+DE_results_list_olink <- list()
+DE_signif_list_olink  <- list()
+volcano_olink <- list()
+n_de_proteins_olink <- data.frame()
+
+for (param in clin_params) {
+
+  vars <- c(param, "Age_years", "Sex", "BCA_mg_ml")
+
+  meta_de <- meta_de0
+  meta_de <- meta_de[complete.cases(meta_de[, vars]), , drop = FALSE]
+
+  expr_de <- expr_all[, rownames(meta_de), drop = FALSE]
+
+  design <- model.matrix(stats::as.formula(paste0("~ ", param, " + Age_years + Sex + BCA_mg_ml")),
+                         data = meta_de)
+
+  design[, param]       <- scales::rescale(design[, param])
+  design[, "Age_years"] <- scales::rescale(design[, "Age_years"])
+  design[, "BCA_mg_ml"] <- scales::rescale(design[, "BCA_mg_ml"])
+
+  fit <- lmFit(expr_de, design)
+  fit <- eBayes(fit)
+
+  coef_name <- grep(paste0("^", param, "$"), colnames(design), value = TRUE)[1]
+
+  tt <- topTable(fit, coef = coef_name, number = Inf, adjust.method = "BH")
+  tt$Gene <- rownames(tt)
+  tt$parameter <- param
+  tt$n_complete_samples <- nrow(meta_de)
+
+  tt_signif <- tt %>%
+    dplyr::filter(adj.P.Val < 0.1, abs(logFC) > 0.5) %>%
+    dplyr::arrange(P.Value)
+
+  DE_results_list_olink[[param]] <- tt
+  DE_signif_list_olink[[param]]  <- tt_signif
+
+  write.csv(tt,
+            file = here::here(output_dir_data, paste0("DE_Results_", param, "_PK21.csv")),
+            quote = FALSE, row.names = FALSE)
+  write.csv(tt_signif,
+            file = here::here(output_dir_data, paste0("DE_Significant_", param, "_PK21.csv")),
+            quote = FALSE, row.names = FALSE)
+  
+  n_de_proteins_olink_temp <- data.frame(metadata = param,
+                                n_upregulated = sum(DE_signif_list_olink[[param]]$logFC > 0.5),
+                                n_downregulated = sum(DE_signif_list_olink[[param]]$logFC < -0.5),
+                                n_tot = nrow(DE_signif_list_olink[[param]])
+                                )
+  n_de_proteins_olink <- rbind(n_de_proteins_olink, n_de_proteins_olink_temp)
+  
+  keyvals <- rep("grey", nrow(DE_results_list_olink[[param]]))
+  names(keyvals) <- rep("Not significant", nrow(DE_results_list_olink[[param]]))
+  keyvals[DE_results_list_olink[[param]]$logFC > 0.5 & DE_results_list_olink[[param]]$adj.P.Val < 0.1] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[DE_results_list_olink[[param]]$logFC < -0.5 & DE_results_list_olink[[param]]$adj.P.Val < 0.1] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano_olink[[param]] <- EnhancedVolcano(DE_results_list_olink[[param]],
+                  lab = DE_results_list_olink[[param]]$Gene,
+                  x = "logFC",
+                  y = "adj.P.Val",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.1,
+                  ylim = c(0, 3),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0(param, "\nn = ", nrow(meta_de))
+  ) + theme(legend.position = "none")
+}
+
+saveRDS(DE_results_list_olink, here::here(output_dir_data, "DE_Results_all_params_PK211.rds"))
+saveRDS(DE_signif_list_olink,  here::here(output_dir_data, "DE_Significant_all_params_PK21.rds"))
+```
+
+```{r, fig.height=9, fig.width=24, dpi=300}
+print((volcano_olink[[1]] | volcano_olink[[2]] | volcano_olink[[3]] | volcano_olink[[4]] | volcano_olink[[5]] | volcano_olink[[6]] | volcano_olink[[7]] | volcano_olink[[8]]) / 
+  (volcano_olink[[9]] | volcano_olink[[10]] | volcano_olink[[11]] |  volcano_olink[[12]] | volcano_olink[[13]] | volcano_olink[[14]] | volcano_olink[[15]] | volcano_olink[[16]]))
+```
+
+```{r cor_mpap_spap, fig.height=4.5, fig.width=5.5}
+df <- meta_21 %>%
+  dplyr::select(mPAP_mmHg, sPAP_mmHg) %>%
+  dplyr::filter(complete.cases(.))
+
+# correlation test
+ct <- cor.test(df$mPAP_mmHg, df$sPAP_mmHg, method = "pearson")
+
+r_val <- round(ct$estimate, 2)
+p_val <- signif(ct$p.value, 2)
+
+ggplot(df, aes(x = mPAP_mmHg, y = sPAP_mmHg)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.6, color = "black") +
+  annotate("text",
+           x = Inf, y = -Inf,
+           label = paste0("r = ", r_val, "\np = ", p_val),
+           hjust = 1.1, vjust = -0.5,
+           size = 4) +
+  labs(
+    x = "mPAP (mmHg)",
+    y = "sPAP (mmHg)"
+  ) +
+  theme_classic()
+```
+
+```{r}
+expr_all <- as.matrix(data_dcm_analysis)
+expr_all <- expr_all[, colnames(expr_all) != "PK211", drop = FALSE]
+clin_params <- c(
+  "LVEF_percent","LVID_mm","LVEDD_mm","RVOT_mm",
+  "TAPSE_mm","RVIT_mm","RAA_cm2","RVS_cm.s","RVSP_mmHg","sPAP_mmHg","mPAP_mmHg",
+  "PCW_mmHg","PVR_WU","TPG_mmHg","CO_l.min","TAPSE_sPAP"
+)
+
+meta_de0 <- meta_21 %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::filter(Sample %in% colnames(expr_all)) %>%
+  dplyr::mutate(
+    Age_years = as.numeric(Age_years),
+    Sex = factor(Sex),
+    BCA_mg_ml = as.numeric(BCA_mg_ml),
+    across(all_of(clin_params), as.numeric)
+  ) %>%
+  tibble::column_to_rownames("Sample")
+
+DE_results_list_olink <- list()
+DE_signif_list_olink  <- list()
+volcano_olink <- list()
+n_de_proteins_olink <- data.frame()
+
+for (param in clin_params) {
+
+  vars <- c(param, "Age_years", "Sex", "BCA_mg_ml")
+
+  meta_de <- meta_de0
+  meta_de <- meta_de[complete.cases(meta_de[, vars]), , drop = FALSE]
+
+  expr_de <- expr_all[, rownames(meta_de), drop = FALSE]
+
+  design <- model.matrix(stats::as.formula(paste0("~ ", param, " + Age_years + Sex + BCA_mg_ml")),
+                         data = meta_de)
+
+  design[, param]       <- scales::rescale(design[, param])
+  design[, "Age_years"] <- scales::rescale(design[, "Age_years"])
+  design[, "BCA_mg_ml"] <- scales::rescale(design[, "BCA_mg_ml"])
+
+  fit <- lmFit(expr_de, design)
+  fit <- eBayes(fit)
+
+  coef_name <- grep(paste0("^", param, "$"), colnames(design), value = TRUE)[1]
+
+  tt <- topTable(fit, coef = coef_name, number = Inf, adjust.method = "BH")
+  tt$Gene <- rownames(tt)
+  tt$parameter <- param
+  tt$n_complete_samples <- nrow(meta_de)
+
+  tt_signif <- tt %>%
+    dplyr::filter(adj.P.Val < 0.1, abs(logFC) > 0.5) %>%
+    dplyr::arrange(P.Value)
+
+  DE_results_list_olink[[param]] <- tt
+  DE_signif_list_olink[[param]]  <- tt_signif
+
+  write.csv(tt,
+            file = here::here(output_dir_data, paste0("DE_Results_", param, ".csv")),
+            quote = FALSE, row.names = FALSE)
+  write.csv(tt_signif,
+            file = here::here(output_dir_data, paste0("DE_Significant_", param, ".csv")),
+            quote = FALSE, row.names = FALSE)
+  
+  n_de_proteins_olink_temp <- data.frame(metadata = param,
+                                n_upregulated = sum(DE_signif_list_olink[[param]]$logFC > 0.5),
+                                n_downregulated = sum(DE_signif_list_olink[[param]]$logFC < -0.5),
+                                n_tot = nrow(DE_signif_list_olink[[param]])
+                                )
+  n_de_proteins_olink <- rbind(n_de_proteins_olink, n_de_proteins_olink_temp)
+  
+  keyvals <- rep("grey", nrow(DE_results_list_olink[[param]]))
+  names(keyvals) <- rep("Not significant", nrow(DE_results_list_olink[[param]]))
+  keyvals[DE_results_list_olink[[param]]$logFC > 0.5 & DE_results_list_olink[[param]]$adj.P.Val < 0.1] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[DE_results_list_olink[[param]]$logFC < -0.5 & DE_results_list_olink[[param]]$adj.P.Val < 0.1] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+  
+  volcano_olink[[param]] <- EnhancedVolcano(DE_results_list_olink[[param]],
+                  lab = DE_results_list_olink[[param]]$Gene,
+                  x = "logFC",
+                  y = "adj.P.Val",
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 14,
+                  axisLabSize = 12,
+                  captionLabSize = 9,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.1,
+                  ylim = c(0, 3),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0(param, "\nn = ", nrow(meta_de))
+  ) + theme(legend.position = "none")
+}
+
+saveRDS(DE_results_list_olink, here::here(output_dir_data, "DE_Results_all_params.rds"))
+saveRDS(DE_signif_list_olink,  here::here(output_dir_data, "DE_Significant_all_params.rds"))
+```
+
+```{r, fig.height=9, fig.width=24, dpi=300}
+print((volcano_olink[[1]] | volcano_olink[[2]] | volcano_olink[[3]] | volcano_olink[[4]] | volcano_olink[[5]] | volcano_olink[[6]] | volcano_olink[[7]] | volcano_olink[[8]]) / 
+  (volcano_olink[[9]] | volcano_olink[[10]] | volcano_olink[[11]] |  volcano_olink[[12]] | volcano_olink[[13]] | volcano_olink[[14]] | volcano_olink[[15]] | volcano_olink[[16]]))
+```
+
+```{r heatmaps_all_params_olink, fig.height=10, fig.width=8}
+n_top <- 25
+
+for (param in clin_params) {
+
+  vars <- c(param, "Age_years", "Sex", "BCA_mg_ml")
+  meta_de <- meta_de0
+  meta_de <- meta_de[complete.cases(meta_de[, vars]), , drop = FALSE]
+
+  if (nrow(meta_de) < 4) next
+
+  tt <- DE_results_list_olink[[param]]
+  if (is.null(tt) || nrow(tt) == 0) next
+
+  top_up <- tt %>%
+    dplyr::filter(logFC > 0) %>%
+    dplyr::arrange(desc(t)) %>%
+    dplyr::slice_head(n = n_top)
+
+  top_down <- tt %>%
+    dplyr::filter(logFC < 0) %>%
+    dplyr::arrange(t) %>%
+    dplyr::slice_head(n = n_top)
+
+  row_order_tbl <- dplyr::bind_rows(
+    top_up %>% dplyr::arrange(desc(t)),
+    top_down %>% dplyr::arrange(t)
+  )
+  row_order_tbl <- row_order_tbl[!duplicated(row_order_tbl$Gene), , drop = FALSE]
+  if (nrow(row_order_tbl) == 0) next
+
+  meta_ord <- meta_de %>%
+    tibble::rownames_to_column("Sample") %>%
+    dplyr::arrange(.data[[param]])
+
+  mat <- expr_all[row_order_tbl$Gene, meta_ord$Sample, drop = FALSE]
+  mat_z <- t(scale(t(mat)))
+  mat_z[is.na(mat_z)] <- 0
+  rownames(mat_z) <- row_order_tbl$Gene
+
+  ha <- HeatmapAnnotation(
+    Parameter = meta_ord[[param]],
+    Age = meta_ord$Age_years,
+    Sex = meta_ord$Sex,
+    BCA = meta_ord$BCA_mg_ml,
+    col = list(
+      Parameter = colorRamp2(
+        c(min(meta_ord[[param]], na.rm = TRUE),
+          median(meta_ord[[param]], na.rm = TRUE),
+          max(meta_ord[[param]], na.rm = TRUE)),
+        c("#DCEAF7", "#6AAED6", "#08306B")
+      ),
+      Age = colorRamp2(
+        c(min(meta_ord$Age_years, na.rm = TRUE),
+          median(meta_ord$Age_years, na.rm = TRUE),
+          max(meta_ord$Age_years, na.rm = TRUE)),
+        c("grey90", "grey60", "grey20")
+      ),
+      Sex = c("F" = "#A63A2A", "M" = "#004C8C"),
+      BCA = colorRamp2(
+        c(min(meta_ord$BCA_mg_ml, na.rm = TRUE),
+          median(meta_ord$BCA_mg_ml, na.rm = TRUE),
+          max(meta_ord$BCA_mg_ml, na.rm = TRUE)),
+        c("grey90", "grey60", "grey20")
+      )
+    )
+  )
+
+  row_split <- c(
+    rep(paste0("Positive association with ", param), nrow(top_up)),
+    rep(paste0("Negative association with ", param), nrow(top_down))
+  )
+  row_split <- row_split[seq_len(nrow(mat_z))]
+
+  ht <- Heatmap(
+    mat_z,
+    name = "Z-score",
+    col = colorRamp2(c(-2, 0, 2), c("#2166AC", "white", "#B2182B")),
+    top_annotation = ha,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = row_split,
+    show_row_dend = FALSE,
+    show_column_dend = FALSE,
+    column_title = paste0("Patients ordered by increasing ", param),
+    row_title = "Proteins ranked by limma moderated t-statistic",
+    column_names_rot = 45,
+    column_names_gp = grid::gpar(fontsize = 8),
+    row_names_gp = grid::gpar(fontsize = 7)
+  )
+
+  draw(ht, heatmap_legend_side = "right", annotation_legend_side = "right")
+}
+```
+
+```{r de_group_dcm_vs_hc}
+meta_de <- meta %>%
+  dplyr::left_join(
+    clin %>% dplyr::select(Sample, Group, Sex, Age_years),
+    by = c("Sample", "Group")
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::filter(Sample %in% colnames(data)) %>%
+  dplyr::mutate(
+    Group = factor(Group, levels = c("HC", "DCM")),
+    Sex = factor(Sex),
+    Age_years = as.numeric(Age_years),
+    BCA_mg_ml = as.numeric(BCA_mg_ml)
+  ) %>%
+  tibble::column_to_rownames("Sample")
+
+meta_de <- meta_de[complete.cases(meta_de[, c("Group", "Age_years", "Sex", "BCA_mg_ml")]), , drop = FALSE]
+
+expr_de <- as.matrix(data[, rownames(meta_de), drop = FALSE])
+
+design <- model.matrix(~ 0 + Group + Age_years + Sex + BCA_mg_ml, data = meta_de)
+design[, "Age_years"] <- scales::rescale(design[, "Age_years"])
+design[, "BCA_mg_ml"] <- scales::rescale(design[, "BCA_mg_ml"])
+colnames(design) <- gsub("^Group", "", colnames(design))
+
+fit <- lmFit(expr_de, design)
+
+contr <- makeContrasts(DCMvsHC = DCM - HC, levels = design)
+fit2 <- contrasts.fit(fit, contr)
+fit2 <- eBayes(fit2)
+
+DE_group_olink <- topTable(fit2, coef = "DCMvsHC", number = Inf, adjust.method = "BH")
+DE_group_olink$Gene <- rownames(DE_group_olink)
+
+DE_group_olink_signif <- DE_group_olink %>%
+  dplyr::filter(adj.P.Val < 0.1, abs(logFC) > 0.5) %>%
+  dplyr::arrange(P.Value)
+
+write.csv(DE_group_olink,
+          file = here::here(output_dir_data, "DE_Results_Group_DCMvsHC.csv"),
+          quote = FALSE, row.names = FALSE)
+write.csv(DE_group_olink_signif,
+          file = here::here(output_dir_data, "DE_Significant_Group_DCMvsHC.csv"),
+          quote = FALSE, row.names = FALSE)
+```
+
+```{r, fig.height=4.5, fig.width=3}
+keyvals <- rep("grey", nrow(DE_group_olink))
+names(keyvals) <- rep("Not significant", nrow(DE_group_olink))
+
+keyvals[DE_group_olink$logFC > 0.5 & DE_group_olink$adj.P.Val < 0.1] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Up in DCM"
+
+keyvals[DE_group_olink$logFC < -0.5 & DE_group_olink$adj.P.Val < 0.1] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Down in DCM"
+
+EnhancedVolcano(
+  DE_group_olink,
+  lab = DE_group_olink$Gene,
+  x = "logFC",
+  y = "adj.P.Val",
+  labSize = 0,
+  titleLabSize = 16,
+  subtitleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 9,
+  pointSize = 0.5,
+  FCcutoff = 0.5,
+  pCutoff  = 0.1,
+  ylim = c(0, 12),
+  colCustom = keyvals,
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  subtitle = NULL,
+  title = paste0("DCM vs HC\nn = ", nrow(meta_de))
+) + theme(legend.position = "none")
+```
+
+
+
+
+## Binary clinical comparisons
+
+```{r}
+meta_bin <- clin_dcm %>%
+  dplyr::mutate(
+    Age_years = as.numeric(Age_years),
+    Sex = factor(Sex),
+    BCA_mg_ml = as.numeric(meta_dcm$BCA_mg_ml[match(Sample, meta_dcm$Sample)]),
+    mPAP_mmHg = as.numeric(mPAP_mmHg),
+    TAPSE_mm = as.numeric(TAPSE_mm),
+    sPAP_mmHg = as.numeric(sPAP_mmHg),
+    TAPSE_sPAP = TAPSE_mm / sPAP_mmHg,
+    mPAP_group = dplyr::case_when(
+      !is.na(mPAP_mmHg) & mPAP_mmHg > 35  ~ "mPAP_hi",
+      !is.na(mPAP_mmHg) & mPAP_mmHg <= 35 ~ "mPAP_lo",
+      TRUE ~ NA_character_
+    ),
+    TAPSE_sPAP_group = dplyr::case_when(
+      !is.na(TAPSE_sPAP) & TAPSE_sPAP < 0.32  ~ "TAPSE_sPAP_low",
+      !is.na(TAPSE_sPAP) & TAPSE_sPAP >= 0.32 ~ "TAPSE_sPAP_high",
+      TRUE ~ NA_character_
+    )
+  )
+
+expr_bin <- data_dcm_analysis[, colnames(data_dcm_analysis) %in% meta_bin$Sample, drop = FALSE]
+
+meta_bin <- meta_bin %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::filter(Sample %in% colnames(expr_bin)) %>%
+  tibble::column_to_rownames("Sample")
+
+expr_bin <- expr_bin[, rownames(meta_bin), drop = FALSE]
+```
+
+```{r}
+meta_de <- meta_bin[, c("mPAP_group", "Age_years", "Sex", "BCA_mg_ml"), drop = FALSE]
+meta_de <- meta_de[complete.cases(meta_de), , drop = FALSE]
+meta_de$mPAP_group <- factor(meta_de$mPAP_group, levels = c("mPAP_lo", "mPAP_hi"))
+
+expr_de <- expr_bin[, rownames(meta_de), drop = FALSE]
+
+design <- model.matrix(~ mPAP_group + Age_years + Sex + BCA_mg_ml, data = meta_de)
+design[, "Age_years"] <- scales::rescale(design[, "Age_years"])
+design[, "BCA_mg_ml"] <- scales::rescale(design[, "BCA_mg_ml"])
+
+fit <- lmFit(expr_de, design)
+fit <- eBayes(fit)
+
+res_mPAP_group_olink <- topTable(fit, coef = 2, number = Inf, adjust.method = "BH")
+res_mPAP_group_olink$Gene <- rownames(res_mPAP_group_olink)
+signif_mPAP_group_olink <- res_mPAP_group_olink %>%
+  dplyr::filter(adj.P.Val < 0.1, abs(logFC) > 0.5) %>%
+  dplyr::arrange(P.Value)
+
+keyvals <- rep("grey", nrow(res_mPAP_group_olink))
+names(keyvals) <- rep("Not significant", nrow(res_mPAP_group_olink))
+keyvals[res_mPAP_group_olink$logFC > 0.5 & res_mPAP_group_olink$adj.P.Val < 0.1] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[res_mPAP_group_olink$logFC < -0.5 & res_mPAP_group_olink$adj.P.Val < 0.1] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano_mPAP_group_olink <- EnhancedVolcano(
+  res_mPAP_group_olink,
+  lab = res_mPAP_group_olink$Gene,
+  x = "logFC",
+  y = "adj.P.Val",
+  labSize = 0,
+  titleLabSize = 16,
+  subtitleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 9,
+  pointSize = 0.5,
+  FCcutoff = 0.5,
+  pCutoff = 0.1,
+  ylim = c(0, 3),
+  colCustom = keyvals,
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  subtitle = NULL,
+  title = paste0("mPAP > 35 vs <= 35\n", "n = ", nrow(meta_de))
+) + theme(legend.position = "none")
+```
+
+```{r}
+meta_de <- meta_bin[, c("TAPSE_sPAP_group", "Age_years", "Sex", "BCA_mg_ml"), drop = FALSE]
+meta_de <- meta_de[complete.cases(meta_de), , drop = FALSE]
+meta_de$TAPSE_sPAP_group <- factor(meta_de$TAPSE_sPAP_group, levels = c("TAPSE_sPAP_high", "TAPSE_sPAP_low"))
+
+expr_de <- expr_bin[, rownames(meta_de), drop = FALSE]
+
+design <- model.matrix(~ TAPSE_sPAP_group + Age_years + Sex + BCA_mg_ml, data = meta_de)
+design[, "Age_years"] <- scales::rescale(design[, "Age_years"])
+design[, "BCA_mg_ml"] <- scales::rescale(design[, "BCA_mg_ml"])
+
+fit <- lmFit(expr_de, design)
+fit <- eBayes(fit)
+
+res_TAPSEsPAP_group_olink <- topTable(fit, coef = 2, number = Inf, adjust.method = "BH")
+res_TAPSEsPAP_group_olink$Gene <- rownames(res_TAPSEsPAP_group_olink)
+signif_TAPSEsPAP_group_olink <- res_TAPSEsPAP_group_olink %>%
+  dplyr::filter(adj.P.Val < 0.1, abs(logFC) > 0.5) %>%
+  dplyr::arrange(P.Value)
+
+keyvals <- rep("grey", nrow(res_TAPSEsPAP_group_olink))
+names(keyvals) <- rep("Not significant", nrow(res_TAPSEsPAP_group_olink))
+keyvals[res_TAPSEsPAP_group_olink$logFC > 0.5 & res_TAPSEsPAP_group_olink$adj.P.Val < 0.1] <- "#A63A2A"
+names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+keyvals[res_TAPSEsPAP_group_olink$logFC < -0.5 & res_TAPSEsPAP_group_olink$adj.P.Val < 0.1] <- "#004C8C"
+names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+volcano_TAPSEsPAP_group_olink <- EnhancedVolcano(
+  res_TAPSEsPAP_group_olink,
+  lab = res_TAPSEsPAP_group_olink$Gene,
+  x = "logFC",
+  y = "adj.P.Val",
+  labSize = 0,
+  titleLabSize = 16,
+  subtitleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 9,
+  pointSize = 0.5,
+  FCcutoff = 0.5,
+  pCutoff = 0.1,
+  ylim = c(0, 3),
+  colCustom = keyvals,
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  subtitle = NULL,
+  title = paste0("TAPSE/sPAP < 0.32 vs >= 0.32\n", "n = ", nrow(meta_de))
+) + theme(legend.position = "none")
+```
+
+```{r}
+DE_results_binary_olink <- list(
+  mPAP_gt35 = res_mPAP_group_olink,
+  TAPSE_sPAP_lt032 = res_TAPSEsPAP_group_olink
+)
+
+DE_signif_binary_olink <- list(
+  mPAP_gt35 = signif_mPAP_group_olink,
+  TAPSE_sPAP_lt032 = signif_TAPSEsPAP_group_olink
+)
+```
+
+```{r}
+volcano_mPAP_group_olink | volcano_TAPSEsPAP_group_olink
+```
+
+
+## snRNAseq
+
+```{r Load data, echo = TRUE, results= "hide"}
+DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.qs2"), nthreads = 32)
+DefaultAssay(DCM_RV) <- "RNA"
+Idents(DCM_RV) <- "cell_type"
+DCM_RV$pseudobulk <- "pseudobulk"
+```
+
+```{r}
+data_sn <- subset(DCM_RV, mPAP_mmHg > 0 & Sample %in% clin_dcm$Sample)
+
+expr_matrix <- GetAssayData(object = data_sn, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+```
+
+```{r}
+pseudocounts_mPAP <- Seurat2PB(data_sn, sample="Sample", cluster = "pseudobulk")
+colnames(pseudocounts_mPAP) <- pseudocounts_mPAP$samples$sample
+keep_genes <- intersect(rownames(data_dcm_analysis), rownames(pseudocounts_mPAP))
+pseudocounts_mPAP <- pseudocounts_mPAP[keep_genes, ]
+dim(pseudocounts_mPAP)
+keep_samples <- pseudocounts_mPAP$samples$lib.size > 5e4
+pseudocounts_mPAP <- pseudocounts_mPAP[, keep_samples]
+#keep_genes <- filterByExpr(pseudocounts_mPAP)
+#pseudocounts_mPAP <- pseudocounts_mPAP[keep_genes, ]
+#dim(pseudocounts_mPAP)
+```
+
+```{r DE_mPAP}
+sample_order <- colnames(pseudocounts_mPAP)
+
+metadata_mPAP <- meta_21 %>%
+  dplyr::filter(Sample %in% sample_order) %>%
+  dplyr::slice(match(sample_order, Sample)) %>%
+  dplyr::filter(!is.na(mPAP_mmHg), !is.na(Age_years))
+
+pseudocounts_mPAP <- pseudocounts_mPAP[, metadata_mPAP$Sample]
+sample_order <- colnames(pseudocounts_mPAP)
+stopifnot(all(metadata_mPAP$Sample == sample_order))
+
+design <- model.matrix(~ metadata_mPAP[["mPAP_mmHg"]] + metadata_mPAP[["Age_years"]])
+colnames(design)[2] <- "mPAP_mmHg"
+colnames(design)[3] <- "Age_years"
+design[,"mPAP_mmHg"] <- rescale(design[,"mPAP_mmHg"])
+design[,"Age_years"] <- rescale(design[,"Age_years"])
+
+metadata_mPAP$Sample == pseudocounts_mPAP$samples$sample
+
+pseudocounts_mPAP <- normLibSizes(pseudocounts_mPAP)
+pseudocounts_mPAP <- estimateDisp(pseudocounts_mPAP, design)
+  
+fit <- glmQLFit(pseudocounts_mPAP, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+  
+results_mPAP_olink_rna <- topTags(fit, n = Inf)$table
+results_mPAP_olink_rna <- merge(results_mPAP_olink_rna, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_mPAP_olink_rna$up_down <- ifelse(
+  results_mPAP_olink_rna$logFC > 0.5 & results_mPAP_olink_rna$FDR < 0.1, "Increased",
+    ifelse(results_mPAP_olink_rna$logFC < -0.5 & results_mPAP_olink_rna$FDR < 0.1, "Decreased",
+           "Not significant"
+           )
+)
+
+signif_mPAP_olink_rna <- results_mPAP_olink_rna %>% dplyr::filter(FDR < 0.1, abs(logFC) > 0.5) %>% 
+    dplyr::arrange(FDR)
+
+write.csv(results_mPAP_olink_rna, file = here::here(output_dir_data, "Results_DE_pseudobulk_allcells_mPAP.csv"), quote=F, row.names = F)
+write.csv(signif_mPAP_olink_rna, file = here::here(output_dir_data, "Signif_DE_pseudobulk_allcells_mPAP.csv"), quote=F, row.names = F)
+```
+
+```{r cor_mpap_logfc, fig.height=4.5, fig.width=5.5}
+df <- dplyr::inner_join(
+  results_mPAP_olink_rna %>% dplyr::select(gene, logFC) %>% dplyr::rename(Gene = gene, logFC_results = logFC),
+  DE_results_list_olink[["mPAP_mmHg"]] %>% dplyr::select(Gene, logFC) %>% dplyr::rename(logFC_DE = logFC),
+  by = "Gene"
+) %>%
+  dplyr::filter(is.finite(logFC_results), is.finite(logFC_DE))
+
+# correlation test
+ct <- cor.test(df$logFC_results, df$logFC_DE, method = "pearson")
+
+r_val <- round(unname(ct$estimate), 2)
+p_val <- signif(ct$p.value, 2)
+
+ggplot(df, aes(x = logFC_results, y = logFC_DE)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.6, color = "black") +
+  annotate(
+    "text",
+    x = Inf, y = -Inf,
+    label = paste0("r = ", r_val, "\np = ", p_val, "\nn = ", nrow(df)),
+    hjust = 1.1, vjust = -0.5,
+    size = 4
+  ) +
+  labs(
+    x = "logFC (results_mPAP_olink_rna)",
+    y = "logFC (DE_results_list_olink[['mPAP_mmHg']])"
+  ) +
+  theme_classic()
+```
+
+```{r cor_mpap_logfc_pct10, fig.height=4.5, fig.width=5.5}
+df <- dplyr::inner_join(
+  results_mPAP_olink_rna %>% dplyr::filter(percentCells > 10) %>% dplyr::select(gene, logFC) %>% dplyr::rename(Gene = gene, logFC_results = logFC),
+  DE_results_list_olink[["mPAP_mmHg"]] %>% dplyr::select(Gene, logFC) %>% dplyr::rename(logFC_DE = logFC),
+  by = "Gene"
+) %>%
+  dplyr::filter(is.finite(logFC_results), is.finite(logFC_DE))
+
+# correlation test
+ct <- cor.test(df$logFC_results, df$logFC_DE, method = "pearson")
+
+r_val <- round(unname(ct$estimate), 2)
+p_val <- signif(ct$p.value, 2)
+
+ggplot(df, aes(x = logFC_results, y = logFC_DE)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.6, color = "black") +
+  annotate(
+    "text",
+    x = Inf, y = -Inf,
+    label = paste0("r = ", r_val, "\np = ", p_val, "\nn = ", nrow(df)),
+    hjust = 1.1, vjust = -0.5,
+    size = 4
+  ) +
+  labs(
+    x = "logFC (results_mPAP_olink_rna)",
+    y = "logFC (DE_results_list_olink[['mPAP_mmHg']])"
+  ) +
+  theme_classic()
+```
+
+
+
+
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r classify_terms}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+```
+
+## GSEA
+
+```{r}
+ranked_genes <- DE_results_list_olink[["mPAP_mmHg"]]
+ranked_genes$metric <- ranked_genes$logFC * -log10(ranked_genes$P.Value)
+
+entrezid <- bitr(
+  ranked_genes$Gene,
+  fromType = "SYMBOL",
+  toType = "ENTREZID",
+  OrgDb = "org.Hs.eg.db",
+  drop = TRUE
+)
+
+ranked_genes <- merge(ranked_genes, entrezid, by.x = "Gene", by.y = "SYMBOL")
+ranked_genes <- ranked_genes[!duplicated(ranked_genes$ENTREZID), ]
+
+genelist <- ranked_genes$metric
+names(genelist) <- ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = TRUE)]
+
+GSEA_all <- gseGO(
+  geneList = genelist,
+  OrgDb = org.Hs.eg.db,
+  ont = "ALL",
+  keyType = "ENTREZID",
+  nPermSimple = 10000,
+  minGSSize = 10,
+  pvalueCutoff = 0.1,
+  eps = 0
+)
+
+GSEA_all <- reorder_GO_by_pvalue(GSEA_all)
+```
+
+```{r GSEA_Cardiomyocytes, fig.height=8, fig.width=8}
+GSEA_simplified <- clusterProfiler::simplify(
+  GSEA_all,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Cardiomyocytes", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
+        label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_Cardiomyocytes_emapplot, fig.height=10, fig.width=10}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, size_category = 0.7, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+
+combined_plot <- p1 
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
