@@ -1,0 +1,2362 @@
+---
+title: "Endothelial cells Koenig Reichart manuscript"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "Endothelial_cells_Koenig_Reichart_manuscript"
+
+library(here)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(patchwork)
+library(edgeR)
+library(limma)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(ggpubr)
+library(reactable)
+library(scales)
+library(cowplot)
+library(speckle)
+library(broom)
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"), recursive = TRUE)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+base_data_dir <- here::here("data", "Heart_datasets")
+
+cell_type_cols <- c(
+  "#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A",
+  "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600"
+)
+
+group_cols <- c("H" = "grey85", "HF" = "grey45")
+sex_cols <- c("F" = "#6C8EBF", "M" = "#8AB17D")
+dataset_cols <- c("Koenig" = "#CAB2D6", "Reichart" = "#B2DF8A")
+heat_cols <- circlize::colorRamp2(c(-2, 0, 2), c("#2166AC", "white", "#B2182B"))
+
+wrap_2lines <- function(x, width = 35) {
+  vapply(x, function(s) {
+    s <- as.character(s)
+    if (nchar(s) <= width) return(s)
+    cut <- stringr::str_locate_all(substr(s, 1, width), " ")[[1]]
+    cut <- if (nrow(cut) == 0) width else max(cut[, 1])
+    line1 <- stringr::str_trim(substr(s, 1, cut))
+    rest  <- stringr::str_trim(substr(s, cut + 1, nchar(s)))
+    if (nchar(rest) > width) rest <- paste0(substr(rest, 1, width - 1), "…")
+    paste(line1, rest, sep = "\n")
+  }, FUN.VALUE = character(1))
+}
+
+
+format_p_label <- function(p) {
+  if (length(p) == 0 || is.na(p)) return("NA")
+  dplyr::case_when(
+    p < 0.0001 ~ "****",
+    p < 0.001  ~ "***",
+    p < 0.01   ~ "**",
+    p < 0.05   ~ "*",
+    TRUE ~ sprintf("%.4f", p)
+  )
+}
+
+format_p_fontface <- function(p) {
+  if (length(p) == 0 || is.na(p)) return("plain")
+  dplyr::case_when(
+    p < 0.05 ~ "bold",
+    TRUE ~ "plain"
+  )
+}
+
+
+volcano_cols <- c(
+  "Decreased" = "#004C8C",
+  "Not significant" = "grey75",
+  "Increased" = "#A63A2A"
+)
+```
+
+## Load datasets
+
+```{r load datasets}
+load(file.path(base_data_dir, "Koenig_2022", "GSE183852_DCM_Nuclei.Robj"))
+Koenig <- nuclei
+rm(nuclei)
+
+Reichart <- readRDS(file.path(base_data_dir, "Reichart_2022", "DCM_ACM_heart_cell_atlas.rds"))
+
+# Reichart uses Ensembl IDs in rownames, so replace them with gene symbols
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+```
+
+## Add metadata
+
+```{r add metadata}
+Clinical_data_Koenig <- readxl::read_excel(
+  file.path(base_data_dir, "Koenig_2022", "Koenig_et_al_2022_Selected_clinical_info.xlsx")
+)
+add_metadata_Koenig <- dplyr::left_join(Koenig[["orig.ident"]], Clinical_data_Koenig)
+row.names(add_metadata_Koenig) <- row.names(Koenig[[]])
+Koenig <- AddMetaData(Koenig, metadata = add_metadata_Koenig)
+rm(add_metadata_Koenig, Clinical_data_Koenig)
+
+Clinical_data_Reichart <- readxl::read_excel(
+  file.path(base_data_dir, "Reichart_2022", "Reichart_et_al_Science_2022_Selected_clinical_info.xlsx")
+)
+add_metadata_Reichart <- dplyr::left_join(Reichart[["donor_id"]], Clinical_data_Reichart)
+row.names(add_metadata_Reichart) <- row.names(Reichart[[]])
+Reichart <- AddMetaData(Reichart, metadata = add_metadata_Reichart)
+rm(add_metadata_Reichart, Clinical_data_Reichart)
+
+Reichart$Sample <- Reichart$donor_id
+Reichart$Group <- dplyr::case_when(
+  Reichart$disease == "normal" ~ "HC",
+  Reichart$disease == "dilated cardiomyopathy" ~ "DCM",
+  TRUE ~ as.character(Reichart$disease)
+)
+
+Koenig$Sample <- Koenig$orig.ident
+Koenig$Group <- dplyr::case_when(
+  Koenig$Condition == "Donor" ~ "HC",
+  Koenig$Condition == "DCM" ~ "DCM",
+  TRUE ~ as.character(Koenig$Condition)
+)
+
+Koenig$cell_type_plot <- Koenig$Names
+
+Reichart$cell_type_plot <- dplyr::case_when(
+  Reichart$cell_type == "endothelial cell" & Reichart$cell_states == "EC7.0" ~ "endocardial cell",
+  Reichart$cell_type == "endothelial cell" & Reichart$cell_states == "EC8.0" ~ "lymphatic cell",
+  Reichart$cell_type == "endothelial cell" & Reichart$cell_states == "Meso" ~ "mesothelial cell",
+  Reichart$cell_type == "endothelial cell" & Reichart$cell_states %in% c("EC1.0", "EC2.0", "EC5.0", "EC6.0") ~ "endothelial cell",
+  TRUE ~ as.character(Reichart$cell_type)
+)
+
+Reichart <- subset(
+  Reichart,
+  subset = cell_type_plot != "unknown"
+)
+```
+
+## Whole-dataset UMAPs
+
+```{r whole dataset umaps, fig.width=12, fig.height=6}
+koenig_levels <- sort(unique(as.character(Koenig$cell_type_plot)))
+koenig_cols <- setNames(rep(cell_type_cols, length.out = length(koenig_levels)), koenig_levels)
+
+reichart_levels <- sort(unique(as.character(Reichart$cell_type_plot)))
+reichart_cols <- setNames(rep(cell_type_cols, length.out = length(reichart_levels)), reichart_levels)
+
+p_koenig <- DimPlot(
+  Koenig,
+  group.by = "cell_type_plot",
+  reduction = "umap",
+  cols = koenig_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 1.2
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Koenig et al.") ~ " Nature CVR 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+  )
+
+p_koenig <- LabelClusters(
+  p_koenig,
+  id = "cell_type_plot",
+  fontface = "bold",
+  size = 5.2,
+  repel = TRUE
+)
+
+p_reichart <- DimPlot(
+  Reichart,
+  group.by = "cell_type_plot",
+  reduction = "umap",
+  cols = reichart_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 1.2
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Reichart et al.") ~ " Science 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+  )
+
+p_reichart <- LabelClusters(
+  p_reichart,
+  id = "cell_type_plot",
+  fontface = "bold",
+  size = 5.2,
+  repel = TRUE
+)
+
+p_koenig + p_reichart
+```
+
+```{r endothelial highlight umaps, fig.width=12, fig.height=6}
+koenig_ec_cells <- rownames(Koenig@meta.data)[Koenig$Names %in% c("Endothelium")]
+reichart_ec_cells <- rownames(Reichart@meta.data)[Reichart$cell_type_plot %in% c("endothelial cell")]
+
+p_koenig_ec <- DimPlot(
+  Koenig,
+  reduction = "umap",
+  cells.highlight = koenig_ec_cells,
+  cols.highlight = "#1F78B4",
+  cols = "grey85",
+  sizes.highlight = 0.01,
+  shuffle = TRUE,
+  pt.size = 0.01,
+  raster = FALSE
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Koenig et al.") ~ " Nature CVR 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+
+p_reichart_ec <- DimPlot(
+  Reichart,
+  reduction = "umap",
+  cells.highlight = reichart_ec_cells,
+  cols.highlight = "#1F78B4",
+  cols = "grey85",
+  sizes.highlight = 0.01,
+  shuffle = TRUE,
+  pt.size = 0.01,
+  raster = FALSE
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Reichart et al.") ~ " Science 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+
+p_koenig_ec + p_reichart_ec
+```
+
+## Endothelial-cell subsets
+
+```{r endothelial subsets}
+Koenig_EC <- subset(Koenig, Names == "Endothelium")
+Reichart_EC <- subset(
+  Reichart,
+  subset = cell_type_plot == "endothelial cell" & disease %in% c("normal", "dilated cardiomyopathy") & tissue == "heart left ventricle"
+)
+
+Koenig_EC$Dataset <- "Koenig"
+Reichart_EC$Dataset <- "Reichart"
+
+Koenig_EC$Group <- ifelse(Koenig_EC$Condition == "Donor", "H", "HF")
+Reichart_EC$Group <- ifelse(Reichart_EC$disease == "normal", "H", "HF")
+
+Koenig_EC$Sex <- as.character(Koenig_EC$Sex)
+Reichart_EC$Sex <- as.character(Reichart_EC$sex)
+
+Koenig_EC$Sex[Koenig_EC$Sex %in% c("Male", "male", "m")] <- "M"
+Koenig_EC$Sex[Koenig_EC$Sex %in% c("Female", "female", "f")] <- "F"
+Reichart_EC$Sex[Reichart_EC$Sex %in% c("Male", "male", "m")] <- "M"
+Reichart_EC$Sex[Reichart_EC$Sex %in% c("Female", "female", "f")] <- "F"
+
+age_midpoints <- c(
+  "0-9" = 5,
+  "10-19" = 15,
+  "20-29" = 25,
+  "30-39" = 35,
+  "40-49" = 45,
+  "50-59" = 55,
+  "60-69" = 65,
+  "70-79" = 75
+)
+
+Koenig_EC$Age <- as.numeric(as.character(Koenig_EC$Age))
+Reichart_EC$Age <- unname(age_midpoints[as.character(Reichart_EC$Age_range)])
+Reichart_EC$Age <- as.numeric(Reichart_EC$Age)
+```
+
+## Sample-level metadata
+
+```{r sample metadata}
+metadata_Koenig <- Koenig_EC@meta.data %>%
+  dplyr::select(Sample = orig.ident, Age, Sex, Group, Dataset) %>%
+  dplyr::distinct()
+
+metadata_Reichart <- Reichart_EC@meta.data %>%
+  dplyr::select(Sample = donor_id, Age, Sex, Group, Dataset) %>%
+  dplyr::distinct()
+
+metadata_Koenig$Group <- factor(metadata_Koenig$Group, levels = c("H", "HF"))
+metadata_Reichart$Group <- factor(metadata_Reichart$Group, levels = c("H", "HF"))
+metadata_Koenig$Sex <- factor(metadata_Koenig$Sex, levels = c("F", "M"))
+metadata_Reichart$Sex <- factor(metadata_Reichart$Sex, levels = c("F", "M"))
+metadata_Koenig$Dataset <- factor(metadata_Koenig$Dataset, levels = c("Koenig", "Reichart"))
+metadata_Reichart$Dataset <- factor(metadata_Reichart$Dataset, levels = c("Koenig", "Reichart"))
+
+reactable(metadata_Koenig)
+reactable(metadata_Reichart)
+```
+
+## Pseudobulk per dataset
+
+```{r pseudobulk koenig}
+expr_matrix_Koenig <- GetAssayData(Koenig_EC, assay = "RNA", slot = "counts")
+non_zero_cells_Koenig <- rowSums(expr_matrix_Koenig > 0)
+percent_cells_Koenig <- non_zero_cells_Koenig / ncol(expr_matrix_Koenig) * 100
+percent_stats_Koenig <- data.frame(gene = rownames(expr_matrix_Koenig), percentCells = percent_cells_Koenig)
+keep_genes_Koenig <- percent_stats_Koenig$gene[percent_stats_Koenig$percentCells > 1]
+Koenig_EC_pb_input <- Koenig_EC[keep_genes_Koenig, ]
+
+pseudobulk_Koenig <- Seurat2PB(Koenig_EC_pb_input, sample = "orig.ident", cluster = "Names")
+colnames(pseudobulk_Koenig) <- pseudobulk_Koenig$samples$sample
+pseudobulk_Koenig <- pseudobulk_Koenig[, match(metadata_Koenig$Sample, pseudobulk_Koenig$samples$sample)]
+
+keep_samples_Koenig <- pseudobulk_Koenig$samples$lib.size > 5e4
+pseudobulk_Koenig <- pseudobulk_Koenig[, keep_samples_Koenig]
+metadata_Koenig <- metadata_Koenig %>% dplyr::filter(Sample %in% colnames(pseudobulk_Koenig))
+metadata_Koenig <- metadata_Koenig %>% dplyr::slice(match(colnames(pseudobulk_Koenig), Sample))
+stopifnot(all(metadata_Koenig$Sample == colnames(pseudobulk_Koenig)))
+```
+
+```{r pseudobulk reichart}
+expr_matrix_Reichart <- GetAssayData(Reichart_EC, assay = "RNA", slot = "counts")
+non_zero_cells_Reichart <- rowSums(expr_matrix_Reichart > 0)
+percent_cells_Reichart <- non_zero_cells_Reichart / ncol(expr_matrix_Reichart) * 100
+percent_stats_Reichart <- data.frame(gene = rownames(expr_matrix_Reichart), percentCells = percent_cells_Reichart)
+keep_genes_Reichart <- percent_stats_Reichart$gene[percent_stats_Reichart$percentCells > 1]
+Reichart_EC_pb_input <- Reichart_EC[keep_genes_Reichart, ]
+
+pseudobulk_Reichart <- Seurat2PB(Reichart_EC_pb_input, sample = "donor_id", cluster = "cell_type_plot")
+colnames(pseudobulk_Reichart) <- pseudobulk_Reichart$samples$sample
+pseudobulk_Reichart <- pseudobulk_Reichart[, match(metadata_Reichart$Sample, pseudobulk_Reichart$samples$sample)]
+
+keep_samples_Reichart <- pseudobulk_Reichart$samples$lib.size > 5e4
+pseudobulk_Reichart <- pseudobulk_Reichart[, keep_samples_Reichart]
+metadata_Reichart <- metadata_Reichart %>% dplyr::filter(Sample %in% colnames(pseudobulk_Reichart))
+metadata_Reichart <- metadata_Reichart %>% dplyr::slice(match(colnames(pseudobulk_Reichart), Sample))
+stopifnot(all(metadata_Reichart$Sample == colnames(pseudobulk_Reichart)))
+```
+
+## Merge pseudobulks and run differential expression
+
+```{r merge pseudobulk}
+common_genes_pb <- intersect(rownames(pseudobulk_Koenig), rownames(pseudobulk_Reichart))
+length(common_genes_pb)
+
+combined_counts <- cbind(
+  pseudobulk_Koenig[common_genes_pb, ]$counts,
+  pseudobulk_Reichart[common_genes_pb, ]$counts
+)
+
+metadata_combined <- dplyr::bind_rows(metadata_Koenig, metadata_Reichart)
+metadata_combined <- metadata_combined %>%
+  dplyr::filter(Sample %in% colnames(combined_counts)) %>%
+  dplyr::slice(match(colnames(combined_counts), Sample))
+
+metadata_combined <- metadata_combined %>%
+  dplyr::filter(!is.na(Age), !is.na(Sex), !is.na(Group), !is.na(Dataset))
+combined_counts <- combined_counts[, metadata_combined$Sample]
+
+metadata_combined$Group <- factor(metadata_combined$Group, levels = c("H", "HF"))
+metadata_combined$Sex <- factor(metadata_combined$Sex, levels = c("F", "M"))
+metadata_combined$Dataset <- factor(metadata_combined$Dataset, levels = c("Koenig", "Reichart"))
+
+pseudobulk_combined <- edgeR::DGEList(counts = combined_counts)
+pseudobulk_combined$samples <- cbind(pseudobulk_combined$samples, metadata_combined)
+
+# Model: HF vs H, corrected for age, sex, and dataset
+# Merging pseudobulks is fine here because the actual test is still sample-level,
+# and dataset is included explicitly in the design.
+design_combined <- model.matrix(~ Group + Age + Sex + Dataset, data = metadata_combined)
+colnames(design_combined)
+
+keep_genes_combined <- filterByExpr(pseudobulk_combined, design = design_combined)
+pseudobulk_combined <- pseudobulk_combined[keep_genes_combined, , keep.lib.sizes = FALSE]
+pseudobulk_combined <- normLibSizes(pseudobulk_combined)
+pseudobulk_combined <- estimateDisp(pseudobulk_combined, design_combined)
+
+logcpm_combined <- edgeR::cpm(pseudobulk_combined, log = TRUE, prior.count = 1)
+```
+
+```{r differential expression}
+fit_combined <- glmQLFit(pseudobulk_combined, design_combined, robust = TRUE)
+qlf_combined <- glmQLFTest(fit_combined, coef = "GroupHF")
+
+results_combined <- topTags(qlf_combined, n = Inf)$table
+results_combined <- results_combined %>%
+  tibble::rownames_to_column("gene") %>%
+  dplyr::mutate(metric = logFC * -log10(PValue))
+
+results_combined$significance <- "Not significant"
+results_combined$significance[results_combined$FDR < 0.05 & results_combined$logFC > 0.5] <- "Increased"
+results_combined$significance[results_combined$FDR < 0.05 & results_combined$logFC < -0.5] <- "Decreased"
+results_combined$significance <- factor(results_combined$significance,
+                                        levels = c("Decreased", "Not significant", "Increased"))
+
+signif_combined <- results_combined %>%
+  dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>%
+  dplyr::arrange(desc(metric))
+
+write.csv(results_combined,
+          file = file.path(output_dir_data, "EC_DE_results_Koenig_Reichart_combined.csv"),
+          quote = FALSE, row.names = FALSE)
+write.csv(signif_combined,
+          file = file.path(output_dir_data, "EC_DE_signif_Koenig_Reichart_combined.csv"),
+          quote = FALSE, row.names = FALSE)
+```
+
+## Volcano plot
+
+```{r volcano, fig.width=4, fig.height=5}
+n_h  <- sum(metadata_combined$Group == "H")
+n_hf <- sum(metadata_combined$Group == "HF")
+EnhancedVolcano(
+  results_combined,
+  lab = results_combined$gene,
+  x = "logFC",
+  y = "FDR",
+  labSize = 0,
+  legendLabSize = 12,
+  titleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 0,
+  pointSize = 0.8,
+  FCcutoff = 0.5,
+  pCutoff = 0.05,
+  ylim = c(0, 20),
+  xlim = c(-3.75, 3.75),
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  ylab = bquote(-Log[10]~FDR),
+  subtitle = NULL,
+  title = paste0("Endothelial cells\nHF (n=", n_hf, ") vs H (n=", n_h, ")"),
+  colCustom = setNames(
+    c("#004C8C", "grey75", "#A63A2A")[match(
+      results_combined$significance,
+      c("Decreased", "Not significant", "Increased")
+    )],
+    as.character(results_combined$significance)
+  )
+) +
+  theme(legend.position = "none")
+```
+
+## Heatmaps
+
+```{r order heatmap columns}
+column_order <- metadata_combined %>%
+  dplyr::arrange(Group, Dataset, Age, Sex) %>%
+  dplyr::pull(Sample)
+
+metadata_heatmap <- metadata_combined %>%
+  dplyr::filter(Sample %in% column_order) %>%
+  dplyr::slice(match(column_order, Sample))
+
+ha <- HeatmapAnnotation(
+  Group = metadata_heatmap$Group,
+  Age = metadata_heatmap$Age,
+  Sex = metadata_heatmap$Sex,
+  Dataset = metadata_heatmap$Dataset,
+  col = list(
+    Group = group_cols,
+    Age = circlize::colorRamp2(
+      c(min(metadata_heatmap$Age, na.rm = TRUE), max(metadata_heatmap$Age, na.rm = TRUE)),
+      c("grey90", "black")
+    ),
+    Sex = sex_cols,
+    Dataset = dataset_cols
+  ),
+  annotation_name_gp = grid::gpar(fontsize = 10, fontface = "bold")
+)
+```
+
+```{r heatmap all degs, fig.width=9, fig.height=12}
+mat_all_deg <- logcpm_combined[rownames(logcpm_combined) %in% signif_combined$gene, column_order, drop = FALSE]
+mat_all_deg <- mat_all_deg[match(signif_combined$gene, rownames(mat_all_deg)), , drop = FALSE]
+mat_all_deg_z <- t(scale(t(mat_all_deg)))
+mat_all_deg_z[is.na(mat_all_deg_z)] <- 0
+
+Heatmap(
+  mat_all_deg_z,
+  name = "Z-score",
+  top_annotation = ha,
+  col = heat_cols,
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  column_names_gp = grid::gpar(fontsize = 5),
+  row_names_gp = grid::gpar(fontsize = 6),
+  column_title = "All significant DEGs",
+  column_title_gp = grid::gpar(fontsize = 12, fontface = "bold")
+)
+```
+
+```{r heatmap top 25 up down, fig.width=9, fig.height=8}
+top_up <- results_combined %>%
+  dplyr::filter(FDR < 0.05, logFC > 0.5) %>%
+  dplyr::arrange(desc(metric)) %>%
+  dplyr::slice_head(n = 25)
+
+top_down <- results_combined %>%
+  dplyr::filter(FDR < 0.05, logFC < -0.5) %>%
+  dplyr::arrange(metric) %>%
+  dplyr::slice_head(n = 25)
+
+top_genes <- dplyr::bind_rows(top_up, top_down)
+
+mat_top_deg <- logcpm_combined[rownames(logcpm_combined) %in% top_genes$gene, column_order, drop = FALSE]
+mat_top_deg <- mat_top_deg[match(top_genes$gene, rownames(mat_top_deg)), , drop = FALSE]
+mat_top_deg_z <- t(scale(t(mat_top_deg)))
+mat_top_deg_z[is.na(mat_top_deg_z)] <- 0
+
+Heatmap(
+  mat_top_deg_z,
+  name = "Z-score",
+  top_annotation = ha,
+  col = heat_cols,
+  cluster_rows = FALSE,
+  cluster_columns = FALSE,
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  column_names_gp = grid::gpar(fontsize = 5),
+  row_names_gp = grid::gpar(fontsize = 10),
+  column_title = "Top 25 up and top 25 down genes",
+  column_title_gp = grid::gpar(fontsize = 16, fontface = "bold")
+)
+```
+
+## GSEA
+
+## GSEA - run once and save objects
+
+```{r gsea run and save, eval=FALSE}
+ranked_genes <- results_combined %>%
+  dplyr::select(gene, metric) %>%
+  dplyr::filter(!is.na(metric))
+
+entrezid <- bitr(
+  ranked_genes$gene,
+  fromType = "SYMBOL",
+  toType = "ENTREZID",
+  OrgDb = org.Hs.eg.db,
+  drop = TRUE
+)
+
+ranked_genes_entrez <- dplyr::left_join(
+  ranked_genes,
+  entrezid,
+  by = c("gene" = "SYMBOL")
+) %>%
+  dplyr::filter(!is.na(ENTREZID)) %>%
+  dplyr::group_by(ENTREZID) %>%
+  dplyr::slice_max(order_by = abs(metric), n = 1, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+genelist <- ranked_genes_entrez$metric
+names(genelist) <- ranked_genes_entrez$ENTREZID
+genelist <- sort(genelist, decreasing = TRUE)
+
+GSEA_GO_ALL <- gseGO(
+  geneList = genelist,
+  OrgDb = org.Hs.eg.db,
+  ont = "ALL",
+  keyType = "ENTREZID",
+  minGSSize = 10,
+  maxGSSize = 500,
+  eps = 0,
+  nPermSimple = 10000
+)
+
+GSEA_GO_ALL <- clusterProfiler::setReadable(
+  GSEA_GO_ALL,
+  OrgDb = org.Hs.eg.db
+)
+
+GSEA_GO_ALL_simplified <- clusterProfiler::simplify(
+  GSEA_GO_ALL,
+  cutoff = 0.6,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_KEGG <- gseKEGG(
+  geneList = genelist,
+  organism = "hsa",
+  keyType = "ncbi-geneid",
+  minGSSize = 10,
+  maxGSSize = 500,
+  eps = 0,
+  nPermSimple = 10000
+)
+
+GSEA_KEGG <- clusterProfiler::setReadable(
+  GSEA_KEGG,
+  OrgDb = org.Hs.eg.db,
+  keyType = "ENTREZID"
+)
+
+GSEA_REACTOME <- ReactomePA::gsePathway(
+  geneList = genelist,
+  organism = "human",
+  minGSSize = 10,
+  maxGSSize = 500,
+  eps = 0,
+  pvalueCutoff = 1,
+  pAdjustMethod = "BH",
+  verbose = FALSE
+)
+
+GSEA_REACTOME <- clusterProfiler::setReadable(
+  GSEA_REACTOME,
+  OrgDb = org.Hs.eg.db,
+  keyType = "ENTREZID"
+)
+
+wp_df <- msigdbr::msigdbr(
+  species = "Homo sapiens",
+  collection = "C2",
+  subcollection = "CP:WIKIPATHWAYS"
+)
+
+term2gene_wp <- wp_df %>%
+  dplyr::select(gs_name, ncbi_gene) %>%
+  dplyr::filter(!is.na(ncbi_gene)) %>%
+  dplyr::distinct()
+
+term2name_wp <- wp_df %>%
+  dplyr::select(gs_name, gs_description) %>%
+  dplyr::distinct()
+
+GSEA_WIKIPATHWAYS <- clusterProfiler::GSEA(
+  geneList = genelist,
+  TERM2GENE = term2gene_wp,
+  TERM2NAME = term2name_wp,
+  minGSSize = 10,
+  maxGSSize = 500,
+  eps = 0,
+  pvalueCutoff = 1,
+  pAdjustMethod = "BH",
+  verbose = FALSE
+)
+
+qs2::qs_save(
+  ranked_genes,
+  file.path(output_dir_data, "ranked_genes.qs")
+)
+
+qs2::qs_save(
+  ranked_genes_entrez,
+  file.path(output_dir_data, "ranked_genes_entrez.qs")
+)
+
+qs2::qs_save(
+  genelist,
+  file.path(output_dir_data, "genelist.qs")
+)
+
+qs2::qs_save(
+  GSEA_GO_ALL,
+  file.path(output_dir_data, "GSEA_GO_ALL.qs")
+)
+
+qs2::qs_save(
+  GSEA_GO_ALL_simplified,
+  file.path(output_dir_data, "GSEA_GO_ALL_simplified.qs")
+)
+
+qs2::qs_save(
+  GSEA_KEGG,
+  file.path(output_dir_data, "GSEA_KEGG.qs")
+)
+
+qs2::qs_save(
+  GSEA_REACTOME,
+  file.path(output_dir_data, "GSEA_REACTOME.qs")
+)
+
+qs2::qs_save(
+  GSEA_WIKIPATHWAYS,
+  file.path(output_dir_data, "GSEA_WIKIPATHWAYS.qs")
+)
+
+write.csv(
+  GSEA_GO_ALL@result,
+  file = file.path(output_dir_data, "GSEA_GO_ALL_full_results.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  GSEA_GO_ALL_simplified@result,
+  file = file.path(output_dir_data, "GSEA_GO_ALL_simplified_results.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  GSEA_KEGG@result,
+  file = file.path(output_dir_data, "GSEA_KEGG_results.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  GSEA_REACTOME@result,
+  file = file.path(output_dir_data, "GSEA_REACTOME_results.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  GSEA_WIKIPATHWAYS@result,
+  file = file.path(output_dir_data, "GSEA_WIKIPATHWAYS_results.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+```
+
+```{r gsea load saved}
+ranked_genes <- qs2::qs_read(
+  file.path(output_dir_data, "ranked_genes.qs")
+)
+
+ranked_genes_entrez <- qs2::qs_read(
+  file.path(output_dir_data, "ranked_genes_entrez.qs")
+)
+
+genelist <- qs2::qs_read(
+  file.path(output_dir_data, "genelist.qs")
+)
+
+GSEA_GO_ALL <- qs2::qs_read(
+  file.path(output_dir_data, "GSEA_GO_ALL.qs")
+)
+
+GSEA_GO_ALL_simplified <- qs2::qs_read(
+  file.path(output_dir_data, "GSEA_GO_ALL_simplified.qs")
+)
+
+GSEA_KEGG <- qs2::qs_read(
+  file.path(output_dir_data, "GSEA_KEGG.qs")
+)
+
+GSEA_REACTOME <- qs2::qs_read(
+  file.path(output_dir_data, "GSEA_REACTOME.qs")
+)
+
+GSEA_WIKIPATHWAYS <- qs2::qs_read(
+  file.path(output_dir_data, "GSEA_WIKIPATHWAYS.qs")
+)
+```
+
+## Helper function for dotplot / emapplot / barplot
+
+```{r gsea helper functions}
+make_gsea_dotplot <- function(gsea_obj, title_text, show_n = 20, label_format = 45, font_size = 12) {
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  dotplot(
+    gsea_obj,
+    showCategory = show_n,
+    split = ".sign",
+    label_format = label_format,
+    font.size = font_size,
+    title = title_text
+  ) +
+    facet_grid(. ~ .sign) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5, size = 14),
+      strip.text = element_text(face = "bold", size = 12)
+    )
+}
+
+make_gsea_emapplot <- function(gsea_obj, show_n = 30) {
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  gsea_res <- gsea_obj@result
+
+  gsea_up <- gsea_obj
+  gsea_up@result <- gsea_res %>% dplyr::filter(NES > 0, p.adjust < 0.05)
+
+  gsea_down <- gsea_obj
+  gsea_down@result <- gsea_res %>% dplyr::filter(NES < 0, p.adjust < 0.05)
+
+  plot_list_emap <- list()
+
+  if (nrow(gsea_up@result) > 1) {
+    plot_list_emap[["up"]] <- emapplot(
+      pairwise_termsim(gsea_up),
+      showCategory = min(show_n, nrow(gsea_up@result)),
+      size_category = 0.7,
+      min_edge = 0.25
+    ) +
+      ggtitle("Activated terms") +
+      theme(plot.title = element_text(face = "bold", hjust = 0.5))
+  }
+
+  if (nrow(gsea_down@result) > 1) {
+    plot_list_emap[["down"]] <- emapplot(
+      pairwise_termsim(gsea_down),
+      showCategory = min(show_n, nrow(gsea_down@result)),
+      size_category = 0.7,
+      min_edge = 0.25
+    ) +
+      ggtitle("Suppressed terms") +
+      theme(plot.title = element_text(face = "bold", hjust = 0.5))
+  }
+
+  if (length(plot_list_emap) == 2) {
+    return(plot_list_emap[["up"]] + plot_list_emap[["down"]])
+  } else if (length(plot_list_emap) == 1) {
+    return(plot_list_emap[[1]])
+  } else {
+    return(NULL)
+  }
+}
+
+make_gsea_barplot <- function(gsea_obj, label_width = 40, top_n = 10, base_size = 11) {
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  gsea_bar_df <- gsea_obj@result %>%
+    as_tibble() %>%
+    dplyr::filter(!is.na(NES), !is.na(p.adjust), p.adjust < 0.05)
+
+  if (nrow(gsea_bar_df) == 0) return(NULL)
+
+  gsea_bar_df <- gsea_bar_df %>%
+    dplyr::mutate(score = -log10(p.adjust) * sign(NES))
+
+  gsea_bar_df_pos <- gsea_bar_df %>%
+    dplyr::filter(NES > 0) %>%
+    dplyr::arrange(desc(NES)) %>%
+    dplyr::slice_head(n = top_n)
+
+  gsea_bar_df_neg <- gsea_bar_df %>%
+    dplyr::filter(NES < 0) %>%
+    dplyr::arrange(NES) %>%
+    dplyr::slice_head(n = top_n)
+
+  gsea_bar_df_plot <- dplyr::bind_rows(gsea_bar_df_pos, gsea_bar_df_neg)
+
+  if (nrow(gsea_bar_df_plot) == 0) return(NULL)
+
+  gsea_bar_df_plot$Description <- factor(
+    gsea_bar_df_plot$Description,
+    levels = gsea_bar_df_plot$Description[order(gsea_bar_df_plot$NES)]
+  )
+
+  L <- unname(quantile(abs(gsea_bar_df_plot$score), probs = 0.80, na.rm = TRUE))
+  if (!is.finite(L) || L == 0) L <- max(abs(gsea_bar_df_plot$score), na.rm = TRUE)
+
+  ggplot(gsea_bar_df_plot, aes(x = Description, y = NES, fill = score)) +
+    geom_col(width = 0.9) +
+    scale_fill_gradient2(
+      low = "#004C8C",
+      mid = "white",
+      high = "#A63A2A",
+      midpoint = 0,
+      limits = c(-L, L),
+      oob = scales::squish,
+      name = expression(-log[10](adj.~p) %*% sign(NES))
+    ) +
+    scale_x_discrete(labels = function(x) wrap_2lines(x, width = label_width)) +
+    coord_flip() +
+    labs(x = NULL, y = "Normalized enrichment score (NES)") +
+    theme_bw(base_size = base_size) +
+    theme(
+      text = element_text(color = "black"),
+      axis.text = element_text(color = "black"),
+      axis.title = element_text(color = "black", size = 13),
+      plot.title = element_blank(),
+      axis.text.y = element_text(size = 11),
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.title = element_text(size = 9),
+      legend.text = element_text(size = 9)
+    ) +
+    guides(fill = guide_colorbar(
+      barwidth = unit(6, "cm"),
+      barheight = unit(0.3, "cm"),
+      title.position = "top",
+      title.hjust = 0.5
+    ))
+}
+```
+
+## GO dotplot
+
+```{r gsea go dotplot, fig.width=10, fig.height=8}
+p_go_dot <- make_gsea_dotplot(
+  GSEA_GO_ALL_simplified,
+  title_text = "Endothelial cells\nGene ontology enrichment analysis\nHF vs H",
+  show_n = 20
+)
+
+if (!is.null(p_go_dot)) {
+  p_go_dot
+}
+```
+
+## GO emapplot
+
+```{r gsea go emapplot, fig.width=16, fig.height=8}
+p_go_emap <- make_gsea_emapplot(GSEA_GO_ALL_simplified, show_n = 30)
+
+if (!is.null(p_go_emap)) {
+  p_go_emap
+}
+```
+
+## GO barplot
+
+```{r gsea go barplot style, fig.width=6, fig.height=5}
+p_go_bar <- make_gsea_barplot(GSEA_GO_ALL_simplified, label_width = 43)
+
+if (!is.null(p_go_bar)) {
+  p_go_bar
+}
+```
+
+## KEGG dotplot
+
+```{r gsea kegg dotplot, fig.width=10, fig.height=8}
+p_kegg_dot <- make_gsea_dotplot(
+  GSEA_KEGG,
+  title_text = "Endothelial cells\nKEGG pathway enrichment analysis\nHF vs H",
+  show_n = 20,
+  label_format = 60
+)
+
+if (!is.null(p_kegg_dot)) {
+  p_kegg_dot
+}
+```
+
+## KEGG emapplot
+
+```{r gsea kegg emapplot, fig.width=16, fig.height=8}
+p_kegg_emap <- make_gsea_emapplot(GSEA_KEGG, show_n = 30)
+
+if (!is.null(p_kegg_emap)) {
+  p_kegg_emap
+}
+```
+
+## KEGG barplot
+
+```{r gsea kegg barplot style, fig.width=6, fig.height=5}
+p_kegg_bar <- make_gsea_barplot(GSEA_KEGG, label_width = 43)
+
+if (!is.null(p_kegg_bar)) {
+  p_kegg_bar
+}
+```
+
+## Reactome dotplot
+
+```{r gsea reactome dotplot, fig.width=10, fig.height=8}
+p_reactome_dot <- make_gsea_dotplot(
+  GSEA_REACTOME,
+  title_text = "Endothelial cells\nReactome pathway enrichment analysis\nHF vs H",
+  show_n = 15,
+  label_format = 60
+)
+
+if (!is.null(p_reactome_dot)) {
+  p_reactome_dot
+}
+```
+
+## Reactome emapplot
+
+```{r gsea reactome emapplot, fig.width=16, fig.height=8}
+p_reactome_emap <- make_gsea_emapplot(GSEA_REACTOME, show_n = 30)
+
+if (!is.null(p_reactome_emap)) {
+  p_reactome_emap
+}
+```
+
+## Reactome barplot
+
+```{r gsea reactome barplot style, fig.width=7.3, fig.height=5}
+p_reactome_bar <- make_gsea_barplot(GSEA_REACTOME, label_width = 59)
+
+if (!is.null(p_reactome_bar)) {
+  p_reactome_bar
+}
+```
+
+## WikiPathways dotplot
+
+```{r gsea wikipathways dotplot, fig.width=10, fig.height=8}
+p_wiki_dot <- make_gsea_dotplot(
+  GSEA_WIKIPATHWAYS,
+  title_text = "Endothelial cells\nWikiPathways enrichment analysis\nHF vs H",
+  show_n = 20,
+  label_format = 65
+)
+
+if (!is.null(p_wiki_dot)) {
+  p_wiki_dot
+}
+```
+
+## WikiPathways emapplot
+
+```{r gsea wikipathways emapplot, fig.width=16, fig.height=8}
+p_wiki_emap <- make_gsea_emapplot(GSEA_WIKIPATHWAYS, show_n = 30)
+
+if (!is.null(p_wiki_emap)) {
+  p_wiki_emap
+}
+```
+
+## WikiPathways barplot
+
+```{r gsea wikipathways barplot style, fig.width=6, fig.height=5}
+p_wiki_bar <- make_gsea_barplot(GSEA_WIKIPATHWAYS, label_width = 43)
+
+if (!is.null(p_wiki_bar)) {
+  p_wiki_bar
+}
+```
+
+## Cell cycle scoring in each dataset separately
+
+```{r cell cycle scoring koenig}
+s.genes <- Seurat::cc.genes.updated.2019$s.genes
+g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
+
+Koenig_EC <- CellCycleScoring(
+  Koenig_EC,
+  s.features = s.genes,
+  g2m.features = g2m.genes,
+  set.ident = FALSE
+)
+
+Reichart_EC <- CellCycleScoring(
+  Reichart_EC,
+  s.features = s.genes,
+  g2m.features = g2m.genes,
+  set.ident = FALSE
+)
+```
+
+## UMAPs colored by cell-cycle phase
+
+```{r cell cycle umaps, fig.width=12, fig.height=6}
+p_koenig_cc <- DimPlot(
+  Koenig_EC,
+  reduction = "umap",
+  group.by = "Phase",
+  shuffle = TRUE,
+  pt.size = 0.7,
+  raster = FALSE
+) +
+  ggtitle(expression(italic("Koenig et al.") ~ " Nature CVR 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, hjust = 0.5),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 10, face = "bold")
+  )
+
+p_reichart_cc <- DimPlot(
+  Reichart_EC,
+  reduction = "umap",
+  group.by = "Phase",
+  shuffle = TRUE,
+  pt.size = 0.7,
+  raster = FALSE
+) +
+  ggtitle(expression(italic("Reichart et al.") ~ " Science 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, hjust = 0.5),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 10, face = "bold")
+  )
+
+(p_koenig_cc + p_reichart_cc) + patchwork::plot_layout(guides = "collect") &
+  theme(legend.position = "right")
+```
+
+## Phase proportions per sample
+
+```{r cell cycle percentages per sample}
+Koenig_EC$Sample <- Koenig_EC$orig.ident
+Reichart_EC$Sample <- Reichart_EC$donor_id
+
+df_phase_koenig <- Koenig_EC@meta.data %>%
+  dplyr::group_by(Sample, Dataset, Group, Sex, Age, Phase) %>%
+  dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
+  dplyr::group_by(Sample, Dataset, Group, Sex, Age) %>%
+  dplyr::mutate(
+    total_n = sum(n),
+    pct = n / total_n * 100
+  ) %>%
+  dplyr::ungroup()
+
+df_phase_reichart <- Reichart_EC@meta.data %>%
+  dplyr::group_by(Sample, Dataset, Group, Sex, Age, Phase) %>%
+  dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
+  dplyr::group_by(Sample, Dataset, Group, Sex, Age) %>%
+  dplyr::mutate(
+    total_n = sum(n),
+    pct = n / total_n * 100
+  ) %>%
+  dplyr::ungroup()
+
+df_phase <- dplyr::bind_rows(df_phase_koenig, df_phase_reichart)
+
+df_phase$Group <- factor(df_phase$Group, levels = c("H", "HF"))
+df_phase$Phase <- factor(df_phase$Phase, levels = c("G1", "S", "G2M"))
+df_phase$Dataset <- factor(df_phase$Dataset, levels = c("Koenig", "Reichart"))
+df_phase$Sex <- factor(df_phase$Sex)
+df_phase$Age <- as.numeric(df_phase$Age)
+```
+
+## Cell-cycle statistics
+
+```{r cell cycle stats}
+phase_stats <- list()
+
+for (ph in c("G1", "S", "G2M")) {
+  df_sub <- df_phase %>% dplyr::filter(Phase == ph)
+
+  fit_phase <- glm(
+    cbind(n, total_n - n) ~ Group + Age + Sex + Dataset,
+    family = quasibinomial,
+    data = df_sub
+  )
+
+  phase_stats[[ph]] <- broom::tidy(fit_phase)
+}
+
+phase_stats_df <- dplyr::bind_rows(phase_stats, .id = "Phase")
+
+write.csv(
+  phase_stats_df,
+  file = file.path(output_dir_data, "Cell_cycle_phase_stats.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+phase_stats_df
+```
+
+## Cell-cycle barplots
+
+```{r cell cycle barplots, fig.width=8, fig.height=3.5}
+group_cols_cycle <- c("H" = "#D9D9D9", "HF" = "#7F7F7F")
+
+plots_phase <- list()
+
+for (ph in c("G1", "S", "G2M")) {
+  df_sub <- df_phase %>% dplyr::filter(Phase == ph)
+
+  fit_phase <- glm(
+    cbind(n, total_n - n) ~ Group + Age + Sex + Dataset,
+    family = quasibinomial,
+    data = df_sub
+  )
+
+  fit_tidy <- broom::tidy(fit_phase)
+
+  p_group <- fit_tidy %>%
+    dplyr::filter(term == "GroupHF") %>%
+    dplyr::pull(p.value)
+
+  p_label <- format_p_label(p_group)
+
+  p <- ggplot(df_sub, aes(x = Group, y = pct, fill = Group)) +
+    stat_summary(fun = mean, geom = "bar", width = 0.65, color = "black") +
+    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.15, linewidth = 0.5) +
+    geom_jitter(
+      width = 0.10,
+      size = 1.1,
+      shape = 21,
+      stroke = 0.35,
+      color = "black"
+    ) +
+    geom_segment(aes(x = 1, xend = 2, y = 46.4, yend = 46.4), inherit.aes = FALSE) +
+    annotate("text", x = 1.5, y = 47.3, label = p_label, size = 5, fontface = format_p_fontface(p_group)) +
+    scale_fill_manual(values = group_cols_cycle) +
+    labs(title = ph, x = NULL, y = "Percentage of cells") +
+    theme_classic(base_size = 12) +
+    scale_y_continuous(limits = c(0, 50), expand = c(0, 0)) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.title.y = element_text(face = "bold"),
+      legend.position = "none"
+    )
+
+  plots_phase[[ph]] <- p
+}
+
+plots_phase[["G1"]] + plots_phase[["S"]] + plots_phase[["G2M"]]
+```
+
+## Genes and scores of interest
+
+```{r gene sets}
+aerobic_respiration_row <- GSEA_GO_ALL@result %>%
+  as_tibble() %>%
+  dplyr::filter(Description == "aerobic respiration") %>%
+  dplyr::slice(1)
+
+if (nrow(aerobic_respiration_row) == 0) {
+  stop("GO term 'aerobic respiration' was not found in GSEA_GO_ALL@result.")
+}
+
+aerobic_respiration_go_id <- aerobic_respiration_row$ID[1]
+
+aerobic_respiration_entrez <- GSEA_GO_ALL@geneSets[[aerobic_respiration_go_id]]
+
+aerobic_respiration_genes_df <- bitr(
+  aerobic_respiration_entrez,
+  fromType = "ENTREZID",
+  toType = "SYMBOL",
+  OrgDb = org.Hs.eg.db,
+  drop = TRUE
+)
+
+aerobic_respiration_genes <- unique(aerobic_respiration_genes_df$SYMBOL)
+
+write.csv(
+  data.frame(gene = aerobic_respiration_genes),
+  file = file.path(output_dir_data, "GO_aerobic_respiration_genes.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+angiogenesis_genes <- c("ESM1", "ANGPT2", "FLT1", "KDR", "APLN", "EDN1")
+
+redox_no_genes <- c("NOX4", "NOS3", "SOD1")
+
+mito_homeostasis_genes <- c("TFAM", "PPARGC1A")
+
+apoptotic_priming_genes <- c(
+  "BCL2L11", "BBC3", "PMAIP1", "BAX",
+  "BID", "BAD", "BMF", "BIK",
+  "BNIP3", "BNIP3L"
+)
+
+all_genes_of_interest <- unique(c(
+  angiogenesis_genes,
+  redox_no_genes,
+  mito_homeostasis_genes,
+  apoptotic_priming_genes,
+  aerobic_respiration_genes
+))
+```
+
+```{r pseudobulk scores}
+Koenig_EC$Sample <- Koenig_EC$orig.ident
+Reichart_EC$Sample <- Reichart_EC$donor_id
+
+Koenig_EC$cell_type <- "Endothelium"
+Reichart_EC$cell_type <- "Endothelium"
+
+pb_koenig_scores <- Seurat2PB(
+  Koenig_EC,
+  sample = "Sample",
+  cluster = "cell_type"
+)
+
+pb_reichart_scores <- Seurat2PB(
+  Reichart_EC,
+  sample = "Sample",
+  cluster = "cell_type"
+)
+
+colnames(pb_koenig_scores) <- pb_koenig_scores$samples$sample
+colnames(pb_reichart_scores) <- pb_reichart_scores$samples$sample
+
+common_genes_scores <- intersect(rownames(pb_koenig_scores), rownames(pb_reichart_scores))
+
+counts_combined_scores <- cbind(
+  pb_koenig_scores[common_genes_scores, ]$counts,
+  pb_reichart_scores[common_genes_scores, ]$counts
+)
+
+metadata_scores <- dplyr::bind_rows(
+  Koenig_EC@meta.data %>%
+    dplyr::select(Sample, Dataset, Group, Sex, Age) %>%
+    dplyr::distinct(),
+  Reichart_EC@meta.data %>%
+    dplyr::select(Sample, Dataset, Group, Sex, Age) %>%
+    dplyr::distinct()
+)
+
+metadata_scores <- metadata_scores %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::filter(Sample %in% colnames(counts_combined_scores))
+
+metadata_scores <- metadata_scores[match(colnames(counts_combined_scores), metadata_scores$Sample), ]
+
+stopifnot(all(metadata_scores$Sample == colnames(counts_combined_scores)))
+
+metadata_scores$Group <- factor(metadata_scores$Group, levels = c("H", "HF"))
+metadata_scores$Sex <- factor(metadata_scores$Sex)
+metadata_scores$Dataset <- factor(metadata_scores$Dataset, levels = c("Koenig", "Reichart"))
+metadata_scores$Age <- as.numeric(metadata_scores$Age)
+
+dge_scores <- edgeR::DGEList(counts = counts_combined_scores)
+dge_scores <- edgeR::calcNormFactors(dge_scores)
+
+logcpm_scores <- edgeR::cpm(dge_scores, log = TRUE, prior.count = 1)
+```
+
+## Keep only genes of interest for scores and barplots
+
+```{r score matrices}
+all_genes_of_interest_present <- all_genes_of_interest[all_genes_of_interest %in% rownames(logcpm_scores)]
+all_genes_of_interest_missing <- setdiff(all_genes_of_interest, rownames(logcpm_scores))
+
+logcpm_subset_scores <- logcpm_scores[
+  rownames(logcpm_scores) %in% all_genes_of_interest_present,
+  ,
+  drop = FALSE
+]
+
+logcpm_subset_z <- t(scale(t(logcpm_subset_scores)))
+logcpm_subset_z[is.na(logcpm_subset_z)] <- 0
+
+angiogenesis_score <- colMeans(
+  logcpm_subset_z[rownames(logcpm_subset_z) %in% angiogenesis_genes, , drop = FALSE]
+)
+
+apoptotic_priming_score <- colMeans(
+  logcpm_subset_z[rownames(logcpm_subset_z) %in% apoptotic_priming_genes, , drop = FALSE]
+)
+
+aerobic_respiration_score <- colMeans(
+  logcpm_subset_z[rownames(logcpm_subset_z) %in% aerobic_respiration_genes, , drop = FALSE]
+)
+
+score_df <- metadata_scores %>%
+  dplyr::mutate(
+    angiogenesis_score = angiogenesis_score[Sample],
+    apoptotic_priming_score = apoptotic_priming_score[Sample],
+    aerobic_respiration_score = aerobic_respiration_score[Sample]
+  )
+
+write.csv(
+  score_df,
+  file = file.path(output_dir_data, "EC_gene_set_scores_unfilteredPB.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  data.frame(gene_missing = all_genes_of_interest_missing),
+  file = file.path(output_dir_data, "EC_genes_of_interest_missing_unfilteredPB.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  data.frame(gene = setdiff(aerobic_respiration_genes, rownames(logcpm_scores))),
+  file = file.path(output_dir_data, "GO_aerobic_respiration_genes_missing_in_scores_matrix.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+```
+
+## Pseudobulk score boxplots
+
+```{r aerobic respiration score, fig.width=3, fig.height=3.7}
+fit_aerobic_score <- lm(aerobic_respiration_score ~ Group + Age + Sex + Dataset, data = score_df)
+fit_aerobic_tidy <- broom::tidy(fit_aerobic_score)
+print(fit_aerobic_tidy)
+
+p_aerobic <- fit_aerobic_tidy %>%
+  dplyr::filter(term == "GroupHF") %>%
+  dplyr::pull(p.value)
+
+p_aerobic_label <- format_p_label(p_aerobic)
+
+y_max_aerobic <- max(score_df$aerobic_respiration_score, na.rm = TRUE)
+y_min_aerobic <- min(score_df$aerobic_respiration_score, na.rm = TRUE)
+y_range_aerobic <- y_max_aerobic - y_min_aerobic
+if (!is.finite(y_range_aerobic) || y_range_aerobic == 0) y_range_aerobic <- 1
+
+ggplot(score_df, aes(x = Group, y = aerobic_respiration_score, fill = Group)) +
+  geom_boxplot(
+    width = 0.55,
+    outlier.shape = NA,
+    color = "black",
+    linewidth = 0.5
+  ) +
+  geom_jitter(
+    width = 0.10,
+    size = 1.5,
+    shape = 21,
+    stroke = 0.4,
+    color = "black"
+  ) +
+  geom_segment(
+    aes(
+      x = 1,
+      xend = 2,
+      y = y_max_aerobic + 0.10 * y_range_aerobic,
+      yend = y_max_aerobic + 0.10 * y_range_aerobic
+    ),
+    inherit.aes = FALSE
+  ) +
+  annotate(
+    "text",
+    x = 1.5,
+    y = y_max_aerobic + 0.16 * y_range_aerobic,
+    label = p_aerobic_label,
+    size = 5,
+    fontface = format_p_fontface(p_aerobic)
+  ) +
+  scale_fill_manual(values = group_cols) +
+  coord_cartesian(
+    ylim = c(
+      y_min_aerobic - 0.05 * y_range_aerobic,
+      y_max_aerobic + 0.22 * y_range_aerobic
+    )
+  ) +
+  labs(title = "Aerobic respiration score", x = NULL, y = "Score") +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+```{r angiogenesis score, fig.width=3, fig.height=3.7}
+fit_angio_score <- lm(angiogenesis_score ~ Group + Age + Sex + Dataset, data = score_df)
+fit_angio_tidy <- broom::tidy(fit_angio_score)
+print(fit_angio_tidy)
+
+p_angio <- fit_angio_tidy %>%
+  dplyr::filter(term == "GroupHF") %>%
+  dplyr::pull(p.value)
+
+p_angio_label <- format_p_label(p_angio)
+
+y_max_angio <- max(score_df$angiogenesis_score, na.rm = TRUE)
+y_min_angio <- min(score_df$angiogenesis_score, na.rm = TRUE)
+y_range_angio <- y_max_angio - y_min_angio
+if (!is.finite(y_range_angio) || y_range_angio == 0) y_range_angio <- 1
+
+ggplot(score_df, aes(x = Group, y = angiogenesis_score, fill = Group)) +
+  geom_boxplot(
+    width = 0.55,
+    outlier.shape = NA,
+    color = "black",
+    linewidth = 0.5
+  ) +
+  geom_jitter(
+    width = 0.10,
+    size = 1.5,
+    shape = 21,
+    stroke = 0.4,
+    color = "black"
+  ) +
+  geom_segment(
+    aes(
+      x = 1,
+      xend = 2,
+      y = y_max_angio + 0.10 * y_range_angio,
+      yend = y_max_angio + 0.10 * y_range_angio
+    ),
+    inherit.aes = FALSE
+  ) +
+  annotate(
+    "text",
+    x = 1.5,
+    y = y_max_angio + 0.16 * y_range_angio,
+    label = p_angio_label,
+    size = 5,
+    fontface = format_p_fontface(p_angio)
+  ) +
+  scale_fill_manual(values = group_cols) +
+  coord_cartesian(
+    ylim = c(
+      y_min_angio - 0.05 * y_range_angio,
+      y_max_angio + 0.22 * y_range_angio
+    )
+  ) +
+  labs(title = "Angiogenesis score", x = NULL, y = "Score") +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+```{r apoptotic priming score, fig.width=3, fig.height=3.7}
+fit_apop_score <- lm(apoptotic_priming_score ~ Group + Age + Sex + Dataset, data = score_df)
+fit_apop_tidy <- broom::tidy(fit_apop_score)
+print(fit_apop_tidy)
+
+p_apop <- fit_apop_tidy %>%
+  dplyr::filter(term == "GroupHF") %>%
+  dplyr::pull(p.value)
+
+p_apop_label <- format_p_label(p_apop)
+
+y_max_apop <- max(score_df$apoptotic_priming_score, na.rm = TRUE)
+y_min_apop <- min(score_df$apoptotic_priming_score, na.rm = TRUE)
+y_range_apop <- y_max_apop - y_min_apop
+if (!is.finite(y_range_apop) || y_range_apop == 0) y_range_apop <- 1
+
+ggplot(score_df, aes(x = Group, y = apoptotic_priming_score, fill = Group)) +
+  geom_boxplot(
+    width = 0.55,
+    outlier.shape = NA,
+    color = "black",
+    linewidth = 0.5
+  ) +
+  geom_jitter(
+    width = 0.10,
+    size = 1.5,
+    shape = 21,
+    stroke = 0.4,
+    color = "black"
+  ) +
+  geom_segment(
+    aes(
+      x = 1,
+      xend = 2,
+      y = y_max_apop + 0.10 * y_range_apop,
+      yend = y_max_apop + 0.10 * y_range_apop
+    ),
+    inherit.aes = FALSE
+  ) +
+  annotate(
+    "text",
+    x = 1.5,
+    y = y_max_apop + 0.16 * y_range_apop,
+    label = p_apop_label,
+    size = 5,
+    fontface = format_p_fontface(p_apop)
+  ) +
+  scale_fill_manual(values = group_cols) +
+  coord_cartesian(
+    ylim = c(
+      y_min_apop - 0.05 * y_range_apop,
+      y_max_apop + 0.22 * y_range_apop
+    )
+  ) +
+  labs(title = "Apoptotic priming score", x = NULL, y = "Score") +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+
+## Feature plots for genes of interest in each dataset separately
+
+```{r feature plots angiogenesis, fig.width=11, fig.height=4.8}
+for (gene in angiogenesis_genes) {
+
+  p_list <- list()
+
+  if (gene %in% rownames(Koenig_EC)) {
+    p_koenig <- FeaturePlot(
+      Koenig_EC,
+      features = gene,
+      order = TRUE,
+      cols = c("grey90", "#A63A2A"),
+      pt.size = 0.15,
+      combine = TRUE,
+      raster = FALSE
+    ) +
+      ggtitle(expression(italic("Koenig et al.") ~ " Nature CVR 2022")) +
+      theme(
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 18, hjust = 0.5)
+      )
+
+    p_list[["Koenig"]] <- p_koenig
+  }
+
+  if (gene %in% rownames(Reichart_EC)) {
+    p_reichart <- FeaturePlot(
+      Reichart_EC,
+      features = gene,
+      order = TRUE,
+      cols = c("grey90", "#A63A2A"),
+      pt.size = 0.15,
+      combine = TRUE,
+      raster = FALSE
+    ) +
+      ggtitle(expression(italic("Reichart et al.") ~ " Science 2022")) +
+      theme(
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 18, hjust = 0.5)
+      )
+
+    p_list[["Reichart"]] <- p_reichart
+  }
+
+  if (length(p_list) == 2) {
+    print(p_list[["Koenig"]] | p_list[["Reichart"]])
+  } else if (length(p_list) == 1) {
+    print(p_list[[1]])
+  } else {
+    message("Gene not found in either dataset: ", gene)
+  }
+}
+```
+
+
+## Feature plots for genes of interest in each dataset separately
+
+```{r feature plots redox no, fig.width=11, fig.height=4.8}
+for (gene in redox_no_genes) {
+
+  p_list <- list()
+
+  if (gene %in% rownames(Koenig_EC)) {
+    p_koenig <- FeaturePlot(
+      Koenig_EC,
+      features = gene,
+      order = TRUE,
+      cols = c("grey90", "#A63A2A"),
+      pt.size = 0.15,
+      combine = TRUE,
+      raster = FALSE
+    ) +
+      ggtitle(expression(italic("Koenig et al.") ~ " Nature CVR 2022")) +
+      theme(
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 18, hjust = 0.5)
+      )
+
+    p_list[["Koenig"]] <- p_koenig
+  }
+
+  if (gene %in% rownames(Reichart_EC)) {
+    p_reichart <- FeaturePlot(
+      Reichart_EC,
+      features = gene,
+      order = TRUE,
+      cols = c("grey90", "#A63A2A"),
+      pt.size = 0.15,
+      combine = TRUE,
+      raster = FALSE
+    ) +
+      ggtitle(expression(italic("Reichart et al.") ~ " Science 2022")) +
+      theme(
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 18, hjust = 0.5)
+      )
+
+    p_list[["Reichart"]] <- p_reichart
+  }
+
+  if (length(p_list) == 2) {
+    print(p_list[["Koenig"]] | p_list[["Reichart"]])
+  } else if (length(p_list) == 1) {
+    print(p_list[[1]])
+  } else {
+    message("Gene not found in either dataset: ", gene)
+  }
+}
+```
+
+
+## Feature plots for genes of interest in each dataset separately
+
+```{r feature plots mito homeostasis, fig.width=11, fig.height=4.8}
+for (gene in mito_homeostasis_genes) {
+
+  p_list <- list()
+
+  if (gene %in% rownames(Koenig_EC)) {
+    p_koenig <- FeaturePlot(
+      Koenig_EC,
+      features = gene,
+      order = TRUE,
+      cols = c("grey90", "#A63A2A"),
+      pt.size = 0.15,
+      combine = TRUE,
+      raster = FALSE
+    ) +
+      ggtitle(expression(italic("Koenig et al.") ~ " Nature CVR 2022")) +
+      theme(
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 18, hjust = 0.5)
+      )
+
+    p_list[["Koenig"]] <- p_koenig
+  }
+
+  if (gene %in% rownames(Reichart_EC)) {
+    p_reichart <- FeaturePlot(
+      Reichart_EC,
+      features = gene,
+      order = TRUE,
+      cols = c("grey90", "#A63A2A"),
+      pt.size = 0.15,
+      combine = TRUE,
+      raster = FALSE
+    ) +
+      ggtitle(expression(italic("Reichart et al.") ~ " Science 2022")) +
+      theme(
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 18, hjust = 0.5)
+      )
+
+    p_list[["Reichart"]] <- p_reichart
+  }
+
+  if (length(p_list) == 2) {
+    print(p_list[["Koenig"]] | p_list[["Reichart"]])
+  } else if (length(p_list) == 1) {
+    print(p_list[[1]])
+  } else {
+    message("Gene not found in either dataset: ", gene)
+  }
+}
+```
+
+
+## Feature plots for genes of interest in each dataset separately
+
+```{r feature plots apoptosis, fig.width=11, fig.height=4.8}
+for (gene in apoptotic_priming_genes) {
+
+  p_list <- list()
+
+  if (gene %in% rownames(Koenig_EC)) {
+    p_koenig <- FeaturePlot(
+      Koenig_EC,
+      features = gene,
+      order = TRUE,
+      cols = c("grey90", "#A63A2A"),
+      pt.size = 0.15,
+      combine = TRUE,
+      raster = FALSE
+    ) +
+      ggtitle(expression(italic("Koenig et al.") ~ " Nature CVR 2022")) +
+      theme(
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 18, hjust = 0.5)
+      )
+
+    p_list[["Koenig"]] <- p_koenig
+  }
+
+  if (gene %in% rownames(Reichart_EC)) {
+    p_reichart <- FeaturePlot(
+      Reichart_EC,
+      features = gene,
+      order = TRUE,
+      cols = c("grey90", "#A63A2A"),
+      pt.size = 0.15,
+      combine = TRUE,
+      raster = FALSE
+    ) +
+      ggtitle(expression(italic("Reichart et al.") ~ " Science 2022")) +
+      theme(
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 18, hjust = 0.5)
+      )
+
+    p_list[["Reichart"]] <- p_reichart
+  }
+
+  if (length(p_list) == 2) {
+    print(p_list[["Koenig"]] | p_list[["Reichart"]])
+  } else if (length(p_list) == 1) {
+    print(p_list[[1]])
+  } else {
+    message("Gene not found in either dataset: ", gene)
+  }
+}
+```
+
+
+## Gene-wise pseudobulk logCPM plots with model-based p values
+
+```{r gene wise dataframe}
+gene_barplot_df <- logcpm_scores %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("gene") %>%
+  tidyr::pivot_longer(-gene, names_to = "Sample", values_to = "logCPM") %>%
+  dplyr::left_join(metadata_scores, by = "Sample")
+```
+
+
+```{r barplots angiogenesis genes, fig.width=2.66, fig.height=3.7}
+for (gene in angiogenesis_genes) {
+  if (gene %in% unique(gene_barplot_df$gene)) {
+    df_sub <- gene_barplot_df[gene_barplot_df$gene == gene, ]
+    fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
+    fit_gene_tidy <- broom::tidy(fit_gene)
+    print(fit_gene_tidy)
+
+    p_gene <- fit_gene_tidy %>%
+      dplyr::filter(term == "GroupHF") %>%
+      dplyr::pull(p.value)
+
+    p_gene_label <- format_p_label(p_gene)
+
+    y_max_gene <- max(df_sub$logCPM, na.rm = TRUE)
+    y_min_gene <- min(df_sub$logCPM, na.rm = TRUE)
+    y_range_gene <- y_max_gene - y_min_gene
+    if (!is.finite(y_range_gene) || y_range_gene == 0) y_range_gene <- 1
+
+    p <- ggplot(df_sub, aes(x = Group, y = logCPM, fill = Group)) +
+      geom_boxplot(
+        width = 0.55,
+        outlier.shape = NA,
+        color = "black",
+        linewidth = 0.5
+      ) +
+      geom_jitter(
+        width = 0.10,
+        size = 1.5,
+        shape = 21,
+        stroke = 0.4,
+        color = "black"
+      ) +
+      geom_segment(
+        aes(
+          x = 1,
+          xend = 2,
+          y = y_max_gene + 0.10 * y_range_gene,
+          yend = y_max_gene + 0.10 * y_range_gene
+        ),
+        inherit.aes = FALSE
+      ) +
+      annotate(
+        "text",
+        x = 1.5,
+        y = y_max_gene + 0.16 * y_range_gene,
+        label = p_gene_label,
+        size = 5,
+        fontface = "bold"
+      ) +
+      scale_fill_manual(values = group_cols) +
+      coord_cartesian(
+        ylim = c(
+          y_min_gene - 0.05 * y_range_gene,
+          y_max_gene + 0.22 * y_range_gene
+        )
+      ) +
+      labs(title = gene, x = NULL, y = "logCPM") +
+      theme_classic(base_size = 12) +
+      theme(
+        plot.title = element_text(face = "bold", hjust = 0.5),
+        axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+        axis.title.y = element_text(face = "bold"),
+        legend.position = "none"
+      )
+
+    print(p)
+  }
+}
+```
+
+
+```{r barplots redox no genes, fig.width=2.66, fig.height=3.7}
+for (gene in redox_no_genes) {
+  if (gene %in% unique(gene_barplot_df$gene)) {
+    df_sub <- gene_barplot_df[gene_barplot_df$gene == gene, ]
+    fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
+    fit_gene_tidy <- broom::tidy(fit_gene)
+    print(fit_gene_tidy)
+
+    p_gene <- fit_gene_tidy %>%
+      dplyr::filter(term == "GroupHF") %>%
+      dplyr::pull(p.value)
+
+    p_gene_label <- format_p_label(p_gene)
+
+    y_max_gene <- max(df_sub$logCPM, na.rm = TRUE)
+    y_min_gene <- min(df_sub$logCPM, na.rm = TRUE)
+    y_range_gene <- y_max_gene - y_min_gene
+    if (!is.finite(y_range_gene) || y_range_gene == 0) y_range_gene <- 1
+
+    p <- ggplot(df_sub, aes(x = Group, y = logCPM, fill = Group)) +
+      geom_boxplot(
+        width = 0.55,
+        outlier.shape = NA,
+        color = "black",
+        linewidth = 0.5
+      ) +
+      geom_jitter(
+        width = 0.10,
+        size = 1.5,
+        shape = 21,
+        stroke = 0.4,
+        color = "black"
+      ) +
+      geom_segment(
+        aes(
+          x = 1,
+          xend = 2,
+          y = y_max_gene + 0.10 * y_range_gene,
+          yend = y_max_gene + 0.10 * y_range_gene
+        ),
+        inherit.aes = FALSE
+      ) +
+      annotate(
+        "text",
+        x = 1.5,
+        y = y_max_gene + 0.16 * y_range_gene,
+        label = p_gene_label,
+        size = 5,
+        fontface = "bold"
+      ) +
+      scale_fill_manual(values = group_cols) +
+      coord_cartesian(
+        ylim = c(
+          y_min_gene - 0.05 * y_range_gene,
+          y_max_gene + 0.22 * y_range_gene
+        )
+      ) +
+      labs(title = gene, x = NULL, y = "logCPM") +
+      theme_classic(base_size = 12) +
+      theme(
+        plot.title = element_text(face = "bold", hjust = 0.5),
+        axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+        axis.title.y = element_text(face = "bold"),
+        legend.position = "none"
+      )
+
+    print(p)
+  }
+}
+```
+
+
+```{r barplots mito homeostasis genes, fig.width=2.66, fig.height=3.7}
+for (gene in mito_homeostasis_genes) {
+  if (gene %in% unique(gene_barplot_df$gene)) {
+    df_sub <- gene_barplot_df[gene_barplot_df$gene == gene, ]
+    fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
+    fit_gene_tidy <- broom::tidy(fit_gene)
+    print(fit_gene_tidy)
+
+    p_gene <- fit_gene_tidy %>%
+      dplyr::filter(term == "GroupHF") %>%
+      dplyr::pull(p.value)
+
+    p_gene_label <- format_p_label(p_gene)
+
+    y_max_gene <- max(df_sub$logCPM, na.rm = TRUE)
+    y_min_gene <- min(df_sub$logCPM, na.rm = TRUE)
+    y_range_gene <- y_max_gene - y_min_gene
+    if (!is.finite(y_range_gene) || y_range_gene == 0) y_range_gene <- 1
+
+    p <- ggplot(df_sub, aes(x = Group, y = logCPM, fill = Group)) +
+      geom_boxplot(
+        width = 0.55,
+        outlier.shape = NA,
+        color = "black",
+        linewidth = 0.5
+      ) +
+      geom_jitter(
+        width = 0.10,
+        size = 1.5,
+        shape = 21,
+        stroke = 0.4,
+        color = "black"
+      ) +
+      geom_segment(
+        aes(
+          x = 1,
+          xend = 2,
+          y = y_max_gene + 0.10 * y_range_gene,
+          yend = y_max_gene + 0.10 * y_range_gene
+        ),
+        inherit.aes = FALSE
+      ) +
+      annotate(
+        "text",
+        x = 1.5,
+        y = y_max_gene + 0.16 * y_range_gene,
+        label = p_gene_label,
+        size = 5,
+        fontface = "bold"
+      ) +
+      scale_fill_manual(values = group_cols) +
+      coord_cartesian(
+        ylim = c(
+          y_min_gene - 0.05 * y_range_gene,
+          y_max_gene + 0.22 * y_range_gene
+        )
+      ) +
+      labs(title = gene, x = NULL, y = "logCPM") +
+      theme_classic(base_size = 12) +
+      theme(
+        plot.title = element_text(face = "bold", hjust = 0.5),
+        axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+        axis.title.y = element_text(face = "bold"),
+        legend.position = "none"
+      )
+
+    print(p)
+  }
+}
+```
+
+
+```{r barplots apoptotic priming genes, fig.width=2.66, fig.height=3.7}
+for (gene in apoptotic_priming_genes) {
+  if (gene %in% unique(gene_barplot_df$gene)) {
+    df_sub <- gene_barplot_df[gene_barplot_df$gene == gene, ]
+    fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
+    fit_gene_tidy <- broom::tidy(fit_gene)
+    print(fit_gene_tidy)
+
+    p_gene <- fit_gene_tidy %>%
+      dplyr::filter(term == "GroupHF") %>%
+      dplyr::pull(p.value)
+
+    p_gene_label <- format_p_label(p_gene)
+
+    y_max_gene <- max(df_sub$logCPM, na.rm = TRUE)
+    y_min_gene <- min(df_sub$logCPM, na.rm = TRUE)
+    y_range_gene <- y_max_gene - y_min_gene
+    if (!is.finite(y_range_gene) || y_range_gene == 0) y_range_gene <- 1
+
+    p <- ggplot(df_sub, aes(x = Group, y = logCPM, fill = Group)) +
+      geom_boxplot(
+        width = 0.55,
+        outlier.shape = NA,
+        color = "black",
+        linewidth = 0.5
+      ) +
+      geom_jitter(
+        width = 0.10,
+        size = 1.5,
+        shape = 21,
+        stroke = 0.4,
+        color = "black"
+      ) +
+      geom_segment(
+        aes(
+          x = 1,
+          xend = 2,
+          y = y_max_gene + 0.10 * y_range_gene,
+          yend = y_max_gene + 0.10 * y_range_gene
+        ),
+        inherit.aes = FALSE
+      ) +
+      annotate(
+        "text",
+        x = 1.5,
+        y = y_max_gene + 0.16 * y_range_gene,
+        label = p_gene_label,
+        size = 5,
+        fontface = "bold"
+      ) +
+      scale_fill_manual(values = group_cols) +
+      coord_cartesian(
+        ylim = c(
+          y_min_gene - 0.05 * y_range_gene,
+          y_max_gene + 0.22 * y_range_gene
+        )
+      ) +
+      labs(title = gene, x = NULL, y = "logCPM") +
+      theme_classic(base_size = 12) +
+      theme(
+        plot.title = element_text(face = "bold", hjust = 0.5),
+        axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+        axis.title.y = element_text(face = "bold"),
+        legend.position = "none"
+      )
+
+    print(p)
+  }
+}
+```
+
+## Cell-cycle program scores 
+
+```{r cell cycle gene sets}
+s_phase_genes <- Seurat::cc.genes.updated.2019$s.genes
+g2m_phase_genes <- Seurat::cc.genes.updated.2019$g2m.genes
+
+s_phase_genes_present <- intersect(s_phase_genes, rownames(logcpm_scores))
+g2m_phase_genes_present <- intersect(g2m_phase_genes, rownames(logcpm_scores))
+
+s_phase_genes_missing <- setdiff(s_phase_genes, rownames(logcpm_scores))
+g2m_phase_genes_missing <- setdiff(g2m_phase_genes, rownames(logcpm_scores))
+
+length(s_phase_genes_present)
+length(g2m_phase_genes_present)
+```
+
+## Build score matrix for cell-cycle programs
+
+```{r cell cycle score matrix}
+cell_cycle_genes_all <- unique(c(
+  s_phase_genes_present,
+  g2m_phase_genes_present
+  
+))
+
+logcpm_subset_cc <- logcpm_scores[
+  rownames(logcpm_scores) %in% cell_cycle_genes_all,
+  ,
+  drop = FALSE
+]
+
+logcpm_subset_cc_z <- t(scale(t(logcpm_subset_cc)))
+logcpm_subset_cc_z[is.na(logcpm_subset_cc_z)] <- 0
+
+s_phase_score <- colMeans(
+  logcpm_subset_cc_z[rownames(logcpm_subset_cc_z) %in% s_phase_genes_present, , drop = FALSE]
+)
+
+g2m_phase_score <- colMeans(
+  logcpm_subset_cc_z[rownames(logcpm_subset_cc_z) %in% g2m_phase_genes_present, , drop = FALSE]
+)
+
+score_df_cc <- metadata_scores %>%
+  dplyr::mutate(
+    S_phase_score = s_phase_score[Sample],
+    G2M_phase_score = g2m_phase_score[Sample]
+  )
+
+write.csv(
+  score_df_cc,
+  file = file.path(output_dir_data, "EC_cell_cycle_program_scores.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+```
+
+## Cell-cycle program score boxplots
+
+```{r s phase score, fig.width=2.8, fig.height=3.7}
+fit_s_score <- lm(S_phase_score ~ Group + Age + Sex + Dataset, data = score_df_cc)
+fit_s_tidy <- broom::tidy(fit_s_score)
+print(fit_s_tidy)
+
+p_s <- fit_s_tidy %>%
+  dplyr::filter(term == "GroupHF") %>%
+  dplyr::pull(p.value)
+
+p_s_label <- format_p_label(p_s)
+
+y_max_s <- max(score_df_cc$S_phase_score, na.rm = TRUE)
+y_min_s <- min(score_df_cc$S_phase_score, na.rm = TRUE)
+y_range_s <- y_max_s - y_min_s
+if (!is.finite(y_range_s) || y_range_s == 0) y_range_s <- 1
+
+ggplot(score_df_cc, aes(x = Group, y = S_phase_score, fill = Group)) +
+  geom_boxplot(width = 0.55, outlier.shape = NA, color = "black", linewidth = 0.5) +
+  geom_jitter(width = 0.10, size = 1.5, shape = 21, stroke = 0.4, color = "black") +
+  geom_segment(
+    aes(x = 1, xend = 2, y = y_max_s + 0.10 * y_range_s, yend = y_max_s + 0.10 * y_range_s),
+    inherit.aes = FALSE
+  ) +
+  annotate("text", x = 1.5, y = y_max_s + 0.16 * y_range_s, label = p_s_label, size = 5, fontface = "bold") +
+  scale_fill_manual(values = group_cols) +
+  coord_cartesian(ylim = c(y_min_s - 0.05 * y_range_s, y_max_s + 0.22 * y_range_s)) +
+  labs(title = "S-phase genes", x = NULL, y = "Score") +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+```{r g2m phase score, fig.width=2.8, fig.height=3.7}
+fit_g2m_score <- lm(G2M_phase_score ~ Group + Age + Sex + Dataset, data = score_df_cc)
+fit_g2m_tidy <- broom::tidy(fit_g2m_score)
+print(fit_g2m_tidy)
+
+p_g2m <- fit_g2m_tidy %>%
+  dplyr::filter(term == "GroupHF") %>%
+  dplyr::pull(p.value)
+
+p_g2m_label <- format_p_label(p_g2m)
+
+y_max_g2m <- max(score_df_cc$G2M_phase_score, na.rm = TRUE)
+y_min_g2m <- min(score_df_cc$G2M_phase_score, na.rm = TRUE)
+y_range_g2m <- y_max_g2m - y_min_g2m
+if (!is.finite(y_range_g2m) || y_range_g2m == 0) y_range_g2m <- 1
+
+ggplot(score_df_cc, aes(x = Group, y = G2M_phase_score, fill = Group)) +
+  geom_boxplot(width = 0.55, outlier.shape = NA, color = "black", linewidth = 0.5) +
+  geom_jitter(width = 0.10, size = 1.5, shape = 21, stroke = 0.4, color = "black") +
+  geom_segment(
+    aes(x = 1, xend = 2, y = y_max_g2m + 0.10 * y_range_g2m, yend = y_max_g2m + 0.10 * y_range_g2m),
+    inherit.aes = FALSE
+  ) +
+  annotate("text", x = 1.5, y = y_max_g2m + 0.16 * y_range_g2m, label = p_g2m_label, size = 5, fontface = "bold") +
+  scale_fill_manual(values = group_cols) +
+  coord_cartesian(ylim = c(y_min_g2m - 0.05 * y_range_g2m, y_max_g2m + 0.22 * y_range_g2m)) +
+  labs(title = "G2/M-phase genes", x = NULL, y = "Score") +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+## Representative genes for each program
+
+```{r representative genes for cell cycle programs}
+s_phase_genes_plot <- c("MCM2", "MCM5", "PCNA", "TYMS", "RRM2", "TK1")
+g2m_phase_genes_plot <- c("TOP2A", "UBE2C", "CENPF", "BIRC5", "CDC20", "AURKB")
+```
+
+```{r barplots s phase genes, fig.width=2.66, fig.height=3.7}
+for (gene in s_phase_genes_plot[s_phase_genes_plot %in% unique(gene_barplot_df$gene)]) {
+
+  df_sub <- gene_barplot_df[gene_barplot_df$gene == gene, ]
+
+  fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
+  fit_gene_tidy <- broom::tidy(fit_gene)
+  print(fit_gene_tidy)
+
+  p_gene <- fit_gene_tidy %>%
+    dplyr::filter(term == "GroupHF") %>%
+    dplyr::pull(p.value)
+
+  p_gene_label <- format_p_label(p_gene)
+
+  y_max_gene <- max(df_sub$logCPM, na.rm = TRUE)
+  y_min_gene <- min(df_sub$logCPM, na.rm = TRUE)
+  y_range_gene <- y_max_gene - y_min_gene
+  if (!is.finite(y_range_gene) || y_range_gene == 0) y_range_gene <- 1
+
+  p <- ggplot(df_sub, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(width = 0.55, outlier.shape = NA, color = "black", linewidth = 0.5) +
+    geom_jitter(width = 0.10, size = 1.5, shape = 21, stroke = 0.4, color = "black") +
+    geom_segment(aes(x = 1, xend = 2, y = y_max_gene + 0.10 * y_range_gene, yend = y_max_gene + 0.10 * y_range_gene), inherit.aes = FALSE) +
+    annotate("text", x = 1.5, y = y_max_gene + 0.16 * y_range_gene, label = p_gene_label, size = 5, fontface = "bold") +
+    scale_fill_manual(values = group_cols) +
+    coord_cartesian(ylim = c(y_min_gene - 0.05 * y_range_gene, y_max_gene + 0.22 * y_range_gene)) +
+    labs(title = gene, x = NULL, y = "logCPM") +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.title.y = element_text(face = "bold"),
+      legend.position = "none"
+    )
+
+  print(p)
+}
+```
+
+```{r barplots g2m phase genes, fig.width=2.66, fig.height=3.7}
+for (gene in g2m_phase_genes_plot[g2m_phase_genes_plot %in% unique(gene_barplot_df$gene)]) {
+
+  df_sub <- gene_barplot_df[gene_barplot_df$gene == gene, ]
+
+  fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
+  fit_gene_tidy <- broom::tidy(fit_gene)
+  print(fit_gene_tidy)
+
+  p_gene <- fit_gene_tidy %>%
+    dplyr::filter(term == "GroupHF") %>%
+    dplyr::pull(p.value)
+
+  p_gene_label <- format_p_label(p_gene)
+
+  y_max_gene <- max(df_sub$logCPM, na.rm = TRUE)
+  y_min_gene <- min(df_sub$logCPM, na.rm = TRUE)
+  y_range_gene <- y_max_gene - y_min_gene
+  if (!is.finite(y_range_gene) || y_range_gene == 0) y_range_gene <- 1
+
+  p <- ggplot(df_sub, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(width = 0.55, outlier.shape = NA, color = "black", linewidth = 0.5) +
+    geom_jitter(width = 0.10, size = 1.5, shape = 21, stroke = 0.4, color = "black") +
+    geom_segment(aes(x = 1, xend = 2, y = y_max_gene + 0.10 * y_range_gene, yend = y_max_gene + 0.10 * y_range_gene), inherit.aes = FALSE) +
+    annotate("text", x = 1.5, y = y_max_gene + 0.16 * y_range_gene, label = p_gene_label, size = 5, fontface = "bold") +
+    scale_fill_manual(values = group_cols) +
+    coord_cartesian(ylim = c(y_min_gene - 0.05 * y_range_gene, y_max_gene + 0.22 * y_range_gene)) +
+    labs(title = gene, x = NULL, y = "logCPM") +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.title.y = element_text(face = "bold"),
+      legend.position = "none"
+    )
+
+  print(p)
+}
+```
