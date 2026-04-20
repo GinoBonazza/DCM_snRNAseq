@@ -424,7 +424,7 @@ manuscript</h1>
 <h4 class="author">GinoBonazza (<a
 href="mailto:ginoandrea.bonazza@usz.ch"
 class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
-<h4 class="date">15 April, 2026</h4>
+<h4 class="date">20 April, 2026</h4>
 
 </div>
 
@@ -453,7 +453,7 @@ class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2026-04-15
+<strong>Last updated:</strong> 2026-04-20
 </p>
 <p>
 <strong>Checks:</strong> <span
@@ -584,15 +584,15 @@ project makes it easier to run your code on other machines.</p>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed1ef90bf949b4a3a11642f8fb2e4ba99f3927334targetblankd1ef90ba">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreeda92dfcfac04ef4ba95870e00a4fcdb051db281dtargetblankda92dfca">
 <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span> <strong>Repository version:</strong>
-<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d1ef90bf949b4a3a11642f8fb2e4ba99f3927334" target="_blank">d1ef90b</a>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/da92dfcfac04ef4ba95870e00a4fcdb051db281d" target="_blank">da92dfc</a>
 </a>
 </p>
 </div>
 <div
-id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed1ef90bf949b4a3a11642f8fb2e4ba99f3927334targetblankd1ef90ba"
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreeda92dfcfac04ef4ba95870e00a4fcdb051db281dtargetblankda92dfca"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -602,7 +602,7 @@ reproducibility.
 </p>
 <p>
 The results in this page were generated with repository version
-<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d1ef90bf949b4a3a11642f8fb2e4ba99f3927334" target="_blank">d1ef90b</a>.
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/da92dfcfac04ef4ba95870e00a4fcdb051db281d" target="_blank">da92dfc</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -867,6 +867,40 @@ Message
 Rmd
 </td>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/da92dfcfac04ef4ba95870e00a4fcdb051db281d/analysis/Endothelial_cells_Koenig_Reichart_manuscript.Rmd" target="_blank">da92dfc</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-19
+</td>
+<td>
+wflow_publish("analysis/Endothelial_cells_Koenig_Reichart_manuscript.Rmd")
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/Endothelial_cells_Koenig_Reichart_manuscript.html" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+<td>
+Build site.
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d1ef90bf949b4a3a11642f8fb2e4ba99f3927334/analysis/Endothelial_cells_Koenig_Reichart_manuscript.Rmd" target="_blank">d1ef90b</a>
 </td>
 <td>
@@ -951,6 +985,12 @@ library(scales)
 library(cowplot)
 library(speckle)
 library(broom)
+library(harmony)
+library(clustree)
+library(qs2)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
 
 output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
 if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
@@ -2864,7 +2904,7 @@ write.csv(
   row.names = FALSE
 )
 
-angiogenesis_genes &lt;- c(&quot;ESM1&quot;, &quot;ANGPT2&quot;, &quot;FLT1&quot;, &quot;KDR&quot;, &quot;APLN&quot;, &quot;EDN1&quot;)
+angiogenesis_genes &lt;- c(&quot;ESM1&quot;, &quot;ANGPT2&quot;, &quot;KDR&quot;, &quot;APLN&quot;, &quot;CXCR4&quot;, &quot;PGF&quot;, &quot;DLL4&quot;, &quot;KIT&quot;)
 
 redox_no_genes &lt;- c(&quot;NOX4&quot;, &quot;NOS3&quot;, &quot;SOD1&quot;)
 
@@ -3107,11 +3147,11 @@ print(fit_angio_tidy)</code></pre>
 <pre><code># A tibble: 5 × 5
   term            estimate std.error statistic p.value
   &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;
-1 (Intercept)      0.0921    0.147      0.628    0.531
-2 GroupHF          0.00126   0.0916     0.0137   0.989
-3 Age             -0.00126   0.00232   -0.542    0.589
-4 SexM             0.0524    0.0851     0.616    0.539
-5 DatasetReichart -0.103     0.0917    -1.12     0.263</code></pre>
+1 (Intercept)      0.0392    0.177      0.222    0.825
+2 GroupHF          0.0910    0.110      0.825    0.411
+3 Age             -0.00211   0.00279   -0.758    0.450
+4 SexM             0.0130    0.102      0.127    0.899
+5 DatasetReichart -0.00211   0.110     -0.0191   0.985</code></pre>
 <pre class="r"><code>p_angio &lt;- fit_angio_tidy %&gt;%
   dplyr::filter(term == &quot;GroupHF&quot;) %&gt;%
   dplyr::pull(p.value)
@@ -3333,7 +3373,7 @@ class="section level2">
       raster = FALSE
     ) +
       ggtitle(
-        bquote(bold(.(gene)) * &quot;\n&quot; * italic(&quot;Koenig et al.&quot;) ~ &quot; Nature CVR 2022&quot;)
+        bquote(atop(bold(.(gene)), italic(&quot;Koenig et al.&quot;) ~ &quot; Nature CVR 2022&quot;))
       ) +
       theme(
         axis.text = element_text(size = 8, face = &quot;bold&quot;),
@@ -3355,7 +3395,7 @@ class="section level2">
       raster = FALSE
     ) +
       ggtitle(
-        bquote(bold(.(gene)) * &quot;\n&quot; * italic(&quot;Reichart et al.&quot;) ~ &quot; Science 2022&quot;)
+        bquote(atop(bold(.(gene)), italic(&quot;Reichart et al.&quot;) ~ &quot; Science 2022&quot;))
       ) +
       theme(
         axis.text = element_text(size = 8, face = &quot;bold&quot;),
@@ -3399,6 +3439,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-1.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-1.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -3435,6 +3486,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-2.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-2.png" target="_blank">ccca557</a>
@@ -3475,6 +3537,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-3.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-3.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -3511,6 +3584,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-4.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-4.png" target="_blank">ccca557</a>
@@ -3551,6 +3635,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-5.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-5.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -3589,6 +3684,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-6.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots angiogenesis-6.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -3602,6 +3708,7 @@ GinoBonazza
 </table>
 </div>
 </div>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature%20plots%20angiogenesis-7.png" width="3300" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature%20plots%20angiogenesis-8.png" width="3300" style="display: block; margin: auto;" /></p>
 </div>
 <div id="feature-plots-for-redox-no-genes-in-each-dataset-separately"
 class="section level2">
@@ -3621,7 +3728,7 @@ class="section level2">
       raster = FALSE
     ) +
       ggtitle(
-        bquote(bold(.(gene)) * &quot;\n&quot; * italic(&quot;Koenig et al.&quot;) ~ &quot; Nature CVR 2022&quot;)
+        bquote(atop(bold(.(gene)), italic(&quot;Koenig et al.&quot;) ~ &quot; Nature CVR 2022&quot;))
       ) +
       theme(
         axis.text = element_text(size = 8, face = &quot;bold&quot;),
@@ -3643,7 +3750,7 @@ class="section level2">
       raster = FALSE
     ) +
       ggtitle(
-        bquote(bold(.(gene)) * &quot;\n&quot; * italic(&quot;Reichart et al.&quot;) ~ &quot; Science 2022&quot;)
+        bquote(atop(bold(.(gene)), italic(&quot;Reichart et al.&quot;) ~ &quot; Science 2022&quot;))
       ) +
       theme(
         axis.text = element_text(size = 8, face = &quot;bold&quot;),
@@ -3687,6 +3794,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots redox no-1.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots redox no-1.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -3723,6 +3841,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots redox no-2.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots redox no-2.png" target="_blank">ccca557</a>
@@ -3763,6 +3892,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots redox no-3.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots redox no-3.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -3797,7 +3937,7 @@ separately</h2>
       raster = FALSE
     ) +
       ggtitle(
-        bquote(bold(.(gene)) * &quot;\n&quot; * italic(&quot;Koenig et al.&quot;) ~ &quot; Nature CVR 2022&quot;)
+        bquote(atop(bold(.(gene)), italic(&quot;Koenig et al.&quot;) ~ &quot; Nature CVR 2022&quot;))
       ) +
       theme(
         axis.text = element_text(size = 8, face = &quot;bold&quot;),
@@ -3819,7 +3959,7 @@ separately</h2>
       raster = FALSE
     ) +
       ggtitle(
-        bquote(bold(.(gene)) * &quot;\n&quot; * italic(&quot;Reichart et al.&quot;) ~ &quot; Science 2022&quot;)
+        bquote(atop(bold(.(gene)), italic(&quot;Reichart et al.&quot;) ~ &quot; Science 2022&quot;))
       ) +
       theme(
         axis.text = element_text(size = 8, face = &quot;bold&quot;),
@@ -3864,6 +4004,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots mito homeostasis-1.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots mito homeostasis-1.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -3903,6 +4054,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots mito homeostasis-2.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots mito homeostasis-2.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -3937,7 +4099,7 @@ separately</h2>
       raster = FALSE
     ) +
       ggtitle(
-        bquote(bold(.(gene)) * &quot;\n&quot; * italic(&quot;Koenig et al.&quot;) ~ &quot; Nature CVR 2022&quot;)
+        bquote(atop(bold(.(gene)), italic(&quot;Koenig et al.&quot;) ~ &quot; Nature CVR 2022&quot;))
       ) +
       theme(
         axis.text = element_text(size = 8, face = &quot;bold&quot;),
@@ -3959,7 +4121,7 @@ separately</h2>
       raster = FALSE
     ) +
       ggtitle(
-        bquote(bold(.(gene)) * &quot;\n&quot; * italic(&quot;Reichart et al.&quot;) ~ &quot; Science 2022&quot;)
+        bquote(atop(bold(.(gene)), italic(&quot;Reichart et al.&quot;) ~ &quot; Science 2022&quot;))
       ) +
       theme(
         axis.text = element_text(size = 8, face = &quot;bold&quot;),
@@ -4003,6 +4165,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-1.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-1.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -4039,6 +4212,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-2.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-2.png" target="_blank">ccca557</a>
@@ -4079,6 +4263,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-3.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-3.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -4115,6 +4310,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-4.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-4.png" target="_blank">ccca557</a>
@@ -4155,6 +4361,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-5.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-5.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -4191,6 +4408,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-6.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-6.png" target="_blank">ccca557</a>
@@ -4231,6 +4459,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-7.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-7.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -4267,6 +4506,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-8.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-8.png" target="_blank">ccca557</a>
@@ -4307,6 +4557,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-9.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-9.png" target="_blank">ccca557</a>
 </td>
 <td>
@@ -4343,6 +4604,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/1b825371ca4284e76401b9fbf40a550aa6f3d662/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-10.png" target="_blank">1b82537</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-15
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/ccca55721cc3c8e943436e30dc096aec8d883f08/docs/figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/feature plots apoptosis-10.png" target="_blank">ccca557</a>
@@ -4530,11 +4802,11 @@ GinoBonazza
 <pre><code># A tibble: 5 × 5
   term            estimate std.error statistic  p.value
   &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-1 (Intercept)     10.5       0.175      59.9   3.54e-80
-2 GroupHF          0.428     0.109       3.92  1.64e- 4
-3 Age              0.00467   0.00276     1.69  9.37e- 2
-4 SexM             0.0445    0.101       0.439 6.62e- 1
-5 DatasetReichart  0.219     0.109       2.00  4.80e- 2</code></pre>
+1 (Intercept)      8.23      0.229     35.9    6.54e-59
+2 GroupHF         -0.346     0.143     -2.41   1.77e- 2
+3 Age             -0.00474   0.00362   -1.31   1.94e- 1
+4 SexM            -0.00992   0.133     -0.0745 9.41e- 1
+5 DatasetReichart -0.553     0.143     -3.85   2.07e- 4</code></pre>
 <p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/barplots%20angiogenesis%20genes-3.png" width="798" style="display: block; margin: auto;" /></p>
 <p>
 <button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-no-spaces-barplots-angiogenesis-genes-3">
@@ -4574,13 +4846,13 @@ GinoBonazza
 </div>
 </div>
 <pre><code># A tibble: 5 × 5
-  term            estimate std.error statistic  p.value
-  &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-1 (Intercept)      8.23      0.229     35.9    6.54e-59
-2 GroupHF         -0.346     0.143     -2.41   1.77e- 2
-3 Age             -0.00474   0.00362   -1.31   1.94e- 1
-4 SexM            -0.00992   0.133     -0.0745 9.41e- 1
-5 DatasetReichart -0.553     0.143     -3.85   2.07e- 4</code></pre>
+  term            estimate std.error statistic      p.value
+  &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;        &lt;dbl&gt;
+1 (Intercept)      2.92      0.508       5.75  0.0000000972
+2 GroupHF         -0.382     0.317      -1.21  0.231       
+3 Age              0.00652   0.00801     0.814 0.418       
+4 SexM            -0.159     0.294      -0.542 0.589       
+5 DatasetReichart -0.810     0.317      -2.55  0.0122      </code></pre>
 <p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/barplots%20angiogenesis%20genes-4.png" width="798" style="display: block; margin: auto;" /></p>
 <p>
 <button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-no-spaces-barplots-angiogenesis-genes-4">
@@ -4620,13 +4892,13 @@ GinoBonazza
 </div>
 </div>
 <pre><code># A tibble: 5 × 5
-  term            estimate std.error statistic      p.value
-  &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;        &lt;dbl&gt;
-1 (Intercept)      2.92      0.508       5.75  0.0000000972
-2 GroupHF         -0.382     0.317      -1.21  0.231       
-3 Age              0.00652   0.00801     0.814 0.418       
-4 SexM            -0.159     0.294      -0.542 0.589       
-5 DatasetReichart -0.810     0.317      -2.55  0.0122      </code></pre>
+  term            estimate std.error statistic p.value
+  &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;
+1 (Intercept)      0.655     0.450      1.45     0.149
+2 GroupHF          0.230     0.281      0.817    0.416
+3 Age              0.00807   0.00711    1.14     0.259
+4 SexM            -0.0216    0.261     -0.0828   0.934
+5 DatasetReichart  0.0822    0.281      0.292    0.771</code></pre>
 <p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/barplots%20angiogenesis%20genes-5.png" width="798" style="display: block; margin: auto;" /></p>
 <p>
 <button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-no-spaces-barplots-angiogenesis-genes-5">
@@ -4666,13 +4938,13 @@ GinoBonazza
 </div>
 </div>
 <pre><code># A tibble: 5 × 5
-  term             estimate std.error statistic  p.value
-  &lt;chr&gt;               &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-1 (Intercept)      6.04       0.419     14.4    3.97e-26
-2 GroupHF         -0.128      0.262     -0.487  6.27e- 1
-3 Age              0.000654   0.00662    0.0988 9.22e- 1
-4 SexM            -0.233      0.243     -0.959  3.40e- 1
-5 DatasetReichart -1.64       0.262     -6.27   9.38e- 9</code></pre>
+  term            estimate std.error statistic  p.value
+  &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+1 (Intercept)      4.03      0.346     11.6    2.63e-20
+2 GroupHF         -0.0214    0.216     -0.0990 9.21e- 1
+3 Age             -0.00724   0.00547   -1.32   1.88e- 1
+4 SexM             0.125     0.201      0.624  5.34e- 1
+5 DatasetReichart  0.144     0.217      0.663  5.09e- 1</code></pre>
 <p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/barplots%20angiogenesis%20genes-6.png" width="798" style="display: block; margin: auto;" /></p>
 <p>
 <button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-no-spaces-barplots-angiogenesis-genes-6">
@@ -4711,6 +4983,24 @@ GinoBonazza
 </table>
 </div>
 </div>
+<pre><code># A tibble: 5 × 5
+  term            estimate std.error statistic  p.value
+  &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+1 (Intercept)      6.27      0.208      30.1   5.61e-52
+2 GroupHF          0.372     0.130       2.86  5.10e- 3
+3 Age              0.00703   0.00328     2.14  3.46e- 2
+4 SexM            -0.0514    0.121      -0.426 6.71e- 1
+5 DatasetReichart -0.0854    0.130      -0.657 5.13e- 1</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/barplots%20angiogenesis%20genes-7.png" width="798" style="display: block; margin: auto;" /></p>
+<pre><code># A tibble: 5 × 5
+  term            estimate std.error statistic  p.value
+  &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+1 (Intercept)       3.98     0.542        7.34 5.69e-11
+2 GroupHF           0.995    0.339        2.94 4.12e- 3
+3 Age              -0.0179   0.00856     -2.09 3.89e- 2
+4 SexM             -0.512    0.314       -1.63 1.06e- 1
+5 DatasetReichart  -0.366    0.339       -1.08 2.83e- 1</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/barplots%20angiogenesis%20genes-8.png" width="798" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>for (gene in redox_no_genes) {
   if (gene %in% unique(gene_barplot_df$gene)) {
     df_sub &lt;- gene_barplot_df[gene_barplot_df$gene == gene, ]
@@ -6462,6 +6752,2025 @@ GinoBonazza
 </table>
 </div>
 </div>
+</div>
+<div id="endothelial-cell-subclustering-across-datasets"
+class="section level2">
+<h2>Endothelial-cell subclustering across datasets</h2>
+<pre class="r"><code>Koenig_EC_sub &lt;- Koenig_EC
+Reichart_EC_sub &lt;- Reichart_EC
+
+Koenig_EC_sub$Dataset &lt;- &quot;Koenig&quot;
+Reichart_EC_sub$Dataset &lt;- &quot;Reichart&quot;
+
+Koenig_EC_sub$Sample &lt;- Koenig_EC_sub$orig.ident
+Reichart_EC_sub$Sample &lt;- Reichart_EC_sub$donor_id
+
+Koenig_EC_sub$percent.mt &lt;- Koenig_EC_sub$percent.mito
+Reichart_EC_sub$percent.mt &lt;- Reichart_EC_sub$percent_mito
+
+Koenig_EC_sub@assays$SCT &lt;- NULL
+DefaultAssay(Koenig_EC_sub) &lt;- &quot;RNA&quot;
+Koenig_EC_sub$Group &lt;- factor(Koenig_EC_sub$Group, levels = c(&quot;H&quot;, &quot;HF&quot;))
+Reichart_EC_sub$Group &lt;- factor(Reichart_EC_sub$Group, levels = c(&quot;H&quot;, &quot;HF&quot;))
+Koenig_EC_sub$Dataset &lt;- factor(Koenig_EC_sub$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;))
+Reichart_EC_sub$Dataset &lt;- factor(Reichart_EC_sub$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;))
+
+Koenig_EC_sub &lt;- RenameCells(Koenig_EC_sub, add.cell.id = &quot;Koenig&quot;)
+Reichart_EC_sub &lt;- RenameCells(Reichart_EC_sub, add.cell.id = &quot;Reichart&quot;)
+
+common_genes_ec &lt;- intersect(rownames(Koenig_EC_sub), rownames(Reichart_EC_sub))
+length(common_genes_ec)</code></pre>
+<pre><code>[1] 20840</code></pre>
+<pre class="r"><code>EC_combined &lt;- merge(
+  x = Koenig_EC_sub[common_genes_ec, ],
+  y = Reichart_EC_sub[common_genes_ec, ],
+  merge.data = FALSE
+)
+
+rm(Koenig_EC_sub, Reichart_EC_sub)</code></pre>
+<pre class="r"><code>EC_combined$nCount_RNA &lt;- Matrix::colSums(EC_combined@assays$RNA@counts)
+EC_combined$nFeature_RNA &lt;- Matrix::colSums(EC_combined@assays$RNA@counts &gt; 0)
+
+EC_combined@meta.data %&gt;%
+  dplyr::count(Dataset, Group)</code></pre>
+<pre><code>   Dataset Group     n
+1   Koenig     H 25364
+2   Koenig    HF 12665
+3 Reichart     H  9603
+4 Reichart    HF 36636</code></pre>
+<pre class="r"><code>EC_combined@meta.data %&gt;%
+  dplyr::count(Dataset, Sample, sort = TRUE) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-484ed42468d86de4a421" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-484ed42468d86de4a421">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"Dataset":["Koenig","Koenig","Koenig","Koenig","Reichart","Reichart","Reichart","Reichart","Koenig","Koenig","Reichart","Koenig","Koenig","Koenig","Koenig","Koenig","Reichart","Reichart","Reichart","Reichart","Reichart","Koenig","Koenig","Reichart","Reichart","Koenig","Koenig","Reichart","Koenig","Koenig","Koenig","Reichart","Reichart","Koenig","Reichart","Koenig","Reichart","Koenig","Reichart","Koenig","Reichart","Reichart","Koenig","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Koenig","Koenig","Koenig","Koenig","Reichart","Koenig","Reichart","Koenig","Koenig","Reichart","Koenig","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Koenig","Reichart","Reichart","Koenig","Reichart","Koenig","Reichart","Reichart","Koenig","Reichart","Reichart","Reichart","Reichart","Reichart","Koenig","Reichart","Reichart","Reichart","Reichart","Koenig","Reichart","Reichart","Koenig","Reichart","Reichart","Reichart"],"Sample":["TWCM-13-181","TWCM-LVAD3","TWCM-11-78","TWCM-13-192","DP1","H59","DT4","H40","H_ZC-11-292","TWCM-13-1","H17","TWCM-13-152","TWCM-13-36","TWCM-11-256","TWCM-11-104","TWCM-11-42","H33","H03","DL3","H02","H01","TWCM-LVAD2","TWCM-13-96","D4","IC_H02","TWCM-13-168","TWCM-13-235","H19","TWCM-13-104","TWCM-13-208","TWCM-14-173","H06","H2","TWCM-11-93","H18","TWCM-13-285","H28","TWCM-11-264","H80","TWCM-13-132","DP2","H14","TWCM-13-80","H36","DL2","H73","H04","H05","H13","D7","D1","H3","H21","TWCM-13-198","TWCM-11-74","H_ZC-LVAD","TWCM-10-68","H24","TWCM-13-102","H51","TWCM-11-82","TWCM-11-3","H58","TWCM-11-192","H16","H49","H25","D2","H81","H20","DS3","H35","H31","H34","H4","H55","H22","H5","H67","H32","TWCM-13-47","H39","H53","TWCM-11-103","D5","TWCM-13-84","H6","H12","TWCM-13-17","H56","H57","H26","D6","IC_H01","TWCM-13-101","H27","DO1","H41","H46","TWCM-11-41","H7","H37","TWCM-10-5","IC_H03","H79","IC_H04"],"n":[3254,2085,1949,1901,1799,1693,1562,1480,1442,1421,1413,1358,1333,1331,1307,1264,1259,1216,1185,1180,1176,1166,1153,1140,1137,1134,1083,1082,1049,1035,1035,1027,1016,1005,959,957,937,914,881,871,864,828,822,775,753,750,725,721,697,686,678,675,662,661,628,621,618,616,596,596,589,586,586,575,574,571,566,545,530,522,497,491,489,486,449,447,442,442,434,429,428,413,392,386,376,372,366,365,363,362,349,344,332,326,318,313,305,248,237,222,221,219,197,154,137,112]},"columns":[{"id":"Dataset","name":"Dataset","type":"character"},{"id":"Sample","name":"Sample","type":"character"},{"id":"n","name":"n","type":"numeric"}],"dataKey":"ec1bb26ee3fdb03876358a9e0fc3f96d"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+EC_list &lt;- SplitObject(EC_combined, split.by = &quot;Sample&quot;)
+
+for (i in seq_along(EC_list)) {
+  EC_list[[i]] &lt;- SCTransform(
+    EC_list[[i]],
+    vst.flavor = &quot;v2&quot;,
+    vars.to.regress = &quot;percent.mt&quot;,
+    return.only.var.genes = TRUE,
+    variable.features.n = 3000,
+    verbose = FALSE
+  )
+}
+
+features_ec &lt;- SelectIntegrationFeatures(object.list = EC_list, nfeatures = 3000)
+
+EC_combined &lt;- merge(
+  x = EC_list[[1]],
+  y = EC_list[2:length(EC_list)],
+  merge.data = TRUE
+)
+VariableFeatures(EC_combined) &lt;- features_ec
+
+rm(EC_list)</code></pre>
+<pre class="r"><code>EC_combined &lt;- RunPCA(EC_combined, npcs = 50, verbose = FALSE)
+ElbowPlot(EC_combined, ndims = 50)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/pca%20endothelial%20combined-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>EC_combined &lt;- harmony::RunHarmony(
+  object = EC_combined,
+  assay.use = &quot;SCT&quot;,
+  group.by.vars = c(&quot;Sample&quot;, &quot;Dataset&quot;),
+  dims.use = 1:50,
+  plot_convergence = TRUE,
+  .options = harmony::harmony_options(max.iter.cluster = 100)
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/harmony%20endothelial%20combined-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>resolutions_to_keep &lt;- paste0(&quot;SCT_snn.res.&quot;, c(&quot;0.1&quot;, &quot;0.2&quot;, &quot;0.3&quot;, &quot;0.4&quot;, &quot;0.5&quot;, &quot;0.6&quot;, &quot;0.7&quot;, &quot;0.8&quot;))
+
+sct_res_cols &lt;- grep(&quot;^SCT_snn[\\._]res\\.&quot;, colnames(EC_combined@meta.data), value = TRUE)
+
+cols_to_remove &lt;- setdiff(sct_res_cols, resolutions_to_keep)
+
+if (length(cols_to_remove) &gt; 0) {
+  EC_combined@meta.data &lt;- EC_combined@meta.data[, !colnames(EC_combined@meta.data) %in% cols_to_remove, drop = FALSE]
+}
+
+grep(&quot;^SCT_snn[\\._]res\\.&quot;, colnames(EC_combined@meta.data), value = TRUE)</code></pre>
+<pre><code>character(0)</code></pre>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;SCT&quot;
+
+EC_combined &lt;- RunUMAP(
+  EC_combined,
+  reduction = &quot;harmony&quot;,
+  dims = 1:20
+)
+
+EC_combined &lt;- FindNeighbors(
+  EC_combined,
+  reduction = &quot;harmony&quot;,
+  dims = 1:20
+)
+
+EC_combined &lt;- FindClusters(
+  EC_combined,
+  resolution = seq(0.1, 0.8, by = 0.1)
+)</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 84268
+Number of edges: 1716154
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.9344
+Number of communities: 10
+Elapsed time: 51 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 84268
+Number of edges: 1716154
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8980
+Number of communities: 12
+Elapsed time: 49 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 84268
+Number of edges: 1716154
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8706
+Number of communities: 14
+Elapsed time: 44 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 84268
+Number of edges: 1716154
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8507
+Number of communities: 15
+Elapsed time: 49 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 84268
+Number of edges: 1716154
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8350
+Number of communities: 16
+Elapsed time: 47 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 84268
+Number of edges: 1716154
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8201
+Number of communities: 17
+Elapsed time: 49 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 84268
+Number of edges: 1716154
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8102
+Number of communities: 20
+Elapsed time: 43 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 84268
+Number of edges: 1716154
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8010
+Number of communities: 21
+Elapsed time: 44 seconds</code></pre>
+<pre class="r"><code>Idents(EC_combined) &lt;- &quot;SCT_snn_res.0.3&quot;</code></pre>
+<pre class="r"><code>clustree::clustree(EC_combined@meta.data[,grep(&quot;SCT_snn_res&quot;, colnames(EC_combined@meta.data))], prefix = &quot;SCT_snn_res.&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/clustree-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- DimPlot(
+  EC_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;SCT_snn_res.0.3&quot;,
+  label = TRUE,
+  repel = TRUE,
+  shuffle = TRUE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle(&quot;Combined endothelial subclusters&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p2 &lt;- DimPlot(
+  EC_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;Dataset&quot;,
+  cols = dataset_cols,
+  shuffle = TRUE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;Dataset&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p3 &lt;- DimPlot(
+  EC_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;Group&quot;,
+  cols = group_cols,
+  shuffle = TRUE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;Group&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p4 &lt;- DimPlot(
+  EC_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;Sample&quot;,
+  shuffle = TRUE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle(&quot;Sample&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+(p1 | p2) / (p3 | p4)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/umaps%20endothelial%20combined-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>cell_type_cols &lt;- c(&quot;#d05050&quot;, &quot;#33A02C&quot;, &quot;#1F78B4&quot;, &quot;#CAB2D6&quot;, &quot;#FF7F00&quot;, &quot;#B2DF8A&quot;, &quot;#B15928&quot;, &quot;#FFD000&quot;, &quot;#FA95C0&quot;, &quot;#FDBF6F&quot;, &quot;#6A3D9A&quot;, &quot;#7aCDF9&quot;, &quot;#E6E600&quot;)</code></pre>
+<pre class="r"><code>VlnPlot_scCustom(
+  EC_combined,
+  features = c(&quot;nCount_RNA&quot;, &quot;nFeature_RNA&quot;, &quot;percent.mt&quot;),
+  num_columns = 3,
+  pt.size = 0,
+  colors_use = cell_type_cols
+) + theme(axis.title.x = element_blank())</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/EC_combined_qc-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>markers_capillary &lt;- c(&quot;RGCC&quot;, &quot;CA4&quot;, &quot;KDR&quot;)
+markers_venous &lt;- c(&quot;ACKR1&quot;, &quot;SELP&quot;, &quot;VWF&quot;)
+markers_arterial &lt;- c(&quot;EFNB2&quot;, &quot;GJA5&quot;, &quot;CXCL12&quot;)
+markers_angiogenic &lt;- c(&quot;KDR&quot;, &quot;ANGPT2&quot;, &quot;APLN&quot;)
+markers_inflammatory &lt;- c(&quot;IFITM3&quot;, &quot;IFI6&quot;, &quot;CXCL10&quot;)
+markers_proliferating &lt;- c(&quot;MKI67&quot;, &quot;TOP2A&quot;, &quot;CENPF&quot;)
+
+marker_lists &lt;- list(
+  Capillary = markers_capillary,
+  Venous = markers_venous,
+  Arterial = markers_arterial,
+  Angiogenic_activated = markers_angiogenic,
+  Interferon_inflammatory = markers_inflammatory,
+  Proliferating = markers_proliferating
+)
+
+marker_lists_present &lt;- lapply(marker_lists, function(x) x[x %in% rownames(EC_combined)])
+marker_lists_missing &lt;- lapply(marker_lists, function(x) setdiff(x, rownames(EC_combined)))
+marker_lists_missing</code></pre>
+<pre><code>$Capillary
+character(0)
+
+$Venous
+character(0)
+
+$Arterial
+character(0)
+
+$Angiogenic_activated
+character(0)
+
+$Interferon_inflammatory
+character(0)
+
+$Proliferating
+character(0)</code></pre>
+<pre class="r"><code>for (nm in names(marker_lists_present)) {
+  genes_use &lt;- marker_lists_present[[nm]]
+
+  if (length(genes_use) == 0) {
+    message(&quot;Skipping &quot;, nm, &quot;: no markers found in object&quot;)
+    next
+  }
+
+  p &lt;- FeaturePlot(
+    EC_combined,
+    features = genes_use,
+    reduction = &quot;umap&quot;,
+    order = TRUE,
+    ncol = length(genes_use)
+  ) &amp;
+    theme(
+      plot.title = element_text(face = &quot;bold&quot;, hjust = 0.5),
+      axis.text = element_blank(),
+      axis.ticks = element_blank()
+    )
+
+  print(p)
+}</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/endothelial%20canonical%20marker%20featureplots-1.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/endothelial%20canonical%20marker%20featureplots-2.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/endothelial%20canonical%20marker%20featureplots-3.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/endothelial%20canonical%20marker%20featureplots-4.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/endothelial%20canonical%20marker%20featureplots-5.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/endothelial%20canonical%20marker%20featureplots-6.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>df_prop_ec &lt;- EC_combined@meta.data %&gt;%
+  dplyr::count(Dataset, Group, Sample, cluster = SCT_snn_res.0.3) %&gt;%
+  dplyr::group_by(Dataset, Group, Sample) %&gt;%
+  dplyr::mutate(freq = n / sum(n)) %&gt;%
+  dplyr::ungroup()
+
+p_prop_dataset &lt;- ggplot(df_prop_ec, aes(x = cluster, y = freq, fill = Dataset)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(width = 0.15, size = 1.2, alpha = 0.8) +
+  scale_fill_manual(values = dataset_cols) +
+  labs(x = &quot;Cluster&quot;, y = &quot;Fraction of endothelial cells&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_blank()
+  )
+
+p_prop_group &lt;- ggplot(df_prop_ec, aes(x = cluster, y = freq, fill = Group)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(width = 0.15, size = 1.2, alpha = 0.8) +
+  scale_fill_manual(values = group_cols) +
+  labs(x = &quot;Cluster&quot;, y = &quot;Fraction of endothelial cells&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_blank()
+  )
+
+p_prop_dataset | p_prop_group</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/cluster%20proportions%20by%20dataset%20and%20group-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+EC_combined &lt;- NormalizeData(EC_combined)
+Idents(EC_combined) &lt;- &quot;SCT_snn_res.0.3&quot;
+
+EC_markers_combined &lt;- FindAllMarkers(
+  EC_combined,
+  assay = &quot;RNA&quot;,
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+EC_markers_combined &lt;- EC_markers_combined %&gt;%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+EC_markers_top10_combined &lt;- EC_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+EC_markers_top3_combined &lt;- EC_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+EC_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_head(n = 20) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-697d58abce2053a24549" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-697d58abce2053a24549">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"p_val":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2.79936354450231e-254,0,0,1.86052121105171e-188,0,0,0,0,0,0,0,0,0,0,6.0007257887585e-244,0,0,4.00291986260578e-320,0,0,0,0,0,0,1.05235982564186e-320,4.1904476214979e-289,1.95840858314803e-290,0,9.7791274443926e-308,0,0,0,0,0,1.08694442085074e-322,0,5.09050544296402e-291,2.31828986155301e-260,1.33118510471922e-172,1.50458510423652e-236,0,4.67917601569074e-271,6.41153153719855e-226,4.15832741983299e-213,5.58589263831236e-204,1.05017593429151e-102,2.31250930253468e-241,3.46861970381094e-132,3.10998290866572e-125,1.18097359232453e-113,1.13135996400339e-135,2.97526567421e-196,9.18383846127646e-139,5.22808646248726e-139,2.95191811712823e-113,2.10908615854512e-72,4.89910376072768e-119,6.13228139938458e-181,2.83641075154907e-110,4.13373158268037e-162,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2.02703306210268e-312,1.28810486191591e-246,1.30274368346384e-225,6.88320697085742e-195,1.21336586332677e-178,2.51707248814927e-225,1.05288852316695e-99,4.57262666671379e-241,2.47757002170733e-215,1.39963253267116e-128,5.79577321957215e-176,5.71084956697805e-172,7.18524363072157e-155,2.53573346718098e-190,1.55553714359935e-140,1.43824713831978e-115,6.07773341492243e-139,6.48589995435267e-79,1.02052852429182e-147,1.46915400249611e-182],"avg_log2FC":[1.55923220926053,1.21491044735237,1.13752775739922,1.08673951351301,1.05755912091682,0.990523438250508,0.945499996337978,0.931437153581317,0.914934600713847,0.91336198006706,0.881718267323385,0.881683294779186,0.86784595823267,0.866127280094096,0.845909636963919,0.837782356223361,0.807531582309392,0.80547414967124,0.802548908243512,0.784466769795923,3.22294110377129,3.07055742343668,2.31953501986919,1.98348051677746,1.96327814049652,1.68293263039187,1.47153778356809,1.43231448743224,1.41789265037679,1.33729671253306,1.32825638606141,1.25210525841567,1.2386373801189,1.22524859657744,1.20915054552768,1.20434185407366,1.1782461347326,1.17735672715704,1.17644191304327,1.17268452398109,2.95201264166142,2.39689585675835,2.26094860634463,2.20941337921405,2.15957599370967,2.09583751533436,1.98083901440237,1.89188348882615,1.88520617244186,1.87249503796322,1.77870409522959,1.72776221214059,1.70371703062829,1.66064648518229,1.62854028628752,1.57763235937452,1.52364817546036,1.47988764742881,1.47102869119887,1.44839979738935,2.02126284588422,1.68745269791792,1.6479044151435,1.54709734613717,1.53266062123491,1.42758307805439,1.41535548064612,1.40920090988442,1.38195642834651,1.36511271880866,1.35308363299525,1.34367181446181,1.3385148090813,1.33186415026726,1.32800215339374,1.30085018852332,1.23260073152744,1.22657676227814,1.22259176206879,1.20631538880617,1.82841527203727,1.64730217333371,1.48512477799947,1.36105143672419,1.30121185391399,1.28713186631718,1.22752259565274,1.19158371124503,1.18931154841061,1.15953416532027,1.15525584659656,1.14713436414246,1.10734743557225,1.10393495161056,1.09259833689013,1.0815264795787,1.05716271142713,1.04811665581048,1.02298670417456,0.994659802041292,2.31094942341912,2.07621809101594,1.93265858482156,1.63100817465418,1.62643326710904,1.60816042500851,1.60113038458268,1.56944863201172,1.52593238749351,1.51841451918559,1.45460260804934,1.45402850929376,1.43685705001121,1.43387316269288,1.36032381205153,1.3590216429122,1.330265997092,1.31901319670917,1.31818590369208,1.26363206031974,4.23798414733147,4.20322149160982,3.22139839692078,2.86928209704155,2.86465027585592,2.70523643470615,2.61926118274811,2.61055619568009,2.46866039942749,2.44798273838761,2.44026186934997,2.36159567784129,2.23620280555751,2.21439995763658,2.21270238052064,2.20989343532193,2.07498392219378,2.02555904591129,1.96898221676809,1.94838397864578,3.41231239581232,2.78101516014232,2.34299984862185,2.30043851569715,2.0667045266995,1.94989885866502,1.92127245357529,1.85443984332072,1.83280985233003,1.82245324701952,1.80372738717042,1.76830668430677,1.75521286564623,1.75484352244369,1.73505562566601,1.67719382342553,1.67470427005713,1.63713045024567,1.62995109985765,1.6149138830682],"pct.1":[0.369,0.681,0.259,0.654,0.824,0.482,0.573,0.71,0.669,0.375,0.812,0.328,0.279,0.669,0.409,0.234,0.818,0.606,0.321,0.25,0.733,0.462,0.637,0.573,0.876,0.557,0.238,0.186,0.212,0.668,0.344,0.151,0.303,0.182,0.203,0.264,0.283,0.194,0.277,0.225,0.25,0.657,0.198,0.383,0.863,0.446,0.286,0.359,0.173,0.572,0.614,0.751,0.664,0.353,0.502,0.269,0.541,0.559,0.402,0.341,0.291,0.714,0.904,0.166,0.624,0.659,0.496,0.61,0.835,0.722,0.683,0.779,0.563,0.495,0.504,0.533,0.605,0.409,0.404,0.404,0.329,0.822,0.286,0.178,0.321,0.372,0.273,0.265,0.428,0.336,0.849,0.433,0.604,0.311,0.348,0.19,0.682,0.575,0.256,0.375,0.799,0.391,0.122,0.454,0.631,0.137,0.433,0.219,0.68,0.571,0.343,0.256,0.439,0.473,0.606,0.347,0.328,0.359,0.495,0.322,0.596,0.664,0.567,0.606,0.25,0.495,0.488,0.691,0.577,0.366,0.707,0.515,0.388,0.346,0.457,0.429,0.946,0.328,0.693,0.564,0.858,0.767,0.712,0.387,0.694,0.814,0.251,0.665,0.463,0.452,0.565,0.711,0.64,0.611,0.607,0.632,0.677,0.306,0.363,0.811],"pct.2":[0.092,0.403,0.095,0.438,0.621,0.245,0.338,0.501,0.495,0.208,0.668,0.146,0.132,0.478,0.236,0.11,0.507,0.413,0.18,0.125,0.145,0.062,0.161,0.181,0.667,0.233,0.06,0.035,0.02,0.397,0.145,0.008,0.117,0.016,0.053,0.071,0.086,0.037,0.091,0.051,0.028,0.145,0.014,0.036,0.276,0.052,0.01,0.041,0.029,0.177,0.196,0.391,0.28,0.057,0.14,0.038,0.194,0.259,0.103,0.071,0.117,0.387,0.667,0.055,0.312,0.377,0.222,0.307,0.565,0.419,0.396,0.501,0.274,0.217,0.294,0.268,0.343,0.179,0.15,0.164,0.058,0.445,0.052,0.01,0.116,0.158,0.093,0.068,0.192,0.119,0.647,0.178,0.321,0.091,0.13,0.046,0.441,0.339,0.108,0.17,0.439,0.11,0.015,0.163,0.318,0.034,0.14,0.063,0.46,0.339,0.131,0.064,0.196,0.224,0.38,0.179,0.13,0.119,0.261,0.106,0.025,0.013,0.042,0.094,0.035,0.028,0.034,0.144,0.112,0.016,0.123,0.021,0.006,0.069,0.115,0.048,0.7,0.039,0.226,0.162,0.501,0.409,0.363,0.104,0.367,0.475,0.075,0.26,0.133,0.18,0.233,0.388,0.332,0.256,0.313,0.368,0.374,0.122,0.109,0.516],"p_val_adj":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5.83387362674281e-250,0,0,3.87732620383177e-184,0,0,0,0,0,0,0,0,0,0,1.25055125437727e-239,0,0,8.34208499367044e-316,0,0,0,0,0,0,2.19311787663763e-316,8.73289284320163e-285,4.08132348728049e-286,0,2.03797015941142e-303,0,0,0,0,0,2.26519217305295e-318,0,1.0608613343137e-286,4.83131607147647e-256,2.77418975823485e-168,3.1355553572289e-232,0,9.7514028166995e-267,1.33616317235218e-221,8.66595434293194e-209,1.1641000258243e-199,2.18856664706352e-98,4.81926938648228e-237,7.22860346274199e-128,6.48120438165937e-121,2.46114896640432e-109,2.35775416498306e-131,6.20045366505365e-192,1.91391193533001e-134,1.08953321878234e-134,6.15179735609523e-109,4.39533555440804e-68,1.02097322373565e-114,1.27796744363175e-176,5.91108000622827e-106,8.6146966183059e-158,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4.22433690142198e-308,2.68441053223275e-242,2.71491783633864e-221,1.43446033272669e-190,2.52865445917298e-174,5.24557906530308e-221,2.19421968227992e-95,9.52935397343155e-237,5.16325592523807e-211,2.9168341980867e-124,1.20783913895884e-171,1.19014104975823e-167,1.49740477264237e-150,5.28446854560515e-186,3.24173940726105e-136,2.99730703625841e-111,1.26659964366983e-134,1.3516615504871e-74,2.12678144462416e-143,3.0617169412019e-178],"cluster":["0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7"],"gene":["CA4","ABLIM3","LPL","EPB41L2","CD36","RGCC","LNX1","MGLL","PPFIBP1","KCNQ1OT1","FOXN3","TNNT3","FMO2","ITGA1","SLC9C1","STXBP6","BTNL9","CLIC5","DTNA","CDKN1C","NEBL","PCSK5","LINC00639","SMAD6","ARL15","FUT8","AMD1","CHN2","PRDM16","MAST4","ATP13A3","SIDT1","CDK19","SEMA3G","SH3PXD2B","VEGFA","CLMN","ALPL","SIPA1L2","LPCAT2","KCNIP4","SLCO2A1","NRG3","ZBTB7C","TSHZ2","NR2F2-AS1","ACKR1","TGFBR3","POSTN","MIR99AHG","LYST","CALCRL","PGM5","BNC2","FRMD4B","EPB41L3","SNTG2","CACNA1C","ZNF521","TFPI","IGFBP5","IFITM3","B2M","RGS5","ACTB","FABP5","IFITM2","IFI27","HLA-B","HLA-A","TMSB10","HLA-C","RNASE1","PTMA","FABP4","TMSB4X","VIM","IL32","ITM2A","S100A10","TMEM163","CDH13","TNFRSF4","KIT","NRP2","ARHGAP18","SNTB1","DAPK2","SMAD1","MYO1B","DOCK4","IL32","AFAP1L1","MCAM","RCSD1","BCL2","COL4A2","ADGRL2","ANGPT2","LAMB1","ADAMTS9","AKAP12","SELE","ADAMTS1","ZNF385D","VCAM1","NAMPT","ICAM1","MCTP1","CRIM1","CXCL2","SLC4A7","SAMD4A","VCL","COL4A1","MT2A","ZFP36","UGCG","EMP1","IQCJ-SCHIP1","NKAIN2","DKK2","SULF1","ELN","CSMD1","PTPRJ","EFNA5","COL8A1","FN1","SLC4A4","PCSK5","GJA5","TOX","BMP6","PDE3A","MEIS2","ARL15","NLGN1","ITPR1","ADAMTS1","TTN","MYH7","DES","CMYA5","TCAP","ACTC1","MYH6","TNNT2","MYBPC3","ANKRD1","CKM","CRYAB","TNNC1","SLC25A4","MYL3","ACTA1","RYR2","PTGDS","ACTN2","MYL2"]},"columns":[{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"cluster","name":"cluster","type":"factor"},{"id":"gene","name":"gene","type":"character"}],"dataKey":"32d5c8ca5023bb2d94458f9716dab0fe"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>write.csv(
+  EC_markers_combined,
+  here::here(output_dir_data, &quot;EC_markers_combined_all.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  EC_markers_top10_combined,
+  here::here(output_dir_data, &quot;EC_markers_combined_top10.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  EC_markers_top3_combined,
+  here::here(output_dir_data, &quot;EC_markers_combined_top3.csv&quot;),
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c(&quot;0&quot;), &quot;cell_state&quot;] = &quot;EC_capillary&quot;
+EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c(&quot;1&quot;), &quot;cell_state&quot;] = &quot;EC_arterial_PCSK5&quot;
+EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c(&quot;2&quot;), &quot;cell_state&quot;] = &quot;EC_venous&quot;
+EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c(&quot;3&quot;), &quot;cell_state&quot;] = &quot;EC_interferon&quot;
+EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c(&quot;4&quot;), &quot;cell_state&quot;] = &quot;EC_activated&quot;
+EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c(&quot;5&quot;), &quot;cell_state&quot;] = &quot;EC_inflammatory&quot;
+EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c(&quot;6&quot;), &quot;cell_state&quot;] = &quot;EC_arterial_NKAIN2&quot;
+EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c(&quot;7&quot;), &quot;cell_state&quot;] = &quot;EC_CM_contamination&quot;
+
+EC_combined$cell_state &lt;- factor(EC_combined$cell_state, levels = c(&quot;EC_capillary&quot;, &quot;EC_arterial_PCSK5&quot;, &quot;EC_venous&quot;, &quot;EC_interferon&quot;, &quot;EC_activated&quot;, &quot;EC_inflammatory&quot;, &quot;EC_arterial_NKAIN2&quot;, &quot;EC_CM_contamination&quot;))
+Idents(EC_combined) &lt;- EC_combined$cell_state</code></pre>
+<pre class="r"><code>EC_combined &lt;- subset(EC_combined, cell_state %in% c(&quot;EC_capillary&quot;, &quot;EC_arterial_PCSK5&quot;, &quot;EC_venous&quot;, &quot;EC_interferon&quot;, &quot;EC_activated&quot;, &quot;EC_inflammatory&quot;, &quot;EC_arterial_NKAIN2&quot;))</code></pre>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+qs_save(
+  EC_combined,
+  file = here::here(output_dir_data, &quot;EC_combined.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+<pre class="r"><code>EC_combined &lt;- qs_read(
+  file = here::here(output_dir_data, &quot;EC_combined.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+<pre class="r"><code>plot_group &lt;- if (&quot;cell_state&quot; %in% colnames(EC_combined@meta.data)) &quot;cell_state&quot; else &quot;SCT_snn_res.0.3&quot;
+
+p &lt;- DimPlot(
+  EC_combined,
+  group.by = plot_group,
+  reduction = &quot;umap&quot;,
+  cols = cell_type_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_blank()
+  )
+
+LabelClusters(
+  p,
+  id = plot_group,
+  fontface = &quot;bold&quot;,
+  size = 5,
+  repel = TRUE
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/UMAP%20cell%20states-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>EC_markers_combined &lt;- FindAllMarkers(
+  EC_combined,
+  assay = &quot;RNA&quot;,
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+EC_markers_combined &lt;- EC_markers_combined %&gt;%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+EC_markers_top10_combined &lt;- EC_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+EC_markers_top3_combined &lt;- EC_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+EC_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_head(n = 20) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-29a56e939b13f92b7856" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-29a56e939b13f92b7856">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"p_val":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5.24250319197043e-256,0,0,6.34121282144138e-191,0,0,0,0,0,0,0,0,0,0,9.981233869459e-244,0,0,1.00143153886854e-318,0,0,0,0,0,0,1.04424726773714e-318,7.25461993296507e-289,6.91210849146086e-290,0,1.93038749283168e-305,0,0,0,0,0,1.28457067918724e-322,0,1.09585433578393e-288,5.58990264832731e-259,1.74256028663434e-170,1.25849503038206e-235,0,7.52987430790998e-270,1.30649656303502e-224,8.85310205292485e-212,2.37375205222126e-203,7.93061929905994e-102,1.91692088179964e-240,2.42287228897769e-131,3.58422673658096e-124,1.27171401925585e-112,1.58044824995682e-194,9.63882488144379e-135,2.01741737987373e-138,6.19957027424144e-139,1.13013708587738e-72,1.05504072092959e-112,1.44584076536149e-118,1.31654976536054e-179,3.76837140705837e-109,4.35832745400949e-161,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"avg_log2FC":[1.59556729558446,1.23887334564557,1.17197688402055,1.10309599278159,1.07183450493992,1.00475723867968,0.95822607430324,0.948241183226266,0.934449074570654,0.926995869246179,0.896823889681762,0.892542333503276,0.879527143728067,0.877277689408528,0.857917123210697,0.853752547809336,0.823507859567985,0.820064490274599,0.81698068205039,0.796038965442311,3.24303637575688,3.06896450296968,2.3191319636746,1.9825338542792,1.96026314382817,1.68166716075053,1.47508710976966,1.43388157360192,1.42081554624122,1.33773483182139,1.3279148743184,1.2519774011206,1.23897915901965,1.22551094838687,1.20744068780206,1.207405575028,1.18124528287563,1.17826346277521,1.17805384296063,1.17532799111744,2.95861303314413,2.39887950331349,2.26473412180656,2.21178338642152,2.16334559116613,2.09966070239127,1.98439628469266,1.89380150766003,1.88808677796264,1.87602470682194,1.7791419579784,1.72856886539088,1.70682027628407,1.66350407299212,1.62825484989029,1.57863130968868,1.5248428760639,1.4886700162466,1.47413519330116,1.44896444582784,2.02051698687935,1.68922428056466,1.64987243961636,1.55306845728297,1.53531413321692,1.42908289374512,1.4166873154539,1.40816803997524,1.38189194473859,1.36534350335225,1.35307476707284,1.34294399491303,1.34005837476233,1.33177841121982,1.32752310867552,1.30210239298431,1.23392304544407,1.22521066714901,1.22268391572347,1.20832340152787,1.8292680301041,1.64542002651601,1.48459930526674,1.36219357510054,1.29905615541449,1.28899077934561,1.22814392132449,1.19147521499807,1.18718550511694,1.15917106347842,1.1519549962718,1.14564550043151,1.10684125892269,1.10460178658912,1.09406575299741,1.08171978103726,1.05349666742255,1.04637567308021,1.0189874693388,0.994456676772806,2.30681776171621,2.07429875743872,1.93159168723698,1.62749128047472,1.62408867463119,1.60574903334967,1.59930293173002,1.56741227252656,1.52093344654021,1.5134099253831,1.45161765659614,1.44984202648505,1.43653738221589,1.43419039842221,1.35935644343953,1.35906344769468,1.32865238199043,1.31613137378381,1.31379176920531,1.26196744303985,4.23677572998024,4.2018780783369,3.21891260287798,2.86649057497655,2.8658031461652,2.70580839884253,2.6241039484194,2.6067221440629,2.4718298787759,2.44794368920691,2.43091832411493,2.35985884282149,2.23704491555786,2.22481205071249,2.21147277129792,2.20970261960501,2.0682709753949,2.02968891204647,1.96531372563294,1.94497146080228],"pct.1":[0.369,0.681,0.259,0.654,0.824,0.482,0.573,0.71,0.669,0.375,0.328,0.812,0.279,0.669,0.234,0.409,0.321,0.818,0.606,0.25,0.733,0.462,0.637,0.573,0.876,0.557,0.238,0.186,0.212,0.668,0.344,0.151,0.303,0.182,0.264,0.203,0.283,0.194,0.277,0.225,0.25,0.657,0.198,0.383,0.863,0.446,0.286,0.359,0.173,0.572,0.614,0.751,0.664,0.353,0.502,0.269,0.541,0.559,0.402,0.341,0.291,0.714,0.904,0.166,0.624,0.659,0.496,0.61,0.835,0.722,0.683,0.779,0.563,0.495,0.504,0.533,0.605,0.409,0.404,0.404,0.329,0.822,0.286,0.178,0.321,0.372,0.273,0.265,0.428,0.336,0.849,0.433,0.604,0.311,0.348,0.19,0.682,0.575,0.256,0.375,0.799,0.391,0.122,0.454,0.631,0.137,0.433,0.219,0.68,0.571,0.256,0.343,0.439,0.473,0.347,0.606,0.328,0.359,0.495,0.322,0.596,0.664,0.567,0.606,0.25,0.495,0.488,0.691,0.577,0.366,0.707,0.515,0.388,0.457,0.429,0.346,0.946,0.328,0.693,0.564],"pct.2":[0.088,0.401,0.091,0.437,0.618,0.242,0.337,0.499,0.494,0.207,0.144,0.668,0.131,0.476,0.108,0.235,0.178,0.503,0.411,0.125,0.142,0.062,0.161,0.182,0.668,0.234,0.06,0.035,0.02,0.398,0.145,0.008,0.117,0.016,0.07,0.053,0.085,0.037,0.091,0.051,0.027,0.145,0.014,0.036,0.276,0.052,0.01,0.041,0.029,0.177,0.196,0.392,0.28,0.057,0.14,0.038,0.194,0.258,0.103,0.071,0.116,0.387,0.667,0.055,0.312,0.377,0.222,0.307,0.566,0.419,0.396,0.501,0.274,0.218,0.294,0.268,0.343,0.179,0.151,0.164,0.058,0.446,0.052,0.01,0.116,0.158,0.093,0.068,0.192,0.12,0.649,0.178,0.322,0.091,0.129,0.046,0.442,0.339,0.109,0.17,0.44,0.11,0.015,0.164,0.318,0.034,0.14,0.063,0.461,0.34,0.064,0.131,0.196,0.224,0.178,0.381,0.131,0.119,0.262,0.106,0.025,0.013,0.042,0.094,0.035,0.028,0.033,0.145,0.112,0.016,0.124,0.021,0.006,0.114,0.048,0.07,0.701,0.039,0.227,0.162],"p_val_adj":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.09253766520664e-251,0,0,1.32150875198838e-186,0,0,0,0,0,0,0,0,0,0,2.08008913839526e-239,0,0,2.08698332700204e-314,0,0,0,0,0,0,2.1762113059642e-314,1.51186279402992e-284,1.44048340962044e-285,0,4.02292753506122e-301,0,0,0,0,0,2.67704529542621e-318,0,2.28376043577371e-284,1.16493571191141e-254,3.63149563734597e-166,2.62270364331621e-231,0,1.56922580576844e-265,2.72273883736498e-220,1.84498646782954e-207,4.9468992768291e-199,1.65274106192409e-97,3.99486311767044e-236,5.04926585022951e-127,7.46952851903471e-120,2.6502520161292e-108,3.29365415291002e-190,2.00873110529289e-130,4.20429781965685e-134,1.29199044515192e-134,2.35520568696846e-68,2.19870486241727e-108,3.01313215501334e-114,2.74368971101136e-175,7.85328601230964e-105,9.08275441415577e-157,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"cluster":["EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_capillary","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_arterial_PCSK5","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_venous","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_interferon_RGS5","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_activated","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_inflammatory","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2","EC_arterial_NKAIN2"],"gene":["CA4","ABLIM3","LPL","EPB41L2","CD36","RGCC","LNX1","MGLL","PPFIBP1","KCNQ1OT1","TNNT3","FOXN3","FMO2","ITGA1","STXBP6","SLC9C1","DTNA","BTNL9","CLIC5","CDKN1C","NEBL","PCSK5","LINC00639","SMAD6","ARL15","FUT8","AMD1","CHN2","PRDM16","MAST4","ATP13A3","SIDT1","CDK19","SEMA3G","VEGFA","SH3PXD2B","CLMN","ALPL","SIPA1L2","LPCAT2","KCNIP4","SLCO2A1","NRG3","ZBTB7C","TSHZ2","NR2F2-AS1","ACKR1","TGFBR3","POSTN","MIR99AHG","LYST","CALCRL","PGM5","BNC2","FRMD4B","EPB41L3","SNTG2","CACNA1C","ZNF521","TFPI","IGFBP5","IFITM3","B2M","RGS5","ACTB","FABP5","IFITM2","IFI27","HLA-B","HLA-A","TMSB10","HLA-C","RNASE1","PTMA","FABP4","TMSB4X","VIM","IL32","ITM2A","S100A10","TMEM163","CDH13","TNFRSF4","KIT","NRP2","ARHGAP18","SNTB1","DAPK2","SMAD1","MYO1B","DOCK4","IL32","AFAP1L1","MCAM","RCSD1","BCL2","COL4A2","ADGRL2","ANGPT2","LAMB1","ADAMTS9","AKAP12","SELE","ADAMTS1","ZNF385D","VCAM1","NAMPT","ICAM1","MCTP1","CRIM1","SLC4A7","CXCL2","SAMD4A","VCL","MT2A","COL4A1","ZFP36","UGCG","EMP1","IQCJ-SCHIP1","NKAIN2","DKK2","SULF1","ELN","CSMD1","PTPRJ","EFNA5","COL8A1","FN1","SLC4A4","PCSK5","GJA5","TOX","PDE3A","MEIS2","BMP6","ARL15","NLGN1","ITPR1","ADAMTS1"]},"columns":[{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"cluster","name":"cluster","type":"factor"},{"id":"gene","name":"gene","type":"character"}],"dataKey":"db7aeb083b372d3bc6793f51d0cf8c80"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>write.csv(
+  EC_markers_combined,
+  here::here(output_dir_data, &quot;EC_markers_combined_all_cell_state.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  EC_markers_top10_combined,
+  here::here(output_dir_data, &quot;EC_markers_combined_top10_cell_state.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  EC_markers_top3_combined,
+  here::here(output_dir_data, &quot;EC_markers_combined_top3_cell_state.csv&quot;),
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>id_backup &lt;- Idents(EC_combined)
+Idents(EC_combined) &lt;- factor(Idents(EC_combined), levels = rev(levels(Idents(EC_combined))))
+
+p_dot &lt;- DotPlot_scCustom(
+  EC_combined,
+  features = unique(EC_markers_top3_combined$gene),
+  x_lab_rotate = TRUE
+)
+
+p_dot + theme(
+  axis.text.x = element_text(size = 11, angle = 60, vjust = 1, hjust = 1),
+  axis.text.y = element_text(size = 12)
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/dotplot%20top%20markers-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(EC_combined) &lt;- id_backup</code></pre>
+<pre class="r"><code>heatmap_cols &lt;- colorRampPalette(RColorBrewer::brewer.pal(9, &quot;RdBu&quot;))(256)
+heatmap_cols &lt;- rev(heatmap_cols[1:256])
+
+set.seed(123)
+cells_use_heatmap &lt;- colnames(EC_combined)
+if (length(cells_use_heatmap) &gt; 20000) {
+  cells_use_heatmap &lt;- sample(cells_use_heatmap, 20000)
+}
+
+DoHeatmap(
+  subset(EC_combined, cells = cells_use_heatmap),
+  label = TRUE,
+  draw.lines = FALSE,
+  features = unique(EC_markers_top10_combined$gene),
+  assay = &quot;SCT&quot;,
+  size = 3.5
+) +
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(
+    text = element_text(size = 12),
+    axis.text.y = element_text(size = 8),
+    plot.margin = unit(c(0, 0, 0, 0), &quot;inches&quot;)
+  ) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) +
+  guides(color = &quot;none&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/heatmap%20top%20markers-1.png" width="3300" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>selected_marker_features &lt;- unique(c(
+  markers_capillary,
+  markers_venous,
+  markers_arterial,
+  markers_angiogenic,
+  markers_inflammatory,
+  markers_proliferating
+))
+selected_marker_features &lt;- selected_marker_features[selected_marker_features %in% rownames(EC_combined)]
+
+VlnPlot_scCustom(
+  EC_combined,
+  features = selected_marker_features,
+  num_columns = 3,
+  colors_use = cell_type_cols,
+  pt.size = 0.001
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/violin%20selected%20markers-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot_scCustom(
+  EC_combined,
+  features = unique(EC_markers_top3_combined$gene),
+  num_columns = 3,
+  order = TRUE
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/featureplot%20selected%20markers-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>cluster_var &lt;- &quot;cell_state&quot;
+
+df_prop_ec &lt;- EC_combined@meta.data %&gt;%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %&gt;%
+  dplyr::count(Dataset, Group, Sample, Sex, Age, cluster, name = &quot;n&quot;) %&gt;%
+  dplyr::group_by(Dataset, Group, Sample) %&gt;%
+  dplyr::mutate(total_n = sum(n),
+                freq = n / total_n) %&gt;%
+  dplyr::ungroup()
+
+df_prop_ec$cluster &lt;- factor(
+  df_prop_ec$cluster,
+  levels = sort(unique(as.character(df_prop_ec$cluster)))
+)
+
+df_prop_ec$Group &lt;- factor(df_prop_ec$Group, levels = c(&quot;H&quot;, &quot;HF&quot;))
+df_prop_ec$Dataset &lt;- factor(df_prop_ec$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;))
+df_prop_ec$Sex &lt;- factor(df_prop_ec$Sex, levels = c(&quot;F&quot;, &quot;M&quot;))
+df_prop_ec$Age &lt;- as.numeric(df_prop_ec$Age)</code></pre>
+<pre class="r"><code>meta_abund &lt;- EC_combined@meta.data %&gt;%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %&gt;%
+  dplyr::group_by(Sample) %&gt;%
+  dplyr::summarise(
+    Dataset = dplyr::first(Dataset),
+    Group   = dplyr::first(Group),
+    Sex     = dplyr::first(Sex),
+    Age     = dplyr::first(Age),
+    .groups = &quot;drop&quot;
+  ) %&gt;%
+  dplyr::filter(!is.na(Group), !is.na(Age), !is.na(Sex), !is.na(Dataset))
+
+meta_abund$Group &lt;- factor(meta_abund$Group, levels = c(&quot;H&quot;, &quot;HF&quot;))
+meta_abund$Sex &lt;- factor(meta_abund$Sex, levels = c(&quot;F&quot;, &quot;M&quot;))
+meta_abund$Dataset &lt;- factor(meta_abund$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;))
+meta_abund$Age &lt;- as.numeric(meta_abund$Age)
+
+props_ec &lt;- speckle::getTransformedProps(
+  clusters = EC_combined@meta.data[[cluster_var]],
+  sample = EC_combined$Sample,
+  transform = &quot;logit&quot;
+)
+
+sample_order &lt;- colnames(props_ec$TransformedProps)
+meta_abund &lt;- meta_abund %&gt;%
+  dplyr::filter(Sample %in% sample_order) %&gt;%
+  dplyr::arrange(match(Sample, sample_order))
+
+props_ec$Counts &lt;- props_ec$Counts[, meta_abund$Sample, drop = FALSE]
+props_ec$Proportions &lt;- props_ec$Proportions[, meta_abund$Sample, drop = FALSE]
+props_ec$TransformedProps &lt;- props_ec$TransformedProps[, meta_abund$Sample, drop = FALSE]
+
+design_abund &lt;- model.matrix(~ Group + Age + Sex + Dataset, data = meta_abund)
+
+fit_abund &lt;- limma::lmFit(props_ec$TransformedProps, design_abund)
+fit_abund &lt;- limma::eBayes(fit_abund, robust = TRUE)
+
+abund_h_vs_hf &lt;- limma::topTable(
+  fit_abund,
+  coef = &quot;GroupHF&quot;,
+  number = Inf,
+  sort.by = &quot;none&quot;
+) %&gt;%
+  tibble::rownames_to_column(&quot;cluster&quot;) %&gt;%
+  dplyr::mutate(
+    cluster = factor(cluster, levels = levels(df_prop_ec$cluster)),
+    fdr_label = vapply(adj.P.Val, format_p_label, character(1)),
+    fdr_fontface = vapply(adj.P.Val, format_p_fontface, character(1))
+  )
+
+write.csv(
+  abund_h_vs_hf,
+  file = file.path(output_dir_data, &quot;EC_subclusters_differential_abundance_H_vs_HF.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+abund_h_vs_hf</code></pre>
+<pre><code>             cluster       logFC    AveExpr          t      P.Value
+1       EC_capillary -0.11505947  0.1162008 -2.7165979 7.732713e-03
+2  EC_arterial_PCSK5  0.30310520 -1.5459759  5.2326465 8.789914e-07
+3          EC_venous -0.02648626 -1.6690778 -0.3702505 7.119529e-01
+4      EC_interferon -0.29538218 -3.0548439 -3.7501566 2.916310e-04
+5       EC_activated  0.22933738 -3.1445259  2.5223834 1.317997e-02
+6    EC_inflammatory -0.45753295 -4.2577429 -3.1882540 1.893924e-03
+7 EC_arterial_NKAIN2  0.26294270 -4.4599757  2.1251291 3.595737e-02
+8               &lt;NA&gt; -0.02812788 -7.1798570 -0.2064527 8.368432e-01
+     adj.P.Val          B fdr_label fdr_fontface
+1 1.546543e-02 -3.1038817         *         bold
+2 7.031931e-06  5.3919913      ****         bold
+3 8.136605e-01 -6.5722987    0.8137        plain
+4 1.166524e-03 -0.1020767        **         bold
+5 2.108795e-02 -3.5769650         *         bold
+6 5.050465e-03 -1.8312338        **         bold
+7 4.794317e-02 -4.4468876         *         bold
+8 8.368432e-01 -6.6191473    0.8368        plain</code></pre>
+<pre class="r"><code>pd &lt;- position_dodge(width = 0.75)
+pjd &lt;- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+p_prop_dataset &lt;- ggplot(
+  df_prop_ec,
+  aes(x = cluster, y = freq, fill = Dataset)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.65,
+    shape = 16
+  ) +
+  scale_fill_manual(values = dataset_cols) +
+  labs(x = &quot;Cluster&quot;, y = &quot;Fraction of endothelial cells&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_blank()
+  )
+
+y_annot &lt;- df_prop_ec %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::summarise(y = max(freq, na.rm = TRUE) + 0.03, .groups = &quot;drop&quot;) %&gt;%
+  dplyr::left_join(
+    abund_h_vs_hf %&gt;% dplyr::select(cluster, adj.P.Val, fdr_label, fdr_fontface),
+    by = &quot;cluster&quot;
+  )
+
+p_prop_group &lt;- ggplot(
+  df_prop_ec,
+  aes(x = cluster, y = freq, fill = Group)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.65,
+    shape = 16
+  ) +
+  geom_segment(
+    data = y_annot,
+    aes(
+      x = as.numeric(cluster) - 0.18,
+      xend = as.numeric(cluster) + 0.18,
+      y = y,
+      yend = y
+    ),
+    inherit.aes = FALSE,
+    linewidth = 0.4
+  ) +
+  geom_text(
+    data = y_annot,
+    aes(
+      x = cluster,
+      y = y + 0.025,
+      label = fdr_label,
+      fontface = fdr_fontface
+    ),
+    inherit.aes = FALSE,
+    size = 3.2
+  ) +
+  scale_fill_manual(values = group_cols) +
+  labs(x = &quot;Cluster&quot;, y = &quot;Fraction of endothelial cells&quot;) +
+  coord_cartesian(
+    ylim = c(0, max(y_annot$y + 0.04, na.rm = TRUE))
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_blank()
+  )
+
+p_prop_dataset | p_prop_group</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/cluster%20proportions%20by%20dataset%20and%20group_2-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<div id="over-representation-analysis-from-cluster-markers"
+class="section level3">
+<h3>Over-representation analysis from cluster markers</h3>
+<pre class="r"><code>df_markers_for_enrich &lt;- EC_markers_combined[, c(&quot;cluster&quot;, &quot;gene&quot;)]
+gene_lists_by_cluster &lt;- split(df_markers_for_enrich$gene, df_markers_for_enrich$cluster)
+
+# Background: genes detected in at least 3 cells
+DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+gene_counts &lt;- rowSums(EC_combined@assays$RNA@counts &gt; 0)
+universe_genes &lt;- names(gene_counts[gene_counts &gt;= 3])
+
+universe_entrez &lt;- clusterProfiler::bitr(
+  universe_genes,
+  fromType = &quot;SYMBOL&quot;,
+  toType = &quot;ENTREZID&quot;,
+  OrgDb = org.Hs.eg.db
+) %&gt;%
+  dplyr::pull(ENTREZID) %&gt;%
+  unique()
+
+gene_lists_entrez &lt;- lapply(gene_lists_by_cluster, function(x) {
+  clusterProfiler::bitr(
+    x,
+    fromType = &quot;SYMBOL&quot;,
+    toType = &quot;ENTREZID&quot;,
+    OrgDb = org.Hs.eg.db
+  ) %&gt;%
+    dplyr::pull(ENTREZID) %&gt;%
+    unique()
+})</code></pre>
+<pre class="r"><code>GO_clusters &lt;- compareCluster(
+  geneCluster = gene_lists_entrez,
+  fun = &quot;enrichGO&quot;,
+  ont = &quot;BP&quot;,
+  OrgDb = &quot;org.Hs.eg.db&quot;,
+  universe = universe_entrez
+)
+GO_clusters &lt;- gsfilter(GO_clusters, by = &quot;Count&quot;, min = 3)
+
+dotplot(
+  GO_clusters,
+  label_format = 50,
+  title = &quot;GO biological process over-representation analysis&quot;
+) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(lineheight = 0.5)
+  )</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/GO%20pathways%20dotplot-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>KEGG_clusters &lt;- compareCluster(
+  geneCluster = gene_lists_entrez,
+  fun = &quot;enrichKEGG&quot;,
+  organism = &quot;hsa&quot;,
+  universe = universe_entrez
+)
+KEGG_clusters &lt;- gsfilter(KEGG_clusters, by = &quot;Count&quot;, min = 3)
+
+dotplot(
+  KEGG_clusters,
+  label_format = 45,
+  title = &quot;KEGG over-representation analysis&quot;
+) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/KEGG%20pathways%20dotplot-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="transcription-factor-activity-inference"
+class="section level3">
+<h3>Transcription factor activity inference</h3>
+<pre class="r"><code>net_tf &lt;- decoupleR::get_collectri(organism = &quot;human&quot;, split_complexes = FALSE)</code></pre>
+<pre class="r"><code>expr_matrix &lt;- GetAssayData(object = EC_combined, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+non_zero_cells &lt;- rowSums(expr_matrix &gt; 0)
+total_cells &lt;- ncol(expr_matrix)
+percent_cells &lt;- (non_zero_cells / total_cells) * 100
+percent_stats &lt;- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+
+net_tf &lt;- net_tf %&gt;%
+  dplyr::filter(source %in% dplyr::filter(percent_stats, percentCells &gt; 1)$gene)</code></pre>
+<pre class="r"><code>TF_cols &lt;- rev(colorRampPalette(RColorBrewer::brewer.pal(5, &quot;BrBG&quot;))(101))</code></pre>
+<pre class="r"><code>mat &lt;- as.matrix(EC_combined@assays$RNA@data)
+
+acts_tf &lt;- decoupleR::run_ulm(
+  mat = mat,
+  net = net_tf,
+  .source = &quot;source&quot;,
+  .target = &quot;target&quot;,
+  .mor = &quot;mor&quot;,
+  minsize = 10
+)
+
+EC_combined[[&quot;tfsulm&quot;]] &lt;- acts_tf %&gt;%
+  tidyr::pivot_wider(
+    id_cols = &quot;source&quot;,
+    names_from = &quot;condition&quot;,
+    values_from = &quot;score&quot;
+  ) %&gt;%
+  tibble::column_to_rownames(&quot;source&quot;) %&gt;%
+  Seurat::CreateAssayObject(.)
+
+DefaultAssay(EC_combined) &lt;- &quot;tfsulm&quot;
+EC_combined &lt;- ScaleData(EC_combined)
+EC_combined@assays$tfsulm@data &lt;- EC_combined@assays$tfsulm@scale.data</code></pre>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;tfsulm&quot;
+
+n_tfs &lt;- 20
+
+df_tf &lt;- t(as.matrix(EC_combined@assays$tfsulm@data)) %&gt;%
+  as.data.frame() %&gt;%
+  dplyr::mutate(cluster = Seurat::Idents(EC_combined)) %&gt;%
+  tidyr::pivot_longer(cols = -cluster, names_to = &quot;source&quot;, values_to = &quot;score&quot;) %&gt;%
+  dplyr::group_by(cluster, source) %&gt;%
+  dplyr::summarise(mean = mean(score), .groups = &quot;drop&quot;)
+
+tfs_use &lt;- df_tf %&gt;%
+  dplyr::group_by(source) %&gt;%
+  dplyr::summarise(sd_mean = stats::sd(mean), .groups = &quot;drop&quot;) %&gt;%
+  dplyr::arrange(desc(abs(sd_mean))) %&gt;%
+  dplyr::slice_head(n = n_tfs) %&gt;%
+  dplyr::pull(source)
+
+top_tf_mat &lt;- df_tf %&gt;%
+  dplyr::filter(source %in% tfs_use) %&gt;%
+  tidyr::pivot_wider(id_cols = cluster, names_from = source, values_from = mean) %&gt;%
+  tibble::column_to_rownames(&quot;cluster&quot;) %&gt;%
+  as.matrix()
+
+my_breaks_tf &lt;- c(
+  seq(-2, 0, length.out = ceiling(101 / 2) + 1),
+  seq(0.05, 2, length.out = floor(101 / 2))
+)
+
+pheatmap::pheatmap(
+  mat = top_tf_mat,
+  color = TF_cols,
+  border_color = &quot;white&quot;,
+  breaks = my_breaks_tf,
+  cellwidth = 15,
+  cellheight = 15,
+  treeheight_row = 20,
+  treeheight_col = 20
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/tf%20heatmap%20top%20activities-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rep_tfs &lt;- intersect(c(&quot;RORA&quot;, &quot;CIITA&quot;, &quot;JUN&quot;, &quot;SP1&quot;, &quot;STAT3&quot;), rownames(EC_combined@assays$tfsulm))
+DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+rep_tf_expr &lt;- rep_tfs[rep_tfs %in% rownames(EC_combined)]
+
+for (tf in rep_tfs) {
+  DefaultAssay(EC_combined) &lt;- &quot;tfsulm&quot;
+  p1 &lt;- DimPlot(
+    EC_combined,
+    reduction = &quot;umap&quot;,
+    label = TRUE,
+    pt.size = 0.1
+  ) + NoLegend() + ggtitle(&quot;Cell states&quot;)
+
+  p2 &lt;- FeaturePlot(
+    EC_combined,
+    features = tf,
+    pt.size = 0.1,
+    order = TRUE
+  ) +
+    scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = &quot;white&quot;) +
+    ggtitle(paste(tf, &quot;activity&quot;))
+
+  if (tf %in% rep_tf_expr) {
+    DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+    p3 &lt;- FeaturePlot_scCustom(
+      EC_combined,
+      features = tf,
+      pt.size = 0.1
+    ) + ggtitle(paste(tf, &quot;expression&quot;))
+
+    print(p1 | p2 | p3)
+  } else {
+    print(p1 | p2)
+  }
+}</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/tf%20featureplots%20representative-1.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/tf%20featureplots%20representative-2.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/tf%20featureplots%20representative-3.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/tf%20featureplots%20representative-4.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/tf%20featureplots%20representative-5.png" width="3600" style="display: block; margin: auto;" /></p>
+</div>
+<div id="pathway-activity-inference" class="section level3">
+<h3>Pathway activity inference</h3>
+<pre class="r"><code>net_path &lt;- decoupleR::get_progeny(organism = &quot;human&quot;, top = 100000)</code></pre>
+<pre class="r"><code>Pathway_cols &lt;- colorRampPalette(c(&quot;#28A2EB&quot;, &quot;white&quot;, &quot;#FEC233&quot;))(101)</code></pre>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+mat &lt;- as.matrix(EC_combined@assays$RNA@data)
+
+acts_pathway &lt;- decoupleR::run_mlm(
+  mat = mat,
+  net = net_path,
+  .source = &quot;source&quot;,
+  .target = &quot;target&quot;,
+  .mor = &quot;weight&quot;,
+  minsize = 10
+)
+
+EC_combined[[&quot;pathwaysmlm&quot;]] &lt;- acts_pathway %&gt;%
+  tidyr::pivot_wider(
+    id_cols = &quot;source&quot;,
+    names_from = &quot;condition&quot;,
+    values_from = &quot;score&quot;
+  ) %&gt;%
+  tibble::column_to_rownames(&quot;source&quot;) %&gt;%
+  Seurat::CreateAssayObject(.)
+
+DefaultAssay(EC_combined) &lt;- &quot;pathwaysmlm&quot;
+EC_combined &lt;- ScaleData(EC_combined)
+EC_combined@assays$pathwaysmlm@data &lt;- EC_combined@assays$pathwaysmlm@scale.data</code></pre>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;pathwaysmlm&quot;
+
+df_pathway &lt;- t(as.matrix(EC_combined@assays$pathwaysmlm@data)) %&gt;%
+  as.data.frame() %&gt;%
+  dplyr::mutate(cluster = Seurat::Idents(EC_combined)) %&gt;%
+  tidyr::pivot_longer(cols = -cluster, names_to = &quot;source&quot;, values_to = &quot;score&quot;) %&gt;%
+  dplyr::group_by(cluster, source) %&gt;%
+  dplyr::summarise(mean = mean(score), .groups = &quot;drop&quot;)
+
+pathway_mat &lt;- df_pathway %&gt;%
+  tidyr::pivot_wider(id_cols = cluster, names_from = source, values_from = mean) %&gt;%
+  tibble::column_to_rownames(&quot;cluster&quot;) %&gt;%
+  as.matrix()
+
+my_breaks_path &lt;- c(
+  seq(-1.25, 0, length.out = ceiling(101 / 2) + 1),
+  seq(0.05, 1.25, length.out = floor(101 / 2))
+)
+
+pheatmap::pheatmap(
+  mat = pathway_mat,
+  color = Pathway_cols,
+  border_color = &quot;white&quot;,
+  breaks = my_breaks_path,
+  cellwidth = 20,
+  cellheight = 20,
+  treeheight_row = 20,
+  treeheight_col = 20
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/pathway%20heatmap-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;pathwaysmlm&quot;
+rep_pathways &lt;- intersect(c(&quot;TGFb&quot;, &quot;TNFa&quot;, &quot;NFkB&quot;, &quot;VEGF&quot;, &quot;MAPK&quot;), rownames(EC_combined@assays$pathwaysmlm))
+
+for (pw in rep_pathways) {
+  p1 &lt;- DimPlot(
+    EC_combined,
+    reduction = &quot;umap&quot;,
+    label = TRUE,
+    pt.size = 0.1
+  ) + NoLegend() + ggtitle(&quot;Cell states&quot;)
+
+  p2 &lt;- FeaturePlot(
+    EC_combined,
+    features = pw,
+    pt.size = 0.1,
+    order = TRUE
+  ) +
+    scale_colour_gradientn(colors = Pathway_cols) +
+    ggtitle(paste(pw, &quot;activity&quot;))
+
+  print(p1 | p2)
+}</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/pathway%20featureplots%20representative-1.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/pathway%20featureplots%20representative-2.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/pathway%20featureplots%20representative-3.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/pathway%20featureplots%20representative-4.png" width="3600" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/pathway%20featureplots%20representative-5.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+qs_save(
+  EC_combined,
+  file = here::here(output_dir_data, &quot;EC_combined.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+</div>
+</div>
+<div id="endothelial-cell-subset-programs" class="section level2">
+<h2>Endothelial-cell subset programs</h2>
+<pre class="r"><code>angiogenesis_genes_subset_score &lt;- c(&quot;ESM1&quot;, &quot;ANGPT2&quot;, &quot;KDR&quot;, &quot;APLN&quot;, &quot;CXCR4&quot;, &quot;PGF&quot;, &quot;DLL4&quot;, &quot;KIT&quot;)
+angiogenesis_genes_subset_plot  &lt;- angiogenesis_genes_subset_score
+
+apoptotic_priming_genes_subset &lt;- c(
+  &quot;BAX&quot;, &quot;BAK1&quot;, &quot;BBC3&quot;, &quot;BCL2L11&quot;, &quot;PMAIP1&quot;, &quot;BID&quot;,
+  &quot;CASP3&quot;, &quot;CASP9&quot;, &quot;APAF1&quot;, &quot;DIABLO&quot;, &quot;CYCS&quot;
+)
+
+redox_no_genes_subset &lt;- redox_no_genes
+mito_homeostasis_genes_subset &lt;- mito_homeostasis_genes
+
+aerobic_respiration_genes_subset &lt;- aerobic_respiration_genes
+
+phase_gene_sets_subset &lt;- list(
+  S_phase_score = s_phase_genes_present,
+  G2M_phase_score = g2m_phase_genes_present
+)
+
+subset_score_gene_sets &lt;- list(
+  Angiogenesis_score = angiogenesis_genes_subset_score,
+  Apoptotic_priming_score = apoptotic_priming_genes_subset,
+  Aerobic_respiration_score = aerobic_respiration_genes_subset
+)
+
+subset_gene_plot_list &lt;- list(
+  angiogenesis = angiogenesis_genes_subset_plot,
+  apoptosis = apoptotic_priming_genes_subset,
+  redox_no = redox_no_genes_subset,
+  mito_homeostasis = mito_homeostasis_genes_subset
+)</code></pre>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+Idents(EC_combined) &lt;- EC_combined$cell_state
+
+EC_combined$cell_state &lt;- factor(
+  EC_combined$cell_state,
+  levels = levels(EC_combined$cell_state)
+)
+EC_combined$Group &lt;- factor(EC_combined$Group, levels = c(&quot;H&quot;, &quot;HF&quot;))
+EC_combined$Dataset &lt;- factor(EC_combined$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;))
+EC_combined$Sex &lt;- factor(EC_combined$Sex, levels = c(&quot;F&quot;, &quot;M&quot;))
+EC_combined$Age &lt;- as.numeric(EC_combined$Age)
+
+subset_levels &lt;- levels(droplevels(EC_combined$cell_state))
+subset_cols &lt;- setNames(cell_type_cols[seq_along(subset_levels)], subset_levels)
+
+sample_subset_meta &lt;- EC_combined@meta.data %&gt;%
+  dplyr::select(Sample, cell_state, Group, Sex, Age, Dataset) %&gt;%
+  dplyr::distinct() %&gt;%
+  dplyr::filter(!is.na(Sample), !is.na(cell_state), !is.na(Group), !is.na(Sex), !is.na(Age), !is.na(Dataset))
+
+add_module_score_clean &lt;- function(object, features, score_name, assay = NULL, nbin = 24, ctrl = 100, seed = 1) {
+  if (is.null(assay)) {
+    assay &lt;- Seurat::DefaultAssay(object)
+  }
+
+  features_present &lt;- intersect(features, rownames(object[[assay]]))
+  if (length(features_present) == 0) {
+    warning(paste0(&quot;No genes present for &quot;, score_name, &quot;. Filling with NA.&quot;))
+    object[[score_name]] &lt;- NA_real_
+    return(object)
+  }
+
+  object &lt;- Seurat::AddModuleScore(
+    object = object,
+    features = list(features_present),
+    assay = assay,
+    name = paste0(score_name, &quot;_tmp&quot;),
+    nbin = nbin,
+    ctrl = ctrl,
+    seed = seed
+  )
+
+  tmp_col &lt;- paste0(score_name, &quot;_tmp1&quot;)
+  object[[score_name]] &lt;- object[[tmp_col]]
+  object[[tmp_col]] &lt;- NULL
+
+  object
+}
+
+set_plot_layer_alpha &lt;- function(p, alpha_value = 0.7) {
+  for (i in seq_along(p$layers)) {
+    geom_name &lt;- class(p$layers[[i]]$geom)[1]
+    if (geom_name %in% c(&quot;GeomPoint&quot;, &quot;GeomJitter&quot;, &quot;GeomScattermore&quot;)) {
+      p$layers[[i]]$aes_params$alpha &lt;- alpha_value
+      if (!is.null(p$layers[[i]]$geom_params)) {
+        p$layers[[i]]$geom_params$alpha &lt;- alpha_value
+      }
+    }
+  }
+  p
+}
+
+plot_subset_overall_sc &lt;- function(
+  seurat_object,
+  feature,
+  title_text,
+  ylab_text,
+  point_size = 0.15,
+  point_alpha = 0.7
+) {
+  p &lt;- scCustomize::VlnPlot_scCustom(
+    seurat_object = seurat_object,
+    features = feature,
+    group.by = &quot;cell_state&quot;,
+    colors_use = subset_cols,
+    pt.size = point_size,
+    raster = FALSE,
+    add.noise = TRUE
+  )
+
+  p &lt;- set_plot_layer_alpha(p, alpha_value = point_alpha)
+
+  p +
+    labs(title = title_text, x = NULL, y = ylab_text) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = &quot;bold&quot;, hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+      axis.title.y = element_text(face = &quot;bold&quot;),
+      legend.position = &quot;none&quot;
+    )
+}
+
+
+plot_hvhf_by_subset &lt;- function(df, value_col, title_text, ylab_text, facet_nrow = 2) {
+  df &lt;- df %&gt;%
+    dplyr::filter(!is.na(.data[[value_col]])) %&gt;%
+    dplyr::mutate(
+      cell_state = factor(cell_state, levels = subset_levels),
+      Group = factor(Group, levels = c(&quot;H&quot;, &quot;HF&quot;))
+    )
+
+  p_df &lt;- lapply(subset_levels, function(cs) {
+    df_sub &lt;- df %&gt;% dplyr::filter(cell_state == cs)
+    if (nrow(df_sub) == 0 || dplyr::n_distinct(df_sub$Group) &lt; 2) {
+      return(data.frame(cell_state = cs, p_value = NA_real_))
+    }
+
+    fit &lt;- tryCatch(
+      lm(stats::as.formula(paste0(value_col, &quot; ~ Group + Age + Sex + Dataset&quot;)), data = df_sub),
+      error = function(e) NULL
+    )
+
+    p_val &lt;- if (!is.null(fit)) {
+      broom::tidy(fit) %&gt;%
+        dplyr::filter(term == &quot;GroupHF&quot;) %&gt;%
+        dplyr::pull(p.value)
+    } else {
+      NA_real_
+    }
+
+    data.frame(cell_state = cs, p_value = ifelse(length(p_val) == 0, NA_real_, p_val))
+  }) %&gt;% dplyr::bind_rows()
+
+  anno_df &lt;- df %&gt;%
+    dplyr::group_by(cell_state) %&gt;%
+    dplyr::summarise(
+      y_max = max(.data[[value_col]], na.rm = TRUE),
+      y_min = min(.data[[value_col]], na.rm = TRUE),
+      .groups = &quot;drop&quot;
+    ) %&gt;%
+    dplyr::mutate(
+      y_rng = y_max - y_min,
+      y_rng = ifelse(!is.finite(y_rng) | y_rng == 0, 1, y_rng),
+      y_line = y_max + 0.10 * y_rng,
+      y_text = y_max + 0.16 * y_rng
+    ) %&gt;%
+    dplyr::left_join(p_df, by = &quot;cell_state&quot;) %&gt;%
+    dplyr::mutate(
+      p_label = vapply(p_value, format_p_label, character(1)),
+      p_fontface = vapply(p_value, format_p_fontface, character(1))
+    )
+
+  ggplot(df, aes(x = Group, y = .data[[value_col]], fill = Group)) +
+    geom_boxplot(width = 0.55, outlier.shape = NA, color = &quot;black&quot;, linewidth = 0.45) +
+    geom_jitter(width = 0.10, size = 1.3, shape = 21, stroke = 0.35, color = &quot;black&quot;) +
+    geom_segment(
+      data = anno_df,
+      aes(x = 1, xend = 2, y = y_line, yend = y_line),
+      inherit.aes = FALSE
+    ) +
+    geom_text(
+      data = anno_df,
+      aes(x = 1.5, y = y_text, label = p_label, fontface = p_fontface),
+      inherit.aes = FALSE,
+      size = 4.2
+    ) +
+    scale_fill_manual(values = group_cols) +
+    facet_wrap(~cell_state, scales = &quot;free_y&quot;, nrow = facet_nrow) +
+    labs(title = title_text, x = NULL, y = ylab_text) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = &quot;bold&quot;, hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+      axis.title.y = element_text(face = &quot;bold&quot;),
+      strip.text = element_text(face = &quot;bold&quot;),
+      legend.position = &quot;none&quot;
+    )
+}</code></pre>
+</div>
+<div id="single-cell-scores-and-expression-per-subset"
+class="section level2">
+<h2>Single-cell scores and expression per subset</h2>
+<pre class="r"><code>EC_combined_scores &lt;- EC_combined
+
+for (score_name in names(phase_gene_sets_subset)) {
+  EC_combined_scores &lt;- add_module_score_clean(
+    object = EC_combined_scores,
+    features = phase_gene_sets_subset[[score_name]],
+    score_name = score_name,
+    assay = &quot;RNA&quot;
+  )
+}
+
+for (score_name in names(subset_score_gene_sets)) {
+  EC_combined_scores &lt;- add_module_score_clean(
+    object = EC_combined_scores,
+    features = subset_score_gene_sets[[score_name]],
+    score_name = score_name,
+    assay = &quot;RNA&quot;
+  )
+}
+
+df_score_sc &lt;- EC_combined_scores@meta.data %&gt;%
+  tibble::rownames_to_column(&quot;cell_id&quot;) %&gt;%
+  dplyr::transmute(
+    cell_id,
+    Sample,
+    Dataset,
+    Group,
+    Sex,
+    Age,
+    cell_state,
+    S_phase_score,
+    G2M_phase_score,
+    Angiogenesis_score,
+    Apoptotic_priming_score,
+    Aerobic_respiration_score
+  ) %&gt;%
+  dplyr::mutate(
+    cell_state = factor(cell_state, levels = subset_levels),
+    Group = factor(Group, levels = c(&quot;H&quot;, &quot;HF&quot;)),
+    Dataset = factor(Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;)),
+    Sex = factor(Sex, levels = c(&quot;F&quot;, &quot;M&quot;)),
+    Age = as.numeric(Age)
+  )
+
+genes_for_single_cell_plots &lt;- unique(c(
+  angiogenesis_genes_subset_plot,
+  apoptotic_priming_genes_subset,
+  redox_no_genes_subset,
+  mito_homeostasis_genes_subset
+))
+genes_for_single_cell_plots &lt;- genes_for_single_cell_plots[genes_for_single_cell_plots %in% rownames(EC_combined_scores)]
+
+expr_sc &lt;- Seurat::FetchData(
+  object = EC_combined_scores,
+  vars = c(&quot;cell_state&quot;, &quot;Group&quot;, &quot;Dataset&quot;, &quot;Sex&quot;, &quot;Age&quot;, &quot;Sample&quot;, genes_for_single_cell_plots),
+  slot = &quot;data&quot;
+) %&gt;%
+  tibble::rownames_to_column(&quot;cell_id&quot;)
+
+subset_gene_df_sc &lt;- expr_sc %&gt;%
+  tidyr::pivot_longer(
+    cols = dplyr::all_of(genes_for_single_cell_plots),
+    names_to = &quot;gene&quot;,
+    values_to = &quot;expr&quot;
+  ) %&gt;%
+  dplyr::mutate(
+    program = dplyr::case_when(
+      gene %in% angiogenesis_genes_subset_plot ~ &quot;angiogenesis&quot;,
+      gene %in% apoptotic_priming_genes_subset ~ &quot;apoptosis&quot;,
+      TRUE ~ NA_character_
+    ),
+    cell_state = factor(cell_state, levels = subset_levels),
+    Group = factor(Group, levels = c(&quot;H&quot;, &quot;HF&quot;)),
+    Dataset = factor(Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;)),
+    Sex = factor(Sex, levels = c(&quot;F&quot;, &quot;M&quot;)),
+    Age = as.numeric(Age)
+  )
+
+write.csv(
+  df_score_sc,
+  file = file.path(output_dir_data, &quot;EC_subsets_single_cell_scores.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+write.csv(
+  subset_gene_df_sc,
+  file = file.path(output_dir_data, &quot;EC_subsets_single_cell_gene_expression.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)</code></pre>
+</div>
+<div id="subset-pseudobulk-for-h-vs-hf-comparisons"
+class="section level2">
+<h2>Subset pseudobulk for H vs HF comparisons</h2>
+<pre class="r"><code># Lower library-size threshold than the whole-endothelium analysis, because each sample is now split by subset.
+min_subset_libsize &lt;- 10000
+
+pb_subsets &lt;- Seurat2PB(
+  EC_combined,
+  sample = &quot;Sample&quot;,
+  cluster = &quot;cell_state&quot;
+)
+
+pb_subset_counts &lt;- tryCatch(pb_subsets$counts, error = function(e) NULL)
+if (is.null(pb_subset_counts)) {
+  pb_subset_counts &lt;- tryCatch(pb_subsets[, ]$counts, error = function(e) NULL)
+}
+if (is.null(pb_subset_counts)) {
+  stop(&quot;Could not extract pseudobulk counts from pb_subsets.&quot;)
+}
+
+pb_subset_meta &lt;- tryCatch(as.data.frame(pb_subsets$samples), error = function(e) NULL)
+if (is.null(pb_subset_meta)) {
+  pb_subset_meta &lt;- tryCatch(as.data.frame(SummarizedExperiment::colData(pb_subsets)), error = function(e) NULL)
+}
+if (is.null(pb_subset_meta)) {
+  stop(&quot;Could not extract pseudobulk sample metadata from pb_subsets.&quot;)
+}
+
+pb_subset_meta &lt;- pb_subset_meta %&gt;%
+  dplyr::transmute(
+    Sample = sample,
+    cell_state = cluster
+  ) %&gt;%
+  dplyr::left_join(sample_subset_meta, by = c(&quot;Sample&quot;, &quot;cell_state&quot;))
+
+colnames(pb_subset_counts) &lt;- paste(pb_subset_meta$Sample, pb_subset_meta$cell_state, sep = &quot;__&quot;)
+pb_subset_meta$pb_id &lt;- colnames(pb_subset_counts)
+rownames(pb_subset_meta) &lt;- pb_subset_meta$pb_id
+
+subset_libsizes &lt;- colSums(pb_subset_counts)
+pb_subset_meta$libsize &lt;- subset_libsizes[pb_subset_meta$pb_id]
+
+pb_subset_meta_keep &lt;- pb_subset_meta %&gt;%
+  dplyr::filter(!is.na(Group), !is.na(Sex), !is.na(Age), !is.na(Dataset), libsize &gt;= min_subset_libsize)
+
+pb_subset_counts_keep &lt;- pb_subset_counts[, pb_subset_meta_keep$pb_id, drop = FALSE]
+
+stopifnot(all(colnames(pb_subset_counts_keep) == pb_subset_meta_keep$pb_id))
+
+pb_subset_meta_keep$cell_state &lt;- factor(pb_subset_meta_keep$cell_state, levels = subset_levels)
+pb_subset_meta_keep$Group &lt;- factor(pb_subset_meta_keep$Group, levels = c(&quot;H&quot;, &quot;HF&quot;))
+pb_subset_meta_keep$Dataset &lt;- factor(pb_subset_meta_keep$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;))
+pb_subset_meta_keep$Sex &lt;- factor(pb_subset_meta_keep$Sex, levels = c(&quot;F&quot;, &quot;M&quot;))
+pb_subset_meta_keep$Age &lt;- as.numeric(pb_subset_meta_keep$Age)
+
+write.csv(
+  pb_subset_meta,
+  file = file.path(output_dir_data, &quot;EC_subsets_pseudobulk_metadata_all.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+write.csv(
+  pb_subset_meta_keep,
+  file = file.path(output_dir_data, &quot;EC_subsets_pseudobulk_metadata_kept.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+write.csv(
+  pb_subset_meta %&gt;% dplyr::filter(!(pb_id %in% pb_subset_meta_keep$pb_id)),
+  file = file.path(output_dir_data, &quot;EC_subsets_pseudobulk_metadata_filtered_out.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+dge_subset &lt;- edgeR::DGEList(counts = pb_subset_counts_keep)
+dge_subset &lt;- edgeR::calcNormFactors(dge_subset)
+logcpm_subset &lt;- edgeR::cpm(dge_subset, log = TRUE, prior.count = 1)</code></pre>
+<pre class="r"><code>subset_score_genes_all &lt;- unique(unlist(subset_score_gene_sets, use.names = FALSE))
+score_genes_present &lt;- subset_score_genes_all[subset_score_genes_all %in% rownames(logcpm_subset)]
+score_genes_missing &lt;- setdiff(subset_score_genes_all, rownames(logcpm_subset))
+
+logcpm_subset_scores &lt;- logcpm_subset[
+  rownames(logcpm_subset) %in% score_genes_present,
+  ,
+  drop = FALSE
+]
+
+logcpm_subset_scores_z &lt;- t(scale(t(logcpm_subset_scores)))
+logcpm_subset_scores_z[is.na(logcpm_subset_scores_z)] &lt;- 0
+
+safe_colmean_score &lt;- function(gene_vec, score_mat, ids) {
+  genes_here &lt;- intersect(gene_vec, rownames(score_mat))
+  if (length(genes_here) == 0) {
+    return(rep(NA_real_, length(ids)))
+  }
+  out &lt;- colMeans(score_mat[genes_here, , drop = FALSE])
+  as.numeric(out[ids])
+}
+
+subset_score_df &lt;- pb_subset_meta_keep %&gt;%
+  dplyr::mutate(
+    Angiogenesis_score = safe_colmean_score(angiogenesis_genes_subset_score, logcpm_subset_scores_z, pb_id),
+    Apoptotic_priming_score = safe_colmean_score(apoptotic_priming_genes_subset, logcpm_subset_scores_z, pb_id),
+    Aerobic_respiration_score = safe_colmean_score(aerobic_respiration_genes_subset, logcpm_subset_scores_z, pb_id)
+  )
+
+phase_score_df &lt;- df_score_sc %&gt;%
+  dplyr::group_by(Sample, Dataset, Group, Sex, Age, cell_state) %&gt;%
+  dplyr::summarise(
+    S_phase_score = mean(S_phase_score, na.rm = TRUE),
+    G2M_phase_score = mean(G2M_phase_score, na.rm = TRUE),
+    .groups = &quot;drop&quot;
+  ) %&gt;%
+  dplyr::mutate(
+    cell_state = factor(cell_state, levels = subset_levels),
+    Group = factor(Group, levels = c(&quot;H&quot;, &quot;HF&quot;)),
+    Dataset = factor(Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;)),
+    Sex = factor(Sex, levels = c(&quot;F&quot;, &quot;M&quot;)),
+    Age = as.numeric(Age)
+  )
+
+subset_gene_df &lt;- purrr::map_dfr(names(subset_gene_plot_list), function(program_name) {
+  genes_here &lt;- subset_gene_plot_list[[program_name]]
+  genes_here &lt;- genes_here[genes_here %in% rownames(logcpm_subset)]
+  if (length(genes_here) == 0) return(NULL)
+
+  purrr::map_dfr(genes_here, function(g) {
+    pb_subset_meta_keep %&gt;%
+      dplyr::transmute(
+        pb_id,
+        Sample,
+        Dataset,
+        Group,
+        Sex,
+        Age,
+        cell_state,
+        program = program_name,
+        gene = g,
+        logCPM = as.numeric(logcpm_subset[g, pb_id])
+      )
+  })
+})
+
+write.csv(
+  phase_score_df,
+  file = file.path(output_dir_data, &quot;EC_subsets_phase_scores_per_sample.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+write.csv(
+  subset_score_df,
+  file = file.path(output_dir_data, &quot;EC_subsets_gene_set_scores.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+write.csv(
+  subset_gene_df,
+  file = file.path(output_dir_data, &quot;EC_subsets_gene_logCPM.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+write.csv(
+  data.frame(gene_missing = score_genes_missing),
+  file = file.path(output_dir_data, &quot;EC_subsets_score_genes_missing.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)</code></pre>
+</div>
+<div id="phase-scores-per-subset" class="section level2">
+<h2>Phase scores per subset</h2>
+<pre class="r"><code>print(
+  plot_subset_overall_sc(
+    seurat_object = EC_combined_scores,
+    feature = &quot;S_phase_score&quot;,
+    title_text = &quot;S-phase score across subsets&quot;,
+    ylab_text = &quot;Score&quot;,
+    point_size = 0.15,
+    point_alpha = 0.0
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/s%20score%20subset%20differences-1.png" width="2550" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(
+  plot_hvhf_by_subset(
+    df = phase_score_df,
+    value_col = &quot;S_phase_score&quot;,
+    title_text = &quot;S-phase score by group within each subset&quot;,
+    ylab_text = &quot;Score&quot;,
+    facet_nrow = 2
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/s%20score%20h%20vs%20hf%20within%20subset-1.png" width="4200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(
+  plot_subset_overall_sc(
+    seurat_object = EC_combined_scores,
+    feature = &quot;G2M_phase_score&quot;,
+    title_text = &quot;G2/M-phase score across subsets&quot;,
+    ylab_text = &quot;Score&quot;,
+    point_size = 0.15,
+    point_alpha = 0
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/g2m%20score%20subset%20differences-1.png" width="2550" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(
+  plot_hvhf_by_subset(
+    df = phase_score_df,
+    value_col = &quot;G2M_phase_score&quot;,
+    title_text = &quot;G2/M-phase score by group within each subset&quot;,
+    ylab_text = &quot;Score&quot;,
+    facet_nrow = 2
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/g2m%20score%20h%20vs%20hf%20within%20subset-1.png" width="4200" style="display: block; margin: auto;" /></p>
+</div>
+<div id="gene-set-scores-per-subset" class="section level2">
+<h2>Gene-set scores per subset</h2>
+<pre class="r"><code>print(
+  plot_subset_overall_sc(
+    seurat_object = EC_combined_scores,
+    feature = &quot;Aerobic_respiration_score&quot;,
+    title_text = &quot;Aerobic respiration score across subsets&quot;,
+    ylab_text = &quot;Score&quot;,
+    point_size = 0.15,
+    point_alpha = 0
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/aerobic%20respiration%20score%20subset%20differences-1.png" width="2550" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(
+  plot_hvhf_by_subset(
+    df = subset_score_df,
+    value_col = &quot;Aerobic_respiration_score&quot;,
+    title_text = &quot;Aerobic respiration score by group within each subset&quot;
+    ,
+    ylab_text = &quot;Score&quot;,
+    facet_nrow = 2
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/aerobic%20respiration%20score%20h%20vs%20hf%20within%20subset-1.png" width="4200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(
+  plot_subset_overall_sc(
+    seurat_object = EC_combined_scores,
+    feature = &quot;Angiogenesis_score&quot;,
+    title_text = &quot;Angiogenesis score across subsets&quot;,
+    ylab_text = &quot;Score&quot;,
+    point_size = 0.15,
+    point_alpha = 0
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20score%20subset%20differences-1.png" width="2550" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(
+  plot_hvhf_by_subset(
+    df = subset_score_df,
+    value_col = &quot;Angiogenesis_score&quot;,
+    title_text = &quot;Angiogenesis score by group within each subset&quot;,
+    ylab_text = &quot;Score&quot;,
+    facet_nrow = 2
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20score%20h%20vs%20hf%20within%20subset-1.png" width="4200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(
+  plot_subset_overall_sc(
+    seurat_object = EC_combined_scores,
+    feature = &quot;Apoptotic_priming_score&quot;,
+    title_text = &quot;Apoptotic priming score across subsets&quot;,
+    ylab_text = &quot;Score&quot;,
+    point_size = 0.15,
+    point_alpha = 0
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptotic%20priming%20score%20subset%20differences-1.png" width="2550" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>print(
+  plot_hvhf_by_subset(
+    df = subset_score_df,
+    value_col = &quot;Apoptotic_priming_score&quot;,
+    title_text = &quot;Apoptotic priming score by group within each subset&quot;,
+    ylab_text = &quot;Score&quot;,
+    facet_nrow = 2
+  )
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptotic%20priming%20score%20h%20vs%20hf%20within%20subset-1.png" width="4200" style="display: block; margin: auto;" /></p>
+</div>
+<div id="individual-angiogenesis-and-apoptosis-genes-per-subset"
+class="section level2">
+<h2>Individual angiogenesis and apoptosis genes per subset</h2>
+<pre class="r"><code>for (gene_here in angiogenesis_genes_subset_plot[angiogenesis_genes_subset_plot %in% rownames(EC_combined_scores)]) {
+  p &lt;- plot_subset_overall_sc(
+    seurat_object = EC_combined_scores,
+    feature = gene_here,
+    title_text = paste0(gene_here, &quot; across subsets&quot;),
+    ylab_text = &quot;Log-normalized expression&quot;,
+    point_size = 0.15,
+    point_alpha = 0.1
+  )
+  print(p)
+}</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20subset%20differences-1.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20subset%20differences-2.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20subset%20differences-3.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20subset%20differences-4.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20subset%20differences-5.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20subset%20differences-6.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20subset%20differences-7.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20subset%20differences-8.png" width="2550" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>for (gene_here in angiogenesis_genes_subset_plot[angiogenesis_genes_subset_plot %in% unique(subset_gene_df$gene)]) {
+  df_sub &lt;- subset_gene_df %&gt;% dplyr::filter(program == &quot;angiogenesis&quot;, gene == gene_here)
+
+  p &lt;- plot_hvhf_by_subset(
+    df = df_sub,
+    value_col = &quot;logCPM&quot;,
+    title_text = paste0(gene_here, &quot; by group within each subset&quot;),
+    ylab_text = &quot;logCPM&quot;,
+    facet_nrow = 2
+  )
+  print(p)
+}</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20h%20vs%20hf%20within%20subset-1.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20h%20vs%20hf%20within%20subset-2.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20h%20vs%20hf%20within%20subset-3.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20h%20vs%20hf%20within%20subset-4.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20h%20vs%20hf%20within%20subset-5.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20h%20vs%20hf%20within%20subset-6.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20h%20vs%20hf%20within%20subset-7.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/angiogenesis%20genes%20h%20vs%20hf%20within%20subset-8.png" width="4200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>for (gene_here in apoptotic_priming_genes_subset[apoptotic_priming_genes_subset %in% rownames(EC_combined_scores)]) {
+  p &lt;- plot_subset_overall_sc(
+    seurat_object = EC_combined_scores,
+    feature = gene_here,
+    title_text = paste0(gene_here, &quot; across subsets&quot;),
+    ylab_text = &quot;Log-normalized expression&quot;,
+    point_size = 0.15,
+    point_alpha = 0.2
+  )
+  print(p)
+}</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-1.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-2.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-3.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-4.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-5.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-6.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-7.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-8.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-9.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-10.png" width="2550" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20subset%20differences-11.png" width="2550" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>for (gene_here in apoptotic_priming_genes_subset[apoptotic_priming_genes_subset %in% unique(subset_gene_df$gene)]) {
+  df_sub &lt;- subset_gene_df %&gt;% dplyr::filter(program == &quot;apoptosis&quot;, gene == gene_here)
+
+  p &lt;- plot_hvhf_by_subset(
+    df = df_sub,
+    value_col = &quot;logCPM&quot;,
+    title_text = paste0(gene_here, &quot; by group within each subset&quot;),
+    ylab_text = &quot;logCPM&quot;,
+    facet_nrow = 2
+  )
+  print(p)
+}</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-1.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-2.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-3.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-4.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-5.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-6.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-7.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-8.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-9.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-10.png" width="4200" style="display: block; margin: auto;" /><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/apoptosis%20genes%20h%20vs%20hf%20within%20subset-11.png" width="4200" style="display: block; margin: auto;" /></p>
+</div>
+<div id="ec_activated-subset-differential-expression-and-go-gsea"
+class="section level2">
+<h2>EC_activated subset: differential expression and GO GSEA</h2>
+<pre class="r"><code>DefaultAssay(EC_combined) &lt;- &quot;RNA&quot;
+
+EC_activated &lt;- subset(
+  EC_combined,
+  subset = cell_state == &quot;EC_activated&quot;
+)
+
+EC_activated_meta &lt;- EC_activated@meta.data %&gt;%
+  dplyr::select(Sample, Group, Sex, Age, Dataset) %&gt;%
+  dplyr::distinct() %&gt;%
+  dplyr::filter(!is.na(Sample), !is.na(Group), !is.na(Sex), !is.na(Age), !is.na(Dataset))
+
+EC_activated_pb &lt;- Seurat2PB(
+  EC_activated,
+  sample = &quot;Sample&quot;,
+  cluster = &quot;cell_state&quot;
+)
+
+colnames(EC_activated_pb) &lt;- EC_activated_pb$samples$sample
+EC_activated_pb &lt;- EC_activated_pb[, match(EC_activated_meta$Sample, EC_activated_pb$samples$sample)]
+
+keep_samples_EC_activated &lt;- EC_activated_pb$samples$lib.size &gt; 2e4
+EC_activated_pb &lt;- EC_activated_pb[, keep_samples_EC_activated]
+
+EC_activated_meta &lt;- EC_activated_meta %&gt;%
+  dplyr::filter(Sample %in% colnames(EC_activated_pb)) %&gt;%
+  dplyr::slice(match(colnames(EC_activated_pb), Sample))
+
+stopifnot(all(EC_activated_meta$Sample == colnames(EC_activated_pb)))
+
+EC_activated_meta$Group &lt;- factor(EC_activated_meta$Group, levels = c(&quot;H&quot;, &quot;HF&quot;))
+EC_activated_meta$Sex &lt;- factor(EC_activated_meta$Sex, levels = c(&quot;F&quot;, &quot;M&quot;))
+EC_activated_meta$Dataset &lt;- factor(EC_activated_meta$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;))
+EC_activated_meta$Age &lt;- as.numeric(EC_activated_meta$Age)
+
+pseudobulk_EC_activated &lt;- edgeR::DGEList(counts = EC_activated_pb$counts)
+pseudobulk_EC_activated$samples &lt;- cbind(pseudobulk_EC_activated$samples, EC_activated_meta)
+
+design_EC_activated &lt;- model.matrix(~ Group + Age + Sex + Dataset, data = EC_activated_meta)
+colnames(design_EC_activated)</code></pre>
+<pre><code>[1] &quot;(Intercept)&quot;     &quot;GroupHF&quot;         &quot;Age&quot;             &quot;SexM&quot;           
+[5] &quot;DatasetReichart&quot;</code></pre>
+<pre class="r"><code>keep_genes_EC_activated &lt;- edgeR::filterByExpr(
+  pseudobulk_EC_activated,
+  design = design_EC_activated
+)
+
+pseudobulk_EC_activated &lt;- pseudobulk_EC_activated[
+  keep_genes_EC_activated,
+  ,
+  keep.lib.sizes = FALSE
+]
+pseudobulk_EC_activated &lt;- edgeR::normLibSizes(pseudobulk_EC_activated)
+pseudobulk_EC_activated &lt;- edgeR::estimateDisp(
+  pseudobulk_EC_activated,
+  design_EC_activated
+)
+
+logcpm_EC_activated &lt;- edgeR::cpm(
+  pseudobulk_EC_activated,
+  log = TRUE,
+  prior.count = 1
+)</code></pre>
+<pre class="r"><code>fit_EC_activated &lt;- edgeR::glmQLFit(
+  pseudobulk_EC_activated,
+  design_EC_activated,
+  robust = TRUE
+)
+
+qlf_EC_activated &lt;- edgeR::glmQLFTest(
+  fit_EC_activated,
+  coef = &quot;GroupHF&quot;
+)
+
+results_EC_activated &lt;- edgeR::topTags(qlf_EC_activated, n = Inf)$table %&gt;%
+  tibble::rownames_to_column(&quot;gene&quot;) %&gt;%
+  dplyr::mutate(metric = logFC * -log10(PValue))
+
+results_EC_activated$significance &lt;- &quot;Not significant&quot;
+results_EC_activated$significance[
+  results_EC_activated$FDR &lt; 0.05 &amp; results_EC_activated$logFC &gt; 0.5
+] &lt;- &quot;Increased&quot;
+results_EC_activated$significance[
+  results_EC_activated$FDR &lt; 0.05 &amp; results_EC_activated$logFC &lt; -0.5
+] &lt;- &quot;Decreased&quot;
+results_EC_activated$significance &lt;- factor(
+  results_EC_activated$significance,
+  levels = c(&quot;Decreased&quot;, &quot;Not significant&quot;, &quot;Increased&quot;)
+)
+
+signif_EC_activated &lt;- results_EC_activated %&gt;%
+  dplyr::filter(FDR &lt; 0.05, abs(logFC) &gt; 0.5) %&gt;%
+  dplyr::arrange(desc(metric))
+
+write.csv(
+  results_EC_activated,
+  file = file.path(output_dir_data, &quot;EC_activated_DE_results_Koenig_Reichart_combined.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  signif_EC_activated,
+  file = file.path(output_dir_data, &quot;EC_activated_DE_signif_Koenig_Reichart_combined.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)</code></pre>
+<div id="ec_activated-volcano-plot" class="section level3">
+<h3>EC_activated volcano plot</h3>
+<pre class="r"><code>n_h_EC_activated &lt;- sum(EC_activated_meta$Group == &quot;H&quot;)
+n_hf_EC_activated &lt;- sum(EC_activated_meta$Group == &quot;HF&quot;)
+
+EnhancedVolcano(
+  results_EC_activated,
+  lab = results_EC_activated$gene,
+  x = &quot;logFC&quot;,
+  y = &quot;FDR&quot;,
+  labSize = 0,
+  legendLabSize = 12,
+  titleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 0,
+  pointSize = 0.8,
+  FCcutoff = 0.5,
+  pCutoff = 0.05,
+  ylim = c(0, 20),
+  xlim = c(-3.75, 3.75),
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  ylab = bquote(-Log[10]~FDR),
+  subtitle = NULL,
+  title = paste0(&quot;EC_activated\nHF (n=&quot;, n_hf_EC_activated, &quot;) vs H (n=&quot;, n_h_EC_activated, &quot;)&quot;),
+  colCustom = setNames(
+    c(&quot;#004C8C&quot;, &quot;grey75&quot;, &quot;#A63A2A&quot;)[match(
+      results_EC_activated$significance,
+      c(&quot;Decreased&quot;, &quot;Not significant&quot;, &quot;Increased&quot;)
+    )],
+    as.character(results_EC_activated$significance)
+  )
+) +
+  theme(legend.position = &quot;none&quot;)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/ec_activated%20volcano-1.png" width="1200" style="display: block; margin: auto;" /></p>
+</div>
+<div id="ec_activated-heatmaps" class="section level3">
+<h3>EC_activated heatmaps</h3>
+<pre class="r"><code>column_order_EC_activated &lt;- EC_activated_meta %&gt;%
+  dplyr::arrange(Group, Dataset, Age, Sex) %&gt;%
+  dplyr::pull(Sample)
+
+metadata_heatmap_EC_activated &lt;- EC_activated_meta %&gt;%
+  dplyr::filter(Sample %in% column_order_EC_activated) %&gt;%
+  dplyr::slice(match(column_order_EC_activated, Sample))
+
+ha_EC_activated &lt;- ComplexHeatmap::HeatmapAnnotation(
+  Group = metadata_heatmap_EC_activated$Group,
+  Age = metadata_heatmap_EC_activated$Age,
+  Sex = metadata_heatmap_EC_activated$Sex,
+  Dataset = metadata_heatmap_EC_activated$Dataset,
+  col = list(
+    Group = group_cols,
+    Age = circlize::colorRamp2(
+      c(
+        min(metadata_heatmap_EC_activated$Age, na.rm = TRUE),
+        max(metadata_heatmap_EC_activated$Age, na.rm = TRUE)
+      ),
+      c(&quot;grey90&quot;, &quot;black&quot;)
+    ),
+    Sex = sex_cols,
+    Dataset = dataset_cols
+  ),
+  annotation_name_gp = grid::gpar(fontsize = 10, fontface = &quot;bold&quot;)
+)</code></pre>
+<pre class="r"><code>mat_all_deg_EC_activated &lt;- logcpm_EC_activated[
+  rownames(logcpm_EC_activated) %in% signif_EC_activated$gene,
+  column_order_EC_activated,
+  drop = FALSE
+]
+
+mat_all_deg_EC_activated &lt;- mat_all_deg_EC_activated[
+  match(signif_EC_activated$gene, rownames(mat_all_deg_EC_activated)),
+  ,
+  drop = FALSE
+]
+
+mat_all_deg_EC_activated_z &lt;- t(scale(t(mat_all_deg_EC_activated)))
+mat_all_deg_EC_activated_z[is.na(mat_all_deg_EC_activated_z)] &lt;- 0
+
+ComplexHeatmap::Heatmap(
+  mat_all_deg_EC_activated_z,
+  name = &quot;Z-score&quot;,
+  top_annotation = ha_EC_activated,
+  col = heat_cols,
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  column_names_gp = grid::gpar(fontsize = 5),
+  row_names_gp = grid::gpar(fontsize = 6),
+  column_title = &quot;EC_activated: all significant DEGs&quot;,
+  column_title_gp = grid::gpar(fontsize = 12, fontface = &quot;bold&quot;)
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/ec_activated%20heatmap%20all%20degs-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>top_up_EC_activated &lt;- results_EC_activated %&gt;%
+  dplyr::filter(FDR &lt; 0.05, logFC &gt; 0.5) %&gt;%
+  dplyr::arrange(desc(metric)) %&gt;%
+  dplyr::slice_head(n = 25)
+
+top_down_EC_activated &lt;- results_EC_activated %&gt;%
+  dplyr::filter(FDR &lt; 0.05, logFC &lt; -0.5) %&gt;%
+  dplyr::arrange(metric) %&gt;%
+  dplyr::slice_head(n = 25)
+
+top_genes_EC_activated &lt;- dplyr::bind_rows(top_up_EC_activated, top_down_EC_activated)
+
+mat_top_deg_EC_activated &lt;- logcpm_EC_activated[
+  rownames(logcpm_EC_activated) %in% top_genes_EC_activated$gene,
+  column_order_EC_activated,
+  drop = FALSE
+]
+
+mat_top_deg_EC_activated &lt;- mat_top_deg_EC_activated[
+  match(top_genes_EC_activated$gene, rownames(mat_top_deg_EC_activated)),
+  ,
+  drop = FALSE
+]
+
+mat_top_deg_EC_activated_z &lt;- t(scale(t(mat_top_deg_EC_activated)))
+mat_top_deg_EC_activated_z[is.na(mat_top_deg_EC_activated_z)] &lt;- 0
+
+ComplexHeatmap::Heatmap(
+  mat_top_deg_EC_activated_z,
+  name = &quot;Z-score&quot;,
+  top_annotation = ha_EC_activated,
+  col = heat_cols,
+  cluster_rows = FALSE,
+  cluster_columns = FALSE,
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  column_names_gp = grid::gpar(fontsize = 5),
+  row_names_gp = grid::gpar(fontsize = 10),
+  column_title = &quot;EC_activated: top 25 up and top 25 down genes&quot;,
+  column_title_gp = grid::gpar(fontsize = 16, fontface = &quot;bold&quot;)
+)</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/ec_activated%20heatmap%20top%2025%20up%20down-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="ec_activated-go-gsea" class="section level3">
+<h3>EC_activated GO GSEA</h3>
+<pre class="r"><code>ranked_genes_EC_activated &lt;- results_EC_activated %&gt;%
+  dplyr::select(gene, metric) %&gt;%
+  dplyr::filter(!is.na(metric))
+
+entrezid_EC_activated &lt;- clusterProfiler::bitr(
+  ranked_genes_EC_activated$gene,
+  fromType = &quot;SYMBOL&quot;,
+  toType = &quot;ENTREZID&quot;,
+  OrgDb = org.Hs.eg.db,
+  drop = TRUE
+)
+
+ranked_genes_entrez_EC_activated &lt;- dplyr::left_join(
+  ranked_genes_EC_activated,
+  entrezid_EC_activated,
+  by = c(&quot;gene&quot; = &quot;SYMBOL&quot;)
+) %&gt;%
+  dplyr::filter(!is.na(ENTREZID)) %&gt;%
+  dplyr::group_by(ENTREZID) %&gt;%
+  dplyr::slice_max(order_by = abs(metric), n = 1, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+genelist_EC_activated &lt;- ranked_genes_entrez_EC_activated$metric
+names(genelist_EC_activated) &lt;- ranked_genes_entrez_EC_activated$ENTREZID
+genelist_EC_activated &lt;- sort(genelist_EC_activated, decreasing = TRUE)
+
+GSEA_GO_EC_activated &lt;- clusterProfiler::gseGO(
+  geneList = genelist_EC_activated,
+  OrgDb = org.Hs.eg.db,
+  ont = &quot;ALL&quot;,
+  keyType = &quot;ENTREZID&quot;,
+  minGSSize = 10,
+  maxGSSize = 500,
+  eps = 0,
+  nPermSimple = 10000
+)
+
+GSEA_GO_EC_activated &lt;- clusterProfiler::setReadable(
+  GSEA_GO_EC_activated,
+  OrgDb = org.Hs.eg.db
+)
+
+GSEA_GO_EC_activated_simplified &lt;- clusterProfiler::simplify(
+  GSEA_GO_EC_activated,
+  cutoff = 0.6,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+
+qs2::qs_save(
+  ranked_genes_EC_activated,
+  file.path(output_dir_data, &quot;ranked_genes_EC_activated.qs&quot;)
+)
+
+qs2::qs_save(
+  ranked_genes_entrez_EC_activated,
+  file.path(output_dir_data, &quot;ranked_genes_entrez_EC_activated.qs&quot;)
+)
+
+qs2::qs_save(
+  genelist_EC_activated,
+  file.path(output_dir_data, &quot;genelist_EC_activated.qs&quot;)
+)
+
+qs2::qs_save(
+  GSEA_GO_EC_activated,
+  file.path(output_dir_data, &quot;GSEA_GO_EC_activated.qs&quot;)
+)
+
+qs2::qs_save(
+  GSEA_GO_EC_activated_simplified,
+  file.path(output_dir_data, &quot;GSEA_GO_EC_activated_simplified.qs&quot;)
+)
+
+write.csv(
+  GSEA_GO_EC_activated@result,
+  file = file.path(output_dir_data, &quot;GSEA_GO_EC_activated_full_results.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  GSEA_GO_EC_activated_simplified@result,
+  file = file.path(output_dir_data, &quot;GSEA_GO_EC_activated_simplified_results.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>ranked_genes_EC_activated &lt;- qs2::qs_read(
+  file.path(output_dir_data, &quot;ranked_genes_EC_activated.qs&quot;)
+)
+
+ranked_genes_entrez_EC_activated &lt;- qs2::qs_read(
+  file.path(output_dir_data, &quot;ranked_genes_entrez_EC_activated.qs&quot;)
+)
+
+genelist_EC_activated &lt;- qs2::qs_read(
+  file.path(output_dir_data, &quot;genelist_EC_activated.qs&quot;)
+)
+
+GSEA_GO_EC_activated &lt;- qs2::qs_read(
+  file.path(output_dir_data, &quot;GSEA_GO_EC_activated.qs&quot;)
+)
+
+GSEA_GO_EC_activated_simplified &lt;- qs2::qs_read(
+  file.path(output_dir_data, &quot;GSEA_GO_EC_activated_simplified.qs&quot;)
+)</code></pre>
+<pre class="r"><code>p_go_dot_EC_activated &lt;- make_gsea_dotplot(
+  GSEA_GO_EC_activated_simplified,
+  title_text = &quot;EC_activated\nGene ontology enrichment analysis\nHF vs H&quot;,
+  show_n = 20
+)
+
+if (!is.null(p_go_dot_EC_activated)) {
+  p_go_dot_EC_activated
+}</code></pre>
+<p><img src="figure/Endothelial_cells_Koenig_Reichart_manuscript.Rmd/ec_activated%20go%20dotplot-1.png" width="3000" style="display: block; margin: auto;" /></p>
 <br>
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
@@ -6495,129 +8804,145 @@ attached base packages:
 [8] methods   base     
 
 other attached packages:
- [1] broom_1.0.11                speckle_1.10.0             
- [3] cowplot_1.2.0               scales_1.4.0               
- [5] reactable_0.4.5             ggpubr_0.6.2               
- [7] RColorBrewer_1.1-3          circlize_0.4.16            
- [9] ComplexHeatmap_2.26.0       enrichplot_1.30.4          
-[11] org.Hs.eg.db_3.22.0         AnnotationDbi_1.72.0       
-[13] clusterProfiler_4.18.2      EnhancedVolcano_1.29.1     
-[15] ggrepel_0.9.6               edgeR_4.8.0                
-[17] limma_3.66.0                patchwork_1.3.2            
-[19] tibble_3.3.0                stringr_1.6.0              
-[21] tidyr_1.3.1                 ggplot2_4.0.1              
-[23] dplyr_1.1.4                 scCustomize_3.2.2          
-[25] Matrix_1.6-5                DropletUtils_1.30.0        
-[27] SingleCellExperiment_1.32.0 SummarizedExperiment_1.40.0
-[29] Biobase_2.70.0              GenomicRanges_1.62.0       
-[31] Seqinfo_1.0.0               IRanges_2.44.0             
-[33] S4Vectors_0.48.0            BiocGenerics_0.56.0        
-[35] generics_0.1.4              MatrixGenerics_1.22.0      
-[37] matrixStats_1.5.0           SeuratObject_5.0.2         
-[39] Seurat_4.4.0                readxl_1.4.5               
-[41] here_1.0.2                 
+ [1] future_1.68.0               dorothea_1.22.0            
+ [3] OmnipathR_3.18.2            decoupleR_2.16.0           
+ [5] qs2_0.1.7                   clustree_0.5.1             
+ [7] ggraph_2.2.2                harmony_1.2.4              
+ [9] Rcpp_1.1.0                  broom_1.0.11               
+[11] speckle_1.10.0              cowplot_1.2.0              
+[13] scales_1.4.0                reactable_0.4.5            
+[15] ggpubr_0.6.2                RColorBrewer_1.1-3         
+[17] circlize_0.4.16             ComplexHeatmap_2.26.0      
+[19] enrichplot_1.30.4           org.Hs.eg.db_3.22.0        
+[21] AnnotationDbi_1.72.0        clusterProfiler_4.18.2     
+[23] EnhancedVolcano_1.29.1      ggrepel_0.9.6              
+[25] edgeR_4.8.0                 limma_3.66.0               
+[27] patchwork_1.3.2             tibble_3.3.0               
+[29] stringr_1.6.0               tidyr_1.3.1                
+[31] ggplot2_4.0.1               dplyr_1.1.4                
+[33] scCustomize_3.2.2           Matrix_1.6-5               
+[35] DropletUtils_1.30.0         SingleCellExperiment_1.32.0
+[37] SummarizedExperiment_1.40.0 Biobase_2.70.0             
+[39] GenomicRanges_1.62.0        Seqinfo_1.0.0              
+[41] IRanges_2.44.0              S4Vectors_0.48.0           
+[43] BiocGenerics_0.56.0         generics_0.1.4             
+[45] MatrixGenerics_1.22.0       matrixStats_1.5.0          
+[47] SeuratObject_5.0.2          Seurat_4.4.0               
+[49] readxl_1.4.5                here_1.0.2                 
 
 loaded via a namespace (and not attached):
-  [1] R.methodsS3_1.8.2         goftest_1.2-3            
-  [3] Biostrings_2.78.0         HDF5Array_1.38.0         
-  [5] vctrs_0.6.5               ggtangle_0.0.9           
-  [7] spatstat.random_3.4-3     digest_0.6.39            
-  [9] png_0.1-8                 shape_1.4.6.1            
- [11] git2r_0.36.2              deldir_2.0-4             
- [13] parallelly_1.45.1         renv_1.1.5               
- [15] MASS_7.3-65               fontLiberation_0.1.0     
- [17] reshape2_1.4.5            httpuv_1.6.16            
- [19] foreach_1.5.2             qvalue_2.42.0            
- [21] withr_3.0.2               ggrastr_1.0.2            
- [23] xfun_0.56                 ggfun_0.2.0              
- [25] survival_3.8-3            memoise_2.0.1            
- [27] ggbeeswarm_0.7.3          janitor_2.2.1            
- [29] gson_0.1.0                systemfonts_1.3.1        
- [31] tidytree_0.4.6            zoo_1.8-14               
- [33] GlobalOptions_0.1.3       pbapply_1.7-4            
- [35] R.oo_1.27.1               Formula_1.2-5            
- [37] rematch2_2.1.2            KEGGREST_1.50.0          
- [39] promises_1.5.0            otel_0.2.0               
- [41] httr_1.4.7                rstatix_0.7.3            
- [43] globals_0.18.0            fitdistrplus_1.2-4       
- [45] rhdf5filters_1.22.0       stringfish_0.18.0        
- [47] rhdf5_2.54.0              rstudioapi_0.17.1        
- [49] miniUI_0.1.2              DOSE_4.4.0               
- [51] h5mread_1.2.1             polyclip_1.10-7          
- [53] SparseArray_1.10.4        xtable_1.8-4             
- [55] doParallel_1.0.17         evaluate_1.0.5           
- [57] S4Arrays_1.10.1           irlba_2.3.5.1            
- [59] colorspace_2.1-2          ROCR_1.0-11              
- [61] qs2_0.1.7                 reticulate_1.44.1        
- [63] spatstat.data_3.1-9       magrittr_2.0.4           
- [65] lmtest_0.9-40             snakecase_0.11.1         
- [67] later_1.4.4               ggtree_4.0.1             
- [69] lattice_0.22-7            spatstat.geom_3.6-1      
- [71] future.apply_1.20.0       scattermore_1.2          
- [73] scuttle_1.20.0            RcppAnnoy_0.0.22         
- [75] pillar_1.11.1             nlme_3.1-168             
- [77] iterators_1.0.14          compiler_4.5.2           
- [79] beachmat_2.26.0           stringi_1.8.7            
- [81] tensor_1.5.1              lubridate_1.9.4          
- [83] plyr_1.8.9                crayon_1.5.3             
- [85] abind_1.4-8               gridGraphics_0.5-1       
- [87] locfit_1.5-9.12           sp_2.2-0                 
- [89] bit_4.6.0                 fastmatch_1.1-6          
- [91] whisker_0.4.1             codetools_0.2-20         
- [93] crosstalk_1.2.2           bslib_0.9.0              
- [95] paletteer_1.6.0           GetoptLong_1.1.0         
- [97] plotly_4.11.0             mime_0.13                
- [99] splines_4.5.2             Rcpp_1.1.0               
-[101] tidydr_0.0.6              sparseMatrixStats_1.22.0 
-[103] cellranger_1.1.0          utf8_1.2.6               
-[105] knitr_1.50                blob_1.2.4               
-[107] clue_0.3-66               fs_1.6.6                 
-[109] listenv_0.10.0            DelayedMatrixStats_1.32.0
-[111] ggsignif_0.6.4            ggplotify_0.1.3          
-[113] statmod_1.5.1             tweenr_2.0.3             
-[115] pkgconfig_2.0.3           tools_4.5.2              
-[117] cachem_1.1.0              RSQLite_2.4.5            
-[119] viridisLite_0.4.2         DBI_1.2.3                
-[121] fastmap_1.2.0             rmarkdown_2.30           
-[123] ica_1.0-3                 sass_0.4.10              
-[125] ggprism_1.0.7             BiocManager_1.30.27      
-[127] dotCall64_1.2             carData_3.0-5            
-[129] RANN_2.6.2                farver_2.1.2             
-[131] scatterpie_0.2.6          yaml_2.3.11              
-[133] workflowr_1.7.2           cli_3.6.5                
-[135] purrr_1.2.0               leiden_0.4.3.1           
-[137] lifecycle_1.0.4           uwot_0.2.4               
-[139] backports_1.5.0           BiocParallel_1.44.0      
-[141] timechange_0.3.0          gtable_0.3.6             
-[143] rjson_0.2.23              ggridges_0.5.7           
-[145] progressr_0.18.0          parallel_4.5.2           
-[147] ape_5.8-1                 jsonlite_2.0.0           
-[149] bit64_4.6.0-1             Rtsne_0.17               
-[151] yulab.utils_0.2.2         spatstat.utils_3.2-0     
-[153] RcppParallel_5.1.11-1     jquerylib_0.1.4          
-[155] GOSemSim_2.36.0           dqrng_0.4.1              
-[157] spatstat.univar_3.1-5     R.utils_2.13.0           
-[159] reactR_0.6.1              lazyeval_0.2.2           
-[161] shiny_1.12.0              htmltools_0.5.9          
-[163] GO.db_3.22.0              sctransform_0.4.2        
-[165] rappdirs_0.3.3            glue_1.8.0               
-[167] spam_2.11-1               XVector_0.50.0           
-[169] gdtools_0.4.4             rprojroot_2.1.1          
-[171] treeio_1.34.0             gridExtra_2.3            
-[173] igraph_2.2.1              R6_2.6.1                 
-[175] ggiraph_0.9.2             labeling_0.4.3           
-[177] forcats_1.0.1             cluster_2.1.8.1          
-[179] Rhdf5lib_1.32.0           aplot_0.2.9              
-[181] DelayedArray_0.36.0       tidyselect_1.2.1         
-[183] vipor_0.4.7               ggforce_0.5.0            
-[185] fontBitstreamVera_0.1.1   car_3.1-3                
-[187] future_1.68.0             KernSmooth_2.23-26       
-[189] S7_0.2.1                  fontquiver_0.2.1         
-[191] data.table_1.17.8         htmlwidgets_1.6.4        
-[193] fgsea_1.36.0              rlang_1.1.6              
-[195] spatstat.sparse_3.1-0     spatstat.explore_3.6-0   
-[197] Cairo_1.7-0               ggnewscale_0.5.2         
-[199] beeswarm_0.4.0           </code></pre>
+  [1] R.methodsS3_1.8.2         vroom_1.6.7              
+  [3] progress_1.2.3            goftest_1.2-3            
+  [5] Biostrings_2.78.0         HDF5Array_1.38.0         
+  [7] vctrs_0.6.5               ggtangle_0.0.9           
+  [9] spatstat.random_3.4-3     digest_0.6.39            
+ [11] png_0.1-8                 shape_1.4.6.1            
+ [13] git2r_0.36.2              deldir_2.0-4             
+ [15] parallelly_1.45.1         bcellViper_1.46.0        
+ [17] renv_1.1.5                MASS_7.3-65              
+ [19] fontLiberation_0.1.0      reshape2_1.4.5           
+ [21] httpuv_1.6.16             foreach_1.5.2            
+ [23] qvalue_2.42.0             withr_3.0.2              
+ [25] ggrastr_1.0.2             xfun_0.56                
+ [27] ggfun_0.2.0               survival_3.8-3           
+ [29] memoise_2.0.1             ggbeeswarm_0.7.3         
+ [31] janitor_2.2.1             gson_0.1.0               
+ [33] systemfonts_1.3.1         tidytree_0.4.6           
+ [35] zoo_1.8-14                GlobalOptions_0.1.3      
+ [37] pbapply_1.7-4             R.oo_1.27.1              
+ [39] prettyunits_1.2.0         Formula_1.2-5            
+ [41] rematch2_2.1.2            KEGGREST_1.50.0          
+ [43] promises_1.5.0            otel_0.2.0               
+ [45] httr_1.4.7                rstatix_0.7.3            
+ [47] globals_0.18.0            fitdistrplus_1.2-4       
+ [49] rhdf5filters_1.22.0       stringfish_0.18.0        
+ [51] rhdf5_2.54.0              rstudioapi_0.17.1        
+ [53] miniUI_0.1.2              DOSE_4.4.0               
+ [55] curl_7.0.0                h5mread_1.2.1            
+ [57] polyclip_1.10-7           SparseArray_1.10.4       
+ [59] xtable_1.8-4              doParallel_1.0.17        
+ [61] evaluate_1.0.5            S4Arrays_1.10.1          
+ [63] hms_1.1.4                 irlba_2.3.5.1            
+ [65] colorspace_2.1-2          ROCR_1.0-11              
+ [67] reticulate_1.44.1         spatstat.data_3.1-9      
+ [69] readr_2.1.6               magrittr_2.0.4           
+ [71] lmtest_0.9-40             snakecase_0.11.1         
+ [73] glmGamPoi_1.22.0          viridis_0.6.5            
+ [75] later_1.4.4               ggtree_4.0.1             
+ [77] lattice_0.22-7            spatstat.geom_3.6-1      
+ [79] future.apply_1.20.0       XML_3.99-0.20            
+ [81] scattermore_1.2           scuttle_1.20.0           
+ [83] RcppAnnoy_0.0.22          pillar_1.11.1            
+ [85] nlme_3.1-168              iterators_1.0.14         
+ [87] compiler_4.5.2            beachmat_2.26.0          
+ [89] RSpectra_0.16-2           stringi_1.8.7            
+ [91] tensor_1.5.1              lubridate_1.9.4          
+ [93] plyr_1.8.9                crayon_1.5.3             
+ [95] abind_1.4-8               gridGraphics_0.5-1       
+ [97] locfit_1.5-9.12           sp_2.2-0                 
+ [99] graphlayouts_1.2.2        bit_4.6.0                
+[101] fastmatch_1.1-6           whisker_0.4.1            
+[103] codetools_0.2-20          crosstalk_1.2.2          
+[105] bslib_0.9.0               paletteer_1.6.0          
+[107] GetoptLong_1.1.0          plotly_4.11.0            
+[109] mime_0.13                 splines_4.5.2            
+[111] tidydr_0.0.6              sparseMatrixStats_1.22.0 
+[113] cellranger_1.1.0          utf8_1.2.6               
+[115] knitr_1.50                blob_1.2.4               
+[117] clue_0.3-66               fs_1.6.6                 
+[119] checkmate_2.3.3           listenv_0.10.0           
+[121] DelayedMatrixStats_1.32.0 logger_0.4.1             
+[123] ggsignif_0.6.4            ggplotify_0.1.3          
+[125] statmod_1.5.1             tzdb_0.5.0               
+[127] pheatmap_1.0.13           tweenr_2.0.3             
+[129] pkgconfig_2.0.3           tools_4.5.2              
+[131] cachem_1.1.0              RhpcBLASctl_0.23-42      
+[133] RSQLite_2.4.5             rvest_1.0.5              
+[135] viridisLite_0.4.2         DBI_1.2.3                
+[137] fastmap_1.2.0             rmarkdown_2.30           
+[139] ica_1.0-3                 sass_0.4.10              
+[141] ggprism_1.0.7             BiocManager_1.30.27      
+[143] dotCall64_1.2             carData_3.0-5            
+[145] selectr_0.5-0             RANN_2.6.2               
+[147] farver_2.1.2              tidygraph_1.3.1          
+[149] scatterpie_0.2.6          yaml_2.3.11              
+[151] workflowr_1.7.2           cli_3.6.5                
+[153] purrr_1.2.0               leiden_0.4.3.1           
+[155] lifecycle_1.0.4           uwot_0.2.4               
+[157] sessioninfo_1.2.3         backports_1.5.0          
+[159] BiocParallel_1.44.0       timechange_0.3.0         
+[161] gtable_0.3.6              rjson_0.2.23             
+[163] ggridges_0.5.7            progressr_0.18.0         
+[165] parallel_4.5.2            ape_5.8-1                
+[167] jsonlite_2.0.0            bit64_4.6.0-1            
+[169] Rtsne_0.17                yulab.utils_0.2.2        
+[171] spatstat.utils_3.2-0      zip_2.3.3                
+[173] RcppParallel_5.1.11-1     jquerylib_0.1.4          
+[175] GOSemSim_2.36.0           dqrng_0.4.1              
+[177] spatstat.univar_3.1-5     R.utils_2.13.0           
+[179] reactR_0.6.1              lazyeval_0.2.2           
+[181] shiny_1.12.0              htmltools_0.5.9          
+[183] GO.db_3.22.0              sctransform_0.4.2        
+[185] rappdirs_0.3.3            glue_1.8.0               
+[187] tcltk_4.5.2               spam_2.11-1              
+[189] httr2_1.2.1               XVector_0.50.0           
+[191] gdtools_0.4.4             rprojroot_2.1.1          
+[193] treeio_1.34.0             gridExtra_2.3            
+[195] igraph_2.2.1              R6_2.6.1                 
+[197] ggiraph_0.9.2             labeling_0.4.3           
+[199] forcats_1.0.1             cluster_2.1.8.1          
+[201] Rhdf5lib_1.32.0           aplot_0.2.9              
+[203] DelayedArray_0.36.0       tidyselect_1.2.1         
+[205] vipor_0.4.7               xml2_1.5.1               
+[207] ggforce_0.5.0             fontBitstreamVera_0.1.1  
+[209] car_3.1-3                 KernSmooth_2.23-26       
+[211] S7_0.2.1                  fontquiver_0.2.1         
+[213] data.table_1.17.8         htmlwidgets_1.6.4        
+[215] fgsea_1.36.0              rlang_1.1.6              
+[217] spatstat.sparse_3.1-0     spatstat.explore_3.6-0   
+[219] Cairo_1.7-0               ggnewscale_0.5.2         
+[221] beeswarm_0.4.0           </code></pre>
+</div>
 </div>
 </div>
 </div>
