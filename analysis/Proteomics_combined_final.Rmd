@@ -1,0 +1,2208 @@
+---
+title: "Proteomics combined final"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "Proteomics_combined_final"
+
+library(EnhancedVolcano)
+library(here)
+library(readr)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(pheatmap)
+library(scales)
+library(RColorBrewer)
+library(tibble)
+library(scater)
+library(patchwork)
+library(qs2)
+library(reactable)
+library(limma)
+library(ggpubr)
+library(ggrepel)
+library(ComplexHeatmap)
+library(circlize)
+library(variancePartition)
+library(Seurat)
+library(edgeR)
+library(matrixStats)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(Hmisc)
+library(ggtext)
+library(grid)
+library(GOSemSim)
+library(broom)
+library(gridExtra)
+
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+```
+
+## Metadata and analysis choices
+
+```{r metadata choices}
+excluded_samples <- c("PK211", "P11", "PK69", "PK61", "PK63")
+allowed_etiology <- c("DCM", "DCM_LVNC")
+
+clinical_vars_main <- c(
+  "Age_years", "Sample_age_days", "LVEF_percent", "LVEDD_mm",
+  "TAPSE_mm", "RVIT_mm", "sPAP_mmHg",
+  "mPAP_mmHg", "PCW_mmHg", "PVR_WU", "CO_l.min"
+)
+
+params_olink <- c("mPAP_mmHg", "sPAP_mmHg", "PVR_WU", "PCW_mmHg", "RVIT_mm", "TAPSE_mm", "LVEF_percent", "LVEDD_mm")
+params_ms <- c("mPAP_mmHg", "sPAP_mmHg", "PVR_WU", "PCW_mmHg", "RVIT_mm", "TAPSE_mm", "LVEF_percent", "LVEDD_mm")
+
+ph_params <- c("mPAP_mmHg", "sPAP_mmHg", "PVR_WU", "PCW_mmHg")
+rv_params <- c("RVIT_mm", "TAPSE_mm")
+lv_params <- c("LVEF_percent", "LVEDD_mm")
+ordered_params <- c(ph_params, rv_params, lv_params)
+
+pretty_var_names <- c(
+  Age_years = "Age (years)",
+  Sample_age_days = "Sample age (days)",
+  LVEF_percent = "LVEF (%)",
+  LVEDD_mm = "LVEDD (mm)",
+  TAPSE_mm = "TAPSE (mm)",
+  RVIT_mm = "RVIT (mm)",
+  sPAP_mmHg = "sPAP (mmHg)",
+  mPAP_mmHg = "mPAP (mmHg)",
+  PCW_mmHg = "PCW (mmHg)",
+  PVR_WU = "PVR (WU)",
+  `CO_l.min` = "CO (l/min)",
+  BCA_mg_ml = "BCA (mg/ml)",
+  Batch = "Batch",
+  TAPSE_sPAP = "TAPSE/sPAP"
+)
+
+grey_pal <- colorRampPalette(c("white", "#A63A2A"))(100)
+heat_cols <- circlize::colorRamp2(c(-2, 0, 2), c("#2166AC", "white", "#B2182B"))
+```
+
+## Helper functions
+
+```{r helper functions}
+simple_impute_for_viz <- function(mat) {
+  out <- as.matrix(mat)
+  global_floor <- suppressWarnings(stats::quantile(out, probs = 0.01, na.rm = TRUE))
+  if (!is.finite(global_floor)) global_floor <- 0
+
+  for (i in seq_len(nrow(out))) {
+    miss <- is.na(out[i, ]) | !is.finite(out[i, ])
+    if (!any(miss)) next
+
+    obs <- out[i, !miss]
+
+    if (length(obs) >= 3) {
+      mu <- mean(obs, na.rm = TRUE)
+      sdv <- stats::sd(obs, na.rm = TRUE)
+      if (!is.finite(sdv) || sdv == 0) sdv <- 0.3
+      out[i, miss] <- stats::rnorm(sum(miss), mean = mu - 1.8 * sdv, sd = max(0.05, 0.3 * sdv))
+    } else {
+      out[i, miss] <- global_floor
+    }
+  }
+
+  out[!is.finite(out)] <- global_floor
+  out
+}
+
+make_clinical_volcano <- function(res, param, pretty_var_names, p_cutoff = 0.2) {
+  keyvals <- rep("grey70", nrow(res))
+  names(keyvals) <- rep("Not significant", nrow(res))
+  keyvals[res$logFC > 0 & res$adj.P.Val < p_cutoff] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Positive"
+  keyvals[res$logFC < 0 & res$adj.P.Val < p_cutoff] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Negative"
+
+  EnhancedVolcano(
+    res,
+    lab = res$feature,
+    x = "logFC",
+    y = "adj.P.Val",
+    labSize = 0,
+    titleLabSize = 15,
+    subtitleLabSize = 12,
+    axisLabSize = 11,
+    captionLabSize = 9,
+    pointSize = 0.8,
+    FCcutoff = 0,
+    pCutoff = p_cutoff,
+    ylim = c(0, max(2.5, ceiling(max(-log10(res$adj.P.Val), na.rm = TRUE) + 0.5))),
+    colCustom = keyvals,
+    colAlpha = 1,
+    drawConnectors = FALSE,
+    subtitle = NULL,
+    title = paste0(pretty_var_names[[param]] %||% param, "\n", "n = ", unique(res$n_complete_samples)),
+    xlab = "Effect size (rescaled 0-1 predictor)",
+    ylab = "FDR"
+  ) + theme(legend.position = "none")
+}
+
+make_sample_pseudobulk <- function(seurat_obj, assay = "RNA", sample_col = "Sample") {
+  pb <- Seurat::AggregateExpression(
+    object = seurat_obj,
+    assays = assay,
+    group.by = sample_col,
+    slot = "counts",
+    return.seurat = FALSE
+  )[[assay]]
+  as.matrix(pb)
+}
+
+get_top_pca_features <- function(pca_obj, pcs = 1:3, top_n = 20) {
+  loadings <- pca_obj$rotation[, pcs, drop = FALSE]
+
+  purrr::map_dfr(seq_along(pcs), function(i) {
+    pc_name <- colnames(loadings)[i]
+    vals <- loadings[, i]
+    tibble(
+      feature = names(vals),
+      loading = as.numeric(vals),
+      abs_loading = abs(as.numeric(vals)),
+      PC = pc_name
+    ) %>%
+      dplyr::arrange(dplyr::desc(abs_loading)) %>%
+      dplyr::slice_head(n = top_n)
+  })
+}
+
+plot_pca_loading_heatmap <- function(mat, top_tbl, pc, title_text, ann_col = NULL) {
+  feat <- top_tbl %>%
+    dplyr::filter(PC == pc) %>%
+    dplyr::arrange(dplyr::desc(abs_loading)) %>%
+    dplyr::pull(feature)
+
+  hm <- mat[feat, , drop = FALSE]
+  hm_z <- t(scale(t(hm)))
+  hm_z[is.nan(hm_z)] <- 0
+  hm_z[!is.finite(hm_z)] <- 0
+
+  row_lab <- top_tbl %>%
+    dplyr::filter(PC == pc) %>%
+    dplyr::mutate(label = paste0(feature, " (", sprintf("%.3f", loading), ")")) %>%
+    dplyr::select(feature, label)
+
+  rownames(hm_z) <- row_lab$label[match(rownames(hm_z), row_lab$feature)]
+
+  pheatmap(
+    hm_z,
+    annotation_col = ann_col,
+    cluster_rows = TRUE,
+    cluster_cols = TRUE,
+    show_rownames = TRUE,
+    show_colnames = TRUE,
+    fontsize_row = 8,
+    fontsize_col = 9,
+    border_color = NA,
+    color = colorRampPalette(c("#2166AC", "white", "#B2182B"))(100),
+    main = title_text
+  )
+}
+
+make_logfc_correlation_plot <- function(df, x_col, y_col, x_lab, y_lab, title_text) {
+  df <- df %>%
+    dplyr::filter(is.finite(.data[[x_col]]), is.finite(.data[[y_col]]))
+
+  if (nrow(df) < 3) {
+    return(
+      ggplot() +
+        annotate("text", x = 1, y = 1, label = "Too few shared features", size = 4) +
+        theme_void() +
+        labs(title = title_text)
+    )
+  }
+
+  ct <- cor.test(df[[x_col]], df[[y_col]], method = "pearson")
+  r_val <- round(unname(ct$estimate), 2)
+  p_val <- signif(ct$p.value, 2)
+
+  ggplot(df, aes(x = .data[[x_col]], y = .data[[y_col]])) +
+    geom_point(size = 2.5) +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 0.6, color = "black") +
+    annotate(
+      "text",
+      x = Inf, y = -Inf,
+      label = paste0("r = ", r_val, "\n", "p = ", p_val, "\n", "n = ", nrow(df)),
+      hjust = 1.1, vjust = -0.5,
+      size = 4
+    ) +
+    labs(
+      title = title_text,
+      x = x_lab,
+      y = y_lab
+    ) +
+    theme_classic(base_size = 13)
+}
+
+wrap_2lines <- function(x, width = 35) {
+  vapply(x, function(s) {
+    s <- as.character(s)
+    if (nchar(s) <= width) return(s)
+    cut <- stringr::str_locate_all(substr(s, 1, width), " ")[[1]]
+    cut <- if (nrow(cut) == 0) width else max(cut[, 1])
+    line1 <- stringr::str_trim(substr(s, 1, cut))
+    rest  <- stringr::str_trim(substr(s, cut + 1, nchar(s)))
+    if (nchar(rest) > width) rest <- paste0(substr(rest, 1, width - 1), "…")
+    paste(line1, rest, sep = "\n")
+  }, FUN.VALUE = character(1))
+}
+
+make_gsea_dotplot <- function(gsea_obj, title_text, show_n = 20, label_format = 45, font_size = 12) {
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  dotplot(
+    gsea_obj,
+    showCategory = show_n,
+    split = ".sign",
+    label_format = label_format,
+    font.size = font_size,
+    title = title_text
+  ) +
+    facet_grid(. ~ .sign) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5, size = 14),
+      strip.text = element_text(face = "bold", size = 12)
+    )
+}
+
+make_gsea_emapplot <- function(gsea_obj, show_n = 30) {
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  gsea_res <- gsea_obj@result
+
+  gsea_up <- gsea_obj
+  gsea_up@result <- gsea_res %>% dplyr::filter(NES > 0, p.adjust < 0.05)
+
+  gsea_down <- gsea_obj
+  gsea_down@result <- gsea_res %>% dplyr::filter(NES < 0, p.adjust < 0.05)
+
+  plot_list_emap <- list()
+
+  if (nrow(gsea_up@result) > 1) {
+    plot_list_emap[["up"]] <- emapplot(
+      pairwise_termsim(gsea_up),
+      showCategory = min(show_n, nrow(gsea_up@result)),
+      size_category = 0.4,
+      min_edge = 0.25
+    ) +
+      ggtitle("Activated terms") +
+      theme(plot.title = element_text(face = "bold", hjust = 0.5))
+  }
+
+  if (nrow(gsea_down@result) > 1) {
+    plot_list_emap[["down"]] <- emapplot(
+      pairwise_termsim(gsea_down),
+      showCategory = min(show_n, nrow(gsea_down@result)),
+      size_category = 0.4,
+      min_edge = 0.25
+    ) +
+      ggtitle("Suppressed terms") +
+      theme(plot.title = element_text(face = "bold", hjust = 0.5))
+  }
+
+  if (length(plot_list_emap) == 2) {
+    return(plot_list_emap[["up"]] + plot_list_emap[["down"]])
+  } else if (length(plot_list_emap) == 1) {
+    return(plot_list_emap[[1]])
+  } else {
+    return(NULL)
+  }
+}
+
+make_gsea_barplot <- function(gsea_obj, label_width = 40, top_n = 10, base_size = 11) {
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  gsea_bar_df <- gsea_obj@result %>%
+    as_tibble() %>%
+    dplyr::filter(!is.na(NES), !is.na(p.adjust), p.adjust < 0.05)
+
+  if (nrow(gsea_bar_df) == 0) return(NULL)
+
+  gsea_bar_df <- gsea_bar_df %>%
+    dplyr::mutate(score = -log10(p.adjust) * sign(NES))
+
+  gsea_bar_df_pos <- gsea_bar_df %>%
+    dplyr::filter(NES > 0) %>%
+    dplyr::arrange(desc(NES)) %>%
+    dplyr::slice_head(n = top_n)
+
+  gsea_bar_df_neg <- gsea_bar_df %>%
+    dplyr::filter(NES < 0) %>%
+    dplyr::arrange(NES) %>%
+    dplyr::slice_head(n = top_n)
+
+  gsea_bar_df_plot <- dplyr::bind_rows(gsea_bar_df_pos, gsea_bar_df_neg)
+
+  if (nrow(gsea_bar_df_plot) == 0) return(NULL)
+
+  gsea_bar_df_plot$Description <- factor(
+    gsea_bar_df_plot$Description,
+    levels = gsea_bar_df_plot$Description[order(gsea_bar_df_plot$NES)]
+  )
+
+  L <- unname(quantile(abs(gsea_bar_df_plot$score), probs = 0.80, na.rm = TRUE))
+  if (!is.finite(L) || L == 0) L <- max(abs(gsea_bar_df_plot$score), na.rm = TRUE)
+
+  ggplot(gsea_bar_df_plot, aes(x = Description, y = NES, fill = score)) +
+    geom_col(width = 0.9) +
+    scale_fill_gradient2(
+      low = "#004C8C",
+      mid = "white",
+      high = "#A63A2A",
+      midpoint = 0,
+      limits = c(-L, L),
+      oob = scales::squish,
+      name = expression(-log[10](adj.~p) %*% sign(NES))
+    ) +
+    scale_x_discrete(labels = function(x) wrap_2lines(x, width = label_width)) +
+    coord_flip() +
+    labs(x = NULL, y = "Normalized enrichment score (NES)") +
+    theme_bw(base_size = base_size) +
+    theme(
+      text = element_text(color = "black"),
+      axis.text = element_text(color = "black"),
+      axis.title = element_text(color = "black", size = 13),
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+      axis.text.y = element_text(size = 11),
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.title = element_text(size = 9),
+      legend.text = element_text(size = 9)
+    ) +
+    guides(fill = guide_colorbar(
+      barwidth = unit(6, "cm"),
+      barheight = unit(0.3, "cm"),
+      title.position = "top",
+      title.hjust = 0.5
+    ))
+}
+
+clean_gene_symbols_for_gsea <- function(x) {
+  x <- as.character(x)
+  x <- trimws(x)
+  x <- gsub("///.*$", "", x)
+  x <- gsub(";.*$", "", x)
+  x <- gsub(",.*$", "", x)
+  x <- gsub("\\s+", "", x)
+  x[x == ""] <- NA_character_
+  x
+}
+
+run_gsea_from_limma_table <- function(res_tbl,
+                                     feature_col = "feature",
+                                     stat_col = "t",
+                                     ont = "ALL",
+                                     minGSSize = 10,
+                                     maxGSSize = 500,
+                                     simplify_cutoff = 0.6,
+                                     use_simplify = TRUE) {
+
+  if (is.null(res_tbl) || nrow(res_tbl) == 0) return(NULL)
+
+  ranked_genes <- res_tbl %>%
+    dplyr::transmute(
+      gene = clean_gene_symbols_for_gsea(.data[[feature_col]]),
+      stat = as.numeric(.data[[stat_col]])
+    ) %>%
+    dplyr::filter(!is.na(gene), !is.na(stat), is.finite(stat))
+
+  if (nrow(ranked_genes) < 20) return(NULL)
+
+  entrezid <- suppressMessages(
+    clusterProfiler::bitr(
+      ranked_genes$gene,
+      fromType = "SYMBOL",
+      toType = "ENTREZID",
+      OrgDb = org.Hs.eg.db,
+      drop = TRUE
+    )
+  )
+
+  if (is.null(entrezid) || nrow(entrezid) == 0) return(NULL)
+
+  ranked_genes_entrez <- ranked_genes %>%
+    dplyr::left_join(entrezid, by = c("gene" = "SYMBOL")) %>%
+    dplyr::filter(!is.na(ENTREZID)) %>%
+    dplyr::group_by(ENTREZID) %>%
+    dplyr::slice_max(order_by = abs(stat), n = 1, with_ties = FALSE) %>%
+    dplyr::ungroup()
+
+  if (nrow(ranked_genes_entrez) < 20) return(NULL)
+
+  genelist <- ranked_genes_entrez$stat
+  names(genelist) <- ranked_genes_entrez$ENTREZID
+  genelist <- sort(genelist, decreasing = TRUE)
+
+  gsea_obj <- tryCatch(
+    suppressMessages(
+      clusterProfiler::gseGO(
+        geneList = genelist,
+        OrgDb = org.Hs.eg.db,
+        ont = ont,
+        keyType = "ENTREZID",
+        minGSSize = minGSSize,
+        maxGSSize = maxGSSize,
+        eps = 0,
+        pvalueCutoff = 0.05,
+        verbose = FALSE,
+        by = "fgsea",
+        nPermSimple = 10000
+      )
+    ),
+    error = function(e) NULL
+  )
+
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  gsea_obj <- clusterProfiler::setReadable(gsea_obj, OrgDb = org.Hs.eg.db)
+
+  if (use_simplify) {
+    gsea_obj <- tryCatch(
+      clusterProfiler::simplify(
+        gsea_obj,
+        cutoff = simplify_cutoff,
+        by = "p.adjust",
+        select_fun = min,
+        measure = "Wang"
+      ),
+      error = function(e) gsea_obj
+    )
+  }
+
+  gsea_obj
+}
+
+build_sig_heatmap <- function(res_tbl,
+                              expr_mat,
+                              meta_df,
+                              param,
+                              assay_label,
+                              sig_cutoff = 0.2,
+                              filter_detect_frac = NULL) {
+
+  ann_cols <- c("Sample", param, "Age_years", "Sample_age_days", "Sex", "BCA_mg_ml")
+  ann_cols <- ann_cols[ann_cols %in% colnames(meta_df)]
+
+  meta_sub <- meta_df %>%
+    dplyr::select(all_of(ann_cols)) %>%
+    dplyr::distinct(Sample, .keep_all = TRUE) %>%
+    dplyr::filter(Sample %in% colnames(expr_mat)) %>%
+    dplyr::filter(!is.na(.data[[param]])) %>%
+    dplyr::arrange(.data[[param]])
+
+  expr_sub <- expr_mat[, meta_sub$Sample, drop = FALSE]
+
+  if (!is.null(filter_detect_frac)) {
+    keep_rows <- rowMeans(!is.na(expr_sub)) >= filter_detect_frac
+    expr_sub <- expr_sub[keep_rows, , drop = FALSE]
+  }
+
+  sig_tbl <- res_tbl %>%
+    dplyr::filter(adj.P.Val < sig_cutoff) %>%
+    dplyr::filter(feature %in% rownames(expr_sub)) %>%
+    dplyr::arrange(dplyr::desc(logFC))
+
+  if (nrow(sig_tbl) == 0) {
+    message("No significant features for ", assay_label, " - ", param)
+    return(NULL)
+  }
+
+  mat <- expr_sub[sig_tbl$feature, meta_sub$Sample, drop = FALSE]
+  mat_z <- t(scale(t(mat)))
+  mat_z[is.nan(mat_z)] <- 0
+  mat_z[!is.finite(mat_z)] <- 0
+
+  row_split <- ifelse(sig_tbl$logFC > 0,
+                      paste0("Positive association with ", pretty_var_names[[param]] %||% param),
+                      paste0("Negative association with ", pretty_var_names[[param]] %||% param))
+
+  ann_df <- data.frame(row.names = meta_sub$Sample)
+  ann_df[[pretty_var_names[[param]] %||% param]] <- meta_sub[[param]]
+
+  if ("Age_years" %in% colnames(meta_sub)) ann_df$Age <- meta_sub$Age_years
+  if ("Sample_age_days" %in% colnames(meta_sub)) ann_df$Sample_age <- meta_sub$Sample_age_days
+  if ("Sex" %in% colnames(meta_sub)) ann_df$Sex <- meta_sub$Sex
+  if ("BCA_mg_ml" %in% colnames(meta_sub)) ann_df$BCA <- meta_sub$BCA_mg_ml
+
+  ann_col_list <- list()
+
+  ann_col_list[[pretty_var_names[[param]] %||% param]] <- circlize::colorRamp2(
+    c(min(meta_sub[[param]], na.rm = TRUE),
+      median(meta_sub[[param]], na.rm = TRUE),
+      max(meta_sub[[param]], na.rm = TRUE)),
+    c("#DCEAF7", "#6AAED6", "#08306B")
+  )
+
+  if ("Age_years" %in% colnames(meta_sub)) {
+    ann_col_list$Age <- circlize::colorRamp2(
+      c(min(meta_sub$Age_years, na.rm = TRUE),
+        median(meta_sub$Age_years, na.rm = TRUE),
+        max(meta_sub$Age_years, na.rm = TRUE)),
+      c("grey90", "grey60", "grey20")
+    )
+  }
+
+  if ("Sample_age_days" %in% colnames(meta_sub)) {
+    ann_col_list$Sample_age <- circlize::colorRamp2(
+      c(min(meta_sub$Sample_age_days, na.rm = TRUE),
+        median(meta_sub$Sample_age_days, na.rm = TRUE),
+        max(meta_sub$Sample_age_days, na.rm = TRUE)),
+      c("grey95", "grey70", "grey35")
+    )
+  }
+
+  if ("Sex" %in% colnames(meta_sub)) {
+    ann_col_list$Sex <- c("F" = "#E78AC3", "M" = "#4EB3D3")
+  }
+
+  if ("BCA_mg_ml" %in% colnames(meta_sub)) {
+    ann_col_list$BCA <- circlize::colorRamp2(
+      c(min(meta_sub$BCA_mg_ml, na.rm = TRUE),
+        median(meta_sub$BCA_mg_ml, na.rm = TRUE),
+        max(meta_sub$BCA_mg_ml, na.rm = TRUE)),
+      c("#FEE5D9", "#FB6A4A", "#A50F15")
+    )
+  }
+
+  ha <- ComplexHeatmap::HeatmapAnnotation(
+    df = ann_df,
+    col = ann_col_list,
+    annotation_name_gp = grid::gpar(fontsize = 9)
+  )
+
+  row_height_mm <- 2.5
+heatmap_height <- grid::unit(nrow(mat_z) * row_height_mm, "mm")
+
+ComplexHeatmap::Heatmap(
+  mat_z,
+  name = "Z-score",
+  col = circlize::colorRamp2(c(-2, 0, 2), c("#2166AC", "white", "#B2182B")),
+  top_annotation = ha,
+  cluster_rows = FALSE,
+  cluster_columns = FALSE,
+  row_split = row_split,
+  show_row_dend = FALSE,
+  show_column_dend = FALSE,
+  column_title = paste0(assay_label, " - significant features for ", pretty_var_names[[param]] %||% param),
+  row_title = NULL,
+  column_names_rot = 45,
+  column_names_gp = grid::gpar(fontsize = 8),
+  row_names_gp = grid::gpar(fontsize = 7),
+  height = heatmap_height
+  )
+}
+
+make_partial_assoc_plot <- function(meta_df,
+                                    expr_vec,
+                                    sample_ids,
+                                    gene_label,
+                                    assay_label,
+                                    y_lab) {
+
+  df <- data.frame(
+    Sample = sample_ids,
+    expr = as.numeric(expr_vec[sample_ids])
+  ) %>%
+    dplyr::left_join(meta_df, by = "Sample") %>%
+    dplyr::select(Sample, expr, mPAP_mmHg, Age_years, Sample_age_days) %>%
+    dplyr::filter(complete.cases(.))
+
+  if (nrow(df) < 5) return(NULL)
+
+  fit <- lm(expr ~ mPAP_mmHg + Age_years + Sample_age_days, data = df)
+  tt <- broom::tidy(fit)
+  mpap_row <- tt %>% dplyr::filter(term == "mPAP_mmHg")
+
+  beta <- signif(mpap_row$estimate[1], 3)
+  pval <- signif(mpap_row$p.value[1], 3)
+
+  newdata <- data.frame(
+    mPAP_mmHg = seq(min(df$mPAP_mmHg), max(df$mPAP_mmHg), length.out = 100),
+    Age_years = median(df$Age_years, na.rm = TRUE),
+    Sample_age_days = median(df$Sample_age_days, na.rm = TRUE)
+  )
+
+  pred <- predict(fit, newdata = newdata, interval = "confidence")
+  pred_df <- cbind(newdata, as.data.frame(pred))
+
+  ggplot(df, aes(x = mPAP_mmHg, y = expr)) +
+    geom_point(size = 2) +
+    geom_line(data = pred_df, aes(x = mPAP_mmHg, y = fit), color = "firebrick", linewidth = 0.4) +
+    geom_ribbon(data = pred_df, aes(x = mPAP_mmHg, ymin = lwr, ymax = upr), alpha = 0.2, inherit.aes = FALSE) +
+    labs(
+      title = paste0(gene_label, "\n", assay_label, " | beta = ", beta, " | p = ", pval),
+      x = "mPAP (mmHg)",
+      y = y_lab
+    ) +
+    theme_minimal(base_size = 12)
+}
+```
+
+## Read metadata
+
+```{r read metadata}
+meta_file <- here::here("data", "Baza_dla_Gino_AP_short.xlsx")
+if (!file.exists(meta_file)) stop("Could not find metadata file: ", meta_file)
+
+clin_all <- readxl::read_excel(meta_file) %>%
+  dplyr::select(-dplyr::matches("^Unnamed")) %>%
+  dplyr::mutate(
+    Collection_date = as.Date(Collection_date),
+    Used_date = as.Date(Used_date),
+    Sample_age_days = as.numeric(Sample_age_days),
+    Age_years = as.numeric(Age_years),
+    LVEF_percent = as.numeric(LVEF_percent),
+    LVID_mm = as.numeric(LVID_mm),
+    LVEDD_mm = as.numeric(LVEDD_mm),
+    RVOT_mm = as.numeric(RVOT_mm),
+    TAPSE_mm = as.numeric(TAPSE_mm),
+    RVIT_mm = as.numeric(RVIT_mm),
+    RAA_cm2 = as.numeric(RAA_cm2),
+    RVS_cm.s = as.numeric(RVS_cm.s),
+    RVSP_mmHg = as.numeric(RVSP_mmHg),
+    sPAP_mmHg = as.numeric(sPAP_mmHg),
+    mPAP_mmHg = as.numeric(mPAP_mmHg),
+    PCW_mmHg = as.numeric(PCW_mmHg),
+    PVR_WU = as.numeric(PVR_WU),
+    TPG_mmHg = as.numeric(TPG_mmHg),
+    CO_l.min = as.numeric(CO_l.min),
+    Sex = factor(Sex),
+    Group = factor(Group),
+    Etiology = factor(Etiology)
+  ) %>%
+  dplyr::filter(
+    !Sample %in% excluded_samples,
+    Group == "DCM",
+    Etiology %in% allowed_etiology
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+clin_all %>%
+  dplyr::count(Etiology)
+```
+
+## Read Olink data
+
+```{r read olink}
+olink_meta_file <- here::here("data", "OLINK", "Samples_RV_Olink.xlsx")
+if (!file.exists(olink_meta_file)) stop("Could not find Olink sample file: ", olink_meta_file)
+
+olink_sample_meta <- readxl::read_excel(olink_meta_file) %>%
+  dplyr::select(-dplyr::matches("^Unnamed")) %>%
+  dplyr::filter(Olink == "Yes") %>%
+  dplyr::filter(!Sample %in% excluded_samples) %>%
+  dplyr::mutate(
+    BCA_mg_ml = as.numeric(BCA_mg_ml)
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+olink_meta <- clin_all %>%
+  dplyr::inner_join(
+    olink_sample_meta %>% dplyr::select(Sample, Batch, BCA_mg_ml),
+    by = "Sample"
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+olink_raw <- read.delim(here::here("data", "OLINK", "quant.xls"), sep = "\t", check.names = FALSE)
+rownames(olink_raw) <- sub("_.*", "", olink_raw$SampleID)
+
+olink_expr <- olink_raw[, -1, drop = FALSE]
+olink_expr <- as.matrix(olink_expr)
+storage.mode(olink_expr) <- "numeric"
+
+olink_keep <- intersect(olink_meta$Sample, colnames(olink_expr))
+olink_meta <- olink_meta %>%
+  dplyr::filter(Sample %in% olink_keep) %>%
+  dplyr::slice(match(olink_keep, Sample))
+olink_expr <- olink_expr[, olink_keep, drop = FALSE]
+
+stopifnot(all(olink_meta$Group == "DCM"))
+stopifnot(all(olink_meta$Etiology %in% allowed_etiology))
+```
+
+## Read mass-spec data
+
+```{r read mass spec}
+ms_raw <- read.csv(here::here("data", "Mass_spec", "20260319_MS_DIA_report_2uniquepeptides.csv"), check.names = FALSE)
+
+prot_annot <- ms_raw[, c("Protein.Group", "Protein.Names", "Genes", "First.Protein.Description",
+                         "N.Sequences", "N.Proteotypic.Sequences")]
+sample_cols <- setdiff(colnames(ms_raw), colnames(prot_annot))
+qc_cols <- grep("^QC", sample_cols, value = TRUE)
+biol_cols <- setdiff(sample_cols, qc_cols)
+
+ms_expr0 <- as.data.frame(ms_raw[, biol_cols, drop = FALSE])
+rownames(ms_expr0) <- ms_raw$Genes
+keep_rows <- !is.na(rownames(ms_expr0)) & rownames(ms_expr0) != ""
+ms_expr0 <- ms_expr0[keep_rows, , drop = FALSE]
+rownames(ms_expr0) <- make.unique(rownames(ms_expr0))
+ms_expr0 <- as.matrix(ms_expr0)
+storage.mode(ms_expr0) <- "numeric"
+
+ms_meta <- clin_all %>%
+  dplyr::filter(Sample %in% colnames(ms_expr0)) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+ms_expr0 <- ms_expr0[, ms_meta$Sample, drop = FALSE]
+ms_expr <- log2(ms_expr0 + 1)
+
+ms_expr_viz <- simple_impute_for_viz(ms_expr)
+
+stopifnot(all(ms_meta$Group == "DCM"))
+stopifnot(all(ms_meta$Etiology %in% allowed_etiology))
+```
+
+## Samples retained
+
+```{r retained samples}
+list(
+  Olink_samples = olink_meta %>% dplyr::select(Sample, Etiology, Sex, Age_years, Sample_age_days, BCA_mg_ml, Batch),
+  MS_samples = ms_meta %>% dplyr::select(Sample, Etiology, Sex, Age_years, Sample_age_days)
+)
+```
+
+## QC plots - mass spec
+
+```{r ms qc table}
+ms_qc_df <- data.frame(
+  Sample = colnames(ms_expr),
+  Group = ms_meta$Group[match(colnames(ms_expr), ms_meta$Sample)],
+  Missing_fraction = colMeans(is.na(ms_expr)),
+  Detected_proteins = colSums(!is.na(ms_expr)),
+  Median_log2_abundance = matrixStats::colMedians(ms_expr, na.rm = TRUE)
+)
+
+ms_qc_df %>% dplyr::arrange(desc(Missing_fraction))
+```
+
+```{r ms qc missing fraction by sample, fig.height=4, fig.width=10}
+ggplot(ms_qc_df, aes(x = reorder(Sample, Missing_fraction), y = Missing_fraction, fill = Group)) +
+  geom_col() +
+  scale_fill_manual(values = c("DCM" = "#A63A2A")) +
+  labs(x = NULL, y = "Fraction missing") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6))
+```
+
+```{r ms qc detected proteins by sample, fig.height=4, fig.width=10}
+ggplot(ms_qc_df, aes(x = reorder(Sample, Detected_proteins), y = Detected_proteins, fill = Group)) +
+  geom_col() +
+  scale_fill_manual(values = c("DCM" = "#A63A2A")) +
+  labs(x = NULL, y = "Detected proteins") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6))
+```
+
+```{r ms qc missing vs abundance, fig.height=3.8, fig.width=5.6}
+ggplot(ms_qc_df, aes(x = Missing_fraction, y = Median_log2_abundance, color = Group)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.5, color = "black") +
+  scale_color_manual(values = c("DCM" = "#A63A2A")) +
+  labs(x = "Fraction missing", y = "Median log2 abundance") +
+  theme_classic()
+```
+
+```{r ms qc protein missing stats}
+ms_prot_missing <- data.frame(
+  feature = rownames(ms_expr),
+  missing_fraction = rowMeans(is.na(ms_expr)),
+  mean_abundance = rowMeans(ms_expr, na.rm = TRUE),
+  median_abundance = matrixStats::rowMedians(ms_expr, na.rm = TRUE)
+)
+```
+
+```{r ms qc protein missing vs abundance, fig.height=3.8, fig.width=5.6}
+ggplot(ms_prot_missing, aes(x = median_abundance, y = missing_fraction)) +
+  geom_point(size = 1.2, alpha = 0.8) +
+  labs(x = "Median log2 abundance", y = "Fraction missing") +
+  theme_classic()
+```
+
+## Heatmap of all proteins
+
+```{r heatmap annotation colors}
+sex_col <- c("F" = "#E78AC3", "M" = "#4EB3D3")
+
+age_range <- range(c(olink_meta$Age_years, ms_meta$Age_years), na.rm = TRUE)
+age_mid <- median(c(olink_meta$Age_years, ms_meta$Age_years), na.rm = TRUE)
+age_col_fun <- circlize::colorRamp2(
+  c(age_range[1], age_mid, age_range[2]),
+  c("grey90", "grey60", "grey20")
+)
+
+bca_range <- range(olink_meta$BCA_mg_ml, na.rm = TRUE)
+bca_mid <- median(olink_meta$BCA_mg_ml, na.rm = TRUE)
+bca_col_fun <- circlize::colorRamp2(
+  c(bca_range[1], bca_mid, bca_range[2]),
+  c("#FEE5D9", "#FB6A4A", "#A50F15")
+)
+
+batch_levels <- sort(unique(as.character(olink_meta$Batch)))
+batch_pal <- if (length(batch_levels) <= 8) {
+  RColorBrewer::brewer.pal(max(3, length(batch_levels)), "Set2")[seq_along(batch_levels)]
+} else {
+  grDevices::colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(length(batch_levels))
+}
+batch_col <- setNames(batch_pal, batch_levels)
+
+heat_col_fun <- circlize::colorRamp2(c(-2, 0, 2), c("#2166AC", "white", "#B2182B"))
+```
+
+
+```{r olink heatmap all proteins, fig.width=14, fig.height=14, dpi=300}
+olink_z <- t(scale(t(olink_expr)))
+olink_z[is.nan(olink_z)] <- 0
+olink_z[!is.finite(olink_z)] <- 0
+
+olink_ann <- olink_meta %>%
+  dplyr::select(Sample, Batch, BCA_mg_ml, Sex, Age_years) %>%
+  dplyr::mutate(
+    Batch = factor(as.character(Batch), levels = batch_levels),
+    Sex = factor(as.character(Sex), levels = c("F", "M"))
+  ) %>%
+  dplyr::slice(match(colnames(olink_z), Sample))
+
+stopifnot(all(olink_ann$Sample == colnames(olink_z)))
+
+ha_olink <- ComplexHeatmap::HeatmapAnnotation(
+  Batch = olink_ann$Batch,
+  BCA = olink_ann$BCA_mg_ml,
+  Sex = olink_ann$Sex,
+  Age = olink_ann$Age_years,
+  col = list(
+    Batch = batch_col,
+    BCA = bca_col_fun,
+    Sex = sex_col,
+    Age = age_col_fun
+  ),
+  annotation_name_gp = grid::gpar(fontsize = 10)
+)
+
+ht_olink <- ComplexHeatmap::Heatmap(
+  olink_z,
+  name = "Z-score",
+  col = heat_col_fun,
+  top_annotation = ha_olink,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  column_names_gp = grid::gpar(fontsize = 8),
+  column_title = "Olink - all proteins"
+)
+
+ComplexHeatmap::draw(
+  ht_olink,
+  heatmap_legend_side = "right",
+  annotation_legend_side = "right"
+)
+```
+
+```{r ms heatmap all proteins, fig.width=14, fig.height=14, dpi=300}
+ms_z <- t(scale(t(ms_expr_viz)))
+ms_z[is.nan(ms_z)] <- 0
+ms_z[!is.finite(ms_z)] <- 0
+
+ms_ann <- ms_meta %>%
+  dplyr::select(Sample, Sex, Age_years) %>%
+  dplyr::mutate(
+    Sex = factor(as.character(Sex), levels = c("F", "M"))
+  ) %>%
+  dplyr::slice(match(colnames(ms_z), Sample))
+
+stopifnot(all(ms_ann$Sample == colnames(ms_z)))
+
+ha_ms <- ComplexHeatmap::HeatmapAnnotation(
+  Sex = ms_ann$Sex,
+  Age = ms_ann$Age_years,
+  col = list(
+    Sex = sex_col,
+    Age = age_col_fun
+  ),
+  annotation_name_gp = grid::gpar(fontsize = 10)
+)
+
+ht_ms <- ComplexHeatmap::Heatmap(
+  ms_z,
+  name = "Z-score",
+  col = heat_col_fun,
+  top_annotation = ha_ms,
+  show_row_names = FALSE,
+  show_column_names = TRUE,
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  column_names_gp = grid::gpar(fontsize = 8),
+  column_title = "MS - all proteins"
+)
+
+ComplexHeatmap::draw(
+  ht_ms,
+  heatmap_legend_side = "right",
+  annotation_legend_side = "right"
+)
+```
+
+## PCA plots
+
+```{r olink pca object}
+olink_pca_mat <- olink_expr
+olink_keep_rows <- apply(olink_pca_mat, 1, function(x) {
+  x <- x[is.finite(x)]
+  length(x) >= 2 && sd(x) > 0
+})
+olink_pca_mat <- olink_pca_mat[olink_keep_rows, , drop = FALSE]
+
+olink_pca <- prcomp(t(olink_pca_mat), center = TRUE, scale. = TRUE)
+olink_pvar <- (olink_pca$sdev^2) / sum(olink_pca$sdev^2) * 100
+
+olink_pca_df <- data.frame(
+  Sample = rownames(olink_pca$x),
+  PC1 = olink_pca$x[, 1],
+  PC2 = olink_pca$x[, 2],
+  stringsAsFactors = FALSE
+) %>%
+  dplyr::left_join(olink_meta, by = "Sample")
+```
+
+```{r olink pca numeric, fig.width=18, fig.height=18}
+olink_pca_numeric_vars <- c("Age_years", "Sample_age_days", "BCA_mg_ml", ordered_params)
+olink_pca_num_plots <- lapply(olink_pca_numeric_vars, function(v) {
+  ggplot(olink_pca_df, aes(PC1, PC2, color = .data[[v]])) +
+    geom_point(size = 3) +
+    scale_color_gradientn(colors = grey_pal, na.value = "grey85") +
+    labs(
+      title = paste0("Olink - ", pretty_var_names[[v]] %||% v),
+      x = paste0("PC1 (", round(olink_pvar[1], 1), "%)"),
+      y = paste0("PC2 (", round(olink_pvar[2], 1), "%)"),
+      color = pretty_var_names[[v]] %||% v
+    ) +
+    theme_minimal()
+})
+wrap_plots(olink_pca_num_plots, ncol = 3)
+```
+
+```{r olink pca factors, fig.width=10, fig.height=5}
+p1 <- ggplot(olink_pca_df, aes(PC1, PC2, color = Sex)) +
+  geom_point(size = 3) +
+  labs(
+    title = "Olink - Sex",
+    x = paste0("PC1 (", round(olink_pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(olink_pvar[2], 1), "%)")
+  ) +
+  theme_minimal()
+
+p2 <- ggplot(olink_pca_df, aes(PC1, PC2, color = Batch)) +
+  geom_point(size = 3) +
+  labs(
+    title = "Olink - Batch",
+    x = paste0("PC1 (", round(olink_pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(olink_pvar[2], 1), "%)")
+  ) +
+  theme_minimal()
+
+p1 + p2
+```
+
+```{r olink pca top loadings tables}
+olink_top_pca_features <- get_top_pca_features(olink_pca, pcs = 1:3, top_n = 20)
+write.csv(olink_top_pca_features, file.path(output_dir_data, "Olink_top20_loadings_PC1_PC2_PC3.csv"), row.names = FALSE)
+
+olink_top_pca_features %>%
+  dplyr::group_by(PC) %>%
+  dplyr::arrange(PC, dplyr::desc(abs_loading), .by_group = TRUE)
+```
+
+```{r olink pca heatmap pc1, fig.width=8.5, fig.height=7.5}
+olink_ann_pca <- olink_meta %>%
+  dplyr::select(Sample, Batch, BCA_mg_ml) %>%
+  tibble::column_to_rownames("Sample")
+olink_ann_pca <- olink_ann_pca[colnames(olink_pca_mat), , drop = FALSE]
+
+plot_pca_loading_heatmap(
+  mat = olink_pca_mat,
+  top_tbl = olink_top_pca_features,
+  pc = "PC1",
+  title_text = paste0("Olink - top 20 contributors to PC1 (", round(olink_pvar[1], 1), "%)"),
+  ann_col = olink_ann_pca
+)
+```
+
+```{r olink pca heatmap pc2, fig.width=8.5, fig.height=7.5}
+plot_pca_loading_heatmap(
+  mat = olink_pca_mat,
+  top_tbl = olink_top_pca_features,
+  pc = "PC2",
+  title_text = paste0("Olink - top 20 contributors to PC2 (", round(olink_pvar[2], 1), "%)"),
+  ann_col = olink_ann_pca
+)
+```
+
+```{r olink pca heatmap pc3, fig.width=8.5, fig.height=7.5}
+plot_pca_loading_heatmap(
+  mat = olink_pca_mat,
+  top_tbl = olink_top_pca_features,
+  pc = "PC3",
+  title_text = paste0("Olink - top 20 contributors to PC3 (", round(olink_pvar[3], 1), "%)"),
+  ann_col = olink_ann_pca
+)
+```
+
+```{r ms pca object}
+ms_pca_mat <- ms_expr_viz
+ms_keep_rows <- apply(ms_pca_mat, 1, function(x) {
+  x <- x[is.finite(x)]
+  length(x) >= 2 && sd(x) > 0
+})
+ms_pca_mat <- ms_pca_mat[ms_keep_rows, , drop = FALSE]
+
+ms_pca <- prcomp(t(ms_pca_mat), center = TRUE, scale. = TRUE)
+ms_pvar <- (ms_pca$sdev^2) / sum(ms_pca$sdev^2) * 100
+
+ms_pca_df <- data.frame(
+  Sample = rownames(ms_pca$x),
+  PC1 = ms_pca$x[, 1],
+  PC2 = ms_pca$x[, 2],
+  stringsAsFactors = FALSE
+) %>%
+  dplyr::left_join(ms_meta, by = "Sample")
+```
+
+```{r ms pca numeric, fig.width=18, fig.height=16}
+ms_pca_numeric_vars <- c("Age_years", "Sample_age_days", ordered_params)
+ms_pca_num_plots <- lapply(ms_pca_numeric_vars, function(v) {
+  ggplot(ms_pca_df, aes(PC1, PC2, color = .data[[v]])) +
+    geom_point(size = 3) +
+    scale_color_gradientn(colors = grey_pal, na.value = "grey85") +
+    labs(
+      title = paste0("MS - ", pretty_var_names[[v]] %||% v),
+      x = paste0("PC1 (", round(ms_pvar[1], 1), "%)"),
+      y = paste0("PC2 (", round(ms_pvar[2], 1), "%)"),
+      color = pretty_var_names[[v]] %||% v
+    ) +
+    theme_minimal()
+})
+wrap_plots(ms_pca_num_plots, ncol = 3)
+```
+
+```{r ms pca factor, fig.width=5, fig.height=5}
+ggplot(ms_pca_df, aes(PC1, PC2, color = Sex)) +
+  geom_point(size = 3) +
+  labs(
+    title = "MS - Sex",
+    x = paste0("PC1 (", round(ms_pvar[1], 1), "%)"),
+    y = paste0("PC2 (", round(ms_pvar[2], 1), "%)")
+  ) +
+  theme_minimal()
+```
+
+```{r ms pca top loadings tables}
+ms_top_pca_features <- get_top_pca_features(ms_pca, pcs = 1:10, top_n = 20)
+write.csv(ms_top_pca_features, file.path(output_dir_data, "MassSpec_top20_loadings_PC1_to_PC10.csv"), row.names = FALSE)
+
+ms_top_pca_features %>%
+  dplyr::group_by(PC) %>%
+  dplyr::arrange(PC, dplyr::desc(abs_loading), .by_group = TRUE)
+```
+
+```{r ms pca heatmap pc1, fig.width=8.5, fig.height=7.5}
+ms_ann_pca <- ms_meta %>%
+  dplyr::select(Sample, Etiology, Sex) %>%
+  tibble::column_to_rownames("Sample")
+ms_ann_pca <- ms_ann_pca[colnames(ms_pca_mat), , drop = FALSE]
+
+plot_pca_loading_heatmap(
+  mat = ms_pca_mat,
+  top_tbl = ms_top_pca_features,
+  pc = "PC1",
+  title_text = paste0("MS - top 20 contributors to PC1 (", round(ms_pvar[1], 1), "%)"),
+  ann_col = ms_ann_pca
+)
+```
+
+```{r ms pca heatmap pc2, fig.width=8.5, fig.height=7.5}
+plot_pca_loading_heatmap(
+  mat = ms_pca_mat,
+  top_tbl = ms_top_pca_features,
+  pc = "PC2",
+  title_text = paste0("MS - top 20 contributors to PC2 (", round(ms_pvar[2], 1), "%)"),
+  ann_col = ms_ann_pca
+)
+```
+
+```{r ms pca heatmap pc3, fig.width=8.5, fig.height=7.5}
+plot_pca_loading_heatmap(
+  mat = ms_pca_mat,
+  top_tbl = ms_top_pca_features,
+  pc = "PC3",
+  title_text = paste0("MS - top 20 contributors to PC3 (", round(ms_pvar[3], 1), "%)"),
+  ann_col = ms_ann_pca
+)
+```
+
+## Correlation matrix of clinical variables
+
+```{r clinical corr, fig.width=10, fig.height=9}
+meta <- ms_meta
+method <- "pearson"
+
+dat <- meta %>%
+  dplyr::select(all_of(clinical_vars_main)) %>%
+  dplyr::select(where(is.numeric))
+
+rc <- Hmisc::rcorr(as.matrix(dat), type = method)
+r_mat <- rc$r
+p_mat <- rc$P
+
+hc <- hclust(as.dist(1 - abs(r_mat)), method = "average")
+ord <- hc$labels[hc$order]
+
+r_mat <- r_mat[ord, ord, drop = FALSE]
+p_mat <- p_mat[ord, ord, drop = FALSE]
+
+r_long <- as.data.frame(r_mat) %>%
+  tibble::rownames_to_column("var1") %>%
+  pivot_longer(-var1, names_to = "var2", values_to = "r")
+
+p_long <- as.data.frame(p_mat) %>%
+  tibble::rownames_to_column("var1") %>%
+  pivot_longer(-var1, names_to = "var2", values_to = "p")
+
+df <- left_join(r_long, p_long, by = c("var1", "var2")) %>%
+  mutate(
+    var1 = factor(var1, levels = ord),
+    var2 = factor(var2, levels = ord)
+  )
+
+fmt_p <- function(p) {
+  ifelse(is.na(p), "",
+         ifelse(p < 0.001, "p < 0.001", paste0("p = ", formatC(p, format = "f", digits = 3))))
+}
+
+df <- df %>%
+  mutate(
+    r_txt = ifelse(is.na(r), "", sprintf("%.2f", r)),
+    p_txt = fmt_p(p),
+    strong = !is.na(r) & !is.na(p) & (abs(r) > 0.4) & (p < 0.05),
+    label = ifelse(
+      strong,
+      paste0("<b>", r_txt, "</b><br><b>", p_txt, "</b>"),
+      paste0(r_txt, "<br>", p_txt)
+    )
+  )
+
+ggplot(df, aes(x = var2, y = var1, fill = r)) +
+  geom_tile(color = "grey85", linewidth = 0.4) +
+  geom_tile(
+    data = dplyr::filter(df, strong),
+    aes(x = var2, y = var1),
+    fill = NA, color = "black", linewidth = 0.8
+  ) +
+  geom_richtext(
+    aes(label = label),
+    fill = NA, label.color = NA,
+    size = 3.2, lineheight = 0.95
+  ) +
+  scale_fill_gradient2(
+    low = "#2166AC", mid = "white", high = "#B2182B",
+    limits = c(-1, 1), oob = scales::squish,
+    name = paste0(method, " r")
+  ) +
+  coord_fixed() +
+  labs(title = "Correlation of clinical variables", x = NULL, y = NULL) +
+  theme_classic(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", color = "black"),
+    axis.text.y = element_text(face = "bold", color = "black"),
+    axis.line = element_blank()
+  )
+```
+
+## Variance partitioning - Olink
+
+```{r olink variance partition setup}
+vp_vars_olink <- c("Age_years", "Sample_age_days", "BCA_mg_ml", "mPAP_mmHg", "RVIT_mm", "TAPSE_mm", "LVEF_percent", "LVEDD_mm")
+
+olink_meta_vp <- olink_meta %>%
+  dplyr::select(Sample, all_of(vp_vars_olink)) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::filter(Sample %in% colnames(olink_expr)) %>%
+  dplyr::filter(complete.cases(.)) %>%
+  dplyr::mutate(
+    dplyr::across(all_of(vp_vars_olink), scales::rescale)
+  )
+
+olink_expr_vp <- olink_expr[, olink_meta_vp$Sample, drop = FALSE]
+```
+
+```{r olink variance partition, fig.width=6, fig.height=3}
+form_olink <- ~ Age_years + Sample_age_days + BCA_mg_ml + mPAP_mmHg + RVIT_mm + TAPSE_mm + LVEF_percent + LVEDD_mm
+
+vp_olink <- variancePartition::fitExtractVarPartModel(olink_expr_vp, form_olink, olink_meta_vp)
+colnames(vp_olink) <- gsub("`", "", colnames(vp_olink))
+
+vp_olink_mean <- sort(colMeans(vp_olink), decreasing = TRUE)
+vp_olink_df <- data.frame(variable = names(vp_olink_mean), value = vp_olink_mean)
+
+ggplot(vp_olink_df, aes(x = reorder(variable, value), y = value)) +
+  geom_col(fill = "grey40") +
+  coord_flip() +
+  labs(x = NULL, y = "Mean fraction of variance explained", title = "Olink") +
+  theme_classic()
+```
+
+```{r olink variance partition violin, fig.width=6, fig.height=4}
+variancePartition::plotVarPart(vp_olink) +
+  ggtitle("Olink") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Variance partitioning - mass spec
+
+```{r ms variance partition setup}
+vp_vars_ms <- c("Age_years", "Sample_age_days", "mPAP_mmHg", "RVIT_mm", "TAPSE_mm", "LVEF_percent", "LVEDD_mm")
+
+ms_meta_vp <- ms_meta %>%
+  dplyr::select(Sample, all_of(vp_vars_ms)) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::filter(Sample %in% colnames(ms_expr)) %>%
+  dplyr::filter(complete.cases(.)) %>%
+  dplyr::mutate(
+    dplyr::across(all_of(vp_vars_ms), scales::rescale)
+  )
+
+ms_expr_vp <- ms_expr[, ms_meta_vp$Sample, drop = FALSE]
+```
+
+```{r ms variance partition, fig.width=6, fig.height=3}
+form_ms <- ~ Age_years + Sample_age_days + mPAP_mmHg + RVIT_mm + TAPSE_mm + LVEF_percent + LVEDD_mm
+
+vp_ms <- variancePartition::fitExtractVarPartModel(ms_expr_vp, form_ms, ms_meta_vp)
+colnames(vp_ms) <- gsub("`", "", colnames(vp_ms))
+
+vp_ms_mean <- sort(colMeans(vp_ms), decreasing = TRUE)
+vp_ms_df <- data.frame(variable = names(vp_ms_mean), value = vp_ms_mean)
+
+ggplot(vp_ms_df, aes(x = reorder(variable, value), y = value)) +
+  geom_col(fill = "grey40") +
+  coord_flip() +
+  labs(x = NULL, y = "Mean fraction of variance explained", title = "Mass spec") +
+  theme_classic()
+```
+
+```{r ms variance partition violin, fig.width=6, fig.height=4}
+variancePartition::plotVarPart(vp_ms) +
+  ggtitle("Mass spec") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Differential expression / association with clinical variables - Olink
+
+```{r olink limma loop}
+covars_olink <- c("Age_years", "Sample_age_days")
+
+olink_de_results <- list()
+olink_de_summary <- list()
+
+for (param in params_olink) {
+  vars_needed <- unique(c(param, covars_olink, "BCA_mg_ml"))
+
+  meta_de <- olink_meta %>%
+    dplyr::select(Sample, all_of(vars_needed)) %>%
+    dplyr::distinct(Sample, .keep_all = TRUE) %>%
+    dplyr::filter(Sample %in% colnames(olink_expr)) %>%
+    dplyr::filter(complete.cases(.)) %>%
+    dplyr::mutate(
+      Age_years = scales::rescale(Age_years),
+      Sample_age_days = scales::rescale(Sample_age_days),
+      !!param := scales::rescale(.data[[param]])
+    )
+
+  expr_de <- olink_expr[, meta_de$Sample, drop = FALSE]
+
+  design_df <- meta_de %>% dplyr::select(all_of(c(param, covars_olink)))
+  design <- model.matrix(as.formula(paste0("~ ", paste(colnames(design_df), collapse = " + "))), data = design_df)
+
+  fit <- lmFit(expr_de, design)
+  fit <- eBayes(fit, robust = TRUE)
+
+  tt <- topTable(fit, coef = param, number = Inf, sort.by = "P") %>%
+    tibble::rownames_to_column("feature") %>%
+    dplyr::mutate(
+      parameter = param,
+      assay = "Olink",
+      n_complete_samples = nrow(meta_de),
+      regulation = dplyr::case_when(
+        adj.P.Val < 0.2 & logFC > 0 ~ "Up",
+        adj.P.Val < 0.2 & logFC < 0 ~ "Down",
+        TRUE ~ "NS"
+      )
+    )
+
+  olink_de_results[[param]] <- tt
+  olink_de_summary[[param]] <- data.frame(
+    assay = "Olink",
+    parameter = param,
+    direction = c("Up", "Down"),
+    n_sig = c(sum(tt$adj.P.Val < 0.2 & tt$logFC > 0, na.rm = TRUE),
+              sum(tt$adj.P.Val < 0.2 & tt$logFC < 0, na.rm = TRUE)),
+    n_complete_samples = nrow(meta_de)
+  )
+}
+
+olink_de_all <- bind_rows(olink_de_results)
+olink_de_summary_df <- bind_rows(olink_de_summary)
+write.csv(olink_de_all, file.path(output_dir_data, "Olink_all_associations.csv"), row.names = FALSE)
+write.csv(olink_de_summary_df, file.path(output_dir_data, "Olink_n_de_genes_by_direction.csv"), row.names = FALSE)
+```
+
+```{r olink volcano plots, fig.width=12, fig.height=8}
+olink_volcano_list <- list()
+
+for (param in params_olink) {
+  olink_volcano_list[[param]] <- make_clinical_volcano(
+    res = olink_de_results[[param]],
+    param = param,
+    pretty_var_names = pretty_var_names,
+    p_cutoff = 0.2
+  )
+}
+
+wrap_plots(olink_volcano_list, ncol = 4)
+```
+
+## Differential expression / association with clinical variables - mass spec
+
+```{r ms limma loop}
+covars_ms <- c("Age_years", "Sample_age_days")
+
+ms_de_results <- list()
+ms_de_summary <- list()
+
+for (param in params_ms) {
+  vars_needed <- unique(c(param, covars_ms))
+
+  meta_de <- ms_meta %>%
+    dplyr::select(Sample, all_of(vars_needed)) %>%
+    dplyr::distinct(Sample, .keep_all = TRUE) %>%
+    dplyr::filter(Sample %in% colnames(ms_expr)) %>%
+    dplyr::filter(complete.cases(.)) %>%
+    dplyr::mutate(
+      Age_years = scales::rescale(Age_years),
+      Sample_age_days = scales::rescale(Sample_age_days),
+      !!param := scales::rescale(.data[[param]])
+    )
+
+  expr_de0 <- ms_expr[, meta_de$Sample, drop = FALSE]
+  keep_prot <- rowMeans(!is.na(expr_de0)) >= 0.70
+  expr_de <- expr_de0[keep_prot, , drop = FALSE]
+
+  design_df <- meta_de %>% dplyr::select(all_of(c(param, covars_ms)))
+  design <- model.matrix(as.formula(paste0("~ ", paste(colnames(design_df), collapse = " + "))), data = design_df)
+
+  fit <- lmFit(expr_de, design, na.action = na.exclude)
+  fit <- eBayes(fit, trend = TRUE, robust = TRUE)
+
+  tt <- topTable(fit, coef = param, number = Inf, sort.by = "P") %>%
+    tibble::rownames_to_column("feature") %>%
+    dplyr::mutate(
+      parameter = param,
+      assay = "Mass spec",
+      n_complete_samples = nrow(meta_de),
+      n_tested_proteins = nrow(expr_de),
+      regulation = dplyr::case_when(
+        adj.P.Val < 0.2 & logFC > 0 ~ "Up",
+        adj.P.Val < 0.2 & logFC < 0 ~ "Down",
+        TRUE ~ "NS"
+      )
+    )
+
+  ms_de_results[[param]] <- tt
+  ms_de_summary[[param]] <- data.frame(
+    assay = "Mass spec",
+    parameter = param,
+    direction = c("Up", "Down"),
+    n_sig = c(sum(tt$adj.P.Val < 0.2 & tt$logFC > 0, na.rm = TRUE),
+              sum(tt$adj.P.Val < 0.2 & tt$logFC < 0, na.rm = TRUE)),
+    n_complete_samples = nrow(meta_de),
+    n_tested_proteins = nrow(expr_de)
+  )
+}
+
+ms_de_all <- bind_rows(ms_de_results)
+ms_de_summary_df <- bind_rows(ms_de_summary)
+write.csv(ms_de_all, file.path(output_dir_data, "Mass_spec_all_associations.csv"), row.names = FALSE)
+write.csv(ms_de_summary_df, file.path(output_dir_data, "Mass_spec_n_de_genes_by_direction.csv"), row.names = FALSE)
+```
+
+```{r ms volcano plots, fig.width=12, fig.height=8}
+ms_volcano_list <- list()
+
+for (param in params_ms) {
+  ms_volcano_list[[param]] <- make_clinical_volcano(
+    res = ms_de_results[[param]],
+    param = param,
+    pretty_var_names = pretty_var_names,
+    p_cutoff = 0.2
+  )
+}
+
+wrap_plots(ms_volcano_list, ncol = 4)
+```
+
+## RVIT volcano plots only
+
+```{r rvit volcano both assays, fig.width=6, fig.height=4}
+p_TAPSE_olink <- make_clinical_volcano(
+  res = olink_de_results[["TAPSE_mm"]],
+  param = "TAPSE_mm",
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle("Olink")
+
+p_TAPSE_ms <- make_clinical_volcano(
+  res = ms_de_results[["TAPSE_mm"]],
+  param = "TAPSE_mm",
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle("MS")
+
+p_TAPSE_olink + p_TAPSE_ms
+```
+
+## Heatmap of significant protein counts by parameter, direction and assay
+
+```{r de count heatmap simple, fig.width=5, fig.height=5}
+deg_summary <- bind_rows(olink_de_summary_df, ms_de_summary_df) %>%
+  dplyr::mutate(
+    assay = dplyr::recode(assay, "Mass spec" = "MS"),
+    parameter = factor(parameter, levels = ordered_params),
+    parameter_label = factor(pretty_var_names[as.character(parameter)], levels = pretty_var_names[ordered_params]),
+    assay = factor(assay, levels = c("Olink", "MS")),
+    direction = factor(direction, levels = c("Up", "Down"))
+  )
+
+ggplot(deg_summary, aes(x = assay, y = parameter_label, fill = n_sig)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(aes(label = n_sig), size = 4) +
+  scale_fill_gradient(low = "grey95", high = "#A63A2A") +
+  facet_wrap(~ direction, ncol = 2) +
+  labs(
+    x = NULL,
+    y = NULL,
+    fill = "n proteins"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    axis.line = element_blank(),
+    panel.border = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    axis.text.x = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold")
+  )
+```
+
+## Heatmap of all significant TAPSE-associated proteins
+
+```{r olink TAPSE sig heatmap, fig.width=9, fig.height=10.4}
+olink_TAPSE_heat <- build_sig_heatmap(
+  res_tbl = olink_de_results[["TAPSE_mm"]],
+  expr_mat = olink_expr,
+  meta_df = olink_meta,
+  param = "TAPSE_mm",
+  assay_label = "Olink",
+  sig_cutoff = 0.2
+)
+
+if (!is.null(olink_TAPSE_heat)) {
+  ComplexHeatmap::draw(
+    olink_TAPSE_heat,
+    heatmap_legend_side = "right",
+    annotation_legend_side = "right",
+    padding = grid::unit(c(2, 8, 2, 2), "mm") 
+  )
+}
+```
+
+```{r ms TAPSE sig heatmap, fig.width=9, fig.height=6.5}
+ms_TAPSE_heat <- build_sig_heatmap(
+  res_tbl = ms_de_results[["TAPSE_mm"]],
+  expr_mat = ms_expr,
+  meta_df = ms_meta,
+  param = "TAPSE_mm",
+  assay_label = "Mass spec",
+  sig_cutoff = 0.2,
+  filter_detect_frac = 0.70
+)
+
+if (!is.null(ms_TAPSE_heat)) {
+  ComplexHeatmap::draw(
+    ms_TAPSE_heat,
+    heatmap_legend_side = "right",
+    annotation_legend_side = "right",
+    padding = grid::unit(c(2, 8, 2, 2), "mm") 
+  )
+}
+```
+
+## GSEA for RVIT and TAPSE
+
+```{r gsea selected parameters}
+gsea_params <- c("RVIT_mm", "TAPSE_mm")
+
+olink_gsea_selected <- lapply(gsea_params, function(param) {
+  run_gsea_from_limma_table(olink_de_results[[param]], ont = "BP")
+})
+names(olink_gsea_selected) <- gsea_params
+
+ms_gsea_selected <- lapply(gsea_params, function(param) {
+  run_gsea_from_limma_table(ms_de_results[[param]], ont = "BP")
+})
+names(ms_gsea_selected) <- gsea_params
+
+for (assay_name in c("Olink", "Mass_spec")) {
+  obj_list <- if (assay_name == "Olink") olink_gsea_selected else ms_gsea_selected
+  for (param in names(obj_list)) {
+    gsea_obj <- obj_list[[param]]
+    if (!is.null(gsea_obj) && nrow(gsea_obj@result) > 0) {
+      out_tbl <- gsea_obj@result %>%
+        as.data.frame() %>%
+        dplyr::mutate(assay = assay_name, parameter = param)
+      write.csv(
+        out_tbl,
+        file.path(output_dir_data, paste0(assay_name, "_GSEA_", param, "_BP.csv")),
+        row.names = FALSE
+      )
+    }
+  }
+}
+```
+
+### Olink GSEA barplots
+
+```{r olink gsea barplots, fig.width=12, fig.height=6}
+title_map <- c(
+  RVIT_mm = "OLINK - RVIT",
+  TAPSE_mm = "OLINK - TAPSE"
+)
+
+plot_list <- lapply(gsea_params, function(param) {
+  p <- make_gsea_barplot(
+    olink_gsea_selected[[param]],
+    label_width = 45,
+    top_n = 8,
+    base_size = 10
+  )
+  if (is.null(p)) {
+    p <- ggplot() +
+      annotate("text", x = 1, y = 1, label = "No significant enriched GO terms", size = 4) +
+      theme_void()
+  }
+
+  p + ggtitle(title_map[[param]] %||% param)
+})
+
+wrap_plots(plot_list, ncol = 2)
+```
+
+### Olink GSEA dotplots
+
+```{r olink gsea dotplots, fig.width=9, fig.height=7}
+p1 <- make_gsea_dotplot(
+  olink_gsea_selected[["RVIT_mm"]],
+  title_text = "Olink - RVIT",
+  show_n = 20,
+  label_format = 60
+)
+
+p2 <- make_gsea_dotplot(
+  olink_gsea_selected[["TAPSE_mm"]],
+  title_text = "Olink - TAPSE",
+  show_n = 20,
+  label_format = 60
+)
+
+p1
+p2
+```
+
+### Olink GSEA emapplots
+
+```{r olink gsea emapplots, fig.width=16, fig.height=8}
+p1 <- make_gsea_emapplot(olink_gsea_selected[["RVIT_mm"]], show_n = 50)
+p2 <- make_gsea_emapplot(olink_gsea_selected[["TAPSE_mm"]], show_n = 50)
+
+if (!is.null(p1)) {
+  p1 <- p1 + patchwork::plot_annotation(
+    title = "OLINK - RVIT"
+  ) &
+    theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 14))
+}
+
+p1
+```
+```{r, fig.width=8, fig.height=8}
+if (!is.null(p2)) {
+  p2 <- p2 + patchwork::plot_annotation(
+    title = "OLINK - TAPSE"
+  ) &
+    theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 14))
+}
+
+p2
+```
+
+### Mass spec GSEA barplots
+
+```{r ms gsea barplots, fig.width=12, fig.height=6}
+title_map <- c(
+  RVIT_mm = "MS - RVIT",
+  TAPSE_mm = "MS - TAPSE"
+)
+
+plot_list <- lapply(gsea_params, function(param) {
+  p <- make_gsea_barplot(
+    ms_gsea_selected[[param]],
+    label_width = 45,
+    top_n = 8,
+    base_size = 10
+  )
+  if (is.null(p)) {
+    p <- ggplot() +
+      annotate("text", x = 1, y = 1, label = "No significant enriched GO terms", size = 4) +
+      theme_void()
+  }
+
+  p + ggtitle(title_map[[param]] %||% param)
+})
+
+wrap_plots(plot_list, ncol = 2)
+```
+
+### Mass spec GSEA dotplots
+
+```{r ms gsea dotplots, fig.width=9.5, fig.height=8}
+p1 <- make_gsea_dotplot(
+  ms_gsea_selected[["RVIT_mm"]],
+  title_text = "MS - RVIT",
+  show_n = 20,
+  label_format = 65
+)
+
+p2 <- make_gsea_dotplot(
+  ms_gsea_selected[["TAPSE_mm"]],
+  title_text = "MS - TAPSE",
+  show_n = 20,
+  label_format = 65
+)
+
+p1
+p2
+```
+
+### Mass spec GSEA emapplots
+
+```{r ms gsea emapplots, fig.width=16, fig.height=8}
+p1 <- make_gsea_emapplot(ms_gsea_selected[["RVIT_mm"]], show_n = 30)
+p2 <- make_gsea_emapplot(ms_gsea_selected[["TAPSE_mm"]], show_n = 30)
+
+if (!is.null(p1)) {
+  p1 <- p1 + patchwork::plot_annotation(
+    title = "MS - RVIT"
+  ) &
+    theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 14))
+}
+
+p1
+
+if (!is.null(p1)) {
+  p2 <- p2 + patchwork::plot_annotation(
+    title = "MS - TAPSE"
+  ) &
+    theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 14))
+}
+
+p2
+```
+
+## Olink vs mass spec concordance for proteins in common
+
+```{r olink vs ms sample profile heatmap, fig.width=7.5, fig.height=6.5}
+common_samples_omics <- intersect(colnames(olink_expr), colnames(ms_expr))
+common_features_omics <- intersect(rownames(olink_expr), rownames(ms_expr))
+
+olink_common <- olink_expr[common_features_omics, common_samples_omics, drop = FALSE]
+ms_common <- ms_expr[common_features_omics, common_samples_omics, drop = FALSE]
+
+olink_common_z <- t(scale(t(olink_common)))
+ms_common_z <- t(scale(t(ms_common)))
+
+olink_common_z[is.na(olink_common_z)] <- 0
+ms_common_z[is.na(ms_common_z)] <- 0
+
+sample_similarity <- cor(
+  olink_common_z,
+  ms_common_z,
+  method = "spearman",
+  use = "pairwise.complete.obs"
+)
+
+diag_vals <- diag(sample_similarity)
+diag_median <- median(diag_vals, na.rm = TRUE)
+
+Heatmap(
+  sample_similarity,
+  name = "rho",
+  row_names_gp = gpar(fontsize = 8),
+  column_names_gp = gpar(fontsize = 8),
+  col = circlize::colorRamp2(c(-1, 0, 1), c("#2166AC", "white", "#B2182B")),
+  cluster_rows = FALSE,
+  cluster_columns = FALSE,
+  rect_gp = grid::gpar(col = "white", lwd = 0.7),
+  row_title = "Olink sample",
+  column_title = paste0(
+    "MS sample\n",
+    "Shared proteins = ", nrow(olink_common_z),
+    " | matched samples = ", ncol(olink_common_z),
+    " | median diagonal rho = ", round(diag_median, 2)
+  )
+) |>
+  draw(heatmap_legend_side = "right")
+```
+
+```{r olink vs ms same sample similarity, fig.width=5.8, fig.height=5}
+diag_tbl <- data.frame(
+  comparison = "Matched sample",
+  similarity = diag(sample_similarity)
+)
+
+offdiag_tbl <- as.data.frame(as.table(sample_similarity)) %>%
+  dplyr::rename(olink_sample = Var1, ms_sample = Var2, similarity = Freq) %>%
+  dplyr::filter(as.character(olink_sample) != as.character(ms_sample)) %>%
+  dplyr::mutate(comparison = "Different sample")
+
+plot_df <- dplyr::bind_rows(
+  diag_tbl,
+  offdiag_tbl %>% dplyr::select(comparison, similarity)
+)
+
+ggplot(plot_df, aes(x = comparison, y = similarity, fill = comparison)) +
+  geom_boxplot(width = 0.55, outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(width = 0.12, size = 1.5, alpha = 0.6) +
+  scale_fill_manual(values = c("Matched sample" = "#A63A2A", "Different sample" = "grey70")) +
+  labs(
+    title = "Cross-platform sample-profile concordance",
+    x = NULL,
+    y = "Spearman similarity"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "none")
+```
+
+```{r olink vs ms per protein correlation, fig.width=7.2, fig.height=5.4}
+omics_corr <- data.frame(
+  feature = common_features_omics,
+  rho = sapply(common_features_omics, function(g) {
+    suppressWarnings(cor(
+      as.numeric(olink_common[g, ]),
+      as.numeric(ms_common[g, ]),
+      method = "spearman",
+      use = "pairwise.complete.obs"
+    ))
+  })
+) %>%
+  dplyr::arrange(desc(rho))
+
+write.csv(omics_corr, file.path(output_dir_data, "Olink_vs_MassSpec_per_protein_spearman.csv"), row.names = FALSE)
+
+ggplot(omics_corr, aes(x = rho)) +
+  geom_histogram(bins = 35, fill = "grey70", color = "white") +
+  geom_vline(xintercept = median(omics_corr$rho, na.rm = TRUE), linetype = 2, linewidth = 0.6) +
+  annotate(
+    "text",
+    x = median(omics_corr$rho, na.rm = TRUE),
+    y = Inf,
+    label = paste0("median rho = ", round(median(omics_corr$rho, na.rm = TRUE), 2)),
+    vjust = 1.5,
+    hjust = -0.05,
+    size = 4
+  ) +
+  labs(
+    title = "Per-protein concordance between Olink and mass spec",
+    x = "Spearman rho across matched samples",
+    y = "Number of proteins"
+  ) +
+  theme_classic(base_size = 13)
+```
+
+```{r olink vs ms best proteins, fig.width=8, fig.height=8}
+top_concordant <- bind_rows(
+  omics_corr %>% dplyr::slice_max(rho, n = 15),
+  omics_corr %>% dplyr::slice_min(rho, n = 15)
+) %>%
+  dplyr::distinct(feature, .keep_all = TRUE) %>%
+  dplyr::mutate(feature = factor(feature, levels = feature[order(rho)]))
+
+ggplot(top_concordant, aes(x = rho, y = feature, fill = rho > 0)) +
+  geom_col() +
+  scale_fill_manual(values = c("TRUE" = "#A63A2A", "FALSE" = "#004C8C")) +
+  labs(
+    title = "Proteins with strongest cross-platform concordance or discordance",
+    x = "Spearman rho",
+    y = NULL
+  ) +
+  theme_classic(base_size = 12) +
+  theme(legend.position = "none")
+```
+
+## Correlation of proteomics mPAP associations with snRNA-seq pseudobulk mPAP associations
+
+```{r load snrna seurat object, results='hide'}
+snrna_candidates <- c(
+  here::here("output", "QC_integration_annotation", "DCM_RV_RNA.qs2"),
+  here::here("output", "QC_integration_annotation", "RNA.qs2")
+)
+snrna_file <- snrna_candidates[file.exists(snrna_candidates)][1]
+if (length(snrna_file) == 0 || is.na(snrna_file)) {
+  stop("Could not find the snRNA-seq Seurat object (RNA.qs2 / DCM_RV_RNA.qs2)")
+}
+
+DCM_RV <- qs2::qs_read(snrna_file)
+DefaultAssay(DCM_RV) <- "RNA"
+Idents(DCM_RV) <- "cell_type"
+DCM_RV$pseudobulk <- "pseudobulk"
+
+data_sn <- subset(DCM_RV, Sample %in% clin_all$Sample)
+
+expr_matrix_sn <- GetAssayData(object = data_sn, assay = "RNA", slot = "counts")
+percent_stats <- data.frame(
+  feature = rownames(expr_matrix_sn),
+  percent_cells = rowSums(expr_matrix_sn > 0) / ncol(expr_matrix_sn) * 100
+)
+
+pb_mat <- make_sample_pseudobulk(data_sn, assay = "RNA", sample_col = "Sample")
+pb_meta <- clin_all %>%
+  dplyr::filter(Sample %in% colnames(pb_mat)) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::slice(match(colnames(pb_mat), Sample))
+
+pb_libsizes <- colSums(pb_mat)
+keep_pb_samples <- pb_libsizes > 5e4
+
+pb_mat <- pb_mat[, keep_pb_samples, drop = FALSE]
+pb_meta <- pb_meta[keep_pb_samples, , drop = FALSE]
+stopifnot(all(colnames(pb_mat) == pb_meta$Sample))
+```
+
+```{r pseudobulk mPAP all-cells differential expression}
+pb_meta_mpap <- pb_meta %>%
+  dplyr::select(Sample, mPAP_mmHg, Age_years, Sample_age_days) %>%
+  dplyr::filter(complete.cases(.))
+
+pb_expr_mpap <- pb_mat[, pb_meta_mpap$Sample, drop = FALSE]
+pb_expr_mpap <- edgeR::DGEList(counts = pb_expr_mpap)
+pb_expr_mpap <- edgeR::calcNormFactors(pb_expr_mpap)
+
+design_pb_mpap <- model.matrix(~ mPAP_mmHg + Age_years + Sample_age_days, data = pb_meta_mpap)
+design_pb_mpap[, "mPAP_mmHg"] <- scales::rescale(design_pb_mpap[, "mPAP_mmHg"])
+design_pb_mpap[, "Age_years"] <- scales::rescale(design_pb_mpap[, "Age_years"])
+design_pb_mpap[, "Sample_age_days"] <- scales::rescale(design_pb_mpap[, "Sample_age_days"])
+
+pb_expr_mpap <- edgeR::estimateDisp(pb_expr_mpap, design_pb_mpap)
+fit_pb_mpap <- edgeR::glmQLFit(pb_expr_mpap, design_pb_mpap, robust = TRUE)
+qlf_pb_mpap <- edgeR::glmQLFTest(fit_pb_mpap, coef = "mPAP_mmHg")
+
+pb_mpap <- edgeR::topTags(qlf_pb_mpap, n = Inf)$table %>%
+  tibble::rownames_to_column("feature") %>%
+  dplyr::left_join(percent_stats, by = "feature")
+
+write.csv(pb_mpap, file.path(output_dir_data, "Pseudobulk_all_cells_mPAP_associations.csv"), row.names = FALSE)
+```
+
+```{r proteomics mPAP models restricted to snrna samples}
+sc_samples <- unique(as.character(DCM_RV$Sample))
+
+olink_meta_mpap_sc <- olink_meta %>%
+  dplyr::filter(Sample %in% sc_samples) %>%
+  dplyr::select(Sample, mPAP_mmHg, Age_years, Sample_age_days) %>%
+  dplyr::filter(complete.cases(.)) %>%
+  dplyr::mutate(
+    mPAP_mmHg = scales::rescale(mPAP_mmHg),
+    Age_years = scales::rescale(Age_years),
+    Sample_age_days = scales::rescale(Sample_age_days)
+  )
+
+olink_expr_mpap_sc <- olink_expr[, olink_meta_mpap_sc$Sample, drop = FALSE]
+design_olink_mpap_sc <- model.matrix(~ mPAP_mmHg + Age_years + Sample_age_days, data = olink_meta_mpap_sc)
+fit_olink_mpap_sc <- lmFit(olink_expr_mpap_sc, design_olink_mpap_sc)
+fit_olink_mpap_sc <- eBayes(fit_olink_mpap_sc, robust = TRUE)
+olink_mpap_sc <- topTable(fit_olink_mpap_sc, coef = "mPAP_mmHg", number = Inf, sort.by = "P") %>%
+  tibble::rownames_to_column("feature")
+
+ms_meta_mpap_sc <- ms_meta %>%
+  dplyr::filter(Sample %in% sc_samples) %>%
+  dplyr::select(Sample, mPAP_mmHg, Age_years, Sample_age_days) %>%
+  dplyr::filter(complete.cases(.)) %>%
+  dplyr::mutate(
+    mPAP_mmHg = scales::rescale(mPAP_mmHg),
+    Age_years = scales::rescale(Age_years),
+    Sample_age_days = scales::rescale(Sample_age_days)
+  )
+
+ms_expr_mpap_sc0 <- ms_expr[, ms_meta_mpap_sc$Sample, drop = FALSE]
+keep_prot_mpap_sc <- rowMeans(!is.na(ms_expr_mpap_sc0)) >= 0.70
+ms_expr_mpap_sc <- ms_expr_mpap_sc0[keep_prot_mpap_sc, , drop = FALSE]
+design_ms_mpap_sc <- model.matrix(~ mPAP_mmHg + Age_years + Sample_age_days, data = ms_meta_mpap_sc)
+fit_ms_mpap_sc <- lmFit(ms_expr_mpap_sc, design_ms_mpap_sc, na.action = na.exclude)
+fit_ms_mpap_sc <- eBayes(fit_ms_mpap_sc, trend = TRUE, robust = TRUE)
+ms_mpap_sc <- topTable(fit_ms_mpap_sc, coef = "mPAP_mmHg", number = Inf, sort.by = "P") %>%
+  tibble::rownames_to_column("feature")
+
+write.csv(olink_mpap_sc, file.path(output_dir_data, "Olink_mPAP_associations_restricted_to_snrna_samples.csv"), row.names = FALSE)
+write.csv(ms_mpap_sc, file.path(output_dir_data, "Mass_spec_mPAP_associations_restricted_to_snrna_samples.csv"), row.names = FALSE)
+```
+
+```{r olink vs pseudobulk logfc correlation, fig.height=4.35, fig.width=4.35}
+df_olink_pb <- dplyr::inner_join(
+  pb_mpap %>% dplyr::select(feature, pb_logFC = logFC, percent_cells),
+  olink_mpap_sc %>% dplyr::select(feature, prot_logFC = logFC),
+  by = "feature"
+)
+
+make_logfc_correlation_plot(
+  df = df_olink_pb,
+  x_col = "pb_logFC",
+  y_col = "prot_logFC",
+  x_lab = "logFC (snRNA-seq pseudobulk all cells, mPAP)",
+  y_lab = "logFC (Olink, mPAP)",
+  title_text = ""
+)
+```
+
+```{r ms vs pseudobulk logfc correlation, fig.height=4.35, fig.width=4.35}
+df_ms_pb <- dplyr::inner_join(
+  pb_mpap %>% dplyr::select(feature, pb_logFC = logFC, percent_cells),
+  ms_mpap_sc %>% dplyr::select(feature, prot_logFC = logFC),
+  by = "feature"
+)
+
+make_logfc_correlation_plot(
+  df = df_ms_pb,
+  x_col = "pb_logFC",
+  y_col = "prot_logFC",
+  x_lab = "logFC (snRNA-seq pseudobulk all cells, mPAP)",
+  y_lab = "logFC (MS, mPAP)",
+  title_text = ""
+)
+```
+
+## Which mPAP-associated transcriptomic signals are concordant in proteomics?
+
+```{r transcript-led concordance tables}
+pb_sig_mpap <- pb_mpap %>%
+  dplyr::filter(FDR < 0.2) %>%
+  dplyr::select(feature, pb_logFC = logFC, pb_FDR = FDR, percent_cells)
+
+olink_concordant_tbl <- pb_sig_mpap %>%
+  dplyr::inner_join(
+    olink_mpap_sc %>%
+      dplyr::select(feature, prot_logFC = logFC, prot_FDR = adj.P.Val, prot_P = P.Value),
+    by = "feature"
+  ) %>%
+  dplyr::mutate(
+    concordant = sign(pb_logFC) == sign(prot_logFC),
+    prot_supported = prot_P < 0.05,
+    prot_effect_ok = abs(prot_logFC) > 0.10,
+    label_now = concordant & prot_supported & prot_effect_ok
+  ) %>%
+  dplyr::arrange(pb_FDR, prot_P)
+
+ms_concordant_tbl <- pb_sig_mpap %>%
+  dplyr::inner_join(
+    ms_mpap_sc %>%
+      dplyr::select(feature, prot_logFC = logFC, prot_FDR = adj.P.Val, prot_P = P.Value),
+    by = "feature"
+  ) %>%
+  dplyr::mutate(
+    concordant = sign(pb_logFC) == sign(prot_logFC),
+    prot_supported = prot_P < 0.05,
+    prot_effect_ok = abs(prot_logFC) > 0.10,
+    label_now = concordant & prot_supported & prot_effect_ok
+  ) %>%
+  dplyr::arrange(pb_FDR, prot_P)
+
+write.csv(olink_concordant_tbl, file.path(output_dir_data, "Olink_concordance_vs_significant_pseudobulk_mPAP.csv"), row.names = FALSE)
+write.csv(ms_concordant_tbl, file.path(output_dir_data, "MassSpec_concordance_vs_significant_pseudobulk_mPAP.csv"), row.names = FALSE)
+
+list(
+  Olink_labeled = olink_concordant_tbl %>% dplyr::filter(label_now),
+  Mass_spec_labeled = ms_concordant_tbl %>% dplyr::filter(label_now)
+)
+```
+
+```{r concordant logfc plots, fig.width=12, fig.height=5}
+plot_concordant_scatter <- function(tbl, assay_label) {
+  if (nrow(tbl) == 0) {
+    return(
+      ggplot() +
+        annotate("text", x = 1, y = 1, label = paste0("No shared genes for ", assay_label), size = 4) +
+        theme_void()
+    )
+  }
+
+  ggplot(tbl, aes(x = pb_logFC, y = prot_logFC)) +
+    geom_point(aes(color = label_now), size = 2) +
+    geom_hline(yintercept = 0, linetype = 2, linewidth = 0.3) +
+    geom_vline(xintercept = 0, linetype = 2, linewidth = 0.3) +
+    geom_text_repel(
+      data = tbl %>% dplyr::filter(label_now),
+      aes(label = feature),
+      size = 3,
+      max.overlaps = 50
+    ) +
+    scale_color_manual(values = c("TRUE" = "#A63A2A", "FALSE" = "grey75")) +
+    labs(
+      title = assay_label,
+      x = "logFC (snRNA-seq pseudobulk, FDR < 0.2)",
+      y = "logFC (proteomics, matched sc samples)"
+    ) +
+    theme_classic(base_size = 12) +
+    theme(legend.position = "none")
+}
+
+p1 <- plot_concordant_scatter(olink_concordant_tbl, "Olink")
+p2 <- plot_concordant_scatter(ms_concordant_tbl, "Mass spec")
+p1 + p2
+```
+
+```{r build concordant gene sets}
+olink_concordant_genes <- olink_concordant_tbl %>%
+  dplyr::filter(label_now) %>%
+  dplyr::pull(feature) %>%
+  unique()
+
+ms_concordant_genes <- ms_concordant_tbl %>%
+  dplyr::filter(label_now) %>%
+  dplyr::pull(feature) %>%
+  unique()
+```
+
+```{r build per-gene adjusted mPAP plots matched sc subset}
+olink_gene_plots_sc_subset <- lapply(olink_concordant_genes, function(g) {
+  make_partial_assoc_plot(
+    meta_df = olink_meta_mpap_sc,
+    expr_vec = olink_expr[g, ],
+    sample_ids = olink_meta_mpap_sc$Sample,
+    gene_label = g,
+    assay_label = "Olink",
+    y_lab = "NPX"
+  )
+})
+names(olink_gene_plots_sc_subset) <- olink_concordant_genes
+
+ms_gene_plots_sc_subset <- lapply(ms_concordant_genes, function(g) {
+  make_partial_assoc_plot(
+    meta_df = ms_meta_mpap_sc,
+    expr_vec = ms_expr[g, ],
+    sample_ids = ms_meta_mpap_sc$Sample,
+    gene_label = g,
+    assay_label = "MS",
+    y_lab = "Normalized abundance (log2)"
+  )
+})
+names(ms_gene_plots_sc_subset) <- ms_concordant_genes
+```
+
+```{r olink concordant gene plots matched sc subset, fig.width=18, fig.height=6}
+plot_list <- purrr::compact(olink_gene_plots_sc_subset)
+if (length(plot_list) > 0) {
+  gridExtra::grid.arrange(grobs = plot_list, ncol = 5)
+} else {
+  ggplot() + annotate("text", x = 1, y = 1, label = "No concordant Olink genes to plot in SC-matched subset", size = 4) + theme_void()
+}
+```
+
+```{r ms concordant gene plots matched sc subset, fig.width=14.4, fig.height=6}
+plot_list <- purrr::compact(ms_gene_plots_sc_subset)
+if (length(plot_list) > 0) {
+  gridExtra::grid.arrange(grobs = plot_list, ncol = 4)
+} else {
+  ggplot() + annotate("text", x = 1, y = 1, label = "No concordant mass-spec genes to plot in SC-matched subset", size = 4) + theme_void()
+}
+```
+
+```{r build per-gene adjusted mPAP plots full proteomics cohorts}
+olink_gene_plots_all <- lapply(olink_concordant_genes, function(g) {
+  make_partial_assoc_plot(
+    meta_df = olink_meta,
+    expr_vec = olink_expr[g, ],
+    sample_ids = intersect(names(olink_expr[g, ]), olink_meta$Sample),
+    gene_label = g,
+    assay_label = "Olink",
+    y_lab = "NPX"
+  )
+})
+names(olink_gene_plots_all) <- olink_concordant_genes
+
+ms_gene_plots_all <- lapply(ms_concordant_genes, function(g) {
+  make_partial_assoc_plot(
+    meta_df = ms_meta,
+    expr_vec = ms_expr[g, ],
+    sample_ids = intersect(names(ms_expr[g, ]), ms_meta$Sample),
+    gene_label = g,
+    assay_label = "MS",
+    y_lab = "Normalized abundance (log2)"
+  )
+})
+names(ms_gene_plots_all) <- ms_concordant_genes
+```
+
+```{r olink concordant gene plots full cohort, fig.width=18, fig.height=6}
+plot_list <- purrr::compact(olink_gene_plots_all)
+if (length(plot_list) > 0) {
+  gridExtra::grid.arrange(grobs = plot_list, ncol = 5)
+} else {
+  ggplot() + annotate("text", x = 1, y = 1, label = "No concordant Olink genes to plot in full cohort", size = 4) + theme_void()
+}
+```
+
+```{r ms concordant gene plots full cohort, fig.width=14.4, fig.height=6}
+plot_list <- purrr::compact(ms_gene_plots_all)
+if (length(plot_list) > 0) {
+  gridExtra::grid.arrange(grobs = plot_list, ncol = 4)
+} else {
+  ggplot() + annotate("text", x = 1, y = 1, label = "No concordant mass-spec genes to plot in full cohort", size = 4) + theme_void()
+}
+```
