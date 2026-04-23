@@ -1,0 +1,1172 @@
+---
+title: "Matrifibrocytes_1"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "Matrifibrocytes_1"
+
+library(here)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(patchwork)
+library(edgeR)
+library(limma)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(ggpubr)
+library(reactable)
+library(scales)
+library(cowplot)
+library(speckle)
+library(broom)
+library(harmony)
+library(clustree)
+library(qs2)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(reticulate)
+library(anndata)
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"), recursive = TRUE)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+base_data_dir <- here::here("data", "Heart_datasets")
+```
+
+## Load datasets
+
+```{r load datasets}
+# Koenig
+load(file.path(base_data_dir, "Koenig_2022", "GSE183852_DCM_Nuclei.Robj"))
+Koenig <- nuclei
+rm(nuclei)
+
+# Reichart
+Reichart <- readRDS(file.path(base_data_dir, "Reichart_2022", "DCM_ACM_heart_cell_atlas.rds"))
+Reichart_gene_names <- data.frame(
+  ensembl_id = rownames(Reichart),
+  gene_symbol = Reichart@assays[["RNA"]]@meta.features$feature_name
+)
+rownames(Reichart@assays[["RNA"]]@counts) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+rownames(Reichart@assays[["RNA"]]@data) <- Reichart@assays[["RNA"]]@meta.features$feature_name
+
+# Chaffin
+Chaffin <- readRDS(file.path(base_data_dir, "Chaffin_2022", "Chaffin.rds"))
+Chaffin <- RenameAssays(Chaffin, originalexp = "RNA")
+
+DefaultAssay(Chaffin) <- "RNA"
+
+# Amrute
+Amrute <- readRDS(file.path(base_data_dir, "Amrute_2023", "GSE226314_global.rds"))
+
+# Kuppe
+
+#Kuppe_ad <- read_h5ad(file.path(base_data_dir, "Kuppe_2022", "54d24dbe-d39a-4844-bb21-07b5f4e173ad.h5ad"))
+#Kuppe <- CreateSeuratObject(
+#  counts = t(as.matrix(Kuppe_ad$X)),
+#  meta.data = Kuppe_ad$obs
+#)
+#
+#umap <- as.matrix(Kuppe_ad$obsm[["X_umap"]])
+#rownames(umap) <- colnames(Kuppe)
+#colnames(umap) <- c("UMAP_1", "UMAP_2")
+#Kuppe[["umap"]] <- CreateDimReducObject(
+#  embeddings = umap,
+#  key = "UMAP_",
+#  assay = DefaultAssay(Kuppe)
+#)
+#
+#pca <- as.matrix(Kuppe_ad$obsm[["X_pca"]])
+#rownames(pca) <- colnames(Kuppe)
+#colnames(pca) <- paste0("PC_", seq_len(ncol(pca)))
+#Kuppe[["pca"]] <- CreateDimReducObject(
+#  embeddings = pca,
+#  key = "PC_",
+#  assay = DefaultAssay(Kuppe)
+#)
+#
+#harmony <- as.matrix(Kuppe_ad$obsm[["X_harmony"]])
+#rownames(harmony) <- colnames(Kuppe)
+#colnames(harmony) <- paste0("harmony_", seq_len(ncol(harmony)))
+#Kuppe[["harmony"]] <- CreateDimReducObject(
+#  embeddings = harmony,
+#  key = "harmony_",
+#  assay = DefaultAssay(Kuppe)
+#)
+#
+#
+#kuppe_var <- Kuppe_ad$var
+#kuppe_var$ensembl_id <- rownames(kuppe_var)
+#
+#gene_symbols <- kuppe_var$feature_name
+#gene_symbols[is.na(gene_symbols) | gene_symbols == ""] <- kuppe_var$ensembl_id[is.na(gene_symbols) | gene_symbols == ""]
+#
+#rownames(Kuppe@assays[["RNA"]]@counts) <- gene_symbols
+#rownames(Kuppe@assays[["RNA"]]@data) <- gene_symbols
+#
+#Kuppe@assays[["RNA"]]@meta.features <- kuppe_var
+#
+#rm(Kuppe_ad, pca, umap, harmony, Reichart_gene_names, kuppe_var, gene_symbols)
+
+#qs_save(
+#  Kuppe,
+#  file = here::here(output_dir_data, "Kuppe.qs2"),
+#  nthreads = 32
+#)
+
+Kuppe <- qs_read(
+  file = here::here(output_dir_data, "Kuppe.qs2"),
+  nthreads = 32
+)
+```
+
+## Add metadata
+
+```{r add metadata}
+Koenig$Sample <- Koenig$orig.ident
+Koenig$Group <- dplyr::case_when(
+  Koenig$Condition == "Donor" ~ "HC",
+  Koenig$Condition == "DCM" ~ "DCM",
+  TRUE ~ as.character(Koenig$Condition)
+)
+
+Koenig$cell_type <- Koenig$Names
+table(Koenig$cell_type)
+
+Reichart$Sample <- Reichart$donor_id
+Reichart$Group <- dplyr::case_when(
+  Reichart$disease == "normal" ~ "HC",
+  Reichart$disease == "dilated cardiomyopathy" ~ "DCM",
+  TRUE ~ as.character(Reichart$disease)
+)
+table(Reichart$cell_type)
+
+
+Chaffin$Sample <- Chaffin$donor_id
+Chaffin$Group <- dplyr::case_when(
+  Chaffin$disease == "NF" ~ "HC",
+  Chaffin$disease == "DCM" ~ "DCM",
+  TRUE ~ as.character(Chaffin$disease)
+)
+
+Chaffin$cell_type <- Chaffin$cell_type_leiden0.6
+table(Chaffin$cell_type)
+
+
+Amrute$Sample <- Amrute$orig.ident
+Amrute$Group <- dplyr::case_when(
+  Amrute$condition == "Donor" ~ "HC",
+  Amrute$condition == "NRpre" ~ "NICM",
+  Amrute$condition == "Rpre" ~ "NICM",
+  TRUE ~ as.character(Amrute$condition)
+)
+
+Amrute$cell_type <- Amrute$cell.type
+table(Amrute$cell_type)
+
+
+Kuppe$Sample <- Kuppe$donor_id
+Kuppe$Group <- dplyr::case_when(
+  Kuppe$disease == "normal" ~ "HC",
+  Kuppe$disease == "myocardial infarction" ~ "MI",
+  TRUE ~ as.character(Kuppe$disease)
+)
+
+Kuppe$cell_type <- Kuppe$cell_type_original
+table(Kuppe$cell_type)
+
+
+Reichart <- subset(
+  Reichart,
+  subset = cell_type != "unknown"
+)
+
+Chaffin@reductions$umap <- Chaffin@reductions$X_umap
+Chaffin@reductions$X_umap <- NULL
+```
+
+## Whole-dataset UMAPs
+
+```{r whole dataset umaps, fig.width=6, fig.height=6}
+cell_type_cols <- c(
+  "#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A",
+  "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600",
+  "#8DD3C7", "#FB8072", "#80B1D3", "#BC80BD", "#CCEBC5", "#FFED6F",
+  "#A6CEE3", "#F781BF"
+)
+
+koenig_levels <- sort(unique(as.character(Koenig$cell_type)))
+koenig_cols <- setNames(rep(cell_type_cols, length.out = length(koenig_levels)), koenig_levels)
+
+reichart_levels <- sort(unique(as.character(Reichart$cell_type)))
+reichart_cols <- setNames(rep(cell_type_cols, length.out = length(reichart_levels)), reichart_levels)
+
+chaffin_levels <- sort(unique(as.character(Chaffin$cell_type)))
+chaffin_cols <- setNames(rep(cell_type_cols, length.out = length(chaffin_levels)), chaffin_levels)
+
+amrute_levels <- sort(unique(as.character(Amrute$cell_type)))
+amrute_cols <- setNames(rep(cell_type_cols, length.out = length(amrute_levels)), amrute_levels)
+
+kuppe_levels <- sort(unique(as.character(Kuppe$cell_type)))
+kuppe_cols <- setNames(rep(cell_type_cols, length.out = length(kuppe_levels)), kuppe_levels)
+
+#Koenig
+p_koenig <- DimPlot(
+  Koenig,
+  group.by = "cell_type",
+  reduction = "umap",
+  cols = koenig_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 1.2
+) +
+  NoLegend() +
+  ggtitle(expression(atop(italic("Koenig et al.") ~ " Nature CVR 2022",
+                          "HC & DCM - LV")
+                     )) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+  )
+
+p_koenig <- LabelClusters(
+  p_koenig,
+  id = "cell_type",
+  fontface = "bold",
+  size = 5.2,
+  repel = TRUE
+)
+
+
+#Reichart
+p_reichart <- DimPlot(
+  Reichart,
+  group.by = "cell_type",
+  reduction = "umap",
+  cols = reichart_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 1.2
+) +
+  NoLegend() +
+  ggtitle(expression(atop(italic("Reichart et al.") ~ " Science 2022",
+                          "HC & DCM - LV")
+                     )) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+  )
+
+p_reichart <- LabelClusters(
+  p_reichart,
+  id = "cell_type",
+  fontface = "bold",
+  size = 5.2,
+  repel = TRUE
+)
+
+
+#Chaffin
+p_chaffin <- DimPlot(
+  Chaffin,
+  group.by = "cell_type",
+  reduction = "umap",
+  cols = chaffin_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 1.2
+) +
+  NoLegend() +
+  ggtitle(expression(atop(italic("Chaffin et al.") ~ " Nature 2022",
+                          "HC & DCM - LV")
+                     )) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+  )
+
+p_chaffin <- LabelClusters(
+  p_chaffin,
+  id = "cell_type",
+  fontface = "bold",
+  size = 5.2,
+  repel = TRUE
+)
+
+
+#Amrute
+p_amrute <- DimPlot(
+  Amrute,
+  group.by = "cell_type",
+  reduction = "umap",
+  cols = amrute_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 1.2
+) +
+  NoLegend() +
+  ggtitle(expression(atop(italic("Amrute et al.") ~ " Nature CVR 2022",
+                          "HC & NICM - Apex")
+                     )) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+  )
+
+p_amrute <- LabelClusters(
+  p_amrute,
+  id = "cell_type",
+  fontface = "bold",
+  size = 5.2,
+  repel = TRUE
+)
+
+
+#Kuppe
+p_kuppe <- DimPlot(
+  Kuppe,
+  group.by = "cell_type",
+  reduction = "umap",
+  cols = kuppe_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 1.2
+) +
+  NoLegend() +
+  ggtitle(expression(atop(italic("Kuppe et al.") ~ " Nature 2022",
+                          "HC & MI - LV")
+                     )) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+  )
+
+p_kuppe <- LabelClusters(
+  p_kuppe,
+  id = "cell_type",
+  fontface = "bold",
+  size = 5.2,
+  repel = TRUE
+)
+
+p_koenig
+p_reichart
+p_chaffin
+p_amrute
+p_kuppe
+```
+
+```{r}
+Reichart <- subset(
+  Reichart,
+  disease %in% c("normal", "dilated cardiomyopathy") & tissue == "heart left ventricle"
+)
+
+Chaffin <- subset(
+  Chaffin,
+  disease %in% c("NF", "DCM")
+)
+
+Amrute <- subset(
+  Amrute,
+  condition %in% c("Donor", "NRpre", "Rpre")
+)
+
+Koenig$Dataset <- "Koenig"
+Reichart$Dataset <- "Reichart"
+Chaffin$Dataset <- "Chaffin"
+Amrute$Dataset <- "Amrute"
+Kuppe$Dataset <- "Kuppe"
+```
+
+```{r matrifibrocyte markers}
+goi <- c("COMP", "CILP", "CHAD", "THBS4")
+```
+
+```{r, fig.width=6, fig.height=6}
+koenig_fb_cells <- rownames(Koenig@meta.data)[Koenig$cell_type %in% c("Fibroblasts")]
+reichart_fb_cells <- rownames(Reichart@meta.data)[Reichart$cell_type %in% c("fibroblast of cardiac tissue")]
+chaffin_fb_cells <- rownames(Chaffin@meta.data)[Chaffin$cell_type %in% c("Activated_fibroblast", "Fibroblast_I", "Fibroblast_II")]
+amrute_fb_cells <- rownames(Amrute@meta.data)[Amrute$cell_type %in% c("Fibroblast")]
+kuppe_fb_cells <- rownames(Kuppe@meta.data)[Kuppe$cell_type %in% c("Fibroblast")]
+
+p_koenig_fb <- DimPlot(
+  Koenig,
+  reduction = "umap",
+  cells.highlight = koenig_fb_cells,
+  cols.highlight = "#1F78B4",
+  cols = "grey85",
+  sizes.highlight = 0.01,
+  shuffle = TRUE,
+  pt.size = 0.01,
+  raster = FALSE
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Koenig et al.") ~ " Nature CVR 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+
+p_reichart_fb <- DimPlot(
+  Reichart,
+  reduction = "umap",
+  cells.highlight = reichart_fb_cells,
+  cols.highlight = "#1F78B4",
+  cols = "grey85",
+  sizes.highlight = 0.01,
+  shuffle = TRUE,
+  pt.size = 0.01,
+  raster = FALSE
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Reichart et al.") ~ " Science 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+
+p_chaffin_fb <- DimPlot(
+  Chaffin,
+  reduction = "umap",
+  cells.highlight = chaffin_fb_cells,
+  cols.highlight = "#1F78B4",
+  cols = "grey85",
+  sizes.highlight = 0.01,
+  shuffle = TRUE,
+  pt.size = 0.01,
+  raster = FALSE
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Chaffin et al.") ~ " Nature 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+
+p_amrute_fb <- DimPlot(
+  Amrute,
+  reduction = "umap",
+  cells.highlight = amrute_fb_cells,
+  cols.highlight = "#1F78B4",
+  cols = "grey85",
+  sizes.highlight = 0.01,
+  shuffle = TRUE,
+  pt.size = 0.01,
+  raster = FALSE
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Amrute et al.") ~ " Nature CVR 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+
+p_kuppe_fb <- DimPlot(
+  Kuppe,
+  reduction = "umap",
+  cells.highlight = kuppe_fb_cells,
+  cols.highlight = "#1F78B4",
+  cols = "grey85",
+  sizes.highlight = 0.01,
+  shuffle = TRUE,
+  pt.size = 0.01,
+  raster = FALSE
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Kuppe et al.") ~ " Nature 2022")) +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+
+p_koenig_fb 
+p_reichart_fb
+p_chaffin_fb
+p_amrute_fb
+p_kuppe_fb
+```
+
+```{r feature plots matrifibrocytes, fig.width=16, fig.height=4.5}
+goi <- c("COMP", "CILP", "CHAD", "THBS4")
+
+dataset_list <- list(
+  Koenig = list(
+    obj = Koenig,
+    title = expression(atop(italic("Koenig et al.") ~ " Nature CVR 2022",
+                            "HC & DCM - LV"))
+  ),
+  Reichart = list(
+    obj = Reichart,
+    title = expression(atop(italic("Reichart et al.") ~ " Science 2022",
+                            "HC & DCM - LV"))
+  ),
+  Chaffin = list(
+    obj = Chaffin,
+    title = expression(atop(italic("Chaffin et al.") ~ " Nature 2022",
+                            "HC & DCM - LV"))
+  ),
+  Amrute = list(
+    obj = Amrute,
+    title = expression(atop(italic("Amrute et al.") ~ " Nature CVR 2022",
+                            "HC & NICM - Apex"))
+  ),
+  Kuppe = list(
+    obj = Kuppe,
+    title = expression(atop(italic("Kuppe et al.") ~ " Nature 2022",
+                            "HC & MI - LV"))
+  )
+)
+
+for (nm in names(dataset_list)) {
+  
+  obj <- dataset_list[[nm]]$obj
+  DefaultAssay(obj) <- "RNA"
+  
+  genes_present <- goi[goi %in% rownames(obj)]
+  
+  if (length(genes_present) == 0) {
+    message("None of the genes found in ", nm)
+    next
+  }
+  
+  p <- FeaturePlot(
+    obj,
+    features = genes_present,
+    reduction = "umap",
+    order = FALSE,
+    cols = c("grey90", "#A63A2A"),
+    pt.size = 0.15,
+    combine = TRUE,
+    ncol = 4,
+    raster = FALSE
+  ) &
+    theme(
+      axis.text = element_text(size = 8, face = "bold"),
+      axis.title = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  p <- p + patchwork::plot_annotation(
+    title = dataset_list[[nm]]$title,
+    theme = theme(
+      plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+    )
+  )
+  
+  print(p)
+  
+  if (length(genes_present) < length(goi)) {
+    message(
+      nm, " - missing genes: ",
+      paste(setdiff(goi, genes_present), collapse = ", ")
+    )
+  }
+}
+```
+
+```{r feature plots matrifibrocytes_2, fig.width=16, fig.height=4.5}
+goi <- c("COMP", "CILP", "CHAD", "THBS4")
+
+dataset_list <- list(
+  Koenig = list(
+    obj = Koenig,
+    title = expression(atop(italic("Koenig et al.") ~ " Nature CVR 2022",
+                            "HC & DCM - LV"))
+  ),
+  Reichart = list(
+    obj = Reichart,
+    title = expression(atop(italic("Reichart et al.") ~ " Science 2022",
+                            "HC & DCM - LV"))
+  ),
+  Chaffin = list(
+    obj = Chaffin,
+    title = expression(atop(italic("Chaffin et al.") ~ " Nature 2022",
+                            "HC & DCM - LV"))
+  ),
+  Amrute = list(
+    obj = Amrute,
+    title = expression(atop(italic("Amrute et al.") ~ " Nature CVR 2022",
+                            "HC & NICM - Apex"))
+  ),
+  Kuppe = list(
+    obj = Kuppe,
+    title = expression(atop(italic("Kuppe et al.") ~ " Nature 2022",
+                            "HC & MI - LV"))
+  )
+)
+
+for (nm in names(dataset_list)) {
+  
+  obj <- dataset_list[[nm]]$obj
+  DefaultAssay(obj) <- "RNA"
+  
+  genes_present <- goi[goi %in% rownames(obj)]
+  
+  if (length(genes_present) == 0) {
+    message("None of the genes found in ", nm)
+    next
+  }
+  
+  p <- FeaturePlot(
+    obj,
+    features = genes_present,
+    reduction = "umap",
+    order = TRUE,
+    cols = c("grey90", "#A63A2A"),
+    pt.size = 0.15,
+    combine = TRUE,
+    ncol = 4,
+    raster = FALSE
+  ) &
+    theme(
+      axis.text = element_text(size = 8, face = "bold"),
+      axis.title = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  p <- p + patchwork::plot_annotation(
+    title = dataset_list[[nm]]$title,
+    theme = theme(
+      plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+    )
+  )
+  
+  print(p)
+  
+  if (length(genes_present) < length(goi)) {
+    message(
+      nm, " - missing genes: ",
+      paste(setdiff(goi, genes_present), collapse = ", ")
+    )
+  }
+}
+```
+
+```{r subset fb}
+koenig_fb <- subset(Koenig, cell_type %in% c("Fibroblasts"))
+reichart_fb <- subset(Reichart, cell_type %in% c("fibroblast of cardiac tissue"))
+chaffin_fb <- subset(Chaffin, cell_type %in% c("Activated_fibroblast", "Fibroblast_I", "Fibroblast_II"))
+amrute_fb <- subset(Amrute, cell_type %in% c("Fibroblast"))
+kuppe_fb <- subset(Kuppe, cell_type %in% c("Fibroblast"))
+```
+
+```{r feature plots matrifibrocytes_3, fig.width=16, fig.height=4.5}
+goi <- c("COMP", "CILP", "CHAD", "THBS4")
+
+dataset_list <- list(
+  Koenig = list(
+    obj = koenig_fb,
+    title = expression(atop(italic("Koenig et al.") ~ " Nature CVR 2022",
+                            "HC & DCM - LV"))
+  ),
+  Reichart = list(
+    obj = reichart_fb,
+    title = expression(atop(italic("Reichart et al.") ~ " Science 2022",
+                            "HC & DCM - LV"))
+  ),
+  Chaffin = list(
+    obj = chaffin_fb,
+    title = expression(atop(italic("Chaffin et al.") ~ " Nature 2022",
+                            "HC & DCM - LV"))
+  ),
+  Amrute = list(
+    obj = amrute_fb,
+    title = expression(atop(italic("Amrute et al.") ~ " Nature CVR 2022",
+                            "HC & NICM - Apex"))
+  ),
+  Kuppe = list(
+    obj = kuppe_fb,
+    title = expression(atop(italic("Kuppe et al.") ~ " Nature 2022",
+                            "HC & MI - LV"))
+  )
+)
+
+for (nm in names(dataset_list)) {
+  
+  obj <- dataset_list[[nm]]$obj
+  DefaultAssay(obj) <- "RNA"
+  
+  genes_present <- goi[goi %in% rownames(obj)]
+  
+  if (length(genes_present) == 0) {
+    message("None of the genes found in ", nm)
+    next
+  }
+  
+  p <- FeaturePlot(
+    obj,
+    features = genes_present,
+    reduction = "umap",
+    order = FALSE,
+    cols = c("grey90", "#A63A2A"),
+    pt.size = 0.15,
+    combine = TRUE,
+    ncol = 4,
+    raster = FALSE
+  ) &
+    theme(
+      axis.text = element_text(size = 8, face = "bold"),
+      axis.title = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  p <- p + patchwork::plot_annotation(
+    title = dataset_list[[nm]]$title,
+    theme = theme(
+      plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+    )
+  )
+  
+  print(p)
+  
+  if (length(genes_present) < length(goi)) {
+    message(
+      nm, " - missing genes: ",
+      paste(setdiff(goi, genes_present), collapse = ", ")
+    )
+  }
+}
+```
+
+```{r feature plots matrifibrocytes_4, fig.width=16, fig.height=4.5}
+goi <- c("COMP", "CILP", "CHAD", "THBS4")
+
+dataset_list <- list(
+  Koenig = list(
+    obj = koenig_fb,
+    title = expression(atop(italic("Koenig et al.") ~ " Nature CVR 2022",
+                            "HC & DCM - LV"))
+  ),
+  Reichart = list(
+    obj = reichart_fb,
+    title = expression(atop(italic("Reichart et al.") ~ " Science 2022",
+                            "HC & DCM - LV"))
+  ),
+  Chaffin = list(
+    obj = chaffin_fb,
+    title = expression(atop(italic("Chaffin et al.") ~ " Nature 2022",
+                            "HC & DCM - LV"))
+  ),
+  Amrute = list(
+    obj = amrute_fb,
+    title = expression(atop(italic("Amrute et al.") ~ " Nature CVR 2022",
+                            "HC & NICM - Apex"))
+  ),
+  Kuppe = list(
+    obj = kuppe_fb,
+    title = expression(atop(italic("Kuppe et al.") ~ " Nature 2022",
+                            "HC & MI - LV"))
+  )
+)
+
+for (nm in names(dataset_list)) {
+  
+  obj <- dataset_list[[nm]]$obj
+  DefaultAssay(obj) <- "RNA"
+  
+  genes_present <- goi[goi %in% rownames(obj)]
+  
+  if (length(genes_present) == 0) {
+    message("None of the genes found in ", nm)
+    next
+  }
+  
+  p <- FeaturePlot(
+    obj,
+    features = genes_present,
+    reduction = "umap",
+    order = TRUE,
+    cols = c("grey90", "#A63A2A"),
+    pt.size = 0.15,
+    combine = TRUE,
+    ncol = 4,
+    raster = FALSE
+  ) &
+    theme(
+      axis.text = element_text(size = 8, face = "bold"),
+      axis.title = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  p <- p + patchwork::plot_annotation(
+    title = dataset_list[[nm]]$title,
+    theme = theme(
+      plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+    )
+  )
+  
+  print(p)
+  
+  if (length(genes_present) < length(goi)) {
+    message(
+      nm, " - missing genes: ",
+      paste(setdiff(goi, genes_present), collapse = ", ")
+    )
+  }
+}
+```
+
+```{r feature plots matrifibrocytes_5, fig.width=28, fig.height=4.5}
+goi <- c("COMP", "CILP", "CHAD", "THBS4", "SFRP2", "ITGBL1", "CFH")
+
+dataset_list <- list(
+  Koenig = list(
+    obj = koenig_fb,
+    title = expression(atop(italic("Koenig et al.") ~ " Nature CVR 2022",
+                            "HC & DCM - LV"))
+  ),
+  Reichart = list(
+    obj = reichart_fb,
+    title = expression(atop(italic("Reichart et al.") ~ " Science 2022",
+                            "HC & DCM - LV"))
+  ),
+  Chaffin = list(
+    obj = chaffin_fb,
+    title = expression(atop(italic("Chaffin et al.") ~ " Nature 2022",
+                            "HC & DCM - LV"))
+  ),
+  Amrute = list(
+    obj = amrute_fb,
+    title = expression(atop(italic("Amrute et al.") ~ " Nature CVR 2022",
+                            "HC & NICM - Apex"))
+  ),
+  Kuppe = list(
+    obj = kuppe_fb,
+    title = expression(atop(italic("Kuppe et al.") ~ " Nature 2022",
+                            "HC & MI - LV"))
+  )
+)
+
+for (nm in names(dataset_list)) {
+  
+  obj <- dataset_list[[nm]]$obj
+  DefaultAssay(obj) <- "RNA"
+  
+  genes_present <- goi[goi %in% rownames(obj)]
+  
+  if (length(genes_present) == 0) {
+    message("None of the genes found in ", nm)
+    next
+  }
+  
+  p <- FeaturePlot(
+    obj,
+    features = genes_present,
+    reduction = "umap",
+    order = TRUE,
+    cols = c("grey90", "#A63A2A"),
+    pt.size = 0.15,
+    combine = TRUE,
+    ncol = 7,
+    raster = FALSE
+  ) &
+    theme(
+      axis.text = element_text(size = 8, face = "bold"),
+      axis.title = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  p <- p + patchwork::plot_annotation(
+    title = dataset_list[[nm]]$title,
+    theme = theme(
+      plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+    )
+  )
+  
+  print(p)
+  
+  if (length(genes_present) < length(goi)) {
+    message(
+      nm, " - missing genes: ",
+      paste(setdiff(goi, genes_present), collapse = ", ")
+    )
+  }
+}
+```
+
+```{r}
+DefaultAssay(koenig_fb) <- "RNA"
+koenig_fb <- NormalizeData(koenig_fb)
+
+DefaultAssay(chaffin_fb) <- "RNA"
+chaffin_fb <- NormalizeData(chaffin_fb)
+
+DefaultAssay(reichart_fb) <- "RNA"
+
+DefaultAssay(amrute_fb) <- "RNA"
+
+DefaultAssay(kuppe_fb) <- "RNA"
+```
+
+```{r add matrifibrocyte score}
+fb_list <- list(
+  koenig_fb   = koenig_fb,
+  reichart_fb = reichart_fb,
+  chaffin_fb  = chaffin_fb,
+  amrute_fb   = amrute_fb,
+  kuppe_fb    = kuppe_fb
+)
+
+for (nm in names(fb_list)) {
+  
+  obj <- fb_list[[nm]]
+  DefaultAssay(obj) <- "RNA"
+  
+  genes_present <- goi[goi %in% rownames(obj)]
+  
+  if (length(genes_present) == 0) {
+    message("No GOI found in ", nm)
+    next
+  }
+  
+  message(nm, ": using ", length(genes_present), " genes -> ", paste(genes_present, collapse = ", "))
+  
+  obj <- AddModuleScore(
+    object = obj,
+    features = list(genes_present),
+    name = "Matrifibrocyte_score",
+    assay = "RNA",
+    slot = "data",
+    ctrl = 25,
+    nbin = 24,
+    seed = 1
+  )
+  
+  obj$Matrifibrocyte_score <- obj$Matrifibrocyte_score1
+  obj$Matrifibrocyte_score1 <- NULL
+  
+  fb_list[[nm]] <- obj
+}
+
+koenig_fb   <- fb_list$koenig_fb
+reichart_fb <- fb_list$reichart_fb
+chaffin_fb  <- fb_list$chaffin_fb
+amrute_fb   <- fb_list$amrute_fb
+kuppe_fb    <- fb_list$kuppe_fb
+
+rm(fb_list)
+```
+
+```{r feature plot matrifibrocyte score, fig.width=20, fig.height=4.8}
+score_name <- "Matrifibrocyte_score"
+
+dataset_list <- list(
+  Koenig = list(
+    obj = koenig_fb,
+    title = expression(atop(italic("Koenig et al.") ~ " Nature CVR 2022",
+                            "HC & DCM - LV"))
+  ),
+  Reichart = list(
+    obj = reichart_fb,
+    title = expression(atop(italic("Reichart et al.") ~ " Science 2022",
+                            "HC & DCM - LV"))
+  ),
+  Chaffin = list(
+    obj = chaffin_fb,
+    title = expression(atop(italic("Chaffin et al.") ~ " Nature 2022",
+                            "HC & DCM - LV"))
+  ),
+  Amrute = list(
+    obj = amrute_fb,
+    title = expression(atop(italic("Amrute et al.") ~ " Nature CVR 2022",
+                            "HC & NICM - Apex"))
+  ),
+  Kuppe = list(
+    obj = kuppe_fb,
+    title = expression(atop(italic("Kuppe et al.") ~ " Nature 2022",
+                            "HC & MI - LV"))
+  )
+)
+
+p_list <- list()
+
+for (nm in names(dataset_list)) {
+  
+  obj <- dataset_list[[nm]]$obj
+  
+  if (!score_name %in% colnames(obj@meta.data)) {
+    message(score_name, " not found in ", nm)
+    next
+  }
+  
+  p <- FeaturePlot(
+    obj,
+    features = score_name,
+    reduction = "umap",
+    order = TRUE,
+    cols = c("grey90", "#A63A2A"),
+    pt.size = 0.15,
+    combine = TRUE,
+    raster = FALSE
+  ) +
+    ggtitle(dataset_list[[nm]]$title) +
+    theme(
+      axis.text = element_text(size = 8, face = "bold"),
+      axis.title = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  p_list[[nm]] <- p
+}
+
+wrap_plots(p_list, ncol = 5) +
+  plot_annotation(
+    title = score_name,
+    theme = theme(
+      plot.title = element_text(size = 20, face = "bold", hjust = 0.5)
+    )
+  )
+```
+
+```{r feature plot matrifibrocyte score_2, fig.width=20, fig.height=4.8}
+score_name <- "Matrifibrocyte_score"
+
+dataset_list <- list(
+  Koenig = list(
+    obj = koenig_fb,
+    title = expression(atop(italic("Koenig et al.") ~ " Nature CVR 2022",
+                            "HC & DCM - LV"))
+  ),
+  Reichart = list(
+    obj = reichart_fb,
+    title = expression(atop(italic("Reichart et al.") ~ " Science 2022",
+                            "HC & DCM - LV"))
+  ),
+  Chaffin = list(
+    obj = chaffin_fb,
+    title = expression(atop(italic("Chaffin et al.") ~ " Nature 2022",
+                            "HC & DCM - LV"))
+  ),
+  Amrute = list(
+    obj = amrute_fb,
+    title = expression(atop(italic("Amrute et al.") ~ " Nature CVR 2022",
+                            "HC & NICM - Apex"))
+  ),
+  Kuppe = list(
+    obj = kuppe_fb,
+    title = expression(atop(italic("Kuppe et al.") ~ " Nature 2022",
+                            "HC & MI - LV"))
+  )
+)
+
+p_list <- list()
+
+for (nm in names(dataset_list)) {
+  
+  obj <- dataset_list[[nm]]$obj
+  
+  if (!score_name %in% colnames(obj@meta.data)) {
+    message(score_name, " not found in ", nm)
+    next
+  }
+  
+  p <- FeaturePlot(
+    obj,
+    features = score_name,
+    reduction = "umap",
+    order = FALSE,
+    cols = c("grey90", "#A63A2A"),
+    pt.size = 0.15,
+    combine = TRUE,
+    raster = FALSE
+  ) +
+    ggtitle(dataset_list[[nm]]$title) +
+    theme(
+      axis.text = element_text(size = 8, face = "bold"),
+      axis.title = element_text(size = 12, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  p_list[[nm]] <- p
+}
+
+wrap_plots(p_list, ncol = 5) +
+  plot_annotation(
+    title = score_name,
+    theme = theme(
+      plot.title = element_text(size = 20, face = "bold", hjust = 0.5)
+    )
+  )
+```
+
+```{r, eval=FALSE}
+qs_save(
+  koenig_fb,
+  file = here::here(output_dir_data, "koenig_fb.qs2"),
+  nthreads = 32
+)
+
+qs_save(
+  chaffin_fb,
+  file = here::here(output_dir_data, "chaffin_fb.qs2"),
+  nthreads = 32
+)
+
+qs_save(
+  reichart_fb,
+  file = here::here(output_dir_data, "reichart_fb.qs2"),
+  nthreads = 32
+)
+
+qs_save(
+  amrute_fb,
+  file = here::here(output_dir_data, "amrute_fb.qs2"),
+  nthreads = 32
+)
+
+qs_save(
+  kuppe_fb,
+  file = here::here(output_dir_data, "kuppe_fb.qs2"),
+  nthreads = 32
+)
+```
+
+
