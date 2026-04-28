@@ -1,0 +1,3134 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Analysis of matrifibrocyte markers in fibroblasts from Amrute et al., Nature CVR 2024</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.js"></script>
+<link href="site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.5/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.5/reactable.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Variance_partitioning.html">Variance partitioning</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="Fibrosis_hypertrophy.html">Fibrosis and hypertrophy</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="Olink_proteomics.html">Olink proteomics</a>
+    </li>
+    <li>
+      <a href="MS_proteomics.html">MS proteomics</a>
+    </li>
+    <li>
+      <a href="Integration_transcriptomics_proteomics.html">Integration transcriptomics and proteomics</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Analysis of matrifibrocyte markers in
+fibroblasts from Amrute et al., Nature CVR 2024</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">29 April, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-04-29
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreee8f2531f55d643586973589713118e0dc145b2b7targetblanke8f2531a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/e8f2531f55d643586973589713118e0dc145b2b7" target="_blank">e8f2531</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreee8f2531f55d643586973589713118e0dc145b2b7targetblanke8f2531a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/e8f2531f55d643586973589713118e0dc145b2b7" target="_blank">e8f2531</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/figure/
+    Ignored:    output/CellChat/
+    Ignored:    output/Cell_cell_communication_Macrophages/
+    Ignored:    output/Chaffin_2022/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/Koenig_2022/
+    Ignored:    output/Matrifibrocytes/
+    Ignored:    output/Matrifibrocytes_disease_vs_HC_adj_subsets/
+    Ignored:    output/SSc_PAH/
+    Ignored:    output/Variance_partitioning/
+
+Untracked files:
+    Untracked:  .Rprofile
+    Untracked:  Chaffin_wilcox.csv
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  Koenig_wilcox.csv
+    Untracked:  analysis/Amrute_2024_fibroblast_integration.Rmd
+    Untracked:  analysis/Amrute_2024_fibroblast_pseudobulk.Rmd
+    Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Check_IMC_panel.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DE_Fibrosis_fibroblasts.Rmd
+    Untracked:  analysis/DE_Group_all_cell_types.Rmd
+    Untracked:  analysis/EC_capillary_angiogenic_boxplot_stats.csv
+    Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
+    Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
+    Untracked:  analysis/Genes_Luxembourg.Rmd
+    Untracked:  analysis/HC_DEGs_clustering.Rmd
+    Untracked:  analysis/Koenig_2022.Rmd
+    Untracked:  analysis/Mass_Spec_RV_dysf.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_2.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_3.Rmd
+    Untracked:  analysis/Matrifibrocytes.Rmd
+    Untracked:  analysis/Matrifibrocytes_2.Rmd
+    Untracked:  analysis/Matrifibrocytes_3.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj_subsets.Rmd
+    Untracked:  analysis/Matrifibrocytes_high_score_populations_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_integration.Rmd
+    Untracked:  analysis/Olink_RV_dysf.Rmd
+    Untracked:  analysis/Olink_SSc_PAH.Rmd
+    Untracked:  analysis/Olink_SSc_PAH_draft.Rmd
+    Untracked:  analysis/Olink_proteomics_2.Rmd
+    Untracked:  analysis/Proteomics_combined.Rmd
+    Untracked:  analysis/Proteomics_combined_2.Rmd
+    Untracked:  analysis/Pseudobulk_all.csv
+    Untracked:  analysis/Pseudobulk_all_2.csv
+    Untracked:  analysis/Pseudobulk_byCellType_facetGrid.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col_proportional.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.filtered.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox_2.csv
+    Untracked:  analysis/QC_integration_annotation_HC.Rmd
+    Untracked:  analysis/Reichart_ncRNA.Rmd
+    Untracked:  analysis/Reichart_wilcox.csv
+    Untracked:  analysis/Selection_genes_histology.Rmd
+    Untracked:  analysis/TAPSE_sPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/TOM/
+    Untracked:  analysis/UntitledR.R
+    Untracked:  analysis/VennDiagram.2024-09-16_14-12-56.160498.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-17.340014.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-57.942673.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-22-50.621507.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-24-47.010131.log
+    Untracked:  analysis/VennDiagram.2024-09-18_11-22-29.278827.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-35.50458.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-41.199096.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-59.64245.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-45-11.922474.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-50-36.483812.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-56-46.244322.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-58-30.74362.log
+    Untracked:  analysis/VennDiagram.2025-03-26_15-54-09.244636.log
+    Untracked:  analysis/VennDiagram.2025-06-11_14-53-30.499963.log
+    Untracked:  analysis/core
+    Untracked:  analysis/ec_Reichart_logCPM.csv
+    Untracked:  analysis/mPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  analysis/test_1.Rmd
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/Endothelial_cells_cubclustering_removed.Rmd
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/Removed_chunks.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/HMEC_RNAseq/
+    Untracked:  data/Heart_datasets/
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec/
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK/
+    Untracked:  data/OLINK_LVAD/
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Amrute_2024_fibroblast_integration/
+    Untracked:  output/Amrute_2024_fibroblast_pseudobulk/
+    Untracked:  output/Amrute_2024_matrifibrocyte_markers/
+    Untracked:  output/Biomarkers_selection/
+    Untracked:  output/CM_lncRNAs/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Cell_cell_communication/
+    Untracked:  output/Cell_cell_communication_LV/
+    Untracked:  output/Cell_cell_communication_LV2/
+    Untracked:  output/Cell_cycle/
+    Untracked:  output/Check_IMC_panel/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_Fibrosis_all_cell_types/
+    Untracked:  output/DE_Fibrosis_fibroblasts/
+    Untracked:  output/DE_Group_all_cell_types/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Dysferlin/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart_manuscript/
+    Untracked:  output/Endothelial_cells_SGLT2_I/
+    Untracked:  output/Endothelial_cells_published_datasets/
+    Untracked:  output/Endothelial_cells_subclustering/
+    Untracked:  output/Fibroblasts_DA_DE_26/
+    Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/Figures_manuscript/
+    Untracked:  output/Genes_Luxembourg/
+    Untracked:  output/Genes_Luxembourg_2/
+    Untracked:  output/HC_DEGs_clustering/
+    Untracked:  output/HMEC/
+    Untracked:  output/LVAD_OLINK/
+    Untracked:  output/LV_Klaudia/
+    Untracked:  output/LV_datasets_DCM_vs_HC/
+    Untracked:  output/Lymphocytes_subclustering/
+    Untracked:  output/MS_proteomics/
+    Untracked:  output/Macrophages_subclustering/
+    Untracked:  output/Mass_Spec_RV_dysf/
+    Untracked:  output/Mass_Spec_proteomics/
+    Untracked:  output/Mass_Spec_proteomics_2/
+    Untracked:  output/Mass_Spec_proteomics_3/
+    Untracked:  output/Matrifibrocytes_1/
+    Untracked:  output/Matrifibrocytes_2/
+    Untracked:  output/Matrifibrocytes_2_adjusted/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_high_score_populations_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_integration/
+    Untracked:  output/Matrifibrocytes_subclusters_disease_vs_HC_adj/
+    Untracked:  output/Mural_cells_subclustering/
+    Untracked:  output/Olink_RV_dysf/
+    Untracked:  output/Olink_SSc_PAH/
+    Untracked:  output/Olink_SSc_PAH_draft/
+    Untracked:  output/Olink_proteomics/
+    Untracked:  output/Olink_proteomics_2/
+    Untracked:  output/Proteomics_combined/
+    Untracked:  output/Proteomics_combined_2/
+    Untracked:  output/Proteomics_combined_3/
+    Untracked:  output/Proteomics_combined_4/
+    Untracked:  output/Proteomics_combined_final/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_HC/
+    Untracked:  output/Reichart2022_ventricle_specificity_noncoding/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/Selection_genes_histology/
+    Untracked:  output/TAPSE_sPAP_concordance_3datasets/
+    Untracked:  output/UntitledR.R
+    Untracked:  output/mPAP_concordance_3datasets/
+    Untracked:  redsfewfref.R
+    Untracked:  reference_sources/
+    Untracked:  renv.lock
+    Untracked:  renv/
+    Untracked:  wflow_publish.log
+
+Unstaged changes:
+    Modified:   analysis/CM_lncRNAs.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cell_cycle.Rmd
+    Modified:   analysis/Comparison_LV.Rmd
+    Modified:   analysis/DE_Fibrosis_all_cell_types.Rmd
+    Modified:   analysis/DE_mPAP_all_cell_types.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+    Modified:   analysis/Endothelial_cells_Koenig_Reichart_manuscript.Rmd
+    Modified:   analysis/Endothelial_cells_published_datasets.rmd
+    Modified:   analysis/Endothelial_cells_subclustering.Rmd
+    Modified:   analysis/Figures_manuscript.Rmd
+    Modified:   analysis/HMEC.Rmd
+    Modified:   analysis/LV_Klaudia.Rmd
+    Modified:   analysis/Olink_proteomics.Rmd
+    Modified:   analysis/Proteomics_combined_final.Rmd
+    Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
+    Modified:   analysis/SSc_PAH.Rmd
+    Modified:   analysis/_site.yml
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/Amrute_2024_matrifibrocyte_markers.Rmd</code>) and HTML
+(<code>docs/Amrute_2024_matrifibrocyte_markers.html</code>) files. If
+you’ve configured a remote Git repository (see
+<code>?wflow_git_remote</code>), click on the hyperlinks in the table
+below to view the files as they were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/e8f2531f55d643586973589713118e0dc145b2b7/analysis/Amrute_2024_matrifibrocyte_markers.Rmd" target="_blank">e8f2531</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-04-28
+</td>
+<td>
+wflow_publish("analysis/Amrute_2024_matrifibrocyte_markers.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code>current_file &lt;- &quot;Amrute_2024_matrifibrocyte_markers&quot;
+
+library(here)
+library(Matrix)
+library(Seurat)
+library(scCustomize)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(ggpubr)
+library(patchwork)
+library(edgeR)
+library(limma)
+library(reactable)
+library(scales)
+library(RColorBrewer)
+library(harmony)
+library(clustree)
+library(qs2)
+library(broom)
+
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;), recursive = TRUE)
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+data_dir &lt;- here::here(&quot;data&quot;, &quot;Heart_datasets&quot;, &quot;Amrute_2024&quot;)
+metadata_file &lt;- file.path(data_dir, &quot;GSE217494_cell.metadata.csv&quot;)
+
+matrifibrocyte_genes &lt;- c(&quot;COMP&quot;, &quot;CILP&quot;, &quot;CHAD&quot;, &quot;THBS4&quot;)
+min_pb_libsize &lt;- 10000
+min_fibroblast_cells &lt;- 100
+
+etiology_levels &lt;- c(&quot;Donor&quot;, &quot;ICM&quot;, &quot;NICM&quot;, &quot;AMI&quot;)
+etiology_cols &lt;- c(
+  &quot;Donor&quot; = &quot;grey85&quot;,
+  &quot;ICM&quot; = &quot;#004C8C&quot;,
+  &quot;NICM&quot; = &quot;#A63A2A&quot;,
+  &quot;AMI&quot; = &quot;#33A02C&quot;
+)
+
+disease_cols &lt;- c(&quot;HC&quot; = &quot;grey85&quot;, &quot;Disease&quot; = &quot;#A63A2A&quot;)
+dataset_cols &lt;- c(&quot;Amrute&quot; = &quot;#FA95C0&quot;)
+
+cell_type_cols &lt;- c(
+  &quot;#d05050&quot;, &quot;#33A02C&quot;, &quot;#1F78B4&quot;, &quot;#CAB2D6&quot;, &quot;#FF7F00&quot;, &quot;#B2DF8A&quot;,
+  &quot;#B15928&quot;, &quot;#FFD000&quot;, &quot;#FA95C0&quot;, &quot;#FDBF6F&quot;, &quot;#6A3D9A&quot;, &quot;#7aCDF9&quot;, &quot;#E6E600&quot;,
+  &quot;#8DD3C7&quot;, &quot;#FB8072&quot;, &quot;#80B1D3&quot;, &quot;#BC80BD&quot;, &quot;#CCEBC5&quot;, &quot;#FFED6F&quot;,
+  &quot;#A6CEE3&quot;, &quot;#F781BF&quot;
+)</code></pre>
+</div>
+<div id="load-and-prepare-metadata" class="section level2">
+<h2>Load and prepare metadata</h2>
+<pre class="r"><code>cell_meta &lt;- readr::read_csv(metadata_file, show_col_types = FALSE)
+
+required_cols &lt;- c(&quot;bc&quot;, &quot;sample&quot;, &quot;celltype&quot;, &quot;HF.etiology&quot;)
+missing_cols &lt;- setdiff(required_cols, colnames(cell_meta))
+if (length(missing_cols) &gt; 0) {
+  stop(&quot;Missing required metadata columns: &quot;, paste(missing_cols, collapse = &quot;, &quot;))
+}
+
+cell_meta &lt;- cell_meta %&gt;%
+  dplyr::mutate(
+    bc = as.character(bc),
+    sample = as.character(sample),
+    celltype = as.character(celltype),
+    HF.etiology = as.character(HF.etiology),
+    HF.etiology = dplyr::case_when(
+      HF.etiology %in% c(&quot;Donor&quot;, &quot;donor&quot;, &quot;DONOR&quot;) ~ &quot;Donor&quot;,
+      HF.etiology %in% c(&quot;ICM&quot;, &quot;ischemic&quot;, &quot;Ischemic&quot;) ~ &quot;ICM&quot;,
+      HF.etiology %in% c(&quot;NICM&quot;, &quot;non-ischemic&quot;, &quot;Non-ischemic&quot;) ~ &quot;NICM&quot;,
+      HF.etiology %in% c(&quot;AMI&quot;, &quot;MI&quot;, &quot;acute myocardial infarction&quot;) ~ &quot;AMI&quot;,
+      TRUE ~ HF.etiology
+    ),
+    HF.etiology = factor(HF.etiology, levels = etiology_levels),
+    Group = HF.etiology,
+    Disease_status = dplyr::if_else(as.character(HF.etiology) == &quot;Donor&quot;, &quot;HC&quot;, &quot;Disease&quot;),
+    Disease_status = factor(Disease_status, levels = c(&quot;HC&quot;, &quot;Disease&quot;)),
+    Dataset = factor(&quot;Amrute&quot;, levels = &quot;Amrute&quot;),
+    Sample = sample
+  )
+
+cell_meta %&gt;%
+  dplyr::count(HF.etiology, celltype, sort = TRUE) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-17918e35a6b062eaef1d" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-17918e35a6b062eaef1d">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"HF.etiology":["Donor","NICM","NICM","ICM","ICM","AMI","NICM","Donor","Donor","Donor","NICM","ICM","AMI","ICM","AMI","NICM","AMI","Donor","Donor","ICM","AMI","ICM","AMI","Donor","NICM","NICM","NICM","ICM","AMI","NICM","ICM","Donor","AMI","Donor","ICM","NICM","Donor","AMI","ICM","ICM","NICM","AMI","Donor","AMI"],"celltype":["Endothelium","Endothelium","Fibroblast","Endothelium","Fibroblast","Myeloid","Myeloid","SMC_Pericyte","Fibroblast","Myeloid","SMC_Pericyte","SMC_Pericyte","Fibroblast","Myeloid","T_NK Cells","T_NK Cells","Endothelium","Endocardium","T_NK Cells","T_NK Cells","SMC_Pericyte","Endocardium","B Cells","Glia","Endocardium","Glia","Lymphatics","Lymphatics","Mast Cells","B Cells","Glia","Lymphatics","Endocardium","B Cells","B Cells","Plasma Cells","Plasma Cells","Plasma Cells","Mast Cells","Plasma Cells","Mast Cells","Glia","Mast Cells","Lymphatics"],"n":[18690,15046,14880,14100,14039,8837,7807,7693,6603,5873,5690,5284,4848,3036,2136,1689,1640,1443,1282,1007,518,238,238,156,147,132,127,120,90,86,72,70,59,57,48,48,32,31,26,26,25,24,18,16]},"columns":[{"id":"HF.etiology","name":"HF.etiology","type":"factor"},{"id":"celltype","name":"celltype","type":"character"},{"id":"n","name":"n","type":"numeric"}],"dataKey":"55f039a6dcee0ca2101e7478815b226f"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="helper-functions-to-read-10x-style-mtx-files"
+class="section level2">
+<h2>Helper functions to read 10x-style MTX files</h2>
+<p>The dataset is CITE-seq, but this script keeps only RNA /
+gene-expression rows. If the <code>features.tsv.gz</code> file contains
+a feature-type column, the script keeps rows annotated as
+<code>Gene Expression</code>; otherwise it keeps all rows.</p>
+<pre class="r"><code>read_one_gse217494_sample &lt;- function(sample_id, data_dir, cell_meta) {
+  mtx_file &lt;- file.path(data_dir, paste0(&quot;GSE217494_&quot;, sample_id, &quot;.matrix.mtx.gz&quot;))
+  feature_file &lt;- file.path(data_dir, paste0(&quot;GSE217494_&quot;, sample_id, &quot;.features.tsv.gz&quot;))
+  barcode_file &lt;- file.path(data_dir, paste0(&quot;GSE217494_&quot;, sample_id, &quot;.barcodes.tsv.gz&quot;))
+
+  if (!file.exists(mtx_file) || !file.exists(feature_file) || !file.exists(barcode_file)) {
+    stop(&quot;Missing one or more files for &quot;, sample_id)
+  }
+
+  message(&quot;Reading &quot;, sample_id)
+
+  mat &lt;- Matrix::readMM(mtx_file)
+  mat &lt;- methods::as(mat, &quot;dgCMatrix&quot;)
+
+  features &lt;- readr::read_tsv(feature_file, col_names = FALSE, show_col_types = FALSE)
+  barcodes &lt;- readr::read_tsv(barcode_file, col_names = FALSE, show_col_types = FALSE)[[1]]
+
+  if (nrow(features) != nrow(mat)) {
+    stop(sample_id, &quot;: number of features does not match matrix rows.&quot;)
+  }
+
+  if (length(barcodes) != ncol(mat)) {
+    stop(sample_id, &quot;: number of barcodes does not match matrix columns.&quot;)
+  }
+
+  if (ncol(features) &gt;= 3 &amp;&amp; any(features[[3]] == &quot;Gene Expression&quot;)) {
+    rna_rows &lt;- which(features[[3]] == &quot;Gene Expression&quot;)
+  } else {
+    rna_rows &lt;- seq_len(nrow(features))
+  }
+
+  gene_symbols &lt;- if (ncol(features) &gt;= 2) features[[2]] else features[[1]]
+  gene_symbols &lt;- as.character(gene_symbols)
+  gene_symbols[is.na(gene_symbols) | gene_symbols == &quot;&quot;] &lt;- as.character(features[[1]][is.na(gene_symbols) | gene_symbols == &quot;&quot;])
+
+  mat &lt;- mat[rna_rows, , drop = FALSE]
+  rownames(mat) &lt;- make.unique(gene_symbols[rna_rows])
+
+  barcodes &lt;- as.character(barcodes)
+  bc_for_metadata &lt;- ifelse(
+    grepl(&quot;-1$&quot;, barcodes),
+    sub(&quot;-1$&quot;, paste0(&quot;-&quot;, sample_id), barcodes),
+    paste0(barcodes, &quot;-&quot;, sample_id)
+  )
+
+  colnames(mat) &lt;- bc_for_metadata
+
+  keep_cells &lt;- intersect(colnames(mat), cell_meta$bc)
+  if (length(keep_cells) == 0) {
+    warning(sample_id, &quot;: no barcodes matched metadata.&quot;)
+    return(NULL)
+  }
+
+  mat[, keep_cells, drop = FALSE]
+}
+
+get_p_label &lt;- function(p) {
+  if (is.na(p)) return(&quot;p = NA&quot;)
+  if (p &lt; 0.001) return(&quot;p &lt; 0.001&quot;)
+  paste0(&quot;p = &quot;, formatC(p, format = &quot;f&quot;, digits = 3))
+}
+
+get_fdr_label &lt;- function(p) {
+  if (is.na(p)) return(NA_character_)
+  if (p &lt; 0.001) return(&quot;FDR &lt; 0.001&quot;)
+  paste0(&quot;FDR = &quot;, formatC(p, format = &quot;f&quot;, digits = 3))
+}</code></pre>
+</div>
+<div id="read-rna-counts-and-create-seurat-object"
+class="section level2">
+<h2>Read RNA counts and create Seurat object</h2>
+<pre class="r"><code>sample_ids_from_files &lt;- list.files(
+  data_dir,
+  pattern = &quot;^GSE217494_sample[0-9]+\\.matrix\\.mtx\\.gz$&quot;,
+  full.names = FALSE
+) %&gt;%
+  stringr::str_match(&quot;^GSE217494_(sample[0-9]+)\\.matrix\\.mtx\\.gz$&quot;) %&gt;%
+  .[, 2] %&gt;%
+  unique() %&gt;%
+  sort()
+
+sample_ids_from_metadata &lt;- unique(cell_meta$sample)
+sample_ids &lt;- intersect(sample_ids_from_files, sample_ids_from_metadata)
+
+length(sample_ids)</code></pre>
+<pre><code>[1] 22</code></pre>
+<pre class="r"><code>sample_ids</code></pre>
+<pre><code> [1] &quot;sample1&quot;  &quot;sample12&quot; &quot;sample13&quot; &quot;sample15&quot; &quot;sample17&quot; &quot;sample2&quot; 
+ [7] &quot;sample27&quot; &quot;sample28&quot; &quot;sample29&quot; &quot;sample30&quot; &quot;sample32&quot; &quot;sample33&quot;
+[13] &quot;sample34&quot; &quot;sample39&quot; &quot;sample4&quot;  &quot;sample41&quot; &quot;sample42&quot; &quot;sample5&quot; 
+[19] &quot;sample6&quot;  &quot;sample7&quot;  &quot;sample8&quot;  &quot;sample9&quot; </code></pre>
+<pre class="r"><code>counts_list &lt;- lapply(sample_ids, function(sid) {
+  read_one_gse217494_sample(
+    sample_id = sid,
+    data_dir = data_dir,
+    cell_meta = cell_meta
+  )
+})
+names(counts_list) &lt;- sample_ids
+counts_list &lt;- counts_list[!vapply(counts_list, is.null, logical(1))]
+
+common_genes &lt;- Reduce(intersect, lapply(counts_list, rownames))
+length(common_genes)</code></pre>
+<pre><code>[1] 33538</code></pre>
+<pre class="r"><code>counts_all &lt;- do.call(
+  cbind,
+  lapply(counts_list, function(x) x[common_genes, , drop = FALSE])
+)
+
+metadata_all_matched &lt;- cell_meta %&gt;%
+  dplyr::filter(bc %in% colnames(counts_all)) %&gt;%
+  dplyr::arrange(match(bc, colnames(counts_all))) %&gt;%
+  as.data.frame()
+
+counts_all &lt;- counts_all[, metadata_all_matched$bc, drop = FALSE]
+rownames(metadata_all_matched) &lt;- metadata_all_matched$bc
+
+stopifnot(identical(colnames(counts_all), rownames(metadata_all_matched)))
+
+amrute &lt;- CreateSeuratObject(
+  counts = counts_all,
+  meta.data = metadata_all_matched,
+  project = &quot;Amrute_2024&quot;
+)
+
+amrute$percent.mt &lt;- PercentageFeatureSet(amrute, pattern = &quot;^MT-&quot;)
+amrute$Dataset &lt;- factor(amrute$Dataset, levels = &quot;Amrute&quot;)
+amrute$Group &lt;- factor(amrute$Group, levels = etiology_levels)
+amrute$HF.etiology &lt;- factor(amrute$HF.etiology, levels = etiology_levels)
+amrute$Disease_status &lt;- factor(amrute$Disease_status, levels = c(&quot;HC&quot;, &quot;Disease&quot;))
+
+amrute@meta.data %&gt;%
+  dplyr::count(HF.etiology, celltype, sort = TRUE) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-03fe6736972e78e75b06" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-03fe6736972e78e75b06">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"HF.etiology":["Donor","NICM","NICM","ICM","ICM","AMI","NICM","Donor","Donor","Donor","NICM","ICM","AMI","ICM","AMI","NICM","AMI","Donor","Donor","ICM","AMI","ICM","AMI","Donor","NICM","NICM","NICM","ICM","AMI","NICM","ICM","Donor","AMI","Donor","ICM","NICM","Donor","AMI","ICM","ICM","NICM","AMI","Donor","AMI"],"celltype":["Endothelium","Endothelium","Fibroblast","Endothelium","Fibroblast","Myeloid","Myeloid","SMC_Pericyte","Fibroblast","Myeloid","SMC_Pericyte","SMC_Pericyte","Fibroblast","Myeloid","T_NK Cells","T_NK Cells","Endothelium","Endocardium","T_NK Cells","T_NK Cells","SMC_Pericyte","Endocardium","B Cells","Glia","Endocardium","Glia","Lymphatics","Lymphatics","Mast Cells","B Cells","Glia","Lymphatics","Endocardium","B Cells","B Cells","Plasma Cells","Plasma Cells","Plasma Cells","Mast Cells","Plasma Cells","Mast Cells","Glia","Mast Cells","Lymphatics"],"n":[18690,15046,14880,14100,14039,8837,7807,7693,6603,5873,5690,5284,4848,3036,2136,1689,1640,1443,1282,1007,518,238,238,156,147,132,127,120,90,86,72,70,59,57,48,48,32,31,26,26,25,24,18,16]},"columns":[{"id":"HF.etiology","name":"HF.etiology","type":"factor"},{"id":"celltype","name":"celltype","type":"character"},{"id":"n","name":"n","type":"numeric"}],"dataKey":"55f039a6dcee0ca2101e7478815b226f"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>qs_save(
+  amrute,
+  file = here::here(output_dir_data, &quot;amrute_full.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+</div>
+<div id="subset-fibroblasts" class="section level2">
+<h2>Subset fibroblasts</h2>
+<pre class="r"><code>amrute_fb &lt;- subset(amrute, subset = celltype == &quot;Fibroblast&quot;)
+
+rm(amrute, counts_all, counts_list)
+gc()</code></pre>
+<pre><code>            used   (Mb) gc trigger    (Mb)   max used    (Mb)
+Ncells   6187031  330.5    9550542   510.1    9550542   510.1
+Vcells 380984392 2906.7 2754629589 21016.2 3377357007 25767.2</code></pre>
+<pre class="r"><code>amrute_fb &lt;- RenameCells(amrute_fb, add.cell.id = &quot;Amrute&quot;)
+amrute_fb$Dataset &lt;- factor(amrute_fb$Dataset, levels = &quot;Amrute&quot;)
+amrute_fb$Group &lt;- factor(amrute_fb$Group, levels = etiology_levels)
+amrute_fb$HF.etiology &lt;- factor(amrute_fb$HF.etiology, levels = etiology_levels)
+amrute_fb$Disease_status &lt;- factor(amrute_fb$Disease_status, levels = c(&quot;HC&quot;, &quot;Disease&quot;))
+amrute_fb$Sample &lt;- amrute_fb$sample
+
+amrute_fb@meta.data %&gt;%
+  dplyr::count(HF.etiology, Sample, name = &quot;n_fibroblast_cells&quot;) %&gt;%
+  dplyr::arrange(HF.etiology, Sample) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-5f0ac5bd807093b2bcc7" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-5f0ac5bd807093b2bcc7">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"HF.etiology":["Donor","Donor","Donor","Donor","Donor","Donor","ICM","ICM","ICM","ICM","ICM","ICM","NICM","NICM","NICM","NICM","NICM","NICM","AMI","AMI","AMI","AMI"],"Sample":["sample13","sample32","sample33","sample34","sample39","sample41","sample1","sample12","sample17","sample2","sample27","sample28","sample15","sample29","sample30","sample6","sample7","sample9","sample4","sample42","sample5","sample8"],"n_fibroblast_cells":[630,1241,1719,1223,748,1042,2289,2105,1863,4380,2408,994,2340,1597,461,5037,3955,1490,580,70,2406,1792]},"columns":[{"id":"HF.etiology","name":"HF.etiology","type":"factor"},{"id":"Sample","name":"Sample","type":"character"},{"id":"n_fibroblast_cells","name":"n_fibroblast_cells","type":"numeric"}],"dataKey":"3749f193cc56b522bc616f3b19fe14fd"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="basic-rna-normalization-and-qc" class="section level2">
+<h2>Basic RNA normalization and QC</h2>
+<pre class="r"><code>DefaultAssay(amrute_fb) &lt;- &quot;RNA&quot;
+
+amrute_fb &lt;- NormalizeData(amrute_fb, verbose = FALSE)</code></pre>
+<pre class="r"><code>VlnPlot(
+  amrute_fb,
+  features = c(&quot;nFeature_RNA&quot;, &quot;nCount_RNA&quot;, &quot;percent.mt&quot;),
+  group.by = &quot;HF.etiology&quot;,
+  cols = etiology_cols,
+  pt.size = 0,
+  ncol = 3
+)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/qc%20violin%20fibroblasts-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="sctransform-by-sample" class="section level2">
+<h2>SCTransform by sample</h2>
+<pre class="r"><code>DefaultAssay(amrute_fb) &lt;- &quot;RNA&quot;
+FB_list &lt;- SplitObject(amrute_fb, split.by = &quot;Sample&quot;)
+
+for (i in seq_along(FB_list)) {
+  FB_list[[i]] &lt;- SCTransform(
+    FB_list[[i]],
+    vst.flavor = &quot;v2&quot;,
+    vars.to.regress = &quot;percent.mt&quot;,
+    return.only.var.genes = TRUE,
+    variable.features.n = 3000,
+    min_cells = 0,
+    verbose = FALSE
+  )
+}
+
+features_fb &lt;- SelectIntegrationFeatures(object.list = FB_list, nfeatures = 3000)
+
+if (length(FB_list) == 1) {
+  FB_combined &lt;- FB_list[[1]]
+} else {
+  FB_combined &lt;- merge(
+    x = FB_list[[1]],
+    y = FB_list[2:length(FB_list)],
+    merge.data = TRUE
+  )
+}
+
+VariableFeatures(FB_combined) &lt;- features_fb
+rm(FB_list, amrute_fb)
+gc()</code></pre>
+<pre><code>             used   (Mb) gc trigger  (Mb)   max used    (Mb)
+Ncells   13219663  706.1   25708364  1373   25708364  1373.0
+Vcells 1132775678 8642.4 3046632916 23244 3769638119 28760.1</code></pre>
+</div>
+<div id="pca" class="section level2">
+<h2>PCA</h2>
+<pre class="r"><code>FB_combined &lt;- RunPCA(FB_combined, npcs = 50, verbose = FALSE)
+ElbowPlot(FB_combined, ndims = 50)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/pca%20fibroblasts%20combined-1.png" width="1800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="harmony-integration-by-sample-before-contamination-removal"
+class="section level2">
+<h2>Harmony integration by sample before contamination removal</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+FB_combined &lt;- harmony::RunHarmony(
+  object = FB_combined,
+  assay.use = &quot;SCT&quot;,
+  group.by.vars = &quot;Sample&quot;,
+  dims.use = 1:50,
+  plot_convergence = TRUE,
+  .options = harmony::harmony_options(max.iter.cluster = 100)
+)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/harmony%20fibroblasts%20combined%20raw-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>resolutions_to_keep &lt;- paste0(&quot;SCT_snn_res.&quot;, c(&quot;0.1&quot;, &quot;0.2&quot;, &quot;0.3&quot;, &quot;0.4&quot;, &quot;0.5&quot;, &quot;0.6&quot;, &quot;0.7&quot;, &quot;0.8&quot;))
+
+sct_res_cols &lt;- grep(&quot;^SCT_snn[\\._]res\\.&quot;, colnames(FB_combined@meta.data), value = TRUE)
+cols_to_remove &lt;- setdiff(sct_res_cols, resolutions_to_keep)
+
+if (length(cols_to_remove) &gt; 0) {
+  FB_combined@meta.data &lt;- FB_combined@meta.data[, !colnames(FB_combined@meta.data) %in% cols_to_remove, drop = FALSE]
+}
+
+grep(&quot;^SCT_snn[\\._]res\\.&quot;, colnames(FB_combined@meta.data), value = TRUE)</code></pre>
+<pre><code>character(0)</code></pre>
+</div>
+<div id="clustering-before-contamination-removal"
+class="section level2">
+<h2>Clustering before contamination removal</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+FB_combined &lt;- RunUMAP(
+  FB_combined,
+  reduction = &quot;harmony&quot;,
+  dims = 1:30,
+  reduction.name = &quot;umap&quot;,
+  reduction.key = &quot;UMAP_&quot;
+)
+
+FB_combined &lt;- FindNeighbors(
+  FB_combined,
+  reduction = &quot;harmony&quot;,
+  dims = 1:30
+)
+
+FB_combined &lt;- FindClusters(
+  FB_combined,
+  resolution = seq(0.1, 0.8, by = 0.1)
+)</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 40370
+Number of edges: 1329682
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.9251
+Number of communities: 6
+Elapsed time: 6 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 40370
+Number of edges: 1329682
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8888
+Number of communities: 8
+Elapsed time: 6 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 40370
+Number of edges: 1329682
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8683
+Number of communities: 10
+Elapsed time: 8 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 40370
+Number of edges: 1329682
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8522
+Number of communities: 11
+Elapsed time: 7 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 40370
+Number of edges: 1329682
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8389
+Number of communities: 12
+Elapsed time: 6 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 40370
+Number of edges: 1329682
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8259
+Number of communities: 12
+Elapsed time: 6 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 40370
+Number of edges: 1329682
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8128
+Number of communities: 14
+Elapsed time: 7 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 40370
+Number of edges: 1329682
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8026
+Number of communities: 14
+Elapsed time: 5 seconds</code></pre>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;SCT_snn_res.0.3&quot;</code></pre>
+<pre class="r"><code>clustree::clustree(
+  FB_combined@meta.data[, grep(&quot;SCT_snn_res&quot;, colnames(FB_combined@meta.data))],
+  prefix = &quot;SCT_snn_res.&quot;
+)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/clustree%20raw-1.png" width="2400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="umaps-before-contamination-removal" class="section level2">
+<h2>UMAPs before contamination removal</h2>
+<pre class="r"><code>p1 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;SCT_snn_res.0.3&quot;,
+  label = TRUE,
+  repel = TRUE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle(&quot;Fibroblast subclusters, res 0.3&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p2 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;Sample&quot;,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;Sample&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p3 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;HF.etiology&quot;,
+  cols = etiology_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;HF etiology&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p4 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  split.by = &quot;HF.etiology&quot;,
+  group.by = &quot;SCT_snn_res.0.3&quot;,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 0.1,
+  raster = FALSE,
+  ncol = 2
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    strip.text = element_text(size = 12, face = &quot;bold&quot;)
+  )
+
+(p1 + p2) / (p3 + p4)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/umaps%20fibroblasts%20combined%20raw%20clusters-1.png" width="3300" style="display: block; margin: auto;" /></p>
+</div>
+<div id="cluster-markers-before-contamination-removal"
+class="section level2">
+<h2>Cluster markers before contamination removal</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+FB_combined &lt;- NormalizeData(FB_combined, verbose = FALSE)
+Idents(FB_combined) &lt;- &quot;SCT_snn_res.0.3&quot;
+
+FB_markers_raw_clusters &lt;- FindAllMarkers(
+  FB_combined,
+  assay = &quot;RNA&quot;,
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_raw_clusters &lt;- FB_markers_raw_clusters %&gt;%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_raw_clusters &lt;- FB_markers_raw_clusters %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+FB_markers_top3_raw_clusters &lt;- FB_markers_raw_clusters %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+FB_markers_raw_clusters %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_head(n = 20) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-7769cc29db6d607a9bcd" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-7769cc29db6d607a9bcd">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"p_val":[0,0,0,0,0,2.12296580605409e-199,0,0,0,0,0,0,1.57412443989824e-227,0,0,2.0760321923739e-276,0,0,0,3.2434064873227e-199,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2.04977955146616e-319,0,0,0,0,0,4.54372411854361e-319,0,1.85473302484683e-27,0,0,0,0,0,0,7.42327459756843e-69,7.63798182571279e-299,0,0,0,6.06146614354702e-246,0,0,0,0,5.64696620214967e-187,5.27563441789702e-98,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3.32469270195893e-178,8.9387256389427e-295,0,0,0,0,0,7.58867026066043e-145,0,0,3.30764605503024e-106,1.64120772849019e-126,7.33874638687143e-108,3.42443316640417e-88,0,2.02021899229412e-125,5.20392974255938e-105,2.84741585093339e-15,4.04430835691536e-27,3.38993905791234e-171,1.05370528724613e-208,8.04067336473959e-182,3.98533740678525e-187,8.75134329684962e-257,5.32524457590486e-183,3.79442416006077e-321,0,0,1.59355114014336e-85,0,2.78434772507145e-200,2.58327758124297e-258,2.04086120678391e-163,1.01120635544492e-72,0,1.84454174445245e-177,1.53967576625805e-267,3.23527015885802e-70,0],"avg_log2FC":[1.665791287319,1.49035857498002,1.2884421978804,1.14742775263631,1.14715128979828,1.02245154831241,0.980561283092201,0.938301380453685,0.896338671122355,0.844648163890987,0.842716550694169,0.746137164678307,0.686012081631305,0.664733794344372,0.658029482124004,0.642065604619309,0.626729255333776,0.621051225882002,0.610239557372875,0.604112685161163,2.50407702594552,2.36923682735328,2.13475417640171,1.76147705955388,1.72291407456099,1.70338530112985,1.48471009285897,1.45330301270163,1.39583322887786,1.36690522495301,1.35478485283777,1.33509002274725,1.20129587877144,1.15915140600226,1.10969934079608,1.09210974865757,1.08697066486428,1.03793489530692,1.0330406011435,1.02568238450612,2.92386054025184,2.32668941257998,1.83571207682757,1.64607030239819,1.48128208736697,1.46319551147778,1.45439988838968,1.42898442990418,1.36582577574008,1.32940675998133,1.22031511417974,1.2181487212793,1.16842650139815,1.14832632212658,1.13087751477633,1.06554574455785,1.04567882753649,1.03297871875881,0.986811365598141,0.977268645854311,1.65668709291496,1.57398953882435,1.34256765102308,1.32313387403768,1.31723748237541,1.31612320840033,1.30348635756132,1.29640127506548,1.2710679575805,1.2038486598371,1.15677738695802,1.12873681490037,1.12871927947797,1.06896824303456,1.06282239937411,1.05344543592727,1.04097905745962,1.03797614941535,1.03770562243978,1.02558482515387,2.51129043843135,1.67436825872992,1.66959263876828,1.65178428569502,1.48687577621153,1.36048550387039,1.31621966420962,1.28028597865849,1.2704475467532,1.26525278649214,1.20404510338107,1.17937670102698,1.15874761216103,1.13336631573299,1.13235786810979,1.12049192847428,1.106626998487,1.10329472010708,1.0999761270227,1.09337201872068,3.43121066451649,3.26724345742148,3.10963800627765,2.58300523279768,2.36364332464487,2.22584710292117,2.21290094338259,2.15764595716536,2.15168505450913,2.14582586204478,2.01251978661096,1.9934298522559,1.97348802559569,1.96210429987883,1.94163751607912,1.91211540617815,1.84202920630953,1.82680364664496,1.81127652681057,1.75498272430574,3.84423270484453,2.37058746822827,2.25476414130114,2.10875327600326,1.84908625055887,1.8419646883862,1.83738570526541,1.81819853185404,1.78677254970127,1.75943146654068,1.74175341815299,1.52089121128068,1.48950802366036,1.45048915033721,1.42596543693085,1.41943040948598,1.40272945064972,1.39848832311666,1.38067132649789,1.3775294872772,3.52504660316864,3.41048223296056,2.92014093144821,2.59758389088518,2.54077226177835,2.53412330586465,2.42315742610604,2.41626968002772,2.41462478301336,2.3120274054336,2.30789031351913,2.29981317084116,2.29086291386345,2.25914938794645,2.22963393372152,2.18978248698237,2.12918416815088,2.1269069996837,2.01264311281548,2.00630940656823],"pct.1":[0.565,0.972,0.875,0.975,0.175,0.432,0.817,0.976,0.961,0.83,0.496,0.89,0.64,0.887,0.477,0.655,0.5,0.329,0.934,0.232,0.989,0.24,0.991,0.876,0.695,0.814,0.993,0.978,0.972,0.94,0.875,0.982,0.916,0.999,0.962,0.672,0.847,0.616,0.575,0.282,0.544,0.733,0.324,0.757,0.716,0.959,0.966,0.416,0.92,0.543,0.714,0.961,0.993,0.974,0.938,0.965,0.853,0.901,0.739,0.835,0.998,0.885,0.936,1,0.644,0.907,0.307,0.754,0.891,0.745,0.762,0.899,0.911,0.425,0.741,0.813,0.838,0.887,0.555,0.931,0.641,0.793,0.957,0.811,0.431,0.741,0.863,0.784,0.841,0.726,0.81,0.897,0.527,0.6,0.757,0.87,0.8,0.977,0.946,0.936,0.871,0.919,0.931,0.843,0.909,0.917,0.822,0.868,0.804,0.871,0.879,0.954,0.831,0.643,0.852,0.911,0.829,0.872,0.832,0.791,0.948,0.888,0.752,0.678,0.896,0.809,0.738,0.785,0.959,0.681,0.747,0.926,0.902,0.937,0.706,0.736,0.916,0.379,0.49,0.297,0.9,0.857,0.511,0.775,0.506,0.87,0.671,0.662,0.805,0.758,0.766,0.407,0.429,0.519,0.641,0.654,0.446,0.416,0.758,0.719],"pct.2":[0.286,0.869,0.532,0.859,0.055,0.298,0.636,0.846,0.863,0.566,0.314,0.657,0.492,0.649,0.268,0.494,0.25,0.165,0.818,0.119,0.73,0.037,0.824,0.483,0.228,0.34,0.865,0.777,0.797,0.754,0.498,0.905,0.548,0.976,0.852,0.292,0.529,0.304,0.124,0.036,0.166,0.411,0.1,0.423,0.418,0.749,0.844,0.156,0.76,0.267,0.381,0.815,0.952,0.91,0.781,0.816,0.568,0.653,0.566,0.633,0.983,0.778,0.909,0.998,0.512,0.901,0.283,0.653,0.871,0.661,0.699,0.895,0.896,0.369,0.729,0.783,0.815,0.893,0.434,0.937,0.309,0.285,0.769,0.7,0.303,0.402,0.605,0.448,0.627,0.347,0.54,0.636,0.172,0.256,0.438,0.717,0.533,0.866,0.838,0.796,0.113,0.214,0.092,0.069,0.34,0.352,0.03,0.046,0.033,0.253,0.203,0.574,0.083,0.086,0.042,0.211,0.049,0.167,0.284,0.135,0.135,0.34,0.135,0.091,0.172,0.044,0.024,0.089,0.629,0.011,0.055,0.647,0.383,0.604,0.328,0.068,0.514,0.08,0.315,0.121,0.272,0.185,0.063,0.154,0.044,0.208,0.064,0.06,0.045,0.314,0.044,0.036,0.031,0.071,0.224,0.051,0.048,0.028,0.349,0.029],"p_val_adj":[0,0,0,0,0,7.12000272034419e-195,0,0,0,0,0,0,5.27929854653071e-223,0,0,6.9625967667836e-272,0,0,0,1.08777366771829e-194,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6.87455065970722e-315,0,0,0,0,0,1.52387419487716e-314,0,6.2204036187313e-23,0,0,0,0,0,0,2.4896178345325e-64,2.56162634470756e-294,0,0,0,2.0328945152228e-241,0,0,0,0,1.89387952487696e-182,1.7693422710743e-93,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.11503543838299e-173,2.9978698047886e-290,0,0,0,0,0,2.5450882320203e-140,0,0,1.10931833393604e-101,5.50428247981039e-122,2.46126876322894e-103,1.14848639534863e-83,0,6.77541045635602e-121,1.74529395705956e-100,9.54966328086042e-11,1.35638013674227e-22,1.13691776124264e-166,3.53391679236606e-204,2.69668103306636e-177,1.33660245948764e-182,2.93502551489743e-252,1.78598052586697e-178,1.27257397480118e-316,0,0,5.34445181381282e-81,0,9.33814540034462e-196,8.66379635197266e-254,6.84464031531188e-159,3.39138387489119e-68,0,6.18622410254461e-173,5.16376458487626e-263,1.0850449058778e-65,0],"cluster":["0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7"],"gene":["PTGDS","APOD","C3","CFD","DLK1","PLA2G2A","GPX3","C7","PTN","SRPX","RARRES1","MGST1","IGFBP3","FMO2","VEGFD","ADH1B","EDNRB","MYOC","SELENOP","CCL11","IGFBP6","PRG4","PCOLCE2","CD55","FGFBP2","ACKR3","S100A10","MFAP5","SH3BGRL3","EMP3","UAP1","FBN1","SCARA5","S100A6","MFAP4","RAMP2","PPP1R14B","CYP4B1","LINC01133","CRHBP","POSTN","THBS4","COMP","SFRP4","FMOD","ASPN","COL3A1","PENK","COL1A1","CILP","MXRA5","SERPINE2","COL1A2","SPARC","AEBP1","LTBP2","LOXL1","COL14A1","CLU","IGF1","NEAT1","MEG3","DDX17","MALAT1","ABCA10","DST","XIST","FTX","ABCA6","ABCA9","NKTR","WSB1","PNISR","KCNQ1OT1","PHLDB1","LUC7L3","ARGLU1","N4BP2L2","CCNL2","ABCA8","ACTA2","ID4","TAGLN","ELN","APOE","INMT","MYL9","RARRES2","TPM2","AGT","CPE","ID3","TGM2","PPP1R14A","FRZB","TCEAL4","MYH10","BGN","FHL1","AEBP1","FABP4","FABP5","VWF","CD36","SLC9A3R2","ID1","SOX18","FLT1","BTNL9","CD74","RNASE1","CAV1","F8","AQP1","ADGRF5","EGFL7","PECAM1","SYNE2","CAVIN2","HLA-DRB1","RGS5","ACTA2","FABP4","CD36","NOTCH3","MCAM","GJA4","CARMN","MYL9","HIGD1B","COX4I2","TPM2","AGT","NDUFA4L2","ABCC9","TINAGL1","NR2F2","MYH11","APOE","THY1","CD74","HLA-DRA","CXCL8","HLA-DRB1","S100A9","SRGN","LYZ","C1QA","TYROBP","HLA-DPA1","CD163","IL1B","CCL3","CXCL2","RNASE1","C1QB","CCL4","CXCL3","HLA-DPB1","AIF1"]},"columns":[{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"cluster","name":"cluster","type":"factor"},{"id":"gene","name":"gene","type":"character"}],"dataKey":"540034573a5e8e3629d36c0fa4fdb806"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>write.csv(
+  FB_markers_raw_clusters,
+  here::here(output_dir_data, &quot;FB_markers_amrute_raw_res_0_3_all.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_raw_clusters,
+  here::here(output_dir_data, &quot;FB_markers_amrute_raw_res_0_3_top10.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_raw_clusters,
+  here::here(output_dir_data, &quot;FB_markers_amrute_raw_res_0_3_top3.csv&quot;),
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+Idents(FB_combined) &lt;- &quot;SCT_snn_res.0.3&quot;
+
+heatmap_cols &lt;- colorRampPalette(RColorBrewer::brewer.pal(9, &quot;RdBu&quot;))(256)
+heatmap_cols &lt;- rev(heatmap_cols[1:256])
+
+set.seed(123)
+cells_use_heatmap_raw &lt;- colnames(FB_combined)
+if (length(cells_use_heatmap_raw) &gt; 20000) {
+  cells_use_heatmap_raw &lt;- sample(cells_use_heatmap_raw, 20000)
+}
+
+DoHeatmap(
+  subset(FB_combined, cells = cells_use_heatmap_raw),
+  label = TRUE,
+  draw.lines = FALSE,
+  features = unique(FB_markers_top10_raw_clusters$gene),
+  assay = &quot;SCT&quot;,
+  size = 4
+) +
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(
+    text = element_text(size = 12),
+    axis.text.y = element_text(size = 8),
+    plot.margin = unit(c(0.2, 0, 0, 0), &quot;inches&quot;)
+  ) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) +
+  guides(color = &quot;none&quot;)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/heatmap%20top%20markers%20raw-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="qc-genes-before-contamination-removal" class="section level2">
+<h2>QC genes before contamination removal</h2>
+<pre class="r"><code>features_qc &lt;- c(&quot;nCount_RNA&quot;, &quot;nFeature_RNA&quot;, &quot;percent.mt&quot;, &quot;TTN&quot;, &quot;PECAM1&quot;, &quot;VWF&quot;)
+DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+Idents(FB_combined) &lt;- &quot;SCT_snn_res.0.3&quot;
+
+VlnPlot_scCustom(
+  FB_combined,
+  features = features_qc,
+  num_columns = 3,
+  pt.size = 0,
+  colors_use = cell_type_cols
+) + theme(axis.title.x = element_blank())</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/qc%20selected%20features%20raw-1.png" width="3600" style="display: block; margin: auto;" /></p>
+</div>
+<div id="flag-contamination-clusters-at-resolution-0.3"
+class="section level2">
+<h2>Flag contamination clusters at resolution 0.3</h2>
+<p>Clusters 5 and 7 are flagged as contamination and removed before
+reclustering the cleaned fibroblast object.</p>
+<pre class="r"><code>FB_combined$cell_type_contamination &lt;- dplyr::case_when(
+  FB_combined$SCT_snn_res.0.3 %in% c(&quot;5&quot;, &quot;7&quot;) ~ &quot;yes&quot;,
+  TRUE ~ &quot;no&quot;
+)
+
+FB_combined$cell_type_contamination &lt;- factor(
+  FB_combined$cell_type_contamination,
+  levels = c(&quot;no&quot;, &quot;yes&quot;)
+)
+
+table(FB_combined$SCT_snn_res.0.3, FB_combined$cell_type_contamination)</code></pre>
+<pre><code>   
+       no   yes
+  0 13969     0
+  1  7870     0
+  2  7721     0
+  3  4483     0
+  4  4300     0
+  5     0  1429
+  6   367     0
+  7     0   231</code></pre>
+<pre class="r"><code>DimPlot(
+  FB_combined,
+  group.by = &quot;cell_type_contamination&quot;,
+  reduction = &quot;umap&quot;,
+  cols = c(&quot;no&quot; = &quot;grey75&quot;, &quot;yes&quot; = &quot;#A63A2A&quot;),
+  label = FALSE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;Contamination flag before removal&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/UMAP%20contamination%20flag-1.png" width="1650" style="display: block; margin: auto;" /></p>
+</div>
+<div id="remove-contamination-clusters" class="section level2">
+<h2>Remove contamination clusters</h2>
+<pre class="r"><code>FB_combined_before_contamination_filter &lt;- FB_combined
+
+FB_combined &lt;- subset(
+  FB_combined,
+  cell_type_contamination == &quot;no&quot;
+)
+
+FB_combined$cell_type_contamination &lt;- droplevels(FB_combined$cell_type_contamination)
+DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+# Remove pre-filter clustering columns so that the next clustree only shows the clean reclustering.
+sct_res_cols &lt;- grep(&quot;^SCT_snn[\\._]res\\.&quot;, colnames(FB_combined@meta.data), value = TRUE)
+if (length(sct_res_cols) &gt; 0) {
+  FB_combined@meta.data &lt;- FB_combined@meta.data[, !colnames(FB_combined@meta.data) %in% sct_res_cols, drop = FALSE]
+}
+
+table(FB_combined$cell_type_contamination, FB_combined$HF.etiology)</code></pre>
+<pre><code>    
+       AMI Donor   ICM  NICM
+  no  4679  6260 13513 14258</code></pre>
+</div>
+<div id="harmony-integration-by-sample-after-contamination-removal"
+class="section level2">
+<h2>Harmony integration by sample after contamination removal</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+FB_combined &lt;- harmony::RunHarmony(
+  object = FB_combined,
+  assay.use = &quot;SCT&quot;,
+  group.by.vars = &quot;Sample&quot;,
+  dims.use = 1:50,
+  plot_convergence = TRUE,
+  reduction.save = &quot;harmony&quot;,
+  .options = harmony::harmony_options(max.iter.cluster = 100)
+)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/harmony%20fibroblasts%20combined%20cleaned-1.png" width="2100" style="display: block; margin: auto;" /></p>
+</div>
+<div id="reclustering-after-contamination-removal"
+class="section level2">
+<h2>Reclustering after contamination removal</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+FB_combined &lt;- RunUMAP(
+  FB_combined,
+  reduction = &quot;harmony&quot;,
+  dims = 1:30,
+  reduction.name = &quot;umap&quot;,
+)
+
+FB_combined &lt;- FindNeighbors(
+  FB_combined,
+  reduction = &quot;harmony&quot;,
+  dims = 1:30
+)
+
+FB_combined &lt;- FindClusters(
+  FB_combined,
+  resolution = seq(0.1, 0.8, by = 0.1)
+)</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 38710
+Number of edges: 1238266
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.9138
+Number of communities: 4
+Elapsed time: 6 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 38710
+Number of edges: 1238266
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8748
+Number of communities: 7
+Elapsed time: 6 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 38710
+Number of edges: 1238266
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8524
+Number of communities: 7
+Elapsed time: 7 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 38710
+Number of edges: 1238266
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8340
+Number of communities: 9
+Elapsed time: 5 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 38710
+Number of edges: 1238266
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8187
+Number of communities: 9
+Elapsed time: 5 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 38710
+Number of edges: 1238266
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8034
+Number of communities: 11
+Elapsed time: 5 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 38710
+Number of edges: 1238266
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.7917
+Number of communities: 12
+Elapsed time: 5 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 38710
+Number of edges: 1238266
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.7813
+Number of communities: 13
+Elapsed time: 5 seconds</code></pre>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;SCT_snn_res.0.3&quot;</code></pre>
+<pre class="r"><code>clustree::clustree(
+  FB_combined@meta.data[, grep(&quot;SCT_snn_res&quot;, colnames(FB_combined@meta.data))],
+  prefix = &quot;SCT_snn_res.&quot;
+)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/clustree%20cleaned-1.png" width="2400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="umaps-after-reclustering-cleaned-fibroblasts"
+class="section level2">
+<h2>UMAPs after reclustering cleaned fibroblasts</h2>
+<pre class="r"><code>p1 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;SCT_snn_res.0.3&quot;,
+  label = TRUE,
+  repel = TRUE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle(&quot;Fibroblast subclusters, res 0.3&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p2 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;Sample&quot;,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;Sample&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p3 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;HF.etiology&quot;,
+  cols = etiology_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;HF etiology&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p4 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  split.by = &quot;HF.etiology&quot;,
+  group.by = &quot;SCT_snn_res.0.3&quot;,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 0.1,
+  raster = FALSE,
+  ncol = 2
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    strip.text = element_text(size = 12, face = &quot;bold&quot;)
+  )
+
+(p1 + p2) / (p3 + p4)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/umaps%20fibroblasts%20cleaned%20clusters-1.png" width="3300" style="display: block; margin: auto;" /></p>
+</div>
+<div id="annotate-final-fibroblast-cell-types-after-reclustering"
+class="section level2">
+<h2>Annotate final fibroblast cell types after reclustering</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+Idents(FB_combined) &lt;- &quot;SCT_snn_res.0.3&quot;
+
+clean_clusters &lt;- levels(factor(FB_combined$SCT_snn_res.0.3))
+clean_clusters &lt;- clean_clusters[order(as.numeric(clean_clusters))]
+clean_cluster_map &lt;- setNames(paste0(&quot;FB&quot;, seq_along(clean_clusters)), clean_clusters)
+
+FB_combined$cell_type &lt;- unname(clean_cluster_map[as.character(FB_combined$SCT_snn_res.0.3)])
+FB_combined$cell_type &lt;- factor(
+  FB_combined$cell_type,
+  levels = paste0(&quot;FB&quot;, seq_along(clean_clusters))
+)
+
+Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+table(FB_combined$SCT_snn_res.0.3, FB_combined$cell_type)</code></pre>
+<pre><code>   
+      FB1   FB2   FB3   FB4   FB5   FB6
+  0 14762     0     0     0     0     0
+  1     0  7471     0     0     0     0
+  2     0     0  7406     0     0     0
+  3     0     0     0  4582     0     0
+  4     0     0     0     0  4142     0
+  5     0     0     0     0     0   347</code></pre>
+<pre class="r"><code>table(FB_combined$cell_type, FB_combined$HF.etiology)</code></pre>
+<pre><code>     
+       AMI Donor  ICM NICM
+  FB1 1648  2912 4905 5297
+  FB2 1068   768 2778 2857
+  FB3  819  1218 2681 2688
+  FB4  497   971 1594 1520
+  FB5  623   322 1425 1772
+  FB6   24    69  130  124</code></pre>
+<pre class="r"><code>p &lt;- DimPlot(
+  FB_combined,
+  group.by = &quot;cell_type&quot;,
+  reduction = &quot;umap&quot;,
+  cols = cell_type_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle(expression(italic(&quot;Amrute et al.&quot;) ~ &quot; Nature CVR 2024&quot;)) +
+  theme(
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+LabelClusters(
+  p,
+  id = &quot;cell_type&quot;,
+  fontface = &quot;bold&quot;,
+  size = 5,
+  repel = TRUE
+)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/UMAP%20cell%20types%20cleaned%20reclustered-1.png" width="1260" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;Sample&quot;,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;Sample&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p2 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;HF.etiology&quot;,
+  cols = etiology_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;HF etiology&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p1 + p2</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/umap%20cleaned%20fibroblasts%20metadata%20reclustered-1.png" width="3300" style="display: block; margin: auto;" /></p>
+</div>
+<div id="cluster-markers-after-contamination-removal-and-reclustering"
+class="section level2">
+<h2>Cluster markers after contamination removal and reclustering</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+FB_combined &lt;- NormalizeData(FB_combined, verbose = FALSE)
+Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+FB_markers_combined &lt;- FindAllMarkers(
+  FB_combined,
+  assay = &quot;RNA&quot;,
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+FB_markers_top3_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_head(n = 20) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-becbbac4f6df2bb85701" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-becbbac4f6df2bb85701">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"p_val":[0,0,0,0,1.64385611218477e-235,4.29757658341042e-276,0,0,0,0,0,0,0,0,0,1.30013968152112e-309,6.11355569935117e-216,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3.51852117508074e-27,0,0,0,0,0,0,0,0,0,3.19301401113519e-82,0,2.33602885085084e-304,8.47231734814993e-273,0,0,0,0,0,0,1.62147064953919e-168,3.59082188203347e-105,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4.28688463519247e-168,0,0,0,0,0,1.25767699930468e-136,0,0,4.00807695040763e-108,5.04800662450668e-98,9.62891207799679e-85,6.35354355982764e-117,7.61367769647832e-122,3.70102265533803e-112,3.73723994928145e-107,6.8333646772176e-69],"avg_log2FC":[1.64696971350865,1.30547534913647,1.22478820599323,1.19389982531163,1.12264638900626,1.03395522655754,1.00871734648688,0.987325482552953,0.883349418359303,0.868440348274471,0.823388858793728,0.744126269974661,0.696079296513247,0.692210368595106,0.642468219771823,0.63544457655371,0.618943039806439,0.607919423563723,0.601769145423628,0.576140096533822,3.2122792703629,2.44235263187706,2.08757427761079,1.80723203824848,1.50855235434434,1.50079489940786,1.47518732020475,1.46270136500645,1.37662084385173,1.34891043491445,1.32800984877438,1.27724250157101,1.20395191591259,1.17977416867493,1.14970717651291,1.14133425227547,1.10164384063619,1.00710029007037,1.00618587936553,0.996254454919099,2.42459472265452,2.3401426994503,2.0874636433171,1.79600643370108,1.74040793669287,1.70974000227469,1.47669591177885,1.45930460855574,1.39137033932272,1.38712908280675,1.37450282425394,1.36285413716951,1.23531453335145,1.22095749604253,1.14561594805605,1.10688014500028,1.07959475783194,1.07794760957632,1.07738705642456,1.06439787528636,1.68337303148727,1.55397856290571,1.36688728642398,1.33458063167605,1.32766521831253,1.32253057835494,1.32037572557804,1.3059623833257,1.26562386780419,1.21624664531154,1.2008411470399,1.15223774709396,1.13382294687773,1.11856654577856,1.06901815567598,1.06594526223166,1.05759406386227,1.05333335695479,1.04264404633214,1.0402707505643,2.6070211904022,1.69780360812023,1.68792813912754,1.60495436197001,1.5237947322669,1.4003011842052,1.35492470667592,1.31452257116011,1.29925336386583,1.26686915665037,1.22403018649632,1.22241172522409,1.2215129445567,1.21504419613944,1.20747259671418,1.16699068154582,1.14499577234379,1.13454550407557,1.12172145711786,1.10996004528986,3.82210297531026,2.78280432496603,2.41286208230898,2.11964416480616,1.88331943884619,1.8596709805854,1.82814068041159,1.80509021620305,1.80150368476877,1.79677734682744,1.77075376695329,1.47082277010459,1.46914291372861,1.45066827125429,1.44993700483401,1.44894468958998,1.42970750923721,1.34463471997471,1.32267839960839,1.27334785777434],"pct.1":[0.556,0.968,0.868,0.975,0.436,0.163,0.823,0.965,0.975,0.497,0.825,0.891,0.482,0.888,0.939,0.66,0.232,0.484,0.878,0.418,0.588,0.73,0.344,0.777,0.418,0.715,0.964,0.924,0.949,0.548,0.963,0.731,0.992,0.942,0.971,0.75,0.995,0.964,0.9,0.289,0.986,0.239,0.991,0.879,0.703,0.811,0.992,0.982,0.972,0.884,0.939,0.983,0.68,0.919,0.999,0.634,0.96,0.663,0.845,0.906,0.996,0.884,0.936,0.303,1,0.646,0.904,0.754,0.89,0.746,0.759,0.898,0.909,0.426,0.811,0.74,0.559,0.835,0.885,0.933,0.651,0.801,0.958,0.808,0.437,0.749,0.871,0.845,0.795,0.727,0.82,0.606,0.624,0.534,0.893,0.749,0.875,0.763,0.803,0.947,0.945,0.772,0.697,0.89,0.746,0.79,0.902,0.697,0.807,0.96,0.746,0.732,0.948,0.925,0.709,0.902,0.916,0.657,0.389,0.908],"pct.2":[0.274,0.866,0.516,0.853,0.29,0.055,0.62,0.858,0.839,0.303,0.556,0.643,0.251,0.629,0.808,0.482,0.113,0.231,0.723,0.199,0.153,0.411,0.096,0.42,0.155,0.42,0.844,0.759,0.754,0.265,0.815,0.378,0.953,0.781,0.909,0.562,0.945,0.818,0.656,0.095,0.732,0.038,0.826,0.481,0.229,0.338,0.862,0.778,0.794,0.497,0.753,0.906,0.27,0.55,0.976,0.294,0.855,0.303,0.53,0.668,0.983,0.778,0.907,0.281,0.998,0.512,0.901,0.649,0.873,0.662,0.692,0.894,0.897,0.359,0.781,0.73,0.426,0.812,0.892,0.939,0.306,0.286,0.768,0.701,0.302,0.396,0.601,0.626,0.449,0.348,0.539,0.236,0.319,0.157,0.626,0.3,0.715,0.439,0.531,0.839,0.132,0.106,0.063,0.338,0.017,0.088,0.172,0.01,0.034,0.627,0.053,0.045,0.605,0.647,0.329,0.384,0.512,0.208,0.079,0.631],"p_val_adj":[0,0,0,0,5.51316462904528e-231,1.44132123454419e-271,0,0,0,0,0,0,0,0,0,4.36040846388553e-305,2.05036431044839e-211,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.18004163169858e-22,0,0,0,0,0,0,0,0,0,1.07087303905452e-77,0,7.83457355998353e-300,2.84144579222252e-268,0,0,0,0,0,0,5.43808826442453e-164,1.20428984279638e-100,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.43773536895085e-163,0,0,0,0,0,4.21799712026804e-132,0,0,1.34422884762771e-103,1.69300046172705e-93,3.22934453271856e-80,2.13085143909499e-112,2.5534752258449e-117,1.24124897814727e-107,1.25339553419001e-102,2.29177384544524e-64],"cluster":["FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB1","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB2","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB3","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB4","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB5","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6","FB6"],"gene":["PTGDS","APOD","C3","CFD","PLA2G2A","DLK1","GPX3","PTN","C7","RARRES1","SRPX","MGST1","VEGFD","FMO2","SELENOP","ADH1B","CCL11","EDNRB","PLTP","GPC3","POSTN","THBS4","COMP","SFRP4","PENK","FMOD","COL3A1","COL1A1","ASPN","CILP","SERPINE2","MXRA5","COL1A2","AEBP1","SPARC","CLU","FN1","LTBP2","COL14A1","TNC","IGFBP6","PRG4","PCOLCE2","CD55","FGFBP2","ACKR3","S100A10","MFAP5","SH3BGRL3","UAP1","EMP3","FBN1","RAMP2","SCARA5","S100A6","CYP4B1","MFAP4","SHISA3","PPP1R14B","KLF2","NEAT1","MEG3","DDX17","XIST","MALAT1","ABCA10","DST","FTX","ABCA6","ABCA9","NKTR","WSB1","PNISR","KCNQ1OT1","LUC7L3","PHLDB1","CCNL2","ARGLU1","N4BP2L2","ABCA8","ACTA2","ID4","TAGLN","ELN","APOE","INMT","MYL9","TPM2","RARRES2","AGT","CPE","PPP1R14A","ID1","TGM2","ID3","ITGA1","TCEAL4","FRZB","MYH10","FHL1","RGS5","FABP4","CD36","ACTA2","GJA4","CARMN","NOTCH3","HIGD1B","MCAM","MYL9","COX4I2","TINAGL1","NDUFA4L2","TPM2","ABCC9","AGT","NR2F2","FABP5","MYH11","ADIRF"]},"columns":[{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"cluster","name":"cluster","type":"factor"},{"id":"gene","name":"gene","type":"character"}],"dataKey":"500cc53131c47b94d0b8db12c6e738ad"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>write.csv(
+  FB_markers_combined,
+  here::here(output_dir_data, &quot;FB_markers_amrute_cleaned_reclustered_cell_type_all.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_combined,
+  here::here(output_dir_data, &quot;FB_markers_amrute_cleaned_reclustered_cell_type_top10.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_combined,
+  here::here(output_dir_data, &quot;FB_markers_amrute_cleaned_reclustered_cell_type_top3.csv&quot;),
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+heatmap_cols &lt;- colorRampPalette(RColorBrewer::brewer.pal(9, &quot;RdBu&quot;))(256)
+heatmap_cols &lt;- rev(heatmap_cols[1:256])
+
+set.seed(123)
+cells_use_heatmap &lt;- colnames(FB_combined)
+if (length(cells_use_heatmap) &gt; 20000) {
+  cells_use_heatmap &lt;- sample(cells_use_heatmap, 20000)
+}
+
+DoHeatmap(
+  subset(FB_combined, cells = cells_use_heatmap),
+  label = TRUE,
+  draw.lines = FALSE,
+  features = unique(FB_markers_top10_combined$gene),
+  assay = &quot;SCT&quot;,
+  size = 4
+) +
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(
+    text = element_text(size = 12),
+    axis.text.y = element_text(size = 8),
+    plot.margin = unit(c(0.2, 0, 0, 0), &quot;inches&quot;)
+  ) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) +
+  guides(color = &quot;none&quot;)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/heatmap%20top%20markers%20cleaned%20reclustered-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="qc-genes-after-contamination-removal-and-reclustering"
+class="section level2">
+<h2>QC genes after contamination removal and reclustering</h2>
+<pre class="r"><code>features_qc &lt;- c(&quot;nCount_RNA&quot;, &quot;nFeature_RNA&quot;, &quot;percent.mt&quot;, &quot;TTN&quot;, &quot;PECAM1&quot;, &quot;VWF&quot;)
+DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+VlnPlot_scCustom(
+  FB_combined,
+  features = features_qc,
+  num_columns = 3,
+  pt.size = 0,
+  colors_use = cell_type_cols
+) + theme(axis.title.x = element_blank())</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/qc%20selected%20features%20cleaned%20reclustered-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>id_backup &lt;- Idents(FB_combined)
+Idents(FB_combined) &lt;- factor(Idents(FB_combined), levels = rev(levels(Idents(FB_combined))))
+
+p_dot &lt;- DotPlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  x_lab_rotate = TRUE
+)
+
+p_dot + theme(
+  axis.text.x = element_text(size = 11, angle = 60, vjust = 1, hjust = 1),
+  axis.text.y = element_text(size = 12)
+)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/dotplot%20top%20markers%20cleaned%20reclustered-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB_combined) &lt;- id_backup</code></pre>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+
+FeaturePlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  num_columns = 3,
+  order = TRUE
+)</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/featureplot%20top%20marker%20genes%20cleaned%20reclustered-1.png" width="3600" style="display: block; margin: auto;" /></p>
+</div>
+<div id="marker-features-on-cleaned-integrated-fibroblasts"
+class="section level2">
+<h2>Marker features on cleaned integrated fibroblasts</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+matrifibrocyte_genes_present &lt;- matrifibrocyte_genes[
+  matrifibrocyte_genes %in% rownames(FB_combined)
+]
+
+FeaturePlot(
+  FB_combined,
+  features = matrifibrocyte_genes_present,
+  reduction = &quot;umap&quot;,
+  order = TRUE,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;),
+  pt.size = 0.5,
+  ncol = 2,
+  raster = FALSE
+)+
+  theme(
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/selected%20marker%20featureplots%20cleaned-1.png" width="2520" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot(
+  FB_combined,
+  features = &quot;ACTA2&quot;,
+  reduction = &quot;umap&quot;,
+  order = TRUE,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;),
+  pt.size = 0.5,
+  raster = FALSE
+) +
+  theme(
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/featureplot%20ACTA2%20cleaned-1.png" width="1260" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot(
+  FB_combined,
+  features = &quot;MXRA5&quot;,
+  reduction = &quot;umap&quot;,
+  order = TRUE,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;),
+  pt.size = 0.5,
+  raster = FALSE
+) +
+  theme(
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/featureplot%20MXRA5%20cleaned-1.png" width="1260" style="display: block; margin: auto;" /></p>
+</div>
+<div id="matrifibrocyte-score-on-cleaned-integrated-fibroblasts"
+class="section level2">
+<h2>Matrifibrocyte score on cleaned integrated fibroblasts</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+if (length(matrifibrocyte_genes_present) == 0) {
+  stop(&quot;None of the matrifibrocyte genes were found in the integrated object.&quot;)
+}
+
+if (&quot;Matrifibrocyte_score&quot; %in% colnames(FB_combined@meta.data)) {
+  FB_combined$Matrifibrocyte_score &lt;- NULL
+}
+if (&quot;Matrifibrocyte_score1&quot; %in% colnames(FB_combined@meta.data)) {
+  FB_combined$Matrifibrocyte_score1 &lt;- NULL
+}
+
+FB_combined &lt;- AddModuleScore(
+  object = FB_combined,
+  features = list(matrifibrocyte_genes_present),
+  name = &quot;Matrifibrocyte_score&quot;,
+  assay = &quot;SCT&quot;,
+  slot = &quot;data&quot;,
+  ctrl = 25,
+  nbin = 24,
+  seed = 1
+)
+
+FB_combined$Matrifibrocyte_score &lt;- FB_combined$Matrifibrocyte_score1
+FB_combined$Matrifibrocyte_score1 &lt;- NULL</code></pre>
+<pre class="r"><code>FeaturePlot(
+  FB_combined,
+  features = &quot;Matrifibrocyte_score&quot;,
+  reduction = &quot;umap&quot;,
+  order = TRUE,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;),
+  pt.size = 0.5,
+  raster = FALSE
+) +
+  ggtitle(&quot;Matrifibrocyte score&quot;) +
+  theme(
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/feature%20plot%20matrifibrocyte%20score%20cleaned-1.png" width="1260" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+p_list &lt;- VlnPlot(
+  FB_combined,
+  features = matrifibrocyte_genes_present,
+  group.by = &quot;cell_type&quot;,
+  assay = &quot;RNA&quot;,
+  cols = cell_type_cols,
+  pt.size = 0.001,
+  add.noise = FALSE,
+  ncol = length(matrifibrocyte_genes_present),
+  combine = FALSE
+)
+
+p_list &lt;- lapply(p_list, function(p) {
+  for (j in seq_along(p$layers)) {
+    geom_name &lt;- class(p$layers[[j]]$geom)[1]
+
+    if (geom_name %in% c(&quot;GeomPoint&quot;, &quot;GeomJitter&quot;)) {
+      p$layers[[j]]$aes_params$alpha &lt;- 0.1
+      p$layers[[j]]$aes_params$colour &lt;- scales::alpha(&quot;black&quot;, 0.01)
+    }
+  }
+
+  p +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;, size = 12),
+      axis.text.y = element_text(face = &quot;bold&quot;, size = 10),
+      axis.title.y = element_text(face = &quot;bold&quot;),
+      axis.title.x = element_blank(),
+      strip.text = element_text(face = &quot;bold&quot;),
+      legend.position = &quot;none&quot;
+    )
+})
+
+wrap_plots(p_list, ncol = length(p_list))</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/violin%20matrifibrocyte%20genes%20by%20cell%20type%20cleaned%20alpha%20dots-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+p_acta2 &lt;- VlnPlot(
+  FB_combined,
+  features = &quot;ACTA2&quot;,
+  assay = &quot;RNA&quot;,
+  group.by = &quot;cell_type&quot;,
+  cols = cell_type_cols,
+  pt.size = 0.001,
+  add.noise = FALSE
+)
+
+for (j in seq_along(p_acta2$layers)) {
+  geom_name &lt;- class(p_acta2$layers[[j]]$geom)[1]
+
+  if (geom_name %in% c(&quot;GeomPoint&quot;, &quot;GeomJitter&quot;)) {
+    p_acta2$layers[[j]]$aes_params$alpha &lt;- 0.1
+    p_acta2$layers[[j]]$aes_params$colour &lt;- scales::alpha(&quot;black&quot;, 0.01)
+  }
+}
+
+p_acta2 +
+  ggtitle(&quot;ACTA2&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;, size = 12),
+    axis.text.y = element_text(face = &quot;bold&quot;, size = 10),
+    axis.title.y = element_text(face = &quot;bold&quot;),
+    axis.title.x = element_blank(),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/violin%20ACTA2%20by%20cell%20type%20cleaned%20alpha%20dots-1.png" width="900" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+p_mxra5 &lt;- VlnPlot(
+  FB_combined,
+  features = &quot;MXRA5&quot;,
+  assay = &quot;RNA&quot;,
+  group.by = &quot;cell_type&quot;,
+  cols = cell_type_cols,
+  pt.size = 0.001,
+  add.noise = FALSE
+)
+
+for (j in seq_along(p_mxra5$layers)) {
+  geom_name &lt;- class(p_mxra5$layers[[j]]$geom)[1]
+
+  if (geom_name %in% c(&quot;GeomPoint&quot;, &quot;GeomJitter&quot;)) {
+    p_mxra5$layers[[j]]$aes_params$alpha &lt;- 0.1
+    p_mxra5$layers[[j]]$aes_params$colour &lt;- scales::alpha(&quot;black&quot;, 0.01)
+  }
+}
+
+p_mxra5 +
+  ggtitle(&quot;MXRA5&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;, size = 12),
+    axis.text.y = element_text(face = &quot;bold&quot;, size = 10),
+    axis.title.y = element_text(face = &quot;bold&quot;),
+    axis.title.x = element_blank(),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/violin%20MXRA5%20by%20cell%20type%20cleaned%20alpha%20dots-1.png" width="900" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+p_score &lt;- VlnPlot(
+  FB_combined,
+  features = &quot;Matrifibrocyte_score&quot;,
+  group.by = &quot;cell_type&quot;,
+  cols = cell_type_cols,
+  pt.size = 0.00,
+  add.noise = FALSE
+)
+
+for (j in seq_along(p_score$layers)) {
+  geom_name &lt;- class(p_score$layers[[j]]$geom)[1]
+
+  if (geom_name %in% c(&quot;GeomPoint&quot;, &quot;GeomJitter&quot;)) {
+    p_score$layers[[j]]$aes_params$alpha &lt;- 0.1
+    p_score$layers[[j]]$aes_params$colour &lt;- scales::alpha(&quot;black&quot;, 0.01)
+  }
+}
+
+p_score +
+  ggtitle(&quot;Matrifibrocyte score&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;, size = 12),
+    axis.text.y = element_text(face = &quot;bold&quot;, size = 10),
+    axis.title.y = element_text(face = &quot;bold&quot;),
+    axis.title.x = element_blank(),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/violin%20matrifibrocyte%20score%20by%20cell%20type%20cleaned%20alpha%20dots-1.png" width="900" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+Idents(FB_combined) &lt;- &quot;cell_type&quot;
+
+DotPlot(
+  FB_combined,
+  dot.scale = 13,
+  features = matrifibrocyte_genes,
+  assay = &quot;SCT&quot;,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;)
+) +
+  coord_flip() +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(face = &quot;bold&quot;, size = 19),
+    axis.text.y = element_text(face = &quot;bold&quot;, size = 19),
+    axis.title = element_blank(),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/dotplot%20selected%20genes%20by%20cell%20type%20cleaned%20flipped-1.png" width="2400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="cell-type-proportions-by-hf-etiology" class="section level2">
+<h2>Cell-type proportions by HF etiology</h2>
+<pre class="r"><code>cluster_var &lt;- &quot;cell_type&quot;
+
+prop_df &lt;- FB_combined@meta.data %&gt;%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %&gt;%
+  dplyr::count(HF.etiology, Sample, cluster, name = &quot;n&quot;) %&gt;%
+  dplyr::group_by(HF.etiology, Sample) %&gt;%
+  dplyr::mutate(
+    total_n = sum(n),
+    freq = n / total_n
+  ) %&gt;%
+  dplyr::ungroup()
+
+prop_df$cluster &lt;- factor(
+  prop_df$cluster,
+  levels = levels(FB_combined$cell_type)
+)
+
+prop_df$HF.etiology &lt;- factor(as.character(prop_df$HF.etiology), levels = etiology_levels)</code></pre>
+<pre class="r"><code>pd  &lt;- position_dodge(width = 0.75)
+pjd &lt;- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+ggplot(prop_df, aes(x = cluster, y = freq, fill = HF.etiology)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8, width = 0.7, position = pd) +
+  geom_point(position = pjd, size = 0.8, alpha = 0.7, shape = 16) +
+  scale_fill_manual(values = etiology_cols, drop = FALSE) +
+  labs(x = &quot;Cell type&quot;, y = &quot;Fraction of fibroblast cells&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_blank()
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/cell%20type%20proportions%20by%20etiology%20cleaned-1.png" width="2400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="pseudobulk-fibroblasts-by-sample-after-contamination-removal"
+class="section level2">
+<h2>Pseudobulk fibroblasts by sample after contamination removal</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+counts_fb &lt;- GetAssayData(FB_combined, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+metadata_fb_matched &lt;- FB_combined@meta.data %&gt;%
+  tibble::rownames_to_column(&quot;cell&quot;)
+
+sample_vec &lt;- metadata_fb_matched$Sample
+sample_levels &lt;- unique(sample_vec)
+
+counts_pb &lt;- do.call(
+  cbind,
+  lapply(sample_levels, function(sid) {
+    Matrix::rowSums(counts_fb[, sample_vec == sid, drop = FALSE])
+  })
+)
+
+counts_pb &lt;- methods::as(counts_pb, &quot;dgCMatrix&quot;)
+rownames(counts_pb) &lt;- rownames(counts_fb)
+colnames(counts_pb) &lt;- sample_levels
+
+sample_meta &lt;- metadata_fb_matched %&gt;%
+  dplyr::select(Sample, sample, HF.etiology, Group, Disease_status, Dataset, dplyr::any_of(c(&quot;Race&quot;, &quot;Sex&quot;, &quot;Age&quot;))) %&gt;%
+  dplyr::distinct() %&gt;%
+  dplyr::arrange(match(Sample, colnames(counts_pb)))
+
+sample_meta$n_fibroblast_cells &lt;- as.numeric(
+  table(factor(sample_vec, levels = colnames(counts_pb)))[sample_meta$Sample]
+)
+sample_meta$libsize &lt;- Matrix::colSums(counts_pb)[sample_meta$Sample]
+
+sample_meta &lt;- sample_meta %&gt;%
+  dplyr::filter(
+    libsize &gt;= min_pb_libsize,
+    n_fibroblast_cells &gt;= min_fibroblast_cells
+  )
+
+counts_pb &lt;- counts_pb[, sample_meta$Sample, drop = FALSE]
+
+sample_meta$HF.etiology &lt;- factor(as.character(sample_meta$HF.etiology), levels = etiology_levels)
+sample_meta$Group &lt;- factor(as.character(sample_meta$Group), levels = etiology_levels)
+sample_meta$Disease_status &lt;- factor(as.character(sample_meta$Disease_status), levels = c(&quot;HC&quot;, &quot;Disease&quot;))
+rownames(sample_meta) &lt;- sample_meta$Sample
+
+write.csv(
+  sample_meta,
+  file.path(
+    output_dir_data,
+    paste0(
+      &quot;cleaned_fibroblast_pseudobulk_sample_metadata_min_libsize_&quot;,
+      min_pb_libsize,
+      &quot;_min_fibroblast_cells_&quot;,
+      min_fibroblast_cells,
+      &quot;.csv&quot;
+    )
+  ),
+  row.names = FALSE
+)
+
+sample_meta %&gt;%
+  dplyr::count(HF.etiology, name = &quot;n_samples&quot;)</code></pre>
+<pre><code>  HF.etiology n_samples
+1       Donor         6
+2         ICM         6
+3        NICM         6
+4         AMI         3</code></pre>
+<pre class="r"><code>sample_meta %&gt;% reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-a241ddd385d0054efc07" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-a241ddd385d0054efc07">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["sample1","sample12","sample13","sample15","sample17","sample2","sample27","sample28","sample29","sample30","sample32","sample33","sample34","sample39","sample4","sample41","sample5","sample6","sample7","sample8","sample9"],"Sample":["sample1","sample12","sample13","sample15","sample17","sample2","sample27","sample28","sample29","sample30","sample32","sample33","sample34","sample39","sample4","sample41","sample5","sample6","sample7","sample8","sample9"],"sample":["sample1","sample12","sample13","sample15","sample17","sample2","sample27","sample28","sample29","sample30","sample32","sample33","sample34","sample39","sample4","sample41","sample5","sample6","sample7","sample8","sample9"],"HF.etiology":["ICM","ICM","Donor","NICM","ICM","ICM","ICM","ICM","NICM","NICM","Donor","Donor","Donor","Donor","AMI","Donor","AMI","NICM","NICM","AMI","NICM"],"Group":["ICM","ICM","Donor","NICM","ICM","ICM","ICM","ICM","NICM","NICM","Donor","Donor","Donor","Donor","AMI","Donor","AMI","NICM","NICM","AMI","NICM"],"Disease_status":["Disease","Disease","HC","Disease","Disease","Disease","Disease","Disease","Disease","Disease","HC","HC","HC","HC","Disease","HC","Disease","Disease","Disease","Disease","Disease"],"Dataset":["Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute","Amrute"],"Race":["White","White","AA","White","White","White","White","White","White","AA","White","AA","AA","W","White","AA","White","AA","White","White","White"],"Sex":["M","M","M","M","M","M","M","F","M","M","F","F","F","F","M","M","M","M","F","M","M"],"Age":[53,47,56,52,59,67,63,41,59,53,38,53,54,65,69,62,62,57,69,64,65],"n_fibroblast_cells":[2207,2037,591,2219,1775,4227,2319,948,1516,452,1154,1665,1137,708,483,1005,2363,4819,3841,1766,1411],"libsize":[26684814,15842174,5305277,20147641,6293276,41600975,26334100,7937198,11294235,5856431,10364731,13855225,8861000,6257541,6787393,11165939,29578843,44930158,43477438,16869103,14526889]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"Sample","name":"Sample","type":"character"},{"id":"sample","name":"sample","type":"character"},{"id":"HF.etiology","name":"HF.etiology","type":"factor"},{"id":"Group","name":"Group","type":"factor"},{"id":"Disease_status","name":"Disease_status","type":"factor"},{"id":"Dataset","name":"Dataset","type":"character"},{"id":"Race","name":"Race","type":"character"},{"id":"Sex","name":"Sex","type":"character"},{"id":"Age","name":"Age","type":"numeric"},{"id":"n_fibroblast_cells","name":"n_fibroblast_cells","type":"numeric"},{"id":"libsize","name":"libsize","type":"numeric"}],"dataKey":"019a32e77e61559265c8f71ff6798eb1"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="logcpm-normalization-and-pseudobulk-scores"
+class="section level2">
+<h2>logCPM normalization and pseudobulk scores</h2>
+<pre class="r"><code>dge &lt;- edgeR::DGEList(counts = counts_pb)
+dge &lt;- edgeR::calcNormFactors(dge)
+logcpm &lt;- edgeR::cpm(dge, log = TRUE, prior.count = 1)
+
+genes_present &lt;- intersect(matrifibrocyte_genes, rownames(logcpm))
+missing_genes &lt;- setdiff(matrifibrocyte_genes, rownames(logcpm))
+
+extra_pseudobulk_genes &lt;- c(&quot;ACTA2&quot;, &quot;MXRA5&quot;)
+extra_pseudobulk_genes_present &lt;- intersect(extra_pseudobulk_genes, rownames(logcpm))
+mxra5_present &lt;- &quot;MXRA5&quot; %in% rownames(logcpm)
+
+genes_present</code></pre>
+<pre><code>[1] &quot;COMP&quot;  &quot;CILP&quot;  &quot;CHAD&quot;  &quot;THBS4&quot;</code></pre>
+<pre class="r"><code>missing_genes</code></pre>
+<pre><code>character(0)</code></pre>
+<pre class="r"><code>extra_pseudobulk_genes_present</code></pre>
+<pre><code>[1] &quot;ACTA2&quot; &quot;MXRA5&quot;</code></pre>
+<pre class="r"><code>if (length(genes_present) == 0) {
+  stop(&quot;None of the matrifibrocyte genes were found in the RNA matrix.&quot;)
+}
+
+matrifibrocyte_z &lt;- t(scale(t(logcpm[genes_present, , drop = FALSE])))
+matrifibrocyte_pb_score &lt;- colMeans(matrifibrocyte_z, na.rm = TRUE)</code></pre>
+<pre class="r"><code>genes_for_plot &lt;- unique(c(genes_present, extra_pseudobulk_genes_present))
+
+gene_plot_df &lt;- logcpm[genes_for_plot, , drop = FALSE] %&gt;%
+  as.data.frame() %&gt;%
+  tibble::rownames_to_column(&quot;gene&quot;) %&gt;%
+  tidyr::pivot_longer(cols = -gene, names_to = &quot;Sample&quot;, values_to = &quot;logCPM&quot;) %&gt;%
+  dplyr::left_join(sample_meta, by = &quot;Sample&quot;) %&gt;%
+  dplyr::mutate(
+    gene = factor(gene, levels = unique(c(matrifibrocyte_genes, extra_pseudobulk_genes))),
+    HF.etiology = factor(as.character(HF.etiology), levels = etiology_levels),
+    Disease_status = factor(as.character(Disease_status), levels = c(&quot;HC&quot;, &quot;Disease&quot;))
+  )
+
+score_plot_df &lt;- tibble::tibble(
+  Sample = names(matrifibrocyte_pb_score),
+  Matrifibrocyte_score = as.numeric(matrifibrocyte_pb_score)
+) %&gt;%
+  dplyr::left_join(sample_meta, by = &quot;Sample&quot;) %&gt;%
+  dplyr::mutate(
+    HF.etiology = factor(as.character(HF.etiology), levels = etiology_levels),
+    Disease_status = factor(as.character(Disease_status), levels = c(&quot;HC&quot;, &quot;Disease&quot;))
+  )
+
+write.csv(
+  gene_plot_df,
+  file.path(
+    output_dir_data,
+    paste0(
+      &quot;cleaned_fibroblast_pseudobulk_logCPM_selected_genes_min_libsize_&quot;,
+      min_pb_libsize,
+      &quot;_min_fibroblast_cells_&quot;,
+      min_fibroblast_cells,
+      &quot;.csv&quot;
+    )
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  score_plot_df,
+  file.path(
+    output_dir_data,
+    paste0(
+      &quot;cleaned_fibroblast_pseudobulk_matrifibrocyte_score_min_libsize_&quot;,
+      min_pb_libsize,
+      &quot;_min_fibroblast_cells_&quot;,
+      min_fibroblast_cells,
+      &quot;.csv&quot;
+    )
+  ),
+  row.names = FALSE
+)</code></pre>
+</div>
+<div id="limma-comparisons-across-hf-etiology-groups"
+class="section level2">
+<h2>limma comparisons across HF etiology groups</h2>
+<p>This model is intentionally simple:
+<code>gene ~ 0 + HF.etiology</code>. The contrasts include each disease
+group versus Donor and all pairwise disease-group comparisons. No pooled
+HC versus disease plot is generated.</p>
+<pre class="r"><code>model_meta &lt;- sample_meta %&gt;%
+  dplyr::filter(!is.na(HF.etiology))
+
+model_meta$HF.etiology &lt;- droplevels(
+  factor(as.character(model_meta$HF.etiology), levels = etiology_levels)
+)
+
+feature_mat &lt;- logcpm[genes_for_plot, model_meta$Sample, drop = FALSE]
+
+if (length(unique(model_meta$HF.etiology)) &lt; 2) {
+  stop(&quot;Fewer than two HF.etiology groups remain after filtering.&quot;)
+}
+
+design &lt;- model.matrix(~ 0 + HF.etiology, data = model_meta)
+colnames(design) &lt;- gsub(&quot;^HF.etiology&quot;, &quot;&quot;, colnames(design))
+
+contrast_strings &lt;- c(
+  &quot;ICM_vs_Donor&quot; = &quot;ICM - Donor&quot;,
+  &quot;NICM_vs_Donor&quot; = &quot;NICM - Donor&quot;,
+  &quot;AMI_vs_Donor&quot; = &quot;AMI - Donor&quot;,
+  &quot;ICM_vs_NICM&quot; = &quot;ICM - NICM&quot;,
+  &quot;AMI_vs_ICM&quot; = &quot;AMI - ICM&quot;,
+  &quot;AMI_vs_NICM&quot; = &quot;AMI - NICM&quot;
+)
+
+contrast_strings &lt;- contrast_strings[vapply(contrast_strings, function(x) {
+  groups_needed &lt;- trimws(unlist(strsplit(x, &quot;-&quot;)))
+  all(groups_needed %in% colnames(design))
+}, logical(1))]
+
+contrast_matrix &lt;- limma::makeContrasts(
+  contrasts = contrast_strings,
+  levels = design
+)
+
+fit &lt;- limma::lmFit(feature_mat, design)
+fit2 &lt;- limma::contrasts.fit(fit, contrast_matrix)
+fit2 &lt;- limma::eBayes(fit2)
+
+limma_results &lt;- dplyr::bind_rows(lapply(colnames(contrast_matrix), function(contrast_name) {
+  limma::topTable(
+    fit2,
+    coef = contrast_name,
+    number = Inf,
+    sort.by = &quot;none&quot;
+  ) %&gt;%
+    tibble::rownames_to_column(&quot;gene&quot;) %&gt;%
+    dplyr::rename(
+      coefficient_logFC = logFC,
+      raw_p_value = P.Value,
+      FDR_BH_within_contrast = adj.P.Val,
+      B_statistic = B
+    ) %&gt;%
+    dplyr::mutate(
+      comparison = contrast_name,
+      model_formula = &quot;gene_logCPM ~ 0 + HF.etiology&quot;,
+      min_pb_libsize = min_pb_libsize,
+      min_fibroblast_cells = min_fibroblast_cells,
+      n_samples_used = nrow(model_meta),
+      samples_used = paste(model_meta$Sample, collapse = &quot;;&quot;)
+    )
+})) %&gt;%
+  dplyr::select(
+    comparison,
+    gene,
+    coefficient_logFC,
+    AveExpr,
+    t,
+    raw_p_value,
+    FDR_BH_within_contrast,
+    B_statistic,
+    model_formula,
+    min_pb_libsize,
+    min_fibroblast_cells,
+    n_samples_used,
+    samples_used,
+    dplyr::everything()
+  )
+
+write.csv(
+  limma_results,
+  file.path(
+    output_dir_data,
+    paste0(
+      &quot;cleaned_fibroblast_selected_genes_limma_HF_etiology_contrasts_min_libsize_&quot;,
+      min_pb_libsize,
+      &quot;_min_fibroblast_cells_&quot;,
+      min_fibroblast_cells,
+      &quot;.csv&quot;
+    )
+  ),
+  row.names = FALSE
+)
+
+limma_results %&gt;% reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-196e26b4cc55465d200f" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-196e26b4cc55465d200f">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"comparison":["ICM_vs_Donor","ICM_vs_Donor","ICM_vs_Donor","ICM_vs_Donor","ICM_vs_Donor","ICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","ICM_vs_NICM","ICM_vs_NICM","ICM_vs_NICM","ICM_vs_NICM","ICM_vs_NICM","ICM_vs_NICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_NICM","AMI_vs_NICM","AMI_vs_NICM","AMI_vs_NICM","AMI_vs_NICM","AMI_vs_NICM"],"gene":["COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5"],"coefficient_logFC":[4.7576074342202,0.651625379173125,2.1939444138126,1.4727978421543,0.549263926921019,2.48146009828903,3.15345921272932,1.30534345961471,2.26425553791553,1.74796718043136,0.831429322240939,3.18895393108363,6.63783248660553,0.463544023928873,1.49894324574101,0.974643947744581,2.38657962040949,3.98570361887182,1.60414822149087,-0.653718080441586,-0.0703111241029333,-0.275169338277067,-0.28216539531992,-0.7074938327946,1.88022505238533,-0.188081355244252,-0.695001168071587,-0.498153894409715,1.83731569348847,1.50424352058279,3.4843732738762,-0.841799435685838,-0.76531229217452,-0.773323232686781,1.55515029816855,0.796749687788191],"AveExpr":[5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954],"t":[5.09028700458,1.08196449539342,2.33629128371539,2.35826121882269,0.87769648292006,3.26080659643216,3.37396741365656,2.16740373032939,2.41116431393243,2.79886559811668,1.32858277443808,4.19050139930341,5.79874918384373,0.628435016422617,1.30328959704732,1.27423382888449,3.11382053762404,4.276388137452,1.71631959092344,-1.08543923493597,-0.0748730302170477,-0.440604379293982,-0.450886291518019,-0.929694802871252,1.64254724866333,-0.254985294751305,-0.604284248157542,-0.65127839321869,2.39718436022752,1.61395070039856,3.04391632643159,-1.14124271888133,-0.66541782133346,-1.01103036245401,2.02903724481587,0.854858072547911],"raw_p_value":[2.62211597260307e-05,0.289165732829094,0.027426355351924,0.0261304824817436,0.38811808588159,0.00308805572641652,0.00232514652491184,0.039511454715361,0.0232366103921162,0.009516395924765,0.195487788672362,0.000282315661180056,4.08758820432291e-06,0.535181252630579,0.203858465026117,0.213811976512871,0.0044450646147774,0.000225240406030758,0.0979537109821915,0.287653231621674,0.940886771311941,0.663127939062825,0.655795907325761,0.361050221663575,0.112474357342946,0.800733351401366,0.550872852815149,0.520561451394471,0.0239713052795704,0.118567060543457,0.00527588185323697,0.264134198254773,0.51162243180507,0.321285221964328,0.0527710215870991,0.400410350824308],"FDR_BH_within_contrast":[0.000157326958356184,0.346998879394913,0.0411395330278861,0.0411395330278861,0.38811808588159,0.00926416717924955,0.00697543957473551,0.0474137456584333,0.0348549155881743,0.01903279184953,0.195487788672362,0.00169389396708033,2.45255292259374e-05,0.535181252630579,0.256574371815445,0.256574371815445,0.00889012922955479,0.000675721218092273,0.587722265893149,0.722100443327151,0.940886771311941,0.79575352687539,0.79575352687539,0.722100443327151,0.237134121086914,0.800733351401366,0.661047423378178,0.661047423378178,0.143827831677422,0.237134121086914,0.0316552911194218,0.48049242098917,0.51162243180507,0.48049242098917,0.158313064761297,0.48049242098917],"B_statistic":[2.59832286883855,-5.76383107851635,-3.8529011191414,-3.81031393339843,-5.95786556597071,-1.8768169368368,-1.61441386442636,-4.17149545756093,-3.70673295104782,-2.90692949745853,-5.48102624577119,0.356066630397432,4.30663129562356,-5.95039696830811,-5.33004044585511,-5.36484633798172,-2.08942135596046,0.628975453121774,-4.57817138955953,-4.59355165954824,-4.60489274227624,-4.60300172883006,-4.60291047140199,-4.59649139037333,-4.44283843791208,-5.55381715821687,-5.42085493119014,-5.39491848028448,-3.2941269811674,-4.48011353732522,-2.18225630757869,-5.40560665000832,-5.81208192400012,-5.53661831023126,-4.16369268866211,-5.67437078662485],"model_formula":["gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology"],"min_pb_libsize":[10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000],"min_fibroblast_cells":[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100],"n_samples_used":[21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21],"samples_used":["sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9","sample1;sample12;sample13;sample15;sample17;sample2;sample27;sample28;sample29;sample30;sample32;sample33;sample34;sample39;sample4;sample41;sample5;sample6;sample7;sample8;sample9"]},"columns":[{"id":"comparison","name":"comparison","type":"character"},{"id":"gene","name":"gene","type":"character"},{"id":"coefficient_logFC","name":"coefficient_logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"raw_p_value","name":"raw_p_value","type":"numeric"},{"id":"FDR_BH_within_contrast","name":"FDR_BH_within_contrast","type":"numeric"},{"id":"B_statistic","name":"B_statistic","type":"numeric"},{"id":"model_formula","name":"model_formula","type":"character"},{"id":"min_pb_libsize","name":"min_pb_libsize","type":"numeric"},{"id":"min_fibroblast_cells","name":"min_fibroblast_cells","type":"numeric"},{"id":"n_samples_used","name":"n_samples_used","type":"numeric"},{"id":"samples_used","name":"samples_used","type":"character"}],"dataKey":"f0e74803652d302210ab44454ff83294"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="simple-score-comparisons" class="section level2">
+<h2>Simple score comparisons</h2>
+<pre class="r"><code>score_mat &lt;- matrix(
+  score_plot_df$Matrifibrocyte_score,
+  nrow = 1,
+  dimnames = list(&quot;Matrifibrocyte_score&quot;, score_plot_df$Sample)
+)
+
+score_model_meta &lt;- score_plot_df %&gt;%
+  dplyr::filter(Sample %in% colnames(score_mat))
+
+score_mat &lt;- score_mat[, score_model_meta$Sample, drop = FALSE]
+score_design &lt;- model.matrix(~ 0 + HF.etiology, data = score_model_meta)
+colnames(score_design) &lt;- gsub(&quot;^HF.etiology&quot;, &quot;&quot;, colnames(score_design))
+
+score_contrast_strings &lt;- contrast_strings[vapply(contrast_strings, function(x) {
+  groups_needed &lt;- trimws(unlist(strsplit(x, &quot;-&quot;)))
+  all(groups_needed %in% colnames(score_design))
+}, logical(1))]
+
+score_contrast_matrix &lt;- limma::makeContrasts(
+  contrasts = score_contrast_strings,
+  levels = score_design
+)
+
+score_fit &lt;- limma::lmFit(score_mat, score_design)
+score_fit2 &lt;- limma::contrasts.fit(score_fit, score_contrast_matrix)
+score_fit2 &lt;- limma::eBayes(score_fit2)
+
+score_limma_results &lt;- dplyr::bind_rows(lapply(colnames(score_contrast_matrix), function(contrast_name) {
+  limma::topTable(
+    score_fit2,
+    coef = contrast_name,
+    number = Inf,
+    sort.by = &quot;none&quot;
+  ) %&gt;%
+    tibble::rownames_to_column(&quot;feature&quot;) %&gt;%
+    dplyr::rename(
+      coefficient_logFC = logFC,
+      raw_p_value = P.Value,
+      FDR_BH_within_contrast = adj.P.Val,
+      B_statistic = B
+    ) %&gt;%
+    dplyr::mutate(
+      comparison = contrast_name,
+      model_formula = &quot;pseudobulk_score ~ 0 + HF.etiology&quot;,
+      n_samples_used = nrow(score_model_meta)
+    )
+}))
+
+write.csv(
+  score_limma_results,
+  file.path(
+    output_dir_data,
+    paste0(
+      &quot;cleaned_fibroblast_matrifibrocyte_score_limma_HF_etiology_contrasts_min_libsize_&quot;,
+      min_pb_libsize,
+      &quot;_min_fibroblast_cells_&quot;,
+      min_fibroblast_cells,
+      &quot;.csv&quot;
+    )
+  ),
+  row.names = FALSE
+)
+
+score_limma_results %&gt;% reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-8e5c570c08448c5dc57c" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-8e5c570c08448c5dc57c">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"feature":["1","1","1","1","1","1"],"coefficient_logFC":[1.17358131320108,1.2662689440232,1.0935129521625,-0.0926876308221194,-0.0800683610385772,-0.172755991860697],"AveExpr":[-6.41021627313334e-17,-6.41021627313334e-17,-6.41021627313334e-17,-6.41021627313334e-17,-6.41021627313334e-17,-6.41021627313334e-17],"t":[3.14307682919934,3.39131215939198,2.3912231868081,-0.248235330192643,-0.175088297826321,-0.377771596194079],"raw_p_value":[0.00593049488524855,0.00347245348881482,0.0286299922565641,0.806926098611681,0.863078694194574,0.710275499652542],"FDR_BH_within_contrast":[0.00593049488524855,0.00347245348881482,0.0286299922565641,0.806926098611681,0.863078694194574,0.710275499652542],"B_statistic":[-2.23740430954741,-1.78605206169845,-3.4776945790958,-4.62757989539814,-4.61773550438484,-4.61505497601712],"comparison":["ICM_vs_Donor","NICM_vs_Donor","AMI_vs_Donor","ICM_vs_NICM","AMI_vs_ICM","AMI_vs_NICM"],"model_formula":["pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology"],"n_samples_used":[21,21,21,21,21,21]},"columns":[{"id":"feature","name":"feature","type":"character"},{"id":"coefficient_logFC","name":"coefficient_logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"raw_p_value","name":"raw_p_value","type":"numeric"},{"id":"FDR_BH_within_contrast","name":"FDR_BH_within_contrast","type":"numeric"},{"id":"B_statistic","name":"B_statistic","type":"numeric"},{"id":"comparison","name":"comparison","type":"character"},{"id":"model_formula","name":"model_formula","type":"character"},{"id":"n_samples_used","name":"n_samples_used","type":"numeric"}],"dataKey":"932a083c13c3be84cae6cdf5ee735d9c"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div
+id="boxplots-of-pseudobulk-matrifibrocyte-genes-with-all-comparison-lines-and-fdr-labels"
+class="section level2">
+<h2>Boxplots of pseudobulk matrifibrocyte genes with all comparison
+lines and FDR labels</h2>
+<pre class="r"><code>comparison_map &lt;- tibble::tibble(
+  comparison = c(
+    &quot;ICM_vs_Donor&quot;,
+    &quot;NICM_vs_Donor&quot;,
+    &quot;AMI_vs_Donor&quot;,
+    &quot;ICM_vs_NICM&quot;,
+    &quot;AMI_vs_ICM&quot;,
+    &quot;AMI_vs_NICM&quot;
+  ),
+  x = c(1, 1, 1, 2, 2, 3),
+  xend = c(2, 3, 4, 3, 4, 4)
+)
+
+gene_plot_df_mf &lt;- gene_plot_df %&gt;%
+  dplyr::filter(gene %in% matrifibrocyte_genes)
+
+gene_ypos &lt;- gene_plot_df_mf %&gt;%
+  dplyr::group_by(gene) %&gt;%
+  dplyr::summarise(
+    y_min = min(logCPM, na.rm = TRUE),
+    y_max = max(logCPM, na.rm = TRUE),
+    y_range = y_max - y_min,
+    .groups = &quot;drop&quot;
+  ) %&gt;%
+  dplyr::mutate(y_range = dplyr::if_else(y_range == 0, 1, y_range))
+
+stat_annot_df &lt;- limma_results %&gt;%
+  dplyr::filter(gene %in% matrifibrocyte_genes) %&gt;%
+  dplyr::left_join(comparison_map, by = &quot;comparison&quot;) %&gt;%
+  dplyr::filter(!is.na(x), !is.na(xend)) %&gt;%
+  dplyr::left_join(gene_ypos, by = &quot;gene&quot;) %&gt;%
+  dplyr::mutate(
+    label = vapply(FDR_BH_within_contrast, get_fdr_label, character(1)),
+    is_sig = !is.na(FDR_BH_within_contrast) &amp; FDR_BH_within_contrast &lt; 0.1,
+    span = xend - x
+  ) %&gt;%
+  dplyr::filter(is_sig) %&gt;%
+  dplyr::group_by(gene) %&gt;%
+  dplyr::arrange(span, x, xend, .by_group = TRUE) %&gt;%
+  dplyr::mutate(
+    stack_id = dplyr::row_number(),
+    line_y = y_max + (0.12 + 0.15 * (stack_id - 1)) * y_range,
+    tick_height = 0.035 * y_range,
+    label_y = line_y + 0.055 * y_range
+  ) %&gt;%
+  dplyr::ungroup()
+
+ggplot(gene_plot_df_mf, aes(x = HF.etiology, y = logCPM, fill = HF.etiology)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, color = &quot;black&quot;, linewidth = 0.45) +
+  geom_jitter(width = 0.12, size = 1.9, alpha = 0.9, color = &quot;black&quot;) +
+  geom_segment(
+    data = stat_annot_df,
+    aes(x = x, xend = xend, y = line_y, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = stat_annot_df,
+    aes(x = x, xend = x, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = stat_annot_df,
+    aes(x = xend, xend = xend, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_text(
+    data = stat_annot_df,
+    aes(x = (x + xend) / 2, y = label_y, label = label),
+    inherit.aes = FALSE,
+    size = 3.0,
+    fontface = &quot;bold&quot;
+  ) +
+  facet_wrap(~gene, scales = &quot;free_y&quot;, nrow = 1) +
+  scale_fill_manual(values = etiology_cols, drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = &quot;Matrifibrocyte markers&quot;,
+    x = NULL,
+    y = &quot;logCPM&quot;
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;, color = &quot;black&quot;),
+    axis.text.y = element_text(color = &quot;black&quot;),
+    axis.title.y = element_text(face = &quot;bold&quot;),
+    strip.text = element_text(face = &quot;bold&quot;),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/boxplots%20matrifibrocyte%20genes%20cleaned-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="mxra5-pseudobulk-differences-between-hf-etiology-groups"
+class="section level2">
+<h2>MXRA5 pseudobulk differences between HF etiology groups</h2>
+<pre class="r"><code>if (!mxra5_present) {
+  stop(&quot;MXRA5 was not found in the pseudobulk logCPM matrix.&quot;)
+}
+
+mxra5_plot_df &lt;- gene_plot_df %&gt;%
+  dplyr::filter(gene == &quot;MXRA5&quot;)
+
+mxra5_ypos &lt;- mxra5_plot_df %&gt;%
+  dplyr::summarise(
+    y_min = min(logCPM, na.rm = TRUE),
+    y_max = max(logCPM, na.rm = TRUE),
+    y_range = y_max - y_min
+  ) %&gt;%
+  dplyr::mutate(
+    y_range = dplyr::if_else(y_range == 0, 1, y_range)
+  )
+
+mxra5_annot_df &lt;- limma_results %&gt;%
+  dplyr::filter(gene == &quot;MXRA5&quot;) %&gt;%
+  dplyr::left_join(comparison_map, by = &quot;comparison&quot;) %&gt;%
+  dplyr::filter(!is.na(x), !is.na(xend)) %&gt;%
+  dplyr::mutate(
+    label = vapply(FDR_BH_within_contrast, get_fdr_label, character(1)),
+    is_sig = !is.na(FDR_BH_within_contrast) &amp; FDR_BH_within_contrast &lt; 0.1,
+    span = xend - x
+  ) %&gt;%
+  dplyr::filter(is_sig) %&gt;%
+  dplyr::arrange(span, x, xend) %&gt;%
+  dplyr::mutate(
+    stack_id = dplyr::row_number(),
+    line_y = mxra5_ypos$y_max + (0.12 + 0.15 * (stack_id - 1)) * mxra5_ypos$y_range,
+    tick_height = 0.035 * mxra5_ypos$y_range,
+    label_y = line_y + 0.055 * mxra5_ypos$y_range
+  )
+
+ggplot(mxra5_plot_df, aes(x = HF.etiology, y = logCPM, fill = HF.etiology)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, color = &quot;black&quot;, linewidth = 0.45) +
+  geom_jitter(width = 0.12, size = 2.0, alpha = 0.9, color = &quot;black&quot;) +
+  geom_segment(
+    data = mxra5_annot_df,
+    aes(x = x, xend = xend, y = line_y, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = mxra5_annot_df,
+    aes(x = x, xend = x, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = mxra5_annot_df,
+    aes(x = xend, xend = xend, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_text(
+    data = mxra5_annot_df,
+    aes(x = (x + xend) / 2, y = label_y, label = label),
+    inherit.aes = FALSE,
+    size = 3.0,
+    fontface = &quot;bold&quot;
+  ) +
+  scale_fill_manual(values = etiology_cols, drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = &quot;MXRA5&quot;,
+    x = NULL,
+    y = &quot;logCPM&quot;
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;, color = &quot;black&quot;),
+    axis.text.y = element_text(color = &quot;black&quot;),
+    axis.title.y = element_text(face = &quot;bold&quot;),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/boxplot%20MXRA5%20pseudobulk%20cleaned-1.png" width="900" style="display: block; margin: auto;" /></p>
+</div>
+<div id="boxplot-of-pseudobulk-matrifibrocyte-score"
+class="section level2">
+<h2>Boxplot of pseudobulk matrifibrocyte score</h2>
+<pre class="r"><code>score_ypos &lt;- score_plot_df %&gt;%
+  dplyr::summarise(
+    y_min = min(Matrifibrocyte_score, na.rm = TRUE),
+    y_max = max(Matrifibrocyte_score, na.rm = TRUE),
+    y_range = y_max - y_min
+  ) %&gt;%
+  dplyr::mutate(
+    y_range = dplyr::if_else(y_range == 0, 1, y_range)
+  )
+
+score_annot_df &lt;- score_limma_results %&gt;%
+  dplyr::left_join(comparison_map, by = &quot;comparison&quot;) %&gt;%
+  dplyr::filter(!is.na(x), !is.na(xend)) %&gt;%
+  dplyr::mutate(
+    label = vapply(FDR_BH_within_contrast, get_fdr_label, character(1)),
+    is_sig = !is.na(FDR_BH_within_contrast) &amp; FDR_BH_within_contrast &lt; 0.1,
+    span = xend - x
+  ) %&gt;%
+  dplyr::filter(is_sig) %&gt;%
+  dplyr::arrange(span, x, xend) %&gt;%
+  dplyr::mutate(
+    stack_id = dplyr::row_number(),
+    line_y = score_ypos$y_max + (0.12 + 0.15 * (stack_id - 1)) * score_ypos$y_range,
+    tick_height = 0.035 * score_ypos$y_range,
+    label_y = line_y + 0.055 * score_ypos$y_range
+  )
+
+ggplot(score_plot_df, aes(x = HF.etiology, y = Matrifibrocyte_score, fill = HF.etiology)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, color = &quot;black&quot;, linewidth = 0.45) +
+  geom_jitter(width = 0.12, size = 2.0, alpha = 0.9, color = &quot;black&quot;) +
+  geom_segment(
+    data = score_annot_df,
+    aes(x = x, xend = xend, y = line_y, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = score_annot_df,
+    aes(x = x, xend = x, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = score_annot_df,
+    aes(x = xend, xend = xend, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_text(
+    data = score_annot_df,
+    aes(x = (x + xend) / 2, y = label_y, label = label),
+    inherit.aes = FALSE,
+    size = 3.0,
+    fontface = &quot;bold&quot;
+  ) +
+  scale_fill_manual(values = etiology_cols, drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = &quot;Matrifibrocyte score&quot;,
+    x = NULL,
+    y = &quot;Mean z-score of COMP/CILP/CHAD/THBS4&quot;
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;, color = &quot;black&quot;),
+    axis.text.y = element_text(color = &quot;black&quot;),
+    axis.title.y = element_text(face = &quot;bold&quot;, size = 11.7),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Amrute_2024_matrifibrocyte_markers.Rmd/boxplot%20matrifibrocyte%20score%20cleaned-1.png" width="900" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>reactable::reactable(
+  dplyr::select(limma_results, -samples_used),
+  filterable = TRUE,
+  searchable = FALSE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-5044111fe6a464103bdd" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-5044111fe6a464103bdd">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"comparison":["ICM_vs_Donor","ICM_vs_Donor","ICM_vs_Donor","ICM_vs_Donor","ICM_vs_Donor","ICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","NICM_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","AMI_vs_Donor","ICM_vs_NICM","ICM_vs_NICM","ICM_vs_NICM","ICM_vs_NICM","ICM_vs_NICM","ICM_vs_NICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_ICM","AMI_vs_NICM","AMI_vs_NICM","AMI_vs_NICM","AMI_vs_NICM","AMI_vs_NICM","AMI_vs_NICM"],"gene":["COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5","COMP","CILP","CHAD","THBS4","ACTA2","MXRA5"],"coefficient_logFC":[4.7576074342202,0.651625379173125,2.1939444138126,1.4727978421543,0.549263926921019,2.48146009828903,3.15345921272932,1.30534345961471,2.26425553791553,1.74796718043136,0.831429322240939,3.18895393108363,6.63783248660553,0.463544023928873,1.49894324574101,0.974643947744581,2.38657962040949,3.98570361887182,1.60414822149087,-0.653718080441586,-0.0703111241029333,-0.275169338277067,-0.28216539531992,-0.7074938327946,1.88022505238533,-0.188081355244252,-0.695001168071587,-0.498153894409715,1.83731569348847,1.50424352058279,3.4843732738762,-0.841799435685838,-0.76531229217452,-0.773323232686781,1.55515029816855,0.796749687788191],"AveExpr":[5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954,5.97261296379036,6.84248137538805,-2.63130776380512,8.58033795516021,6.94666590748291,6.49018600607954],"t":[5.09028700458,1.08196449539342,2.33629128371539,2.35826121882269,0.87769648292006,3.26080659643216,3.37396741365656,2.16740373032939,2.41116431393243,2.79886559811668,1.32858277443808,4.19050139930341,5.79874918384373,0.628435016422617,1.30328959704732,1.27423382888449,3.11382053762404,4.276388137452,1.71631959092344,-1.08543923493597,-0.0748730302170477,-0.440604379293982,-0.450886291518019,-0.929694802871252,1.64254724866333,-0.254985294751305,-0.604284248157542,-0.65127839321869,2.39718436022752,1.61395070039856,3.04391632643159,-1.14124271888133,-0.66541782133346,-1.01103036245401,2.02903724481587,0.854858072547911],"raw_p_value":[2.62211597260307e-05,0.289165732829094,0.027426355351924,0.0261304824817436,0.38811808588159,0.00308805572641652,0.00232514652491184,0.039511454715361,0.0232366103921162,0.009516395924765,0.195487788672362,0.000282315661180056,4.08758820432291e-06,0.535181252630579,0.203858465026117,0.213811976512871,0.0044450646147774,0.000225240406030758,0.0979537109821915,0.287653231621674,0.940886771311941,0.663127939062825,0.655795907325761,0.361050221663575,0.112474357342946,0.800733351401366,0.550872852815149,0.520561451394471,0.0239713052795704,0.118567060543457,0.00527588185323697,0.264134198254773,0.51162243180507,0.321285221964328,0.0527710215870991,0.400410350824308],"FDR_BH_within_contrast":[0.000157326958356184,0.346998879394913,0.0411395330278861,0.0411395330278861,0.38811808588159,0.00926416717924955,0.00697543957473551,0.0474137456584333,0.0348549155881743,0.01903279184953,0.195487788672362,0.00169389396708033,2.45255292259374e-05,0.535181252630579,0.256574371815445,0.256574371815445,0.00889012922955479,0.000675721218092273,0.587722265893149,0.722100443327151,0.940886771311941,0.79575352687539,0.79575352687539,0.722100443327151,0.237134121086914,0.800733351401366,0.661047423378178,0.661047423378178,0.143827831677422,0.237134121086914,0.0316552911194218,0.48049242098917,0.51162243180507,0.48049242098917,0.158313064761297,0.48049242098917],"B_statistic":[2.59832286883855,-5.76383107851635,-3.8529011191414,-3.81031393339843,-5.95786556597071,-1.8768169368368,-1.61441386442636,-4.17149545756093,-3.70673295104782,-2.90692949745853,-5.48102624577119,0.356066630397432,4.30663129562356,-5.95039696830811,-5.33004044585511,-5.36484633798172,-2.08942135596046,0.628975453121774,-4.57817138955953,-4.59355165954824,-4.60489274227624,-4.60300172883006,-4.60291047140199,-4.59649139037333,-4.44283843791208,-5.55381715821687,-5.42085493119014,-5.39491848028448,-3.2941269811674,-4.48011353732522,-2.18225630757869,-5.40560665000832,-5.81208192400012,-5.53661831023126,-4.16369268866211,-5.67437078662485],"model_formula":["gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology","gene_logCPM ~ 0 + HF.etiology"],"min_pb_libsize":[10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000],"min_fibroblast_cells":[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100],"n_samples_used":[21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21]},"columns":[{"id":"comparison","name":"comparison","type":"character"},{"id":"gene","name":"gene","type":"character"},{"id":"coefficient_logFC","name":"coefficient_logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"raw_p_value","name":"raw_p_value","type":"numeric"},{"id":"FDR_BH_within_contrast","name":"FDR_BH_within_contrast","type":"numeric"},{"id":"B_statistic","name":"B_statistic","type":"numeric"},{"id":"model_formula","name":"model_formula","type":"character"},{"id":"min_pb_libsize","name":"min_pb_libsize","type":"numeric"},{"id":"min_fibroblast_cells","name":"min_fibroblast_cells","type":"numeric"},{"id":"n_samples_used","name":"n_samples_used","type":"numeric"}],"filterable":true,"dataKey":"cbeff3302c21acc40174934a5d08cd2e"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>reactable::reactable(
+  score_limma_results,
+  filterable = TRUE,
+  searchable = FALSE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-6c052824b137a3e97604" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-6c052824b137a3e97604">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"feature":["1","1","1","1","1","1"],"coefficient_logFC":[1.17358131320108,1.2662689440232,1.0935129521625,-0.0926876308221194,-0.0800683610385772,-0.172755991860697],"AveExpr":[-6.41021627313334e-17,-6.41021627313334e-17,-6.41021627313334e-17,-6.41021627313334e-17,-6.41021627313334e-17,-6.41021627313334e-17],"t":[3.14307682919934,3.39131215939198,2.3912231868081,-0.248235330192643,-0.175088297826321,-0.377771596194079],"raw_p_value":[0.00593049488524855,0.00347245348881482,0.0286299922565641,0.806926098611681,0.863078694194574,0.710275499652542],"FDR_BH_within_contrast":[0.00593049488524855,0.00347245348881482,0.0286299922565641,0.806926098611681,0.863078694194574,0.710275499652542],"B_statistic":[-2.23740430954741,-1.78605206169845,-3.4776945790958,-4.62757989539814,-4.61773550438484,-4.61505497601712],"comparison":["ICM_vs_Donor","NICM_vs_Donor","AMI_vs_Donor","ICM_vs_NICM","AMI_vs_ICM","AMI_vs_NICM"],"model_formula":["pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology","pseudobulk_score ~ 0 + HF.etiology"],"n_samples_used":[21,21,21,21,21,21]},"columns":[{"id":"feature","name":"feature","type":"character"},{"id":"coefficient_logFC","name":"coefficient_logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"raw_p_value","name":"raw_p_value","type":"numeric"},{"id":"FDR_BH_within_contrast","name":"FDR_BH_within_contrast","type":"numeric"},{"id":"B_statistic","name":"B_statistic","type":"numeric"},{"id":"comparison","name":"comparison","type":"character"},{"id":"model_formula","name":"model_formula","type":"character"},{"id":"n_samples_used","name":"n_samples_used","type":"numeric"}],"filterable":true,"dataKey":"932a083c13c3be84cae6cdf5ee735d9c"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="save-cleaned-integrated-fibroblast-object"
+class="section level2">
+<h2>Save cleaned integrated fibroblast object</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+qs_save(
+  FB_combined,
+  file = here::here(output_dir_data, &quot;amrute_fb_integrated_cleaned.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats     graphics  grDevices datasets  utils     methods   base     
+
+other attached packages:
+ [1] future_1.68.0      broom_1.0.11       qs2_0.1.7          clustree_0.5.1    
+ [5] ggraph_2.2.2       harmony_1.2.4      Rcpp_1.1.0         RColorBrewer_1.1-3
+ [9] scales_1.4.0       reactable_0.4.5    edgeR_4.8.0        limma_3.66.0      
+[13] patchwork_1.3.2    ggpubr_0.6.2       ggplot2_4.0.1      stringr_1.6.0     
+[17] readr_2.1.6        tibble_3.3.0       tidyr_1.3.1        dplyr_1.1.4       
+[21] scCustomize_3.2.2  SeuratObject_5.0.2 Seurat_4.4.0       Matrix_1.6-5      
+[25] here_1.0.2        
+
+loaded via a namespace (and not attached):
+  [1] RcppAnnoy_0.0.22            splines_4.5.2              
+  [3] later_1.4.4                 polyclip_1.10-7            
+  [5] janitor_2.2.1               lifecycle_1.0.4            
+  [7] rstatix_0.7.3               rprojroot_2.1.1            
+  [9] vroom_1.6.7                 globals_0.18.0             
+ [11] lattice_0.22-7              MASS_7.3-65                
+ [13] crosstalk_1.2.2             backports_1.5.0            
+ [15] magrittr_2.0.4              plotly_4.11.0              
+ [17] sass_0.4.10                 rmarkdown_2.30             
+ [19] jquerylib_0.1.4             yaml_2.3.11                
+ [21] httpuv_1.6.16               otel_0.2.0                 
+ [23] glmGamPoi_1.22.0            sctransform_0.4.2          
+ [25] spam_2.11-1                 sp_2.2-0                   
+ [27] spatstat.sparse_3.1-0       reticulate_1.44.1          
+ [29] cowplot_1.2.0               pbapply_1.7-4              
+ [31] lubridate_1.9.4             abind_1.4-8                
+ [33] GenomicRanges_1.62.0        Rtsne_0.17                 
+ [35] purrr_1.2.0                 BiocGenerics_0.56.0        
+ [37] tweenr_2.0.3                git2r_0.36.2               
+ [39] circlize_0.4.16             IRanges_2.44.0             
+ [41] S4Vectors_0.48.0            ggrepel_0.9.6              
+ [43] irlba_2.3.5.1               listenv_0.10.0             
+ [45] spatstat.utils_3.2-0        RSpectra_0.16-2            
+ [47] goftest_1.2-3               spatstat.random_3.4-3      
+ [49] fitdistrplus_1.2-4          parallelly_1.45.1          
+ [51] DelayedMatrixStats_1.32.0   DelayedArray_0.36.0        
+ [53] leiden_0.4.3.1              codetools_0.2-20           
+ [55] ggforce_0.5.0               tidyselect_1.2.1           
+ [57] shape_1.4.6.1               farver_2.1.2               
+ [59] viridis_0.6.5               stats4_4.5.2               
+ [61] matrixStats_1.5.0           spatstat.explore_3.6-0     
+ [63] Seqinfo_1.0.0               jsonlite_2.0.0             
+ [65] tidygraph_1.3.1             progressr_0.18.0           
+ [67] Formula_1.2-5               ggridges_0.5.7             
+ [69] survival_3.8-3              tools_4.5.2                
+ [71] ica_1.0-3                   glue_1.8.0                 
+ [73] SparseArray_1.10.4          gridExtra_2.3              
+ [75] xfun_0.56                   MatrixGenerics_1.22.0      
+ [77] withr_3.0.2                 BiocManager_1.30.27        
+ [79] fastmap_1.2.0               digest_0.6.39              
+ [81] timechange_0.3.0            R6_2.6.1                   
+ [83] mime_0.13                   ggprism_1.0.7              
+ [85] colorspace_2.1-2            scattermore_1.2            
+ [87] tensor_1.5.1                spatstat.data_3.1-9        
+ [89] RhpcBLASctl_0.23-42         generics_0.1.4             
+ [91] renv_1.1.5                  data.table_1.17.8          
+ [93] S4Arrays_1.10.1             graphlayouts_1.2.2         
+ [95] httr_1.4.7                  htmlwidgets_1.6.4          
+ [97] whisker_0.4.1               uwot_0.2.4                 
+ [99] pkgconfig_2.0.3             gtable_0.3.6               
+[101] workflowr_1.7.2             lmtest_0.9-40              
+[103] S7_0.2.1                    XVector_0.50.0             
+[105] htmltools_0.5.9             carData_3.0-5              
+[107] dotCall64_1.2               Biobase_2.70.0             
+[109] png_0.1-8                   spatstat.univar_3.1-5      
+[111] snakecase_0.11.1            knitr_1.50                 
+[113] rstudioapi_0.17.1           tzdb_0.5.0                 
+[115] reshape2_1.4.5              checkmate_2.3.3            
+[117] nlme_3.1-168                cachem_1.1.0               
+[119] zoo_1.8-14                  GlobalOptions_0.1.3        
+[121] KernSmooth_2.23-26          parallel_4.5.2             
+[123] miniUI_0.1.2                vipor_0.4.7                
+[125] ggrastr_1.0.2               pillar_1.11.1              
+[127] grid_4.5.2                  vctrs_0.6.5                
+[129] RANN_2.6.2                  promises_1.5.0             
+[131] stringfish_0.18.0           car_3.1-3                  
+[133] beachmat_2.26.0             xtable_1.8-4               
+[135] cluster_2.1.8.1             beeswarm_0.4.0             
+[137] paletteer_1.6.0             evaluate_1.0.5             
+[139] cli_3.6.5                   locfit_1.5-9.12            
+[141] compiler_4.5.2              crayon_1.5.3               
+[143] rlang_1.1.6                 future.apply_1.20.0        
+[145] ggsignif_0.6.4              labeling_0.4.3             
+[147] reactR_0.6.1                rematch2_2.1.2             
+[149] plyr_1.8.9                  forcats_1.0.1              
+[151] fs_1.6.6                    ggbeeswarm_0.7.3           
+[153] stringi_1.8.7               viridisLite_0.4.2          
+[155] deldir_2.0-4                lazyeval_0.2.2             
+[157] spatstat.geom_3.6-1         hms_1.1.4                  
+[159] sparseMatrixStats_1.22.0    bit64_4.6.0-1              
+[161] statmod_1.5.1               shiny_1.12.0               
+[163] SummarizedExperiment_1.40.0 ROCR_1.0-11                
+[165] memoise_2.0.1               igraph_2.2.1               
+[167] RcppParallel_5.1.11-1       bslib_0.9.0                
+[169] bit_4.6.0                  </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
