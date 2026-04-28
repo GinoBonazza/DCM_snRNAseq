@@ -1,0 +1,1875 @@
+---
+title: "Analysis of matrifibrocyte markers in fibroblasts from Amrute et al., Nature CVR 2024"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "Amrute_2024_matrifibrocyte_markers"
+
+library(here)
+library(Matrix)
+library(Seurat)
+library(scCustomize)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(ggpubr)
+library(patchwork)
+library(edgeR)
+library(limma)
+library(reactable)
+library(scales)
+library(RColorBrewer)
+library(harmony)
+library(clustree)
+library(qs2)
+library(broom)
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"), recursive = TRUE)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+data_dir <- here::here("data", "Heart_datasets", "Amrute_2024")
+metadata_file <- file.path(data_dir, "GSE217494_cell.metadata.csv")
+
+matrifibrocyte_genes <- c("COMP", "CILP", "CHAD", "THBS4")
+min_pb_libsize <- 10000
+min_fibroblast_cells <- 100
+
+etiology_levels <- c("Donor", "ICM", "NICM", "AMI")
+etiology_cols <- c(
+  "Donor" = "grey85",
+  "ICM" = "#004C8C",
+  "NICM" = "#A63A2A",
+  "AMI" = "#33A02C"
+)
+
+disease_cols <- c("HC" = "grey85", "Disease" = "#A63A2A")
+dataset_cols <- c("Amrute" = "#FA95C0")
+
+cell_type_cols <- c(
+  "#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A",
+  "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600",
+  "#8DD3C7", "#FB8072", "#80B1D3", "#BC80BD", "#CCEBC5", "#FFED6F",
+  "#A6CEE3", "#F781BF"
+)
+```
+
+## Load and prepare metadata
+
+```{r load metadata}
+cell_meta <- readr::read_csv(metadata_file, show_col_types = FALSE)
+
+required_cols <- c("bc", "sample", "celltype", "HF.etiology")
+missing_cols <- setdiff(required_cols, colnames(cell_meta))
+if (length(missing_cols) > 0) {
+  stop("Missing required metadata columns: ", paste(missing_cols, collapse = ", "))
+}
+
+cell_meta <- cell_meta %>%
+  dplyr::mutate(
+    bc = as.character(bc),
+    sample = as.character(sample),
+    celltype = as.character(celltype),
+    HF.etiology = as.character(HF.etiology),
+    HF.etiology = dplyr::case_when(
+      HF.etiology %in% c("Donor", "donor", "DONOR") ~ "Donor",
+      HF.etiology %in% c("ICM", "ischemic", "Ischemic") ~ "ICM",
+      HF.etiology %in% c("NICM", "non-ischemic", "Non-ischemic") ~ "NICM",
+      HF.etiology %in% c("AMI", "MI", "acute myocardial infarction") ~ "AMI",
+      TRUE ~ HF.etiology
+    ),
+    HF.etiology = factor(HF.etiology, levels = etiology_levels),
+    Group = HF.etiology,
+    Disease_status = dplyr::if_else(as.character(HF.etiology) == "Donor", "HC", "Disease"),
+    Disease_status = factor(Disease_status, levels = c("HC", "Disease")),
+    Dataset = factor("Amrute", levels = "Amrute"),
+    Sample = sample
+  )
+
+cell_meta %>%
+  dplyr::count(HF.etiology, celltype, sort = TRUE) %>%
+  reactable::reactable()
+```
+
+## Helper functions to read 10x-style MTX files
+
+The dataset is CITE-seq, but this script keeps only RNA / gene-expression rows. If the `features.tsv.gz` file contains a feature-type column, the script keeps rows annotated as `Gene Expression`; otherwise it keeps all rows.
+
+```{r helper functions}
+read_one_gse217494_sample <- function(sample_id, data_dir, cell_meta) {
+  mtx_file <- file.path(data_dir, paste0("GSE217494_", sample_id, ".matrix.mtx.gz"))
+  feature_file <- file.path(data_dir, paste0("GSE217494_", sample_id, ".features.tsv.gz"))
+  barcode_file <- file.path(data_dir, paste0("GSE217494_", sample_id, ".barcodes.tsv.gz"))
+
+  if (!file.exists(mtx_file) || !file.exists(feature_file) || !file.exists(barcode_file)) {
+    stop("Missing one or more files for ", sample_id)
+  }
+
+  message("Reading ", sample_id)
+
+  mat <- Matrix::readMM(mtx_file)
+  mat <- methods::as(mat, "dgCMatrix")
+
+  features <- readr::read_tsv(feature_file, col_names = FALSE, show_col_types = FALSE)
+  barcodes <- readr::read_tsv(barcode_file, col_names = FALSE, show_col_types = FALSE)[[1]]
+
+  if (nrow(features) != nrow(mat)) {
+    stop(sample_id, ": number of features does not match matrix rows.")
+  }
+
+  if (length(barcodes) != ncol(mat)) {
+    stop(sample_id, ": number of barcodes does not match matrix columns.")
+  }
+
+  if (ncol(features) >= 3 && any(features[[3]] == "Gene Expression")) {
+    rna_rows <- which(features[[3]] == "Gene Expression")
+  } else {
+    rna_rows <- seq_len(nrow(features))
+  }
+
+  gene_symbols <- if (ncol(features) >= 2) features[[2]] else features[[1]]
+  gene_symbols <- as.character(gene_symbols)
+  gene_symbols[is.na(gene_symbols) | gene_symbols == ""] <- as.character(features[[1]][is.na(gene_symbols) | gene_symbols == ""])
+
+  mat <- mat[rna_rows, , drop = FALSE]
+  rownames(mat) <- make.unique(gene_symbols[rna_rows])
+
+  barcodes <- as.character(barcodes)
+  bc_for_metadata <- ifelse(
+    grepl("-1$", barcodes),
+    sub("-1$", paste0("-", sample_id), barcodes),
+    paste0(barcodes, "-", sample_id)
+  )
+
+  colnames(mat) <- bc_for_metadata
+
+  keep_cells <- intersect(colnames(mat), cell_meta$bc)
+  if (length(keep_cells) == 0) {
+    warning(sample_id, ": no barcodes matched metadata.")
+    return(NULL)
+  }
+
+  mat[, keep_cells, drop = FALSE]
+}
+
+get_p_label <- function(p) {
+  if (is.na(p)) return("p = NA")
+  if (p < 0.001) return("p < 0.001")
+  paste0("p = ", formatC(p, format = "f", digits = 3))
+}
+
+get_fdr_label <- function(p) {
+  if (is.na(p)) return(NA_character_)
+  if (p < 0.001) return("FDR < 0.001")
+  paste0("FDR = ", formatC(p, format = "f", digits = 3))
+}
+```
+
+## Read RNA counts and create Seurat object
+
+```{r read counts create seurat}
+sample_ids_from_files <- list.files(
+  data_dir,
+  pattern = "^GSE217494_sample[0-9]+\\.matrix\\.mtx\\.gz$",
+  full.names = FALSE
+) %>%
+  stringr::str_match("^GSE217494_(sample[0-9]+)\\.matrix\\.mtx\\.gz$") %>%
+  .[, 2] %>%
+  unique() %>%
+  sort()
+
+sample_ids_from_metadata <- unique(cell_meta$sample)
+sample_ids <- intersect(sample_ids_from_files, sample_ids_from_metadata)
+
+length(sample_ids)
+sample_ids
+
+counts_list <- lapply(sample_ids, function(sid) {
+  read_one_gse217494_sample(
+    sample_id = sid,
+    data_dir = data_dir,
+    cell_meta = cell_meta
+  )
+})
+names(counts_list) <- sample_ids
+counts_list <- counts_list[!vapply(counts_list, is.null, logical(1))]
+
+common_genes <- Reduce(intersect, lapply(counts_list, rownames))
+length(common_genes)
+
+counts_all <- do.call(
+  cbind,
+  lapply(counts_list, function(x) x[common_genes, , drop = FALSE])
+)
+
+metadata_all_matched <- cell_meta %>%
+  dplyr::filter(bc %in% colnames(counts_all)) %>%
+  dplyr::arrange(match(bc, colnames(counts_all))) %>%
+  as.data.frame()
+
+counts_all <- counts_all[, metadata_all_matched$bc, drop = FALSE]
+rownames(metadata_all_matched) <- metadata_all_matched$bc
+
+stopifnot(identical(colnames(counts_all), rownames(metadata_all_matched)))
+
+amrute <- CreateSeuratObject(
+  counts = counts_all,
+  meta.data = metadata_all_matched,
+  project = "Amrute_2024"
+)
+
+amrute$percent.mt <- PercentageFeatureSet(amrute, pattern = "^MT-")
+amrute$Dataset <- factor(amrute$Dataset, levels = "Amrute")
+amrute$Group <- factor(amrute$Group, levels = etiology_levels)
+amrute$HF.etiology <- factor(amrute$HF.etiology, levels = etiology_levels)
+amrute$Disease_status <- factor(amrute$Disease_status, levels = c("HC", "Disease"))
+
+amrute@meta.data %>%
+  dplyr::count(HF.etiology, celltype, sort = TRUE) %>%
+  reactable::reactable()
+```
+
+```{r save full seurat object, eval=FALSE}
+qs_save(
+  amrute,
+  file = here::here(output_dir_data, "amrute_full.qs2"),
+  nthreads = 32
+)
+```
+
+## Subset fibroblasts
+
+```{r subset fibroblasts}
+amrute_fb <- subset(amrute, subset = celltype == "Fibroblast")
+
+rm(amrute, counts_all, counts_list)
+gc()
+
+amrute_fb <- RenameCells(amrute_fb, add.cell.id = "Amrute")
+amrute_fb$Dataset <- factor(amrute_fb$Dataset, levels = "Amrute")
+amrute_fb$Group <- factor(amrute_fb$Group, levels = etiology_levels)
+amrute_fb$HF.etiology <- factor(amrute_fb$HF.etiology, levels = etiology_levels)
+amrute_fb$Disease_status <- factor(amrute_fb$Disease_status, levels = c("HC", "Disease"))
+amrute_fb$Sample <- amrute_fb$sample
+
+amrute_fb@meta.data %>%
+  dplyr::count(HF.etiology, Sample, name = "n_fibroblast_cells") %>%
+  dplyr::arrange(HF.etiology, Sample) %>%
+  reactable::reactable()
+```
+
+## Basic RNA normalization and QC
+
+```{r normalize fibroblasts}
+DefaultAssay(amrute_fb) <- "RNA"
+
+amrute_fb <- NormalizeData(amrute_fb, verbose = FALSE)
+```
+
+```{r qc violin fibroblasts, fig.width=9, fig.height=4}
+VlnPlot(
+  amrute_fb,
+  features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
+  group.by = "HF.etiology",
+  cols = etiology_cols,
+  pt.size = 0,
+  ncol = 3
+)
+```
+
+## SCTransform by sample
+
+```{r sctransform fibroblasts by sample}
+DefaultAssay(amrute_fb) <- "RNA"
+FB_list <- SplitObject(amrute_fb, split.by = "Sample")
+
+for (i in seq_along(FB_list)) {
+  FB_list[[i]] <- SCTransform(
+    FB_list[[i]],
+    vst.flavor = "v2",
+    vars.to.regress = "percent.mt",
+    return.only.var.genes = TRUE,
+    variable.features.n = 3000,
+    min_cells = 0,
+    verbose = FALSE
+  )
+}
+
+features_fb <- SelectIntegrationFeatures(object.list = FB_list, nfeatures = 3000)
+
+if (length(FB_list) == 1) {
+  FB_combined <- FB_list[[1]]
+} else {
+  FB_combined <- merge(
+    x = FB_list[[1]],
+    y = FB_list[2:length(FB_list)],
+    merge.data = TRUE
+  )
+}
+
+VariableFeatures(FB_combined) <- features_fb
+rm(FB_list, amrute_fb)
+gc()
+```
+
+## PCA
+
+```{r pca fibroblasts combined, fig.width=6, fig.height=4}
+FB_combined <- RunPCA(FB_combined, npcs = 50, verbose = FALSE)
+ElbowPlot(FB_combined, ndims = 50)
+```
+
+## Harmony integration by sample before contamination removal
+
+```{r harmony fibroblasts combined raw}
+DefaultAssay(FB_combined) <- "SCT"
+
+FB_combined <- harmony::RunHarmony(
+  object = FB_combined,
+  assay.use = "SCT",
+  group.by.vars = "Sample",
+  dims.use = 1:50,
+  plot_convergence = TRUE,
+  .options = harmony::harmony_options(max.iter.cluster = 100)
+)
+```
+
+```{r remove old sct resolutions raw}
+resolutions_to_keep <- paste0("SCT_snn_res.", c("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8"))
+
+sct_res_cols <- grep("^SCT_snn[\\._]res\\.", colnames(FB_combined@meta.data), value = TRUE)
+cols_to_remove <- setdiff(sct_res_cols, resolutions_to_keep)
+
+if (length(cols_to_remove) > 0) {
+  FB_combined@meta.data <- FB_combined@meta.data[, !colnames(FB_combined@meta.data) %in% cols_to_remove, drop = FALSE]
+}
+
+grep("^SCT_snn[\\._]res\\.", colnames(FB_combined@meta.data), value = TRUE)
+```
+
+## Clustering before contamination removal
+
+```{r clustering fibroblasts combined raw}
+DefaultAssay(FB_combined) <- "SCT"
+
+FB_combined <- RunUMAP(
+  FB_combined,
+  reduction = "harmony",
+  dims = 1:30,
+  reduction.name = "umap",
+  reduction.key = "UMAP_"
+)
+
+FB_combined <- FindNeighbors(
+  FB_combined,
+  reduction = "harmony",
+  dims = 1:30
+)
+
+FB_combined <- FindClusters(
+  FB_combined,
+  resolution = seq(0.1, 0.8, by = 0.1)
+)
+
+Idents(FB_combined) <- "SCT_snn_res.0.3"
+```
+
+```{r clustree raw, fig.width=8, fig.height=10}
+clustree::clustree(
+  FB_combined@meta.data[, grep("SCT_snn_res", colnames(FB_combined@meta.data))],
+  prefix = "SCT_snn_res."
+)
+```
+
+## UMAPs before contamination removal
+
+```{r umaps fibroblasts combined raw clusters, fig.width=11, fig.height=10}
+p1 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "SCT_snn_res.0.3",
+  label = TRUE,
+  repel = TRUE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle("Fibroblast subclusters, res 0.3") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p2 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "Sample",
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("Sample") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p3 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "HF.etiology",
+  cols = etiology_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("HF etiology") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p4 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  split.by = "HF.etiology",
+  group.by = "SCT_snn_res.0.3",
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 0.1,
+  raster = FALSE,
+  ncol = 2
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  )
+
+(p1 + p2) / (p3 + p4)
+```
+
+## Cluster markers before contamination removal
+
+```{r markers fibroblast raw clusters}
+DefaultAssay(FB_combined) <- "RNA"
+FB_combined <- NormalizeData(FB_combined, verbose = FALSE)
+Idents(FB_combined) <- "SCT_snn_res.0.3"
+
+FB_markers_raw_clusters <- FindAllMarkers(
+  FB_combined,
+  assay = "RNA",
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_raw_clusters <- FB_markers_raw_clusters %>%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_raw_clusters <- FB_markers_raw_clusters %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_top3_raw_clusters <- FB_markers_raw_clusters %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_raw_clusters %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_head(n = 20) %>%
+  reactable::reactable()
+```
+
+```{r write raw cluster markers, eval=TRUE}
+write.csv(
+  FB_markers_raw_clusters,
+  here::here(output_dir_data, "FB_markers_amrute_raw_res_0_3_all.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_raw_clusters,
+  here::here(output_dir_data, "FB_markers_amrute_raw_res_0_3_top10.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_raw_clusters,
+  here::here(output_dir_data, "FB_markers_amrute_raw_res_0_3_top3.csv"),
+  row.names = FALSE
+)
+```
+
+```{r heatmap top markers raw, fig.width=9, fig.height=7}
+DefaultAssay(FB_combined) <- "SCT"
+Idents(FB_combined) <- "SCT_snn_res.0.3"
+
+heatmap_cols <- colorRampPalette(RColorBrewer::brewer.pal(9, "RdBu"))(256)
+heatmap_cols <- rev(heatmap_cols[1:256])
+
+set.seed(123)
+cells_use_heatmap_raw <- colnames(FB_combined)
+if (length(cells_use_heatmap_raw) > 20000) {
+  cells_use_heatmap_raw <- sample(cells_use_heatmap_raw, 20000)
+}
+
+DoHeatmap(
+  subset(FB_combined, cells = cells_use_heatmap_raw),
+  label = TRUE,
+  draw.lines = FALSE,
+  features = unique(FB_markers_top10_raw_clusters$gene),
+  assay = "SCT",
+  size = 4
+) +
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(
+    text = element_text(size = 12),
+    axis.text.y = element_text(size = 8),
+    plot.margin = unit(c(0.2, 0, 0, 0), "inches")
+  ) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) +
+  guides(color = "none")
+```
+
+## QC genes before contamination removal
+
+```{r qc selected features raw, fig.height=5, fig.width=12}
+features_qc <- c("nCount_RNA", "nFeature_RNA", "percent.mt", "TTN", "PECAM1", "VWF")
+DefaultAssay(FB_combined) <- "RNA"
+Idents(FB_combined) <- "SCT_snn_res.0.3"
+
+VlnPlot_scCustom(
+  FB_combined,
+  features = features_qc,
+  num_columns = 3,
+  pt.size = 0,
+  colors_use = cell_type_cols
+) + theme(axis.title.x = element_blank())
+```
+
+## Flag contamination clusters at resolution 0.3
+
+Clusters 5 and 7 are flagged as contamination and removed before reclustering the cleaned fibroblast object.
+
+```{r flag contamination clusters res 0.3}
+FB_combined$cell_type_contamination <- dplyr::case_when(
+  FB_combined$SCT_snn_res.0.3 %in% c("5", "7") ~ "yes",
+  TRUE ~ "no"
+)
+
+FB_combined$cell_type_contamination <- factor(
+  FB_combined$cell_type_contamination,
+  levels = c("no", "yes")
+)
+
+table(FB_combined$SCT_snn_res.0.3, FB_combined$cell_type_contamination)
+```
+
+```{r UMAP contamination flag, fig.width=5.5, fig.height=5, dpi=300}
+DimPlot(
+  FB_combined,
+  group.by = "cell_type_contamination",
+  reduction = "umap",
+  cols = c("no" = "grey75", "yes" = "#A63A2A"),
+  label = FALSE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("Contamination flag before removal") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+```
+
+## Remove contamination clusters
+
+```{r remove contamination fibroblasts before reclustering}
+FB_combined_before_contamination_filter <- FB_combined
+
+FB_combined <- subset(
+  FB_combined,
+  cell_type_contamination == "no"
+)
+
+FB_combined$cell_type_contamination <- droplevels(FB_combined$cell_type_contamination)
+DefaultAssay(FB_combined) <- "SCT"
+
+# Remove pre-filter clustering columns so that the next clustree only shows the clean reclustering.
+sct_res_cols <- grep("^SCT_snn[\\._]res\\.", colnames(FB_combined@meta.data), value = TRUE)
+if (length(sct_res_cols) > 0) {
+  FB_combined@meta.data <- FB_combined@meta.data[, !colnames(FB_combined@meta.data) %in% sct_res_cols, drop = FALSE]
+}
+
+table(FB_combined$cell_type_contamination, FB_combined$HF.etiology)
+```
+
+## Harmony integration by sample after contamination removal
+
+```{r harmony fibroblasts combined cleaned}
+DefaultAssay(FB_combined) <- "SCT"
+
+FB_combined <- harmony::RunHarmony(
+  object = FB_combined,
+  assay.use = "SCT",
+  group.by.vars = "Sample",
+  dims.use = 1:50,
+  plot_convergence = TRUE,
+  reduction.save = "harmony",
+  .options = harmony::harmony_options(max.iter.cluster = 100)
+)
+```
+
+## Reclustering after contamination removal
+
+```{r clustering fibroblasts combined cleaned}
+DefaultAssay(FB_combined) <- "SCT"
+
+FB_combined <- RunUMAP(
+  FB_combined,
+  reduction = "harmony",
+  dims = 1:30,
+  reduction.name = "umap",
+)
+
+FB_combined <- FindNeighbors(
+  FB_combined,
+  reduction = "harmony",
+  dims = 1:30
+)
+
+FB_combined <- FindClusters(
+  FB_combined,
+  resolution = seq(0.1, 0.8, by = 0.1)
+)
+
+Idents(FB_combined) <- "SCT_snn_res.0.3"
+```
+
+```{r clustree cleaned, fig.width=8, fig.height=10}
+clustree::clustree(
+  FB_combined@meta.data[, grep("SCT_snn_res", colnames(FB_combined@meta.data))],
+  prefix = "SCT_snn_res."
+)
+```
+
+## UMAPs after reclustering cleaned fibroblasts
+
+```{r umaps fibroblasts cleaned clusters, fig.width=11, fig.height=10}
+p1 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "SCT_snn_res.0.3",
+  label = TRUE,
+  repel = TRUE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle("Fibroblast subclusters, res 0.3") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p2 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "Sample",
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("Sample") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p3 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "HF.etiology",
+  cols = etiology_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("HF etiology") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p4 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  split.by = "HF.etiology",
+  group.by = "SCT_snn_res.0.3",
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 0.1,
+  raster = FALSE,
+  ncol = 2
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  )
+
+(p1 + p2) / (p3 + p4)
+```
+
+## Annotate final fibroblast cell types after reclustering
+
+```{r annotate fibroblast cell types cleaned reclustered res 0.3}
+DefaultAssay(FB_combined) <- "SCT"
+Idents(FB_combined) <- "SCT_snn_res.0.3"
+
+clean_clusters <- levels(factor(FB_combined$SCT_snn_res.0.3))
+clean_clusters <- clean_clusters[order(as.numeric(clean_clusters))]
+clean_cluster_map <- setNames(paste0("FB", seq_along(clean_clusters)), clean_clusters)
+
+FB_combined$cell_type <- unname(clean_cluster_map[as.character(FB_combined$SCT_snn_res.0.3)])
+FB_combined$cell_type <- factor(
+  FB_combined$cell_type,
+  levels = paste0("FB", seq_along(clean_clusters))
+)
+
+Idents(FB_combined) <- "cell_type"
+
+table(FB_combined$SCT_snn_res.0.3, FB_combined$cell_type)
+table(FB_combined$cell_type, FB_combined$HF.etiology)
+```
+
+```{r UMAP cell types cleaned reclustered, fig.width=4.2, fig.height=4, dpi=300}
+p <- DimPlot(
+  FB_combined,
+  group.by = "cell_type",
+  reduction = "umap",
+  cols = cell_type_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle(expression(italic("Amrute et al.") ~ " Nature CVR 2024")) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+LabelClusters(
+  p,
+  id = "cell_type",
+  fontface = "bold",
+  size = 5,
+  repel = TRUE
+)
+```
+
+```{r umap cleaned fibroblasts metadata reclustered, fig.width=11, fig.height=5}
+p1 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "Sample",
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("Sample") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p2 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "HF.etiology",
+  cols = etiology_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("HF etiology") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p1 + p2
+```
+
+## Cluster markers after contamination removal and reclustering
+
+```{r markers fibroblast cell types cleaned reclustered}
+DefaultAssay(FB_combined) <- "RNA"
+FB_combined <- NormalizeData(FB_combined, verbose = FALSE)
+Idents(FB_combined) <- "cell_type"
+
+FB_markers_combined <- FindAllMarkers(
+  FB_combined,
+  assay = "RNA",
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_combined <- FB_markers_combined %>%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_combined <- FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_top3_combined <- FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_head(n = 20) %>%
+  reactable::reactable()
+```
+
+```{r write cluster markers cleaned reclustered, eval=TRUE}
+write.csv(
+  FB_markers_combined,
+  here::here(output_dir_data, "FB_markers_amrute_cleaned_reclustered_cell_type_all.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_combined,
+  here::here(output_dir_data, "FB_markers_amrute_cleaned_reclustered_cell_type_top10.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_combined,
+  here::here(output_dir_data, "FB_markers_amrute_cleaned_reclustered_cell_type_top3.csv"),
+  row.names = FALSE
+)
+```
+
+```{r heatmap top markers cleaned reclustered, fig.width=9, fig.height=7}
+DefaultAssay(FB_combined) <- "SCT"
+Idents(FB_combined) <- "cell_type"
+
+heatmap_cols <- colorRampPalette(RColorBrewer::brewer.pal(9, "RdBu"))(256)
+heatmap_cols <- rev(heatmap_cols[1:256])
+
+set.seed(123)
+cells_use_heatmap <- colnames(FB_combined)
+if (length(cells_use_heatmap) > 20000) {
+  cells_use_heatmap <- sample(cells_use_heatmap, 20000)
+}
+
+DoHeatmap(
+  subset(FB_combined, cells = cells_use_heatmap),
+  label = TRUE,
+  draw.lines = FALSE,
+  features = unique(FB_markers_top10_combined$gene),
+  assay = "SCT",
+  size = 4
+) +
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(
+    text = element_text(size = 12),
+    axis.text.y = element_text(size = 8),
+    plot.margin = unit(c(0.2, 0, 0, 0), "inches")
+  ) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) +
+  guides(color = "none")
+```
+
+## QC genes after contamination removal and reclustering
+
+```{r qc selected features cleaned reclustered, fig.height=5, fig.width=12}
+features_qc <- c("nCount_RNA", "nFeature_RNA", "percent.mt", "TTN", "PECAM1", "VWF")
+DefaultAssay(FB_combined) <- "RNA"
+Idents(FB_combined) <- "cell_type"
+
+VlnPlot_scCustom(
+  FB_combined,
+  features = features_qc,
+  num_columns = 3,
+  pt.size = 0,
+  colors_use = cell_type_cols
+) + theme(axis.title.x = element_blank())
+```
+
+```{r dotplot top markers cleaned reclustered, fig.width=7, fig.height=4}
+id_backup <- Idents(FB_combined)
+Idents(FB_combined) <- factor(Idents(FB_combined), levels = rev(levels(Idents(FB_combined))))
+
+p_dot <- DotPlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  x_lab_rotate = TRUE
+)
+
+p_dot + theme(
+  axis.text.x = element_text(size = 11, angle = 60, vjust = 1, hjust = 1),
+  axis.text.y = element_text(size = 12)
+)
+
+Idents(FB_combined) <- id_backup
+```
+
+```{r featureplot top marker genes cleaned reclustered, fig.width=12, fig.height=16}
+DefaultAssay(FB_combined) <- "RNA"
+
+FeaturePlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  num_columns = 3,
+  order = TRUE
+)
+```
+
+
+## Marker features on cleaned integrated fibroblasts
+
+```{r selected marker featureplots cleaned, fig.width=8.4, fig.height=8}
+DefaultAssay(FB_combined) <- "SCT"
+
+matrifibrocyte_genes_present <- matrifibrocyte_genes[
+  matrifibrocyte_genes %in% rownames(FB_combined)
+]
+
+FeaturePlot(
+  FB_combined,
+  features = matrifibrocyte_genes_present,
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  ncol = 2,
+  raster = FALSE
+)+
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r featureplot ACTA2 cleaned, fig.width=4.2, fig.height=4, dpi=300}
+FeaturePlot(
+  FB_combined,
+  features = "ACTA2",
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  raster = FALSE
+) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r featureplot MXRA5 cleaned, fig.width=4.2, fig.height=4, dpi=300}
+FeaturePlot(
+  FB_combined,
+  features = "MXRA5",
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  raster = FALSE
+) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+## Matrifibrocyte score on cleaned integrated fibroblasts
+
+```{r add matrifibrocyte score cleaned}
+DefaultAssay(FB_combined) <- "SCT"
+
+if (length(matrifibrocyte_genes_present) == 0) {
+  stop("None of the matrifibrocyte genes were found in the integrated object.")
+}
+
+if ("Matrifibrocyte_score" %in% colnames(FB_combined@meta.data)) {
+  FB_combined$Matrifibrocyte_score <- NULL
+}
+if ("Matrifibrocyte_score1" %in% colnames(FB_combined@meta.data)) {
+  FB_combined$Matrifibrocyte_score1 <- NULL
+}
+
+FB_combined <- AddModuleScore(
+  object = FB_combined,
+  features = list(matrifibrocyte_genes_present),
+  name = "Matrifibrocyte_score",
+  assay = "SCT",
+  slot = "data",
+  ctrl = 25,
+  nbin = 24,
+  seed = 1
+)
+
+FB_combined$Matrifibrocyte_score <- FB_combined$Matrifibrocyte_score1
+FB_combined$Matrifibrocyte_score1 <- NULL
+```
+
+```{r feature plot matrifibrocyte score cleaned, fig.width=4.2, fig.height=4, dpi=300}
+FeaturePlot(
+  FB_combined,
+  features = "Matrifibrocyte_score",
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  raster = FALSE
+) +
+  ggtitle("Matrifibrocyte score") +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r violin matrifibrocyte genes by cell type cleaned alpha dots, fig.width=12, fig.height=2.8, dpi=300}
+Idents(FB_combined) <- "cell_type"
+
+p_list <- VlnPlot(
+  FB_combined,
+  features = matrifibrocyte_genes_present,
+  group.by = "cell_type",
+  assay = "RNA",
+  cols = cell_type_cols,
+  pt.size = 0.001,
+  add.noise = FALSE,
+  ncol = length(matrifibrocyte_genes_present),
+  combine = FALSE
+)
+
+p_list <- lapply(p_list, function(p) {
+  for (j in seq_along(p$layers)) {
+    geom_name <- class(p$layers[[j]]$geom)[1]
+
+    if (geom_name %in% c("GeomPoint", "GeomJitter")) {
+      p$layers[[j]]$aes_params$alpha <- 0.1
+      p$layers[[j]]$aes_params$colour <- scales::alpha("black", 0.01)
+    }
+  }
+
+  p +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", size = 12),
+      axis.text.y = element_text(face = "bold", size = 10),
+      axis.title.y = element_text(face = "bold"),
+      axis.title.x = element_blank(),
+      strip.text = element_text(face = "bold"),
+      legend.position = "none"
+    )
+})
+
+wrap_plots(p_list, ncol = length(p_list))
+```
+
+```{r violin ACTA2 by cell type cleaned alpha dots, fig.width=3, fig.height=2.8, dpi=300}
+Idents(FB_combined) <- "cell_type"
+
+p_acta2 <- VlnPlot(
+  FB_combined,
+  features = "ACTA2",
+  assay = "RNA",
+  group.by = "cell_type",
+  cols = cell_type_cols,
+  pt.size = 0.001,
+  add.noise = FALSE
+)
+
+for (j in seq_along(p_acta2$layers)) {
+  geom_name <- class(p_acta2$layers[[j]]$geom)[1]
+
+  if (geom_name %in% c("GeomPoint", "GeomJitter")) {
+    p_acta2$layers[[j]]$aes_params$alpha <- 0.1
+    p_acta2$layers[[j]]$aes_params$colour <- scales::alpha("black", 0.01)
+  }
+}
+
+p_acta2 +
+  ggtitle("ACTA2") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", size = 12),
+    axis.text.y = element_text(face = "bold", size = 10),
+    axis.title.y = element_text(face = "bold"),
+    axis.title.x = element_blank(),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+
+```
+
+```{r violin MXRA5 by cell type cleaned alpha dots, fig.width=3, fig.height=2.8, dpi=300}
+Idents(FB_combined) <- "cell_type"
+
+p_mxra5 <- VlnPlot(
+  FB_combined,
+  features = "MXRA5",
+  assay = "RNA",
+  group.by = "cell_type",
+  cols = cell_type_cols,
+  pt.size = 0.001,
+  add.noise = FALSE
+)
+
+for (j in seq_along(p_mxra5$layers)) {
+  geom_name <- class(p_mxra5$layers[[j]]$geom)[1]
+
+  if (geom_name %in% c("GeomPoint", "GeomJitter")) {
+    p_mxra5$layers[[j]]$aes_params$alpha <- 0.1
+    p_mxra5$layers[[j]]$aes_params$colour <- scales::alpha("black", 0.01)
+  }
+}
+
+p_mxra5 +
+  ggtitle("MXRA5") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", size = 12),
+    axis.text.y = element_text(face = "bold", size = 10),
+    axis.title.y = element_text(face = "bold"),
+    axis.title.x = element_blank(),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+```
+
+```{r violin matrifibrocyte score by cell type cleaned alpha dots, fig.width=3, fig.height=2.8, dpi=300}
+Idents(FB_combined) <- "cell_type"
+
+p_score <- VlnPlot(
+  FB_combined,
+  features = "Matrifibrocyte_score",
+  group.by = "cell_type",
+  cols = cell_type_cols,
+  pt.size = 0.00,
+  add.noise = FALSE
+)
+
+for (j in seq_along(p_score$layers)) {
+  geom_name <- class(p_score$layers[[j]]$geom)[1]
+
+  if (geom_name %in% c("GeomPoint", "GeomJitter")) {
+    p_score$layers[[j]]$aes_params$alpha <- 0.1
+    p_score$layers[[j]]$aes_params$colour <- scales::alpha("black", 0.01)
+  }
+}
+
+p_score +
+  ggtitle("Matrifibrocyte score") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", size = 12),
+    axis.text.y = element_text(face = "bold", size = 10),
+    axis.title.y = element_text(face = "bold"),
+    axis.title.x = element_blank(),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+```
+
+```{r dotplot selected genes by cell type cleaned flipped, fig.width=8, fig.height=4, dpi=300}
+DefaultAssay(FB_combined) <- "SCT"
+Idents(FB_combined) <- "cell_type"
+
+DotPlot(
+  FB_combined,
+  dot.scale = 13,
+  features = matrifibrocyte_genes,
+  assay = "SCT",
+  cols = c("grey90", "#A63A2A")
+) +
+  coord_flip() +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(face = "bold", size = 19),
+    axis.text.y = element_text(face = "bold", size = 19),
+    axis.title = element_blank(),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+## Cell-type proportions by HF etiology
+
+```{r cell type proportions metadata cleaned}
+cluster_var <- "cell_type"
+
+prop_df <- FB_combined@meta.data %>%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %>%
+  dplyr::count(HF.etiology, Sample, cluster, name = "n") %>%
+  dplyr::group_by(HF.etiology, Sample) %>%
+  dplyr::mutate(
+    total_n = sum(n),
+    freq = n / total_n
+  ) %>%
+  dplyr::ungroup()
+
+prop_df$cluster <- factor(
+  prop_df$cluster,
+  levels = levels(FB_combined$cell_type)
+)
+
+prop_df$HF.etiology <- factor(as.character(prop_df$HF.etiology), levels = etiology_levels)
+```
+
+```{r cell type proportions by etiology cleaned, fig.width=8, fig.height=3, dpi=300}
+pd  <- position_dodge(width = 0.75)
+pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+ggplot(prop_df, aes(x = cluster, y = freq, fill = HF.etiology)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8, width = 0.7, position = pd) +
+  geom_point(position = pjd, size = 0.8, alpha = 0.7, shape = 16) +
+  scale_fill_manual(values = etiology_cols, drop = FALSE) +
+  labs(x = "Cell type", y = "Fraction of fibroblast cells") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_blank()
+  )
+```
+
+## Pseudobulk fibroblasts by sample after contamination removal
+
+```{r pseudobulk fibroblasts cleaned}
+DefaultAssay(FB_combined) <- "RNA"
+counts_fb <- GetAssayData(FB_combined, assay = "RNA", slot = "counts")
+metadata_fb_matched <- FB_combined@meta.data %>%
+  tibble::rownames_to_column("cell")
+
+sample_vec <- metadata_fb_matched$Sample
+sample_levels <- unique(sample_vec)
+
+counts_pb <- do.call(
+  cbind,
+  lapply(sample_levels, function(sid) {
+    Matrix::rowSums(counts_fb[, sample_vec == sid, drop = FALSE])
+  })
+)
+
+counts_pb <- methods::as(counts_pb, "dgCMatrix")
+rownames(counts_pb) <- rownames(counts_fb)
+colnames(counts_pb) <- sample_levels
+
+sample_meta <- metadata_fb_matched %>%
+  dplyr::select(Sample, sample, HF.etiology, Group, Disease_status, Dataset, dplyr::any_of(c("Race", "Sex", "Age"))) %>%
+  dplyr::distinct() %>%
+  dplyr::arrange(match(Sample, colnames(counts_pb)))
+
+sample_meta$n_fibroblast_cells <- as.numeric(
+  table(factor(sample_vec, levels = colnames(counts_pb)))[sample_meta$Sample]
+)
+sample_meta$libsize <- Matrix::colSums(counts_pb)[sample_meta$Sample]
+
+sample_meta <- sample_meta %>%
+  dplyr::filter(
+    libsize >= min_pb_libsize,
+    n_fibroblast_cells >= min_fibroblast_cells
+  )
+
+counts_pb <- counts_pb[, sample_meta$Sample, drop = FALSE]
+
+sample_meta$HF.etiology <- factor(as.character(sample_meta$HF.etiology), levels = etiology_levels)
+sample_meta$Group <- factor(as.character(sample_meta$Group), levels = etiology_levels)
+sample_meta$Disease_status <- factor(as.character(sample_meta$Disease_status), levels = c("HC", "Disease"))
+rownames(sample_meta) <- sample_meta$Sample
+
+write.csv(
+  sample_meta,
+  file.path(
+    output_dir_data,
+    paste0(
+      "cleaned_fibroblast_pseudobulk_sample_metadata_min_libsize_",
+      min_pb_libsize,
+      "_min_fibroblast_cells_",
+      min_fibroblast_cells,
+      ".csv"
+    )
+  ),
+  row.names = FALSE
+)
+
+sample_meta %>%
+  dplyr::count(HF.etiology, name = "n_samples")
+
+sample_meta %>% reactable::reactable()
+```
+
+## logCPM normalization and pseudobulk scores
+
+```{r logcpm normalization cleaned}
+dge <- edgeR::DGEList(counts = counts_pb)
+dge <- edgeR::calcNormFactors(dge)
+logcpm <- edgeR::cpm(dge, log = TRUE, prior.count = 1)
+
+genes_present <- intersect(matrifibrocyte_genes, rownames(logcpm))
+missing_genes <- setdiff(matrifibrocyte_genes, rownames(logcpm))
+
+extra_pseudobulk_genes <- c("ACTA2", "MXRA5")
+extra_pseudobulk_genes_present <- intersect(extra_pseudobulk_genes, rownames(logcpm))
+mxra5_present <- "MXRA5" %in% rownames(logcpm)
+
+genes_present
+missing_genes
+extra_pseudobulk_genes_present
+
+if (length(genes_present) == 0) {
+  stop("None of the matrifibrocyte genes were found in the RNA matrix.")
+}
+
+matrifibrocyte_z <- t(scale(t(logcpm[genes_present, , drop = FALSE])))
+matrifibrocyte_pb_score <- colMeans(matrifibrocyte_z, na.rm = TRUE)
+```
+
+```{r gene and score expression table cleaned}
+genes_for_plot <- unique(c(genes_present, extra_pseudobulk_genes_present))
+
+gene_plot_df <- logcpm[genes_for_plot, , drop = FALSE] %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("gene") %>%
+  tidyr::pivot_longer(cols = -gene, names_to = "Sample", values_to = "logCPM") %>%
+  dplyr::left_join(sample_meta, by = "Sample") %>%
+  dplyr::mutate(
+    gene = factor(gene, levels = unique(c(matrifibrocyte_genes, extra_pseudobulk_genes))),
+    HF.etiology = factor(as.character(HF.etiology), levels = etiology_levels),
+    Disease_status = factor(as.character(Disease_status), levels = c("HC", "Disease"))
+  )
+
+score_plot_df <- tibble::tibble(
+  Sample = names(matrifibrocyte_pb_score),
+  Matrifibrocyte_score = as.numeric(matrifibrocyte_pb_score)
+) %>%
+  dplyr::left_join(sample_meta, by = "Sample") %>%
+  dplyr::mutate(
+    HF.etiology = factor(as.character(HF.etiology), levels = etiology_levels),
+    Disease_status = factor(as.character(Disease_status), levels = c("HC", "Disease"))
+  )
+
+write.csv(
+  gene_plot_df,
+  file.path(
+    output_dir_data,
+    paste0(
+      "cleaned_fibroblast_pseudobulk_logCPM_selected_genes_min_libsize_",
+      min_pb_libsize,
+      "_min_fibroblast_cells_",
+      min_fibroblast_cells,
+      ".csv"
+    )
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  score_plot_df,
+  file.path(
+    output_dir_data,
+    paste0(
+      "cleaned_fibroblast_pseudobulk_matrifibrocyte_score_min_libsize_",
+      min_pb_libsize,
+      "_min_fibroblast_cells_",
+      min_fibroblast_cells,
+      ".csv"
+    )
+  ),
+  row.names = FALSE
+)
+```
+
+## limma comparisons across HF etiology groups
+
+This model is intentionally simple: `gene ~ 0 + HF.etiology`. The contrasts include each disease group versus Donor and all pairwise disease-group comparisons. No pooled HC versus disease plot is generated.
+
+```{r limma gene comparisons cleaned}
+model_meta <- sample_meta %>%
+  dplyr::filter(!is.na(HF.etiology))
+
+model_meta$HF.etiology <- droplevels(
+  factor(as.character(model_meta$HF.etiology), levels = etiology_levels)
+)
+
+feature_mat <- logcpm[genes_for_plot, model_meta$Sample, drop = FALSE]
+
+if (length(unique(model_meta$HF.etiology)) < 2) {
+  stop("Fewer than two HF.etiology groups remain after filtering.")
+}
+
+design <- model.matrix(~ 0 + HF.etiology, data = model_meta)
+colnames(design) <- gsub("^HF.etiology", "", colnames(design))
+
+contrast_strings <- c(
+  "ICM_vs_Donor" = "ICM - Donor",
+  "NICM_vs_Donor" = "NICM - Donor",
+  "AMI_vs_Donor" = "AMI - Donor",
+  "ICM_vs_NICM" = "ICM - NICM",
+  "AMI_vs_ICM" = "AMI - ICM",
+  "AMI_vs_NICM" = "AMI - NICM"
+)
+
+contrast_strings <- contrast_strings[vapply(contrast_strings, function(x) {
+  groups_needed <- trimws(unlist(strsplit(x, "-")))
+  all(groups_needed %in% colnames(design))
+}, logical(1))]
+
+contrast_matrix <- limma::makeContrasts(
+  contrasts = contrast_strings,
+  levels = design
+)
+
+fit <- limma::lmFit(feature_mat, design)
+fit2 <- limma::contrasts.fit(fit, contrast_matrix)
+fit2 <- limma::eBayes(fit2)
+
+limma_results <- dplyr::bind_rows(lapply(colnames(contrast_matrix), function(contrast_name) {
+  limma::topTable(
+    fit2,
+    coef = contrast_name,
+    number = Inf,
+    sort.by = "none"
+  ) %>%
+    tibble::rownames_to_column("gene") %>%
+    dplyr::rename(
+      coefficient_logFC = logFC,
+      raw_p_value = P.Value,
+      FDR_BH_within_contrast = adj.P.Val,
+      B_statistic = B
+    ) %>%
+    dplyr::mutate(
+      comparison = contrast_name,
+      model_formula = "gene_logCPM ~ 0 + HF.etiology",
+      min_pb_libsize = min_pb_libsize,
+      min_fibroblast_cells = min_fibroblast_cells,
+      n_samples_used = nrow(model_meta),
+      samples_used = paste(model_meta$Sample, collapse = ";")
+    )
+})) %>%
+  dplyr::select(
+    comparison,
+    gene,
+    coefficient_logFC,
+    AveExpr,
+    t,
+    raw_p_value,
+    FDR_BH_within_contrast,
+    B_statistic,
+    model_formula,
+    min_pb_libsize,
+    min_fibroblast_cells,
+    n_samples_used,
+    samples_used,
+    dplyr::everything()
+  )
+
+write.csv(
+  limma_results,
+  file.path(
+    output_dir_data,
+    paste0(
+      "cleaned_fibroblast_selected_genes_limma_HF_etiology_contrasts_min_libsize_",
+      min_pb_libsize,
+      "_min_fibroblast_cells_",
+      min_fibroblast_cells,
+      ".csv"
+    )
+  ),
+  row.names = FALSE
+)
+
+limma_results %>% reactable::reactable()
+```
+
+## Simple score comparisons
+
+```{r score comparisons cleaned}
+score_mat <- matrix(
+  score_plot_df$Matrifibrocyte_score,
+  nrow = 1,
+  dimnames = list("Matrifibrocyte_score", score_plot_df$Sample)
+)
+
+score_model_meta <- score_plot_df %>%
+  dplyr::filter(Sample %in% colnames(score_mat))
+
+score_mat <- score_mat[, score_model_meta$Sample, drop = FALSE]
+score_design <- model.matrix(~ 0 + HF.etiology, data = score_model_meta)
+colnames(score_design) <- gsub("^HF.etiology", "", colnames(score_design))
+
+score_contrast_strings <- contrast_strings[vapply(contrast_strings, function(x) {
+  groups_needed <- trimws(unlist(strsplit(x, "-")))
+  all(groups_needed %in% colnames(score_design))
+}, logical(1))]
+
+score_contrast_matrix <- limma::makeContrasts(
+  contrasts = score_contrast_strings,
+  levels = score_design
+)
+
+score_fit <- limma::lmFit(score_mat, score_design)
+score_fit2 <- limma::contrasts.fit(score_fit, score_contrast_matrix)
+score_fit2 <- limma::eBayes(score_fit2)
+
+score_limma_results <- dplyr::bind_rows(lapply(colnames(score_contrast_matrix), function(contrast_name) {
+  limma::topTable(
+    score_fit2,
+    coef = contrast_name,
+    number = Inf,
+    sort.by = "none"
+  ) %>%
+    tibble::rownames_to_column("feature") %>%
+    dplyr::rename(
+      coefficient_logFC = logFC,
+      raw_p_value = P.Value,
+      FDR_BH_within_contrast = adj.P.Val,
+      B_statistic = B
+    ) %>%
+    dplyr::mutate(
+      comparison = contrast_name,
+      model_formula = "pseudobulk_score ~ 0 + HF.etiology",
+      n_samples_used = nrow(score_model_meta)
+    )
+}))
+
+write.csv(
+  score_limma_results,
+  file.path(
+    output_dir_data,
+    paste0(
+      "cleaned_fibroblast_matrifibrocyte_score_limma_HF_etiology_contrasts_min_libsize_",
+      min_pb_libsize,
+      "_min_fibroblast_cells_",
+      min_fibroblast_cells,
+      ".csv"
+    )
+  ),
+  row.names = FALSE
+)
+
+score_limma_results %>% reactable::reactable()
+```
+
+## Boxplots of pseudobulk matrifibrocyte genes with all comparison lines and FDR labels
+
+```{r boxplots matrifibrocyte genes cleaned, fig.width=9, fig.height=3.5}
+comparison_map <- tibble::tibble(
+  comparison = c(
+    "ICM_vs_Donor",
+    "NICM_vs_Donor",
+    "AMI_vs_Donor",
+    "ICM_vs_NICM",
+    "AMI_vs_ICM",
+    "AMI_vs_NICM"
+  ),
+  x = c(1, 1, 1, 2, 2, 3),
+  xend = c(2, 3, 4, 3, 4, 4)
+)
+
+gene_plot_df_mf <- gene_plot_df %>%
+  dplyr::filter(gene %in% matrifibrocyte_genes)
+
+gene_ypos <- gene_plot_df_mf %>%
+  dplyr::group_by(gene) %>%
+  dplyr::summarise(
+    y_min = min(logCPM, na.rm = TRUE),
+    y_max = max(logCPM, na.rm = TRUE),
+    y_range = y_max - y_min,
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(y_range = dplyr::if_else(y_range == 0, 1, y_range))
+
+stat_annot_df <- limma_results %>%
+  dplyr::filter(gene %in% matrifibrocyte_genes) %>%
+  dplyr::left_join(comparison_map, by = "comparison") %>%
+  dplyr::filter(!is.na(x), !is.na(xend)) %>%
+  dplyr::left_join(gene_ypos, by = "gene") %>%
+  dplyr::mutate(
+    label = vapply(FDR_BH_within_contrast, get_fdr_label, character(1)),
+    is_sig = !is.na(FDR_BH_within_contrast) & FDR_BH_within_contrast < 0.1,
+    span = xend - x
+  ) %>%
+  dplyr::filter(is_sig) %>%
+  dplyr::group_by(gene) %>%
+  dplyr::arrange(span, x, xend, .by_group = TRUE) %>%
+  dplyr::mutate(
+    stack_id = dplyr::row_number(),
+    line_y = y_max + (0.12 + 0.15 * (stack_id - 1)) * y_range,
+    tick_height = 0.035 * y_range,
+    label_y = line_y + 0.055 * y_range
+  ) %>%
+  dplyr::ungroup()
+
+ggplot(gene_plot_df_mf, aes(x = HF.etiology, y = logCPM, fill = HF.etiology)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, color = "black", linewidth = 0.45) +
+  geom_jitter(width = 0.12, size = 1.9, alpha = 0.9, color = "black") +
+  geom_segment(
+    data = stat_annot_df,
+    aes(x = x, xend = xend, y = line_y, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = stat_annot_df,
+    aes(x = x, xend = x, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = stat_annot_df,
+    aes(x = xend, xend = xend, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_text(
+    data = stat_annot_df,
+    aes(x = (x + xend) / 2, y = label_y, label = label),
+    inherit.aes = FALSE,
+    size = 3.0,
+    fontface = "bold"
+  ) +
+  facet_wrap(~gene, scales = "free_y", nrow = 1) +
+  scale_fill_manual(values = etiology_cols, drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = "Matrifibrocyte markers",
+    x = NULL,
+    y = "logCPM"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", color = "black"),
+    axis.text.y = element_text(color = "black"),
+    axis.title.y = element_text(face = "bold"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+## MXRA5 pseudobulk differences between HF etiology groups
+
+```{r boxplot MXRA5 pseudobulk cleaned, fig.width=3, fig.height=3.5}
+if (!mxra5_present) {
+  stop("MXRA5 was not found in the pseudobulk logCPM matrix.")
+}
+
+mxra5_plot_df <- gene_plot_df %>%
+  dplyr::filter(gene == "MXRA5")
+
+mxra5_ypos <- mxra5_plot_df %>%
+  dplyr::summarise(
+    y_min = min(logCPM, na.rm = TRUE),
+    y_max = max(logCPM, na.rm = TRUE),
+    y_range = y_max - y_min
+  ) %>%
+  dplyr::mutate(
+    y_range = dplyr::if_else(y_range == 0, 1, y_range)
+  )
+
+mxra5_annot_df <- limma_results %>%
+  dplyr::filter(gene == "MXRA5") %>%
+  dplyr::left_join(comparison_map, by = "comparison") %>%
+  dplyr::filter(!is.na(x), !is.na(xend)) %>%
+  dplyr::mutate(
+    label = vapply(FDR_BH_within_contrast, get_fdr_label, character(1)),
+    is_sig = !is.na(FDR_BH_within_contrast) & FDR_BH_within_contrast < 0.1,
+    span = xend - x
+  ) %>%
+  dplyr::filter(is_sig) %>%
+  dplyr::arrange(span, x, xend) %>%
+  dplyr::mutate(
+    stack_id = dplyr::row_number(),
+    line_y = mxra5_ypos$y_max + (0.12 + 0.15 * (stack_id - 1)) * mxra5_ypos$y_range,
+    tick_height = 0.035 * mxra5_ypos$y_range,
+    label_y = line_y + 0.055 * mxra5_ypos$y_range
+  )
+
+ggplot(mxra5_plot_df, aes(x = HF.etiology, y = logCPM, fill = HF.etiology)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, color = "black", linewidth = 0.45) +
+  geom_jitter(width = 0.12, size = 2.0, alpha = 0.9, color = "black") +
+  geom_segment(
+    data = mxra5_annot_df,
+    aes(x = x, xend = xend, y = line_y, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = mxra5_annot_df,
+    aes(x = x, xend = x, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = mxra5_annot_df,
+    aes(x = xend, xend = xend, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_text(
+    data = mxra5_annot_df,
+    aes(x = (x + xend) / 2, y = label_y, label = label),
+    inherit.aes = FALSE,
+    size = 3.0,
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = etiology_cols, drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = "MXRA5",
+    x = NULL,
+    y = "logCPM"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", color = "black"),
+    axis.text.y = element_text(color = "black"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+## Boxplot of pseudobulk matrifibrocyte score
+
+```{r boxplot matrifibrocyte score cleaned, fig.width=3, fig.height=3.5}
+score_ypos <- score_plot_df %>%
+  dplyr::summarise(
+    y_min = min(Matrifibrocyte_score, na.rm = TRUE),
+    y_max = max(Matrifibrocyte_score, na.rm = TRUE),
+    y_range = y_max - y_min
+  ) %>%
+  dplyr::mutate(
+    y_range = dplyr::if_else(y_range == 0, 1, y_range)
+  )
+
+score_annot_df <- score_limma_results %>%
+  dplyr::left_join(comparison_map, by = "comparison") %>%
+  dplyr::filter(!is.na(x), !is.na(xend)) %>%
+  dplyr::mutate(
+    label = vapply(FDR_BH_within_contrast, get_fdr_label, character(1)),
+    is_sig = !is.na(FDR_BH_within_contrast) & FDR_BH_within_contrast < 0.1,
+    span = xend - x
+  ) %>%
+  dplyr::filter(is_sig) %>%
+  dplyr::arrange(span, x, xend) %>%
+  dplyr::mutate(
+    stack_id = dplyr::row_number(),
+    line_y = score_ypos$y_max + (0.12 + 0.15 * (stack_id - 1)) * score_ypos$y_range,
+    tick_height = 0.035 * score_ypos$y_range,
+    label_y = line_y + 0.055 * score_ypos$y_range
+  )
+
+ggplot(score_plot_df, aes(x = HF.etiology, y = Matrifibrocyte_score, fill = HF.etiology)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, color = "black", linewidth = 0.45) +
+  geom_jitter(width = 0.12, size = 2.0, alpha = 0.9, color = "black") +
+  geom_segment(
+    data = score_annot_df,
+    aes(x = x, xend = xend, y = line_y, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = score_annot_df,
+    aes(x = x, xend = x, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = score_annot_df,
+    aes(x = xend, xend = xend, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_text(
+    data = score_annot_df,
+    aes(x = (x + xend) / 2, y = label_y, label = label),
+    inherit.aes = FALSE,
+    size = 3.0,
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = etiology_cols, drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = "Matrifibrocyte score",
+    x = NULL,
+    y = "Mean z-score of COMP/CILP/CHAD/THBS4"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", color = "black"),
+    axis.text.y = element_text(color = "black"),
+    axis.title.y = element_text(face = "bold", size = 11.7),
+    legend.position = "none"
+  )
+```
+
+```{r results tables cleaned}
+reactable::reactable(
+  dplyr::select(limma_results, -samples_used),
+  filterable = TRUE,
+  searchable = FALSE
+)
+
+reactable::reactable(
+  score_limma_results,
+  filterable = TRUE,
+  searchable = FALSE
+)
+```
+
+## Save cleaned integrated fibroblast object
+
+```{r save FB_combined final cleaned, eval=FALSE}
+DefaultAssay(FB_combined) <- "RNA"
+qs_save(
+  FB_combined,
+  file = here::here(output_dir_data, "amrute_fb_integrated_cleaned.qs2"),
+  nthreads = 32
+)
+```
