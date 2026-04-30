@@ -1,0 +1,1747 @@
+---
+title: "Proteomics PCA and cell-state composition"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source="fold-hide"}
+current_file <- "Proteomics_PCA_cell_state_composition"
+
+library(here)
+library(readr)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(magrittr)
+library(patchwork)
+library(pheatmap)
+library(scales)
+library(qs2)
+library(Seurat)
+library(matrixStats)
+library(OlinkAnalyze)
+library(reactable)
+library(ggrepel)
+library(purrr)
+library(stringr)
+
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+set.seed(20260430)
+```
+
+## Analysis choices
+
+```{r analysis choices}
+excluded_samples <- c("PK211", "P11", "PK69", "PK61", "PK63")
+allowed_etiology <- c("DCM", "DCM_LVNC")
+
+pcs_to_test <- 1:5
+pcs_to_plot <- 1:5
+n_pcs_scree <- 10
+top_n_loadings <- 20
+
+# Minimum number of matched proteomics samples in which a state must be present.
+# This keeps rare states such as B cells if present in at least 10 matched samples.
+min_samples_present <- 10
+
+pretty_var_names <- c(
+  Age_years = "Age (years)",
+  Sample_age_days = "Sample age (days)",
+  LVEF_percent = "LVEF (%)",
+  LVEDD_mm = "LVEDD (mm)",
+  TAPSE_mm = "TAPSE (mm)",
+  RVIT_mm = "RVIT (mm)",
+  sPAP_mmHg = "sPAP (mmHg)",
+  mPAP_mmHg = "mPAP (mmHg)",
+  PCW_mmHg = "PCW (mmHg)",
+  PVR_WU = "PVR (WU)",
+  BCA_mg_ml = "BCA (mg/ml)",
+  Batch = "Batch"
+)
+
+heat_cols <- colorRampPalette(c("#2166AC", "white", "#B2182B"))(100)
+```
+
+## Helper functions
+
+```{r helper functions}
+find_existing_file <- function(candidates) {
+  hit <- candidates[file.exists(candidates)][1]
+  if (length(hit) == 0 || is.na(hit)) return(NA_character_)
+  hit
+}
+
+read_olink_delim <- function(path) {
+  x <- suppressMessages(readr::read_delim(path, delim = "\t", col_types = readr::cols(), progress = FALSE))
+  if (ncol(x) <= 1) x <- suppressMessages(readr::read_delim(path, delim = ";", col_types = readr::cols(), progress = FALSE))
+  if (ncol(x) <= 1) x <- suppressMessages(readr::read_csv(path, col_types = readr::cols(), progress = FALSE))
+  x
+}
+
+simple_impute_for_pca <- function(mat) {
+  out <- as.matrix(mat)
+  global_floor <- suppressWarnings(stats::quantile(out, probs = 0.01, na.rm = TRUE))
+  if (!is.finite(global_floor)) global_floor <- 0
+
+  for (i in seq_len(nrow(out))) {
+    miss <- is.na(out[i, ]) | !is.finite(out[i, ])
+    if (!any(miss)) next
+
+    obs <- out[i, !miss]
+    if (length(obs) >= 3) {
+      mu <- mean(obs, na.rm = TRUE)
+      sdv <- stats::sd(obs, na.rm = TRUE)
+      if (!is.finite(sdv) || sdv == 0) sdv <- 0.3
+      out[i, miss] <- stats::rnorm(sum(miss), mean = mu - 1.8 * sdv, sd = max(0.05, 0.3 * sdv))
+    } else {
+      out[i, miss] <- global_floor
+    }
+  }
+
+  out[!is.finite(out)] <- global_floor
+  out
+}
+
+logit_prop <- function(x, eps = 0.001) {
+  x <- pmin(pmax(x, eps), 1 - eps)
+  log(x / (1 - x))
+}
+
+detect_sample_col <- function(obj) {
+  candidates <- c("Sample", "sample", "orig.ident")
+  hit <- candidates[candidates %in% colnames(obj@meta.data)][1]
+  if (length(hit) == 0 || is.na(hit)) {
+    stop("Could not detect a sample column. Check object metadata and set it manually.")
+  }
+  hit
+}
+
+detect_state_col <- function(obj) {
+  candidates <- c(
+    "cell_state", "subcluster", "cell_subtype", "cell_type_sub", "celltype_sub",
+    "annotation_sub", "state", "cell_type"
+  )
+  hit <- candidates[candidates %in% colnames(obj@meta.data)][1]
+  if (length(hit) == 0 || is.na(hit)) {
+    stop("Could not detect a state column. Check object metadata and set it manually.")
+  }
+  hit
+}
+
+run_pca_from_matrix <- function(expr_mat, meta_df, assay_label) {
+  sample_keep <- intersect(meta_df$Sample, colnames(expr_mat))
+
+  meta_df <- meta_df %>%
+    dplyr::filter(Sample %in% sample_keep) %>%
+    dplyr::slice(match(sample_keep, Sample))
+
+  expr_mat <- expr_mat[, meta_df$Sample, drop = FALSE]
+  expr_pca <- simple_impute_for_pca(expr_mat)
+
+  feature_sds <- matrixStats::rowSds(expr_pca, na.rm = TRUE)
+  keep_feature <- is.finite(feature_sds) & feature_sds > 0
+  expr_pca <- expr_pca[keep_feature, , drop = FALSE]
+
+  pca <- prcomp(t(expr_pca), center = TRUE, scale. = TRUE)
+  pvar <- 100 * (pca$sdev^2 / sum(pca$sdev^2))
+
+  scores <- as.data.frame(pca$x) %>%
+    tibble::rownames_to_column("Sample") %>%
+    dplyr::left_join(meta_df, by = "Sample") %>%
+    dplyr::mutate(assay = assay_label)
+
+  list(
+    pca = pca,
+    pvar = pvar,
+    scores = scores,
+    expr_pca = expr_pca,
+    meta = meta_df
+  )
+}
+
+make_scree_plot <- function(pca_list, assay_label, n_pcs = 10) {
+  n_pcs <- min(n_pcs, length(pca_list$pvar))
+
+  df <- tibble(
+    PC = factor(paste0("PC", seq_len(n_pcs)), levels = paste0("PC", seq_len(n_pcs))),
+    variance = pca_list$pvar[seq_len(n_pcs)],
+    cumulative = cumsum(pca_list$pvar[seq_len(n_pcs)])
+  )
+
+  ggplot(df, aes(x = PC, y = variance, group = 1)) +
+    geom_col() +
+    geom_line(aes(y = cumulative / max(cumulative) * max(variance))) +
+    geom_point(aes(y = cumulative / max(cumulative) * max(variance))) +
+    labs(
+      title = paste0(assay_label, " scree / elbow plot"),
+      x = NULL,
+      y = "% variance explained"
+    ) +
+    theme_classic(base_size = 12)
+}
+
+make_pca_plot <- function(pca_list, color_by, title_text) {
+  df <- pca_list$scores
+  pvar <- pca_list$pvar
+
+  if (!color_by %in% colnames(df)) {
+    return(
+      ggplot() +
+        annotate("text", x = 1, y = 1, label = paste0(color_by, " not available")) +
+        theme_void() +
+        ggtitle(title_text)
+    )
+  }
+
+  ggplot(df, aes(x = PC1, y = PC2, color = .data[[color_by]], label = Sample)) +
+    geom_point(size = 3) +
+    ggrepel::geom_text_repel(size = 2.5, max.overlaps = 30, show.legend = FALSE) +
+    labs(
+      title = title_text,
+      x = paste0("PC1 (", round(pvar[1], 1), "%)"),
+      y = paste0("PC2 (", round(pvar[2], 1), "%)"),
+      color = pretty_var_names[[color_by]] %||% color_by
+    ) +
+    theme_classic(base_size = 12)
+}
+
+get_top_pca_features <- function(pca_obj, pcs = 1:5, top_n = 20) {
+  loadings <- pca_obj$rotation[, paste0("PC", pcs), drop = FALSE]
+
+  purrr::map_dfr(seq_along(pcs), function(i) {
+    pc_name <- colnames(loadings)[i]
+    vals <- loadings[, i]
+
+    tibble(
+      feature = names(vals),
+      loading = as.numeric(vals),
+      abs_loading = abs(as.numeric(vals)),
+      PC = pc_name
+    ) %>%
+      dplyr::arrange(dplyr::desc(abs_loading)) %>%
+      dplyr::slice_head(n = top_n)
+  })
+}
+
+make_loading_heatmap <- function(pca_list, top_tbl, pc, title_text, annotation_col = NULL) {
+  feat <- top_tbl %>%
+    dplyr::filter(PC == pc) %>%
+    dplyr::arrange(dplyr::desc(abs_loading)) %>%
+    dplyr::pull(feature)
+
+  hm <- pca_list$expr_pca[feat, , drop = FALSE]
+  hm_z <- t(scale(t(hm)))
+  hm_z[is.nan(hm_z)] <- 0
+  hm_z[!is.finite(hm_z)] <- 0
+
+  row_lab <- top_tbl %>%
+    dplyr::filter(PC == pc) %>%
+    dplyr::mutate(label = paste0(feature, " (", sprintf("%.3f", loading), ")")) %>%
+    dplyr::select(feature, label)
+
+  rownames(hm_z) <- row_lab$label[match(rownames(hm_z), row_lab$feature)]
+
+  if (!is.null(annotation_col)) {
+    annotation_col <- annotation_col[colnames(hm_z), , drop = FALSE]
+  }
+
+  pheatmap(
+    hm_z,
+    annotation_col = annotation_col,
+    cluster_rows = TRUE,
+    cluster_cols = TRUE,
+    show_rownames = TRUE,
+    show_colnames = TRUE,
+    fontsize_row = 8,
+    fontsize_col = 8,
+    border_color = NA,
+    color = heat_cols,
+    main = title_text
+  )
+}
+
+extract_state_map <- function(file, family, prefix = NULL, state_col = NULL) {
+  if (is.na(file)) {
+    message("Skipping ", family, ": object not found.")
+    return(NULL)
+  }
+
+  obj <- qs2::qs_read(file, nthreads = 32)
+
+  if (is.null(state_col)) {
+    state_col <- detect_state_col(obj)
+  }
+
+  meta <- obj@meta.data %>%
+    tibble::rownames_to_column("cell") %>%
+    dplyr::mutate(
+      final_state = as.character(.data[[state_col]]),
+      state_family = family
+    ) %>%
+    dplyr::filter(!is.na(final_state), final_state != "")
+
+  if (!is.null(prefix)) {
+    numeric_state <- grepl("^[0-9]+$", meta$final_state)
+    meta$final_state[numeric_state] <- paste0(prefix, meta$final_state[numeric_state])
+  }
+
+  meta %>%
+    dplyr::select(cell, final_state, state_family) %>%
+    dplyr::distinct(cell, .keep_all = TRUE)
+}
+
+make_state_order <- function(state_info) {
+  family_levels <- c(
+    "Cardiomyocytes",
+    "Fibroblasts",
+    "Endothelial cells",
+    "Mural cells",
+    "Macrophages",
+    "Lymphocytes",
+    "Other"
+  )
+
+  state_info %>%
+    dplyr::mutate(
+      state_family = factor(state_family, levels = family_levels),
+      state_number = readr::parse_number(final_state),
+      other_order = dplyr::case_when(
+        final_state == "Endocardial cells" ~ 1,
+        final_state == "Adipocytes" ~ 2,
+        final_state == "Mast cells" ~ 3,
+        final_state == "Lymphatic cells" ~ 4,
+        final_state == "Neuronal cells" ~ 5,
+        TRUE ~ 99
+      )
+    ) %>%
+    dplyr::arrange(state_family, other_order, state_number, final_state) %>%
+    dplyr::pull(final_state)
+}
+
+fit_pc_state_models <- function(scores_df, prop_df, state_info, assay = c("Olink", "MS"), pcs = 1:5,
+                                min_samples_present = 10) {
+  assay <- match.arg(assay)
+
+  dat <- scores_df %>%
+    dplyr::left_join(prop_df, by = "Sample")
+
+  pc_names <- intersect(paste0("PC", pcs), colnames(dat))
+  prop_cols_all <- grep("^prop_STATE_", colnames(dat), value = TRUE)
+
+  prevalence <- purrr::map_dfr(prop_cols_all, function(prop_col) {
+    final_state <- sub("^prop_STATE_", "", prop_col)
+
+    tibble(
+      final_state = final_state,
+      prop_col = prop_col,
+      n_present = sum(dat[[prop_col]] > 0, na.rm = TRUE),
+      max_prop = max(dat[[prop_col]], na.rm = TRUE)
+    )
+  })
+
+  prop_cols <- prevalence %>%
+    dplyr::filter(n_present >= min_samples_present) %>%
+    dplyr::pull(prop_col)
+
+  logit_cols <- gsub("^prop_", "logit_prop_", prop_cols)
+
+  covars <- c("Age_years")
+  if (assay == "Olink") covars <- c(covars, "BCA_mg_ml")
+  covars <- covars[covars %in% colnames(dat)]
+
+  res <- purrr::map_dfr(pc_names, function(pc) {
+    purrr::map2_dfr(prop_cols, logit_cols, function(prop_col, logit_col) {
+      final_state <- sub("^prop_STATE_", "", prop_col)
+      cols_needed <- c(pc, prop_col, logit_col, covars)
+
+      df <- dat %>%
+        dplyr::select(Sample, dplyr::all_of(cols_needed)) %>%
+        tidyr::drop_na()
+
+      if (nrow(df) < 5 || stats::sd(df[[logit_col]], na.rm = TRUE) == 0) {
+        return(tibble(
+          assay = assay,
+          PC = pc,
+          final_state = final_state,
+          n = nrow(df),
+          estimate = NA_real_,
+          p_value = NA_real_,
+          rho_prop = NA_real_,
+          p_prop = NA_real_
+        ))
+      }
+
+      form <- reformulate(termlabels = c(pc, covars), response = logit_col)
+      fit <- lm(form, data = df)
+      coef_tab <- summary(fit)$coefficients
+
+      ct <- suppressWarnings(cor.test(df[[pc]], df[[prop_col]], method = "spearman"))
+
+      tibble(
+        assay = assay,
+        PC = pc,
+        final_state = final_state,
+        n = nrow(df),
+        estimate = coef_tab[pc, "Estimate"],
+        p_value = coef_tab[pc, "Pr(>|t|)"],
+        rho_prop = unname(ct$estimate),
+        p_prop = ct$p.value
+      )
+    })
+  })
+
+  res %>%
+    dplyr::left_join(state_info, by = "final_state") %>%
+    dplyr::left_join(prevalence %>% dplyr::select(final_state, n_present, max_prop), by = "final_state") %>%
+    dplyr::mutate(
+      p_adj = p.adjust(p_value, method = "BH"),
+      neg_log10_padj = -log10(p_adj),
+      signed_neg_log10_padj = sign(estimate) * neg_log10_padj
+    ) %>%
+    dplyr::arrange(p_adj, p_value)
+}
+
+make_pc_state_dotplot <- function(res_tbl, state_order, title_text) {
+  plot_df <- res_tbl %>%
+    dplyr::filter(!is.na(estimate), final_state %in% state_order) %>%
+    dplyr::mutate(
+      PC = factor(PC, levels = paste0("PC", pcs_to_test)),
+      final_state = factor(final_state, levels = state_order),
+      fdr_size = -log10(p_adj),
+      fdr_outline = p_adj < 0.2
+    )
+
+  size_cap <- max(2, stats::quantile(plot_df$fdr_size, probs = 0.95, na.rm = TRUE))
+  plot_df <- plot_df %>%
+    dplyr::mutate(fdr_size_capped = pmin(fdr_size, size_cap))
+
+  ggplot(plot_df, aes(x = final_state, y = PC)) +
+    geom_point(
+      aes(size = fdr_size_capped, fill = estimate),
+      shape = 21,
+      color = "grey75",
+      stroke = 0.3
+    ) +
+    geom_point(
+      data = plot_df %>% dplyr::filter(fdr_outline),
+      aes(size = fdr_size_capped, fill = estimate),
+      shape = 21,
+      color = "black",
+      stroke = 0.7
+    ) +
+    scale_fill_gradient2(
+      low = "#2166AC",
+      mid = "white",
+      high = "#B2182B",
+      midpoint = 0,
+      name = "Beta"
+    ) +
+    scale_size_continuous(
+      range = c(1.2, 6),
+      name = "-log10(FDR)"
+    ) +
+    labs(
+      title = title_text,
+      x = NULL,
+      y = NULL
+    ) +
+    theme_classic(base_size = 12) +
+    theme(
+      axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1, size = 8),
+      axis.text.y = element_text(size = 10),
+      legend.position = "right"
+    )
+}
+```
+
+## Read metadata
+
+```{r read metadata}
+meta_file <- here::here("data", "Baza_dla_Gino_AP_short.xlsx")
+if (!file.exists(meta_file)) stop("Could not find metadata file: ", meta_file)
+
+clin_all <- readxl::read_excel(meta_file) %>%
+  dplyr::select(-dplyr::matches("^Unnamed")) %>%
+  dplyr::mutate(
+    Collection_date = as.Date(Collection_date),
+    Used_date = as.Date(Used_date),
+    Sample_age_days = as.numeric(Sample_age_days),
+    Age_years = as.numeric(Age_years),
+    LVEF_percent = as.numeric(LVEF_percent),
+    LVEDD_mm = as.numeric(LVEDD_mm),
+    TAPSE_mm = as.numeric(TAPSE_mm),
+    RVIT_mm = as.numeric(RVIT_mm),
+    sPAP_mmHg = as.numeric(sPAP_mmHg),
+    mPAP_mmHg = as.numeric(mPAP_mmHg),
+    PCW_mmHg = as.numeric(PCW_mmHg),
+    PVR_WU = as.numeric(PVR_WU),
+    Sex = factor(Sex),
+    Group = factor(Group),
+    Etiology = factor(Etiology)
+  ) %>%
+  dplyr::filter(
+    !Sample %in% excluded_samples,
+    Group == "DCM",
+    Etiology %in% allowed_etiology
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+```
+
+## Read Olink data
+
+```{r read olink}
+olink_meta_file <- here::here("data", "OLINK", "Samples_RV_Olink.xlsx")
+if (!file.exists(olink_meta_file)) stop("Could not find Olink sample file: ", olink_meta_file)
+
+olink_sample_meta <- readxl::read_excel(olink_meta_file) %>%
+  dplyr::select(-dplyr::matches("^Unnamed")) %>%
+  dplyr::filter(Olink == "Yes") %>%
+  dplyr::filter(!Sample %in% excluded_samples) %>%
+  dplyr::mutate(BCA_mg_ml = as.numeric(BCA_mg_ml)) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+olink_meta <- clin_all %>%
+  dplyr::inner_join(
+    olink_sample_meta %>% dplyr::select(Sample, Batch, BCA_mg_ml),
+    by = "Sample"
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+olink_raw <- read.delim(here::here("data", "OLINK", "quant.xls"), sep = "\t", check.names = FALSE)
+rownames(olink_raw) <- sub("_.*", "", olink_raw$SampleID)
+
+olink_expr <- olink_raw[, -1, drop = FALSE]
+olink_expr <- as.matrix(olink_expr)
+storage.mode(olink_expr) <- "numeric"
+
+olink_keep <- intersect(olink_meta$Sample, colnames(olink_expr))
+olink_meta <- olink_meta %>%
+  dplyr::filter(Sample %in% olink_keep) %>%
+  dplyr::slice(match(olink_keep, Sample))
+olink_expr <- olink_expr[, olink_keep, drop = FALSE]
+```
+
+## Olink LOD filtering
+
+```{r olink lod qc}
+min_frac_above_lod <- 0.40
+
+olink_lod_data_candidates <- c(
+  here::here("data", "OLINK", "pre_quant.csv"),
+  here::here("data", "OLINK", "pre_quant.tsv"),
+  here::here("data", "OLINK", "npx.csv"),
+  here::here("data", "OLINK", "npx.tsv")
+)
+olink_lod_data_file <- find_existing_file(olink_lod_data_candidates)
+
+fixedLOD_candidates <- c(
+  here::here("data", "OLINK", "Reveal_fixedLOD.csv"),
+  here::here("data", "OLINK", "fixedLOD.csv"),
+  here::here("data", "OLINK", "FixedLOD.csv")
+)
+fixedLOD_path <- find_existing_file(fixedLOD_candidates)
+
+if (is.na(olink_lod_data_file)) stop("Could not find Olink long-format NPX file for LOD QC.")
+if (is.na(fixedLOD_path)) stop("Could not find Olink fixed LOD file.")
+
+npx_raw <- read_olink_delim(olink_lod_data_file)
+
+npx_lod <- OlinkAnalyze::olink_lod(
+  data = npx_raw,
+  lod_file_path = fixedLOD_path,
+  lod_method = "FixedLOD"
+)
+
+lod_info <- read_olink_delim(fixedLOD_path)
+if (all(c("OlinkID", "DataAnalysisRefID") %in% colnames(lod_info))) {
+  lod_info <- lod_info %>%
+    dplyr::select(dplyr::any_of(c("OlinkID", "DataAnalysisRefID", "LODNPX", "LODCount", "LODMethod")))
+  npx_lod <- npx_lod %>%
+    dplyr::left_join(lod_info, by = c("OlinkID", "DataAnalysisRefID"))
+}
+
+for (nm in c("LOD", "LODCount", "Count", "NPX")) {
+  if (!nm %in% colnames(npx_lod)) npx_lod[[nm]] <- NA_real_
+}
+
+npx_lod <- npx_lod %>%
+  dplyr::mutate(
+    above_LOD = dplyr::case_when(
+      !is.na(LOD) ~ NPX > LOD,
+      !is.na(LODCount) ~ Count > LODCount,
+      TRUE ~ NA
+    )
+  )
+
+feature_candidates <- intersect(c("Assay", "UniProt", "OlinkID"), colnames(npx_lod))
+feature_match_stats <- purrr::map_dfr(feature_candidates, function(feature_col) {
+  tibble(
+    feature_col = feature_col,
+    n_matches = sum(unique(as.character(npx_lod[[feature_col]])) %in% rownames(olink_expr))
+  )
+})
+
+feature_col_for_lod <- feature_match_stats %>%
+  dplyr::arrange(dplyr::desc(n_matches)) %>%
+  dplyr::slice(1) %>%
+  dplyr::pull(feature_col)
+
+olink_lod_summary <- npx_lod %>%
+  dplyr::mutate(
+    Sample = as.character(SampleID),
+    feature = as.character(.data[[feature_col_for_lod]]),
+    above_LOD = dplyr::if_else(is.na(above_LOD), FALSE, above_LOD)
+  ) %>%
+  dplyr::filter(Sample %in% olink_meta$Sample, feature %in% rownames(olink_expr)) %>%
+  dplyr::distinct(Sample, feature, .keep_all = TRUE) %>%
+  dplyr::group_by(feature) %>%
+  dplyr::summarise(
+    n_samples_lod = dplyr::n(),
+    n_above_LOD = sum(above_LOD, na.rm = TRUE),
+    frac_above_LOD = n_above_LOD / n_samples_lod,
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(keep_lod = frac_above_LOD >= min_frac_above_lod)
+
+olink_keep_features_lod <- olink_lod_summary %>%
+  dplyr::filter(keep_lod) %>%
+  dplyr::pull(feature)
+
+olink_expr <- olink_expr[intersect(rownames(olink_expr), olink_keep_features_lod), , drop = FALSE]
+```
+
+## Read mass spectrometry data
+
+```{r read mass spec}
+ms_raw <- read.csv(here::here("data", "Mass_spec", "20260319_MS_DIA_report_2uniquepeptides.csv"), check.names = FALSE)
+
+prot_annot <- ms_raw[, c(
+  "Protein.Group", "Protein.Names", "Genes", "First.Protein.Description",
+  "N.Sequences", "N.Proteotypic.Sequences"
+)]
+
+sample_cols <- setdiff(colnames(ms_raw), colnames(prot_annot))
+qc_cols <- grep("^QC", sample_cols, value = TRUE)
+biol_cols <- setdiff(sample_cols, qc_cols)
+
+ms_expr0 <- as.data.frame(ms_raw[, biol_cols, drop = FALSE])
+rownames(ms_expr0) <- ms_raw$Genes
+keep_rows <- !is.na(rownames(ms_expr0)) & rownames(ms_expr0) != ""
+ms_expr0 <- ms_expr0[keep_rows, , drop = FALSE]
+rownames(ms_expr0) <- make.unique(rownames(ms_expr0))
+ms_expr0 <- as.matrix(ms_expr0)
+storage.mode(ms_expr0) <- "numeric"
+
+ms_meta <- clin_all %>%
+  dplyr::filter(Sample %in% colnames(ms_expr0)) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+ms_expr0 <- ms_expr0[, ms_meta$Sample, drop = FALSE]
+ms_expr <- log2(ms_expr0 + 1)
+```
+
+## Import cell states and create final cell-state assignment
+
+```{r import cell states}
+dcm_rv_file <- find_existing_file(c(
+  here::here("output", "QC_integration_annotation", "DCM_RV.qs2"),
+  here::here("output", "QC_integration_annotation", "DCM_RV_clean.qs2"),
+  here::here("output", "QC_integration_annotation", "DCM_RV_annotated.qs2"),
+  here::here("output", "QC_integration_annotation", "RV.qs2"),
+  here::here("output", "DCM_RV.qs2"),
+  here::here("data", "DCM_RV.qs2")
+))
+
+if (is.na(dcm_rv_file)) stop("Could not find the full DCM_RV object.")
+
+DCM_RV <- qs2::qs_read(dcm_rv_file, nthreads = 32)
+
+full_cell_type_col <- dplyr::case_when(
+  "cell_type" %in% colnames(DCM_RV@meta.data) ~ "cell_type",
+  "celltype" %in% colnames(DCM_RV@meta.data) ~ "celltype",
+  "annotation" %in% colnames(DCM_RV@meta.data) ~ "annotation",
+  TRUE ~ NA_character_
+)
+
+if (is.na(full_cell_type_col)) stop("Could not detect a general cell-type column in DCM_RV@meta.data.")
+
+full_sample_col <- detect_sample_col(DCM_RV)
+
+subcluster_files <- list(
+  CM = find_existing_file(c(
+    here::here("output", "Cardiomyocytes_subclustering", "CM.qs2"),
+    here::here("output", "Cardiomyocytes_subclustering", "Cardiomyocytes.qs2")
+  )),
+  FB = find_existing_file(c(
+    here::here("output", "Fibroblasts_subclustering", "FB.qs2"),
+    here::here("output", "Fibroblasts_subclustering", "Fibroblasts.qs2")
+  )),
+  EC = find_existing_file(c(
+    here::here("output", "Endothelial_cells_subclustering", "EC.qs2"),
+    here::here("output", "Endothelial_cells_subclustering", "Endothelial_cells.qs2")
+  )),
+  Mural = find_existing_file(c(
+    here::here("output", "Mural_cells_subclustering", "MC.qs2"),
+    here::here("output", "Mural_cells_subclustering", "Mural.qs2"),
+    here::here("output", "Mural_cells_subclustering", "Mural_cells.qs2")
+  )),
+  Macrophages = find_existing_file(c(
+    here::here("output", "Macrophages_subclustering", "MP.qs2"),
+    here::here("output", "Macrophages_subclustering", "Macrophages.qs2"),
+    here::here("output", "Macrophages_subclustering", "Macrophage.qs2"),
+    here::here("output", "Macrophages_subclustering", "Mac.qs2")
+  )),
+  Lymphocytes = find_existing_file(c(
+    here::here("output", "Lymphocytes_subclustering", "LC.qs2"),
+    here::here("output", "Lymphocytes_subclustering", "Lymphocytes.qs2"),
+    here::here("output", "Lymphocytes_subclustering", "Lymph.qs2")
+  ))
+)
+
+subcluster_files
+
+state_map_list <- list(
+  CM = extract_state_map(subcluster_files$CM, family = "Cardiomyocytes", prefix = "CM"),
+  FB = extract_state_map(subcluster_files$FB, family = "Fibroblasts", prefix = "FB"),
+  EC = extract_state_map(subcluster_files$EC, family = "Endothelial cells", prefix = "EC"),
+  Mural = extract_state_map(subcluster_files$Mural, family = "Mural cells", prefix = "MC"),
+  Macrophages = extract_state_map(subcluster_files$Macrophages, family = "Macrophages", prefix = "MP"),
+  Lymphocytes = extract_state_map(subcluster_files$Lymphocytes, family = "Lymphocytes", prefix = "LC")
+)
+
+subcluster_state_map <- dplyr::bind_rows(state_map_list)
+
+subclustered_main_types <- c(
+  "Cardiomyocytes",
+  "Fibroblasts",
+  "Endothelial cells",
+  "Pericytes",
+  "Smooth muscle cells",
+  "Macrophages",
+  "T lymphocytes",
+  "B lymphocytes"
+)
+
+non_subclustered_main_types <- c(
+  "Adipocytes",
+  "Endocardial cells",
+  "Mast cells",
+  "Lymphatic cells",
+  "Neuronal cells"
+)
+
+full_meta_state <- DCM_RV@meta.data %>%
+  tibble::rownames_to_column("cell") %>%
+  dplyr::mutate(
+    Sample = as.character(.data[[full_sample_col]]),
+    main_cell_type = as.character(.data[[full_cell_type_col]])
+  ) %>%
+  dplyr::left_join(subcluster_state_map, by = "cell") %>%
+  dplyr::mutate(
+    final_state = dplyr::case_when(
+      !is.na(final_state) ~ final_state,
+      main_cell_type %in% non_subclustered_main_types ~ main_cell_type,
+      TRUE ~ NA_character_
+    ),
+    state_family = dplyr::case_when(
+      !is.na(state_family) ~ state_family,
+      main_cell_type %in% non_subclustered_main_types ~ "Other",
+      TRUE ~ NA_character_
+    )
+  )
+
+state_assignment_summary <- full_meta_state %>%
+  dplyr::mutate(
+    assignment = dplyr::case_when(
+      !is.na(final_state) ~ "kept",
+      main_cell_type %in% subclustered_main_types ~ "removed_from_subclustered_compartment",
+      TRUE ~ "removed_other_or_unexpected"
+    )
+  ) %>%
+  dplyr::count(main_cell_type, assignment, name = "n_cells") %>%
+  dplyr::arrange(main_cell_type, assignment)
+
+write.csv(state_assignment_summary, file.path(output_dir_data, "cell_state_assignment_summary.csv"), row.names = FALSE)
+
+state_assignment_summary %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+```
+
+## Per-sample cell-state proportions
+
+```{r cell state proportions}
+state_meta_kept <- full_meta_state %>%
+  dplyr::filter(!is.na(final_state), !is.na(Sample)) %>%
+  dplyr::mutate(
+    final_state = as.character(final_state),
+    state_family = as.character(state_family)
+  )
+
+state_counts_long <- state_meta_kept %>%
+  dplyr::count(Sample, state_family, final_state, name = "n_cells") %>%
+  dplyr::group_by(Sample) %>%
+  dplyr::mutate(
+    total_cells = sum(n_cells),
+    prop = n_cells / total_cells,
+    logit_prop = logit_prop(prop)
+  ) %>%
+  dplyr::ungroup()
+
+all_states <- sort(unique(state_counts_long$final_state))
+
+state_prop_wide <- state_counts_long %>%
+  dplyr::select(Sample, final_state, prop) %>%
+  tidyr::complete(Sample, final_state = all_states, fill = list(prop = 0)) %>%
+  tidyr::pivot_wider(names_from = final_state, values_from = prop, names_prefix = "prop_STATE_")
+
+state_logit_wide <- state_counts_long %>%
+  dplyr::select(Sample, final_state, prop) %>%
+  tidyr::complete(Sample, final_state = all_states, fill = list(prop = 0)) %>%
+  dplyr::mutate(logit_prop = logit_prop(prop)) %>%
+  dplyr::select(Sample, final_state, logit_prop) %>%
+  tidyr::pivot_wider(names_from = final_state, values_from = logit_prop, names_prefix = "logit_prop_STATE_")
+
+all_state_props <- state_prop_wide %>%
+  dplyr::left_join(state_logit_wide, by = "Sample")
+
+state_info <- state_counts_long %>%
+  dplyr::distinct(final_state, state_family) %>%
+  dplyr::arrange(state_family, final_state)
+
+state_order <- make_state_order(state_info)
+
+write.csv(state_counts_long, file.path(output_dir_data, "cell_state_proportions_long.csv"), row.names = FALSE)
+write.csv(all_state_props, file.path(output_dir_data, "cell_state_proportions_wide.csv"), row.names = FALSE)
+write.csv(state_info, file.path(output_dir_data, "cell_state_info.csv"), row.names = FALSE)
+
+state_counts_long %>%
+  dplyr::group_by(state_family, final_state) %>%
+  dplyr::summarise(
+    total_cells = sum(n_cells),
+    median_prop = median(prop),
+    max_prop = max(prop),
+    n_samples_present = sum(n_cells > 0),
+    .groups = "drop"
+  ) %>%
+  dplyr::arrange(
+    factor(state_family, levels = c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Mural cells", "Macrophages", "Lymphocytes", "Other")),
+    dplyr::desc(total_cells)
+  ) %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+```
+
+## Matched proteomics samples and PCA
+
+```{r matched proteomics pca}
+sc_samples <- unique(all_state_props$Sample)
+
+matched_olink_samples <- intersect(olink_meta$Sample, sc_samples)
+matched_ms_samples <- intersect(ms_meta$Sample, sc_samples)
+
+olink_meta_matched <- olink_meta %>%
+  dplyr::filter(Sample %in% matched_olink_samples) %>%
+  dplyr::slice(match(matched_olink_samples, Sample))
+
+olink_expr_matched <- olink_expr[, matched_olink_samples, drop = FALSE]
+
+ms_meta_matched <- ms_meta %>%
+  dplyr::filter(Sample %in% matched_ms_samples) %>%
+  dplyr::slice(match(matched_ms_samples, Sample))
+
+ms_expr_matched <- ms_expr[, matched_ms_samples, drop = FALSE]
+
+olink_pca <- run_pca_from_matrix(olink_expr_matched, olink_meta_matched, assay_label = "Olink")
+ms_pca <- run_pca_from_matrix(ms_expr_matched, ms_meta_matched, assay_label = "MS")
+
+olink_top_loadings <- get_top_pca_features(olink_pca$pca, pcs = pcs_to_plot, top_n = top_n_loadings)
+ms_top_loadings <- get_top_pca_features(ms_pca$pca, pcs = pcs_to_plot, top_n = top_n_loadings)
+
+write.csv(olink_top_loadings, file.path(output_dir_data, "Olink_top_loadings_matched.csv"), row.names = FALSE)
+write.csv(ms_top_loadings, file.path(output_dir_data, "MS_top_loadings_matched.csv"), row.names = FALSE)
+
+tibble(
+  assay = c("Olink", "Mass spec"),
+  n_samples = c(nrow(olink_pca$scores), nrow(ms_pca$scores)),
+  n_features = c(nrow(olink_pca$expr_pca), nrow(ms_pca$expr_pca))
+)
+```
+
+## Scree / elbow plots
+
+```{r scree plots, fig.width=10, fig.height=4}
+make_scree_plot(olink_pca, "Olink", n_pcs = n_pcs_scree) +
+  make_scree_plot(ms_pca, "Mass spec", n_pcs = n_pcs_scree)
+```
+
+## PCA plots
+
+```{r pca plots olink, fig.width=11, fig.height=8}
+(make_pca_plot(olink_pca, "mPAP_mmHg", "Olink matched samples") |
+ make_pca_plot(olink_pca, "TAPSE_mm", "Olink matched samples")) /
+(make_pca_plot(olink_pca, "RVIT_mm", "Olink matched samples") |
+ make_pca_plot(olink_pca, "Age_years", "Olink matched samples")) /
+(make_pca_plot(olink_pca, "BCA_mg_ml", "Olink matched samples") |
+ make_pca_plot(olink_pca, "Sample_age_days", "Olink matched samples"))
+```
+
+```{r pca plots ms, fig.width=11, fig.height=8}
+(make_pca_plot(ms_pca, "mPAP_mmHg", "Mass spec matched samples") |
+ make_pca_plot(ms_pca, "TAPSE_mm", "Mass spec matched samples")) /
+(make_pca_plot(ms_pca, "RVIT_mm", "Mass spec matched samples") |
+ make_pca_plot(ms_pca, "Age_years", "Mass spec matched samples")) /
+(make_pca_plot(ms_pca, "Sample_age_days", "Mass spec matched samples") |
+ make_pca_plot(ms_pca, "LVEF_percent", "Mass spec matched samples"))
+```
+
+## Heatmaps of top PC-loading proteins
+
+```{r olink loading heatmaps, fig.width=6.5, fig.height=7}
+olink_ann <- olink_meta_matched %>%
+  dplyr::select(Sample, BCA_mg_ml) %>%
+  tibble::column_to_rownames("Sample")
+
+for (pc in paste0("PC", pcs_to_plot)) {
+  make_loading_heatmap(
+    pca_list = olink_pca,
+    top_tbl = olink_top_loadings,
+    pc = pc,
+    title_text = paste0("Olink - top ", top_n_loadings, " ", pc, " proteins"),
+    annotation_col = olink_ann
+  )
+}
+```
+
+```{r ms loading heatmaps, fig.width=6.5, fig.height=7}
+for (pc in paste0("PC", pcs_to_plot)) {
+  make_loading_heatmap(
+    pca_list = ms_pca,
+    top_tbl = ms_top_loadings,
+    pc = pc,
+    title_text = paste0("Mass spec - top ", top_n_loadings, " ", pc, " proteins"),
+    annotation_col = NULL
+  )
+}
+```
+
+## Cell-state associations with proteomic PCs
+
+```{r run pc state models}
+all_state_olink_res <- fit_pc_state_models(
+  scores_df = olink_pca$scores,
+  prop_df = all_state_props,
+  state_info = state_info,
+  assay = "Olink",
+  pcs = pcs_to_test,
+  min_samples_present = min_samples_present
+)
+
+all_state_ms_res <- fit_pc_state_models(
+  scores_df = ms_pca$scores,
+  prop_df = all_state_props,
+  state_info = state_info,
+  assay = "MS",
+  pcs = pcs_to_test,
+  min_samples_present = min_samples_present
+)
+
+write.csv(all_state_olink_res, file.path(output_dir_data, "Olink_PC_vs_cell_states_results.csv"), row.names = FALSE)
+write.csv(all_state_ms_res, file.path(output_dir_data, "MS_PC_vs_cell_states_results.csv"), row.names = FALSE)
+
+all_state_olink_res %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+
+all_state_ms_res %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+```
+
+## Dot plots of PC-cell-state associations
+
+```{r pc state dotplots, fig.width=16, fig.height=5}
+make_pc_state_dotplot(
+  all_state_olink_res,
+  state_order = state_order,
+  title_text = "Olink PCs vs cell-state proportions"
+)
+
+make_pc_state_dotplot(
+  all_state_ms_res,
+  state_order = state_order,
+  title_text = "Mass spec PCs vs cell-state proportions"
+)
+```
+
+## Summary tables
+
+```{r summary tables}
+state_family_summary <- dplyr::bind_rows(all_state_olink_res, all_state_ms_res) %>%
+  dplyr::group_by(assay, state_family) %>%
+  dplyr::summarise(
+    min_p_adj = min(p_adj, na.rm = TRUE),
+    max_neg_log10_padj = max(-log10(p_adj), na.rm = TRUE),
+    n_nominal = sum(p_value < 0.05, na.rm = TRUE),
+    n_fdr_0_2 = sum(p_adj < 0.2, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    min_p_adj = ifelse(is.infinite(min_p_adj), NA_real_, min_p_adj),
+    max_neg_log10_padj = ifelse(is.infinite(max_neg_log10_padj), NA_real_, max_neg_log10_padj)
+  )
+
+top_state_associations <- dplyr::bind_rows(all_state_olink_res, all_state_ms_res) %>%
+  dplyr::arrange(p_adj, p_value) %>%
+  dplyr::select(assay, PC, final_state, state_family, n, n_present, estimate, p_value, p_adj, rho_prop, p_prop)
+
+write.csv(state_family_summary, file.path(output_dir_data, "cell_state_family_summary.csv"), row.names = FALSE)
+write.csv(top_state_associations, file.path(output_dir_data, "top_cell_state_associations.csv"), row.names = FALSE)
+
+state_family_summary %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+
+top_state_associations %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+```
+
+## Notes
+
+```{r notes, results='asis'}
+cat(
+  "Testing summary:\n",
+  "- PCA is performed separately for Olink and mass spectrometry using matched proteomics/single-nucleus samples.\n",
+  "- Olink PCA heatmaps show only BCA as annotation. Mass-spec heatmaps have no top annotation.\n",
+  "- Heatmap rows and columns are not clustered.\n",
+  "- Cell states are assigned from the subclustered objects using cell IDs.\n",
+  "- Non-subclustered cell types are kept as their original broad cell type.\n",
+  "- Cells from subclustered compartments that are absent from the subclustered object are removed.\n",
+  "- States must be present in at least ", min_samples_present, " matched samples to be tested.\n",
+  "- Models use logit-transformed cell-state proportions.\n",
+  "- Olink models: logit proportion ~ PC + Age_years + BCA_mg_ml.\n",
+  "- Mass-spec models: logit proportion ~ PC + Age_years.\n",
+  "- Dot-plot color shows the model beta. Dot size shows -log10(FDR). Black outlines indicate FDR < 0.2.\n",
+  "- BH correction is applied across all tested PC-state associations within each platform.\n",
+  sep = ""
+)
+```
+
+## Focused proteomic PC and cell-state plots
+
+This section focuses on the associations selected from the global screen:
+
+- Mass spec PC1 vs FB5
+- Mass spec PC2 vs CM5
+- Olink PC2 vs CM3
+- Olink PC2 vs CM4
+
+It makes:
+1. scatterplots of PC score vs raw state proportion, with p values from the adjusted logit-proportion model;
+2. heatmaps of the top PC-loading proteins with the selected cell-state proportion shown as a simple top annotation;
+3. scatterplots of the selected state proportion against the strongest PC-loading proteins;
+4. optional GO over-representation analysis for the top-loading proteins.
+
+```{r focused pc state setup}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+
+focused_pairs <- tibble::tribble(
+  ~assay,   ~PC,    ~state,
+  "MS",     "PC1",  "FB5",
+  "MS",     "PC2",  "CM5",
+  "Olink",  "PC2",  "CM3",
+  "Olink",  "PC2",  "CM4"
+)
+
+focused_top_n_loadings <- 20
+focused_top_n_gene_scatter <- 8
+
+get_pair_objects <- function(assay) {
+  if (assay == "MS") {
+    list(
+      pca = ms_pca,
+      res = all_state_ms_res,
+      top_loadings = ms_top_loadings,
+      expression = ms_pca$expr_pca,
+      scores = ms_pca$scores
+    )
+  } else if (assay == "Olink") {
+    list(
+      pca = olink_pca,
+      res = all_state_olink_res,
+      top_loadings = olink_top_loadings,
+      expression = olink_pca$expr_pca,
+      scores = olink_pca$scores
+    )
+  } else {
+    stop("Unknown assay: ", assay)
+  }
+}
+
+get_state_prop_col <- function(state) {
+  paste0("prop_STATE_", state)
+}
+
+get_state_logit_col <- function(state) {
+  paste0("logit_prop_STATE_", state)
+}
+```
+
+## Scatterplots of selected PC-cell-state associations
+
+```{r focused pc state scatter helper}
+plot_focused_pc_state <- function(assay, pc, state) {
+  obj <- get_pair_objects(assay)
+
+  prop_col <- get_state_prop_col(state)
+  logit_col <- get_state_logit_col(state)
+
+  covars <- c("Age_years")
+  if (assay == "Olink") covars <- c(covars, "BCA_mg_ml")
+  covars <- covars[covars %in% colnames(obj$scores)]
+
+  dat <- obj$scores %>%
+    dplyr::left_join(all_state_props, by = "Sample") %>%
+    dplyr::select(Sample, dplyr::all_of(c(pc, prop_col, logit_col, covars))) %>%
+    tidyr::drop_na()
+
+  if (nrow(dat) < 5) {
+    return(ggplot() + annotate("text", x = 1, y = 1, label = "Too few samples") + theme_void())
+  }
+
+  form <- reformulate(termlabels = c(pc, covars), response = logit_col)
+  fit <- lm(form, data = dat)
+  coef_tab <- summary(fit)$coefficients
+
+  beta <- coef_tab[pc, "Estimate"]
+  pval <- coef_tab[pc, "Pr(>|t|)"]
+
+  fdr <- obj$res %>%
+    dplyr::filter(PC == pc, final_state == state) %>%
+    dplyr::pull(p_adj)
+
+  if (length(fdr) == 0) fdr <- NA_real_
+
+  ct <- suppressWarnings(cor.test(dat[[pc]], dat[[prop_col]], method = "spearman"))
+
+  ggplot(dat, aes(x = .data[[prop_col]], y = .data[[pc]], label = Sample)) +
+    geom_point(size = 3) +
+    geom_smooth(method = "lm", se = TRUE, linewidth = 0.5, color = "black") +
+    ggrepel::geom_text_repel(size = 2.5, max.overlaps = 30) +
+    annotate(
+      "text",
+      x = Inf, y = Inf,
+      label = paste0(
+        "beta(logit) = ", sprintf("%.3f", beta),
+        "\np = ", signif(pval, 2),
+        "\nFDR = ", signif(fdr, 2),
+        "\nrho(prop) = ", round(unname(ct$estimate), 2),
+        "\nn = ", nrow(dat)
+      ),
+      hjust = 1.1,
+      vjust = 1.2,
+      size = 4
+    ) +
+    labs(
+      title = paste0(assay, " ", pc, " vs ", state, " proportion"),
+      x = paste0(state, " proportion"),
+      y = paste0(assay, " ", pc, " score")
+    ) +
+    theme_classic(base_size = 12)
+}
+```
+
+```{r focused pc state scatterplots, fig.width=11, fig.height=8}
+focused_scatter_plots <- purrr::pmap(
+  focused_pairs,
+  function(assay, PC, state) {
+    plot_focused_pc_state(assay, PC, state)
+  }
+)
+
+wrap_plots(focused_scatter_plots, ncol = 2)
+```
+
+## Heatmaps of top PC-loading proteins with cell-state proportion annotation
+
+```{r focused loading heatmap helper}
+make_focused_loading_heatmap <- function(assay, pc, state, top_n = 20) {
+  obj <- get_pair_objects(assay)
+
+  top_tbl <- obj$top_loadings %>%
+    dplyr::filter(PC == pc) %>%
+    dplyr::arrange(dplyr::desc(abs_loading)) %>%
+    dplyr::slice_head(n = top_n)
+
+  feat <- top_tbl$feature
+  hm <- obj$expression[feat, , drop = FALSE]
+
+  hm_z <- t(scale(t(hm)))
+  hm_z[is.nan(hm_z)] <- 0
+  hm_z[!is.finite(hm_z)] <- 0
+
+  rownames(hm_z) <- top_tbl %>%
+    dplyr::mutate(label = paste0(feature, " (", sprintf("%.3f", loading), ")")) %>%
+    dplyr::pull(label)
+
+  prop_col <- get_state_prop_col(state)
+
+  ann <- all_state_props %>%
+    dplyr::filter(Sample %in% colnames(hm_z)) %>%
+    dplyr::slice(match(colnames(hm_z), Sample)) %>%
+    dplyr::select(Sample, dplyr::all_of(prop_col)) %>%
+    dplyr::rename(!!paste0("prop_", state) := dplyr::all_of(prop_col))
+
+  # Order columns by selected cell-state proportion
+  sample_order <- ann %>%
+    dplyr::arrange(.data[[paste0("prop_", state)]]) %>%
+    dplyr::pull(Sample)
+
+  hm_z <- hm_z[, sample_order, drop = FALSE]
+
+  ann <- ann %>%
+    dplyr::slice(match(sample_order, Sample)) %>%
+    tibble::column_to_rownames("Sample")
+
+  # Cluster rows, but hide the row dendrogram
+  row_hclust <- hclust(dist(hm_z), method = "complete")
+
+  pheatmap(
+    hm_z,
+    annotation_col = ann,
+    cluster_rows = row_hclust,
+    treeheight_row = 0,
+    cluster_cols = FALSE,
+    show_rownames = TRUE,
+    show_colnames = TRUE,
+    fontsize_row = 8,
+    fontsize_col = 8,
+    border_color = NA,
+    color = heat_cols,
+    main = paste0(
+      assay, " ", pc, " top ", top_n,
+      " proteins - ", state, " proportion"
+    )
+  )
+}
+```
+
+```{r focused loading heatmaps, fig.width=6, fig.height=4}
+purrr::pwalk(
+  focused_pairs,
+  function(assay, PC, state) {
+    make_focused_loading_heatmap(
+      assay = assay,
+      pc = PC,
+      state = state,
+      top_n = focused_top_n_loadings
+    )
+  }
+)
+```
+
+## Protein-level scatterplots for the top loading proteins
+
+These plots ask whether the individual proteins driving a PC also track the selected cell-state proportion. They are descriptive and should not be overinterpreted one-by-one.
+
+```{r focused protein scatter helper}
+plot_top_loading_protein_vs_state <- function(assay, pc, state, top_n = 8) {
+  obj <- get_pair_objects(assay)
+
+  top_tbl <- obj$top_loadings %>%
+    dplyr::filter(PC == pc) %>%
+    dplyr::arrange(dplyr::desc(abs_loading)) %>%
+    dplyr::slice_head(n = top_n)
+
+  prop_col <- get_state_prop_col(state)
+
+  plot_df <- obj$expression[top_tbl$feature, , drop = FALSE] %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column("feature") %>%
+    tidyr::pivot_longer(-feature, names_to = "Sample", values_to = "abundance") %>%
+    dplyr::left_join(
+      all_state_props %>%
+        dplyr::select(Sample, dplyr::all_of(prop_col)),
+      by = "Sample"
+    ) %>%
+    dplyr::left_join(
+      top_tbl %>% dplyr::select(feature, loading),
+      by = "feature"
+    ) %>%
+    dplyr::mutate(
+      feature_label = paste0(feature, " (loading ", sprintf("%.3f", loading), ")")
+    ) %>%
+    tidyr::drop_na()
+
+  cor_tbl <- plot_df %>%
+    dplyr::group_by(feature_label) %>%
+    dplyr::summarise(
+      rho = suppressWarnings(cor(.data[[prop_col]], abundance, method = "spearman")),
+      p = suppressWarnings(cor.test(.data[[prop_col]], abundance, method = "spearman")$p.value),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(label = paste0("rho=", round(rho, 2), "; p=", signif(p, 2)))
+
+  plot_df <- plot_df %>%
+    dplyr::left_join(cor_tbl, by = "feature_label")
+
+  ggplot(plot_df, aes(x = .data[[prop_col]], y = abundance)) +
+    geom_point(size = 1.8) +
+    geom_smooth(method = "lm", se = TRUE, linewidth = 0.4, color = "black") +
+    facet_wrap(~ feature_label, scales = "free_y", ncol = 4) +
+    labs(
+      title = paste0(assay, " ", pc, ": top loading proteins vs ", state, " proportion"),
+      x = paste0(state, " proportion"),
+      y = "Protein abundance"
+    ) +
+    theme_classic(base_size = 10) +
+    theme(
+      strip.text = element_text(size = 8)
+    )
+}
+```
+
+```{r focused protein scatterplots, fig.width=13, fig.height=8}
+plot_top_loading_protein_vs_state("MS", "PC1", "FB5", top_n = focused_top_n_gene_scatter)
+plot_top_loading_protein_vs_state("MS", "PC2", "CM5", top_n = focused_top_n_gene_scatter)
+plot_top_loading_protein_vs_state("Olink", "PC2", "CM3", top_n = focused_top_n_gene_scatter)
+plot_top_loading_protein_vs_state("Olink", "PC2", "CM4", top_n = focused_top_n_gene_scatter)
+```
+
+## Optional: GO over-representation analysis of top PC-loading proteins
+
+For mass spec this can be informative. For Olink, interpret carefully because the panel is targeted and not a genome-wide proteome background. For Olink, the better background is all Olink proteins that passed filtering.
+
+```{r focused ORA helper}
+run_pc_loading_ora <- function(assay, pc, top_n = 50, ont = "BP") {
+  obj <- get_pair_objects(assay)
+
+  genes <- obj$top_loadings %>%
+    dplyr::filter(PC == pc) %>%
+    dplyr::arrange(dplyr::desc(abs_loading)) %>%
+    dplyr::slice_head(n = top_n) %>%
+    dplyr::pull(feature) %>%
+    unique()
+
+  universe <- rownames(obj$expression)
+
+  genes_entrez <- bitr(
+    genes,
+    fromType = "SYMBOL",
+    toType = "ENTREZID",
+    OrgDb = org.Hs.eg.db
+  ) %>%
+    dplyr::pull(ENTREZID) %>%
+    unique()
+
+  universe_entrez <- bitr(
+    universe,
+    fromType = "SYMBOL",
+    toType = "ENTREZID",
+    OrgDb = org.Hs.eg.db
+  ) %>%
+    dplyr::pull(ENTREZID) %>%
+    unique()
+
+  ego <- enrichGO(
+    gene = genes_entrez,
+    universe = universe_entrez,
+    OrgDb = org.Hs.eg.db,
+    ont = ont,
+    pAdjustMethod = "BH",
+    readable = TRUE
+  )
+
+  ego
+}
+```
+
+```{r focused ORA, fig.width=8, fig.height=5}
+ora_ms_pc1 <- run_pc_loading_ora("MS", "PC1", top_n = 50, ont = "BP")
+ora_ms_pc2 <- run_pc_loading_ora("MS", "PC2", top_n = 50, ont = "BP")
+ora_olink_pc2 <- run_pc_loading_ora("Olink", "PC2", top_n = 50, ont = "BP")
+
+write.csv(as.data.frame(ora_ms_pc1), file.path(output_dir_data, "ORA_MS_PC1_top50_loadings_GO_BP.csv"), row.names = FALSE)
+write.csv(as.data.frame(ora_ms_pc2), file.path(output_dir_data, "ORA_MS_PC2_top50_loadings_GO_BP.csv"), row.names = FALSE)
+write.csv(as.data.frame(ora_olink_pc2), file.path(output_dir_data, "ORA_Olink_PC2_top50_loadings_GO_BP.csv"), row.names = FALSE)
+
+dotplot(ora_ms_pc1, showCategory = 10) + ggtitle("MS PC1 top loading proteins")
+dotplot(ora_ms_pc2, showCategory = 10) + ggtitle("MS PC2 top loading proteins")
+dotplot(ora_olink_pc2, showCategory = 10) + ggtitle("Olink PC2 top loading proteins")
+```
+
+## Overlap between selected PC-loading proteins and subcluster markers
+
+```{r selected PC-marker overlap tables}
+top_n_marker_overlap <- 20
+
+selected_marker_overlap <- tibble::tribble(
+  ~assay,   ~PC,    ~cell_state, ~marker_file,
+  "MS",     "PC1",  "FB5",       here::here("output", "Fibroblasts_subclustering", "FB_Markers_all_cell_state.csv"),
+  "MS",     "PC2",  "CM5",       here::here("output", "Cardiomyocytes_subclustering", "CM_Markers_all_cell_state.csv"),
+  "Olink",  "PC2",  "CM3",       here::here("output", "Cardiomyocytes_subclustering", "CM_Markers_all_cell_state.csv"),
+  "Olink",  "PC2",  "CM4",       here::here("output", "Cardiomyocytes_subclustering", "CM_Markers_all_cell_state.csv")
+)
+
+# Fallback CM marker file names, in case the file name is slightly different.
+if (!file.exists(here::here("output", "Cardiomyocytes_subclustering", "CM_Markers_all_cell_state.csv"))) {
+  cm_marker_candidates <- c(
+    here::here("output", "Cardiomyocytes_subclustering", "CM_Markers_all_cell_state.csv"),
+    here::here("output", "Cardiomyocytes_subclustering", "Cardiomyocytes_Markers_all_cell_state.csv"),
+    here::here("output", "Cardiomyocytes_subclustering", "CM_markers_all_cell_state.csv"),
+    here::here("output", "Cardiomyocytes_subclustering", "markers_all_cell_state.csv")
+  )
+  cm_marker_file <- cm_marker_candidates[file.exists(cm_marker_candidates)][1]
+
+  selected_marker_overlap <- selected_marker_overlap %>%
+    dplyr::mutate(
+      marker_file = dplyr::if_else(
+        cell_state %in% c("CM3", "CM4", "CM5"),
+        cm_marker_file,
+        marker_file
+      )
+    )
+}
+
+read_marker_table_simple <- function(path) {
+  if (length(path) == 0 || is.na(path) || !file.exists(path)) {
+    stop("Marker file not found: ", path)
+  }
+
+  x <- read.csv(path, check.names = FALSE)
+
+  # Fix empty column names from exported rownames
+  empty_cols <- which(is.na(colnames(x)) | colnames(x) == "")
+  if (length(empty_cols) > 0) {
+    colnames(x)[empty_cols] <- paste0("unnamed_", empty_cols)
+  }
+
+  # If the first unnamed column is just rownames/index, drop it
+  first_col <- colnames(x)[1]
+  if (grepl("^unnamed_", first_col) || first_col %in% c("X", "...1")) {
+    x <- x[, -1, drop = FALSE]
+  }
+
+  gene_col <- c("gene", "Gene", "genes", "symbol", "SYMBOL")
+  gene_col <- gene_col[gene_col %in% colnames(x)][1]
+
+  state_col <- c("cluster", "cell_state", "CellState", "state", "ident", "group")
+  state_col <- state_col[state_col %in% colnames(x)][1]
+
+  if (length(gene_col) == 0 || is.na(gene_col)) {
+    stop(
+      "Could not detect gene column in marker file: ", path,
+      "\nAvailable columns are: ", paste(colnames(x), collapse = ", ")
+    )
+  }
+
+  if (length(state_col) == 0 || is.na(state_col)) {
+    stop(
+      "Could not detect state/cluster column in marker file: ", path,
+      "\nAvailable columns are: ", paste(colnames(x), collapse = ", ")
+    )
+  }
+
+  x %>%
+    dplyr::rename(
+      marker_gene = dplyr::all_of(gene_col),
+      marker_state = dplyr::all_of(state_col)
+    ) %>%
+    dplyr::mutate(
+      marker_gene = as.character(marker_gene),
+      marker_state = as.character(marker_state)
+    )
+}
+
+get_top_pc_loading_simple <- function(assay, pc, top_n = 20) {
+  loading_tbl <- if (assay == "MS") {
+    ms_top_loadings
+  } else {
+    olink_top_loadings
+  }
+
+  loading_tbl %>%
+    dplyr::filter(PC == pc) %>%
+    dplyr::arrange(dplyr::desc(abs_loading)) %>%
+    dplyr::slice_head(n = top_n) %>%
+    dplyr::mutate(
+      loading_rank = dplyr::row_number(),
+      loading_gene = as.character(feature)
+    )
+}
+
+make_pc_marker_overlap_simple <- function(assay, pc, cell_state, marker_file, top_n = 20) {
+  top_tbl <- get_top_pc_loading_simple(assay, pc, top_n = top_n)
+
+  marker_tbl <- read_marker_table_simple(marker_file) %>%
+    dplyr::filter(marker_state == cell_state) %>%
+    dplyr::distinct(marker_gene, .keep_all = TRUE)
+
+  marker_cols <- intersect(
+    c("marker_gene", "marker_state", "p_val", "avg_log2FC", "avg_logFC", "pct.1", "pct.2", "p_val_adj"),
+    colnames(marker_tbl)
+  )
+
+  full_tbl <- top_tbl %>%
+    dplyr::left_join(
+      marker_tbl %>% dplyr::select(dplyr::all_of(marker_cols)),
+      by = c("loading_gene" = "marker_gene")
+    ) %>%
+    dplyr::mutate(
+      assay = assay,
+      PC = pc,
+      tested_state = cell_state,
+      is_marker_of_state = !is.na(marker_state)
+    ) %>%
+    dplyr::select(
+      assay, PC, tested_state,
+      loading_rank, loading_gene, loading, abs_loading,
+      is_marker_of_state,
+      dplyr::everything()
+    )
+
+  summary_tbl <- tibble::tibble(
+    assay = assay,
+    PC = pc,
+    tested_state = cell_state,
+    top_n = top_n,
+    n_top_pc_proteins = nrow(top_tbl),
+    n_state_markers = nrow(marker_tbl),
+    n_overlap = sum(full_tbl$is_marker_of_state),
+    overlap_genes = paste(full_tbl$loading_gene[full_tbl$is_marker_of_state], collapse = "; ")
+  )
+
+  list(summary = summary_tbl, full = full_tbl, overlap = full_tbl %>% dplyr::filter(is_marker_of_state))
+}
+
+pc_marker_overlap_list <- purrr::pmap(
+  selected_marker_overlap,
+  function(assay, PC, cell_state, marker_file) {
+    make_pc_marker_overlap_simple(
+      assay = assay,
+      pc = PC,
+      cell_state = cell_state,
+      marker_file = marker_file,
+      top_n = top_n_marker_overlap
+    )
+  }
+)
+
+pc_marker_overlap_summary <- purrr::map_dfr(pc_marker_overlap_list, "summary")
+pc_marker_overlap_full <- purrr::map_dfr(pc_marker_overlap_list, "full")
+pc_marker_overlap_only <- purrr::map_dfr(pc_marker_overlap_list, "overlap")
+
+write.csv(
+  pc_marker_overlap_summary,
+  file.path(output_dir_data, paste0("top", top_n_marker_overlap, "_PC_marker_overlap_summary.csv")),
+  row.names = FALSE
+)
+
+write.csv(
+  pc_marker_overlap_full,
+  file.path(output_dir_data, paste0("top", top_n_marker_overlap, "_PC_marker_overlap_full.csv")),
+  row.names = FALSE
+)
+
+write.csv(
+  pc_marker_overlap_only,
+  file.path(output_dir_data, paste0("top", top_n_marker_overlap, "_PC_marker_overlap_only.csv")),
+  row.names = FALSE
+)
+
+pc_marker_overlap_summary %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+
+pc_marker_overlap_only %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+```
+
+```{r selected PC-marker full tables}
+pc_marker_overlap_full %>%
+  dplyr::arrange(assay, PC, tested_state, loading_rank) %>%
+  reactable::reactable(filterable = TRUE, searchable = TRUE)
+```
+
+```{r}
+FB_combined <- qs2::qs_read(here::here("output", "Fibroblasts_subclustering", "FB.qs2"), nthreads = 32)
+CM_combined <- qs2::qs_read(here::here("output", "Cardiomyocytes_subclustering", "CM.qs2"), nthreads = 32)
+fb5_ms_genes <- c("FLNA", "ANXA1", "ITGB1", "TAGLN")
+cm5_ms_genes <- c("TNNT2", "TNNI3", "MYL2", "MYL3")
+
+cell_type_cols <- c(
+  "#d05050", "#33A02C", "#1F78B4", "#CAB2D6",
+  "#FF7F00", "#B2DF8A", "#B15928", "#FFD000",
+  "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9"
+)
+
+Idents(FB_combined) <- "cell_state"
+Idents(CM_combined) <- "cell_state"
+```
+
+```{r}
+style_vln_list <- function(p_list) {
+  lapply(p_list, function(p) {
+    for (j in seq_along(p$layers)) {
+      geom_name <- class(p$layers[[j]]$geom)[1]
+
+      if (geom_name %in% c("GeomPoint", "GeomJitter")) {
+        p$layers[[j]]$aes_params$alpha <- 0.1
+        p$layers[[j]]$aes_params$colour <- scales::alpha("black", 0.01)
+      }
+    }
+
+    p +
+      theme_classic() +
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", size = 12),
+        axis.text.y = element_text(face = "bold", size = 10),
+        axis.title.y = element_text(face = "bold"),
+        axis.title.x = element_blank(),
+        strip.text = element_text(face = "bold"),
+        legend.position = "none"
+      )
+  })
+}
+```
+
+```{r, fig.width=12, fig.height=2.8}
+DefaultAssay(FB_combined) <- "RNA"
+Idents(FB_combined) <- "cell_state"
+
+fb_vln_list <- VlnPlot(
+  FB_combined,
+  features = fb5_ms_genes,
+  group.by = "cell_state",
+  assay = "RNA",
+  cols = cell_type_cols,
+  pt.size = 0.001,
+  add.noise = FALSE,
+  ncol = length(fb5_ms_genes),
+  combine = FALSE
+)
+
+fb_vln_list <- style_vln_list(fb_vln_list)
+
+wrap_plots(fb_vln_list, ncol = length(fb_vln_list))
+```
+
+```{r, fig.width=12, fig.height=2.8}
+DefaultAssay(CM_combined) <- "RNA"
+Idents(CM_combined) <- "cell_state"
+
+cm_vln_list <- VlnPlot(
+  CM_combined,
+  features = cm5_ms_genes,
+  group.by = "cell_state",
+  assay = "RNA",
+  cols = cell_type_cols,
+  pt.size = 0.001,
+  add.noise = FALSE,
+  ncol = length(cm5_ms_genes),
+  combine = FALSE
+)
+
+cm_vln_list <- style_vln_list(cm_vln_list)
+
+wrap_plots(cm_vln_list, ncol = length(cm_vln_list))
+```
+
+```{r, fig.width=7, fig.height=4}
+DefaultAssay(FB_combined) <- "SCT"
+Idents(FB_combined) <- "cell_state"
+
+DotPlot(
+  FB_combined,
+  dot.scale = 13,
+  features = fb5_ms_genes,
+  assay = "SCT",
+  cols = c("grey90", "#A63A2A")
+) +
+  coord_flip() +
+  theme_classic() +
+  labs(title = "FB5-associated MS genes") +
+  theme(
+    axis.text.x = element_text(face = "bold", size = 19),
+    axis.text.y = element_text(face = "bold", size = 19),
+    axis.title = element_blank(),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r, fig.width=7, fig.height=4}
+DefaultAssay(CM_combined) <- "SCT"
+Idents(CM_combined) <- "cell_state"
+
+DotPlot(
+  CM_combined,
+  dot.scale = 13,
+  features = cm5_ms_genes,
+  assay = "SCT",
+  cols = c("grey90", "#A63A2A")
+) +
+  coord_flip() +
+  theme_classic() +
+  labs(title = "CM5-associated MS genes") +
+  theme(
+    axis.text.x = element_text(face = "bold", size = 19),
+    axis.text.y = element_text(face = "bold", size = 19),
+    axis.title = element_blank(),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r, fig.width=16.8, fig.height=4}
+DefaultAssay(FB_combined) <- "SCT"
+
+FeaturePlot(
+  FB_combined,
+  features = fb5_ms_genes,
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  ncol = 4,
+  raster = FALSE
+) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r, fig.width=16.8, fig.height=4}
+DefaultAssay(FB_combined) <- "SCT"
+
+FeaturePlot(
+  FB_combined,
+  features = fb5_ms_genes,
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  ncol = 4,
+  raster = FALSE
+) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+
