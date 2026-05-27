@@ -1,0 +1,1418 @@
+---
+title: "HMEC second run RNAseq"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "HMEC_second_run_manuscript"
+
+library(here)
+library(readr)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(edgeR)
+library(limma)
+library(reactable)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(DOSE)
+library(EnhancedVolcano)
+library(ComplexHeatmap)
+library(circlize)
+library(ggrepel)
+library(broom)
+
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"), recursive = TRUE)
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+group_cols <- c("HC" = "grey85", "HF" = "grey45")
+volcano_cols <- c(
+  "Decreased" = "#004C8C",
+  "Not significant" = "grey75",
+  "Increased" = "#A63A2A"
+)
+heat_cols <- circlize::colorRamp2(c(-2, 0, 2), c("#2166AC", "white", "#B2182B"))
+
+wrap_2lines <- function(x, width = 35) {
+  vapply(x, function(s) {
+    s <- as.character(s)
+    if (nchar(s) <= width) return(s)
+    cut <- stringr::str_locate_all(substr(s, 1, width), " ")[[1]]
+    cut <- if (nrow(cut) == 0) width else max(cut[, 1])
+    line1 <- stringr::str_trim(substr(s, 1, cut))
+    rest  <- stringr::str_trim(substr(s, cut + 1, nchar(s)))
+    if (nchar(rest) > width) rest <- paste0(substr(rest, 1, width - 1), "…")
+    paste(line1, rest, sep = "\n")
+  }, FUN.VALUE = character(1))
+}
+```
+
+```{r}
+counts <- read_tsv("/shares/rheumatologie.usz/Gino/HMEC_second_run/results_rnaseq/star_salmon/salmon.merged.gene_counts.tsv", col_types = cols())
+
+gene_col <- colnames(counts)[2]
+counts_mat <- as.matrix(counts[, -c(1, 2)])
+rownames(counts_mat) <- counts[[gene_col]]
+storage.mode(counts_mat) <- "numeric"
+
+meta <- read_excel(here::here("data", "HMEC_RNAseq", "HMEC_second_run_sample_group_ID.xlsx")) %>%
+  dplyr::select(Sample, Group) %>%
+  dplyr::filter(Sample %in% colnames(counts_mat)) %>%
+  dplyr::arrange(match(Sample, colnames(counts_mat)))
+
+counts_mat <- counts_mat[, meta$Sample, drop = FALSE]
+rownames(meta) <- meta$Sample
+group <- factor(meta$Group)
+
+y <- DGEList(counts = counts_mat, samples = meta)
+y$samples$group <- group
+```
+
+```{r}
+table(group)
+
+keep <- filterByExpr(y, group = group, min.count = 20)
+
+y <- y[keep, , keep.lib.sizes = FALSE]
+dim(y)
+
+y <- calcNormFactors(y)
+
+y$samples
+```
+
+```{r, fig.height=6, fig.width=6}
+plotMDS(y, labels = meta$Sample, col = as.numeric(group))
+legend("bottomright", legend = levels(group), col = 1:length(levels(group)), pch = 16)
+```
+```{r pca samples, fig.height=5, fig.width=5}
+logcpm <- cpm(y, log = TRUE, prior.count = 1)
+pr <- prcomp(t(logcpm), scale. = FALSE)
+
+pve <- (pr$sdev^2) / sum(pr$sdev^2) * 100
+
+pca_df <- data.frame(
+  Sample = rownames(meta),
+  Group = factor(meta$Group, levels = c("HC", "HF")),
+  PC1 = pr$x[, 1],
+  PC2 = pr$x[, 2]
+)
+
+ggplot(pca_df, aes(x = PC1, y = PC2, fill = Group, label = Sample)) +
+  geom_point(shape = 21, size = 3, stroke = 0.4, color = "black") +
+  ggrepel::geom_text_repel(
+    size = 3,
+    max.overlaps = Inf,
+    box.padding = 0.4,
+    point.padding = 0.3,
+    min.segment.length = 0,
+    segment.size = 0.25
+  ) +
+  scale_fill_manual(values = group_cols) +
+  scale_x_continuous(expand = expansion(mult = 0.18)) +
+  scale_y_continuous(expand = expansion(mult = 0.18)) +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(pve[1], 1), "%)"),
+    y = paste0("PC2 (", round(pve[2], 1), "%)")
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    legend.position = "right"
+  )
+```
+
+```{r, fig.height=4, fig.width=4}
+levels(group)
+
+group <- relevel(group, ref = "HC")
+y$samples$group <- group
+
+design <- model.matrix(~ 0 + group)
+colnames(design) <- levels(group)
+design
+
+contrast <- makeContrasts(
+  HF_vs_HC = HF - HC,
+  levels = design
+)
+
+y <- estimateDisp(y, design)
+plotBCV(y)
+
+fit <- glmQLFit(y, design)
+
+qlf <- glmQLFTest(fit, contrast = contrast)
+
+res <- topTags(qlf, n = Inf)$table
+head(res)
+```
+
+```{r export differential expression results}
+res_export <- res %>%
+  tibble::rownames_to_column("gene") %>%
+  dplyr::mutate(
+    metric = logFC * -log10(PValue),
+    significance = dplyr::case_when(
+      FDR < 0.2 & logFC > 0.5 ~ "Increased",
+      FDR < 0.2 & logFC < -0.5 ~ "Decreased",
+      TRUE ~ "Not significant"
+    ),
+    comparison = "HF_vs_HC"
+  ) %>%
+  dplyr::arrange(FDR, dplyr::desc(abs(logFC)))
+
+res_signif_export <- res_export %>%
+  dplyr::filter(FDR < 0.2, abs(logFC) > 0.5) %>%
+  dplyr::arrange(dplyr::desc(metric))
+
+write.csv(
+  res_export,
+  file = file.path(output_dir_data, "HMEC_DE_results_HF_vs_HC_all_genes.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  res_signif_export,
+  file = file.path(output_dir_data, "HMEC_DE_results_HF_vs_HC_significant_genes.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+```
+
+```{r volcano HF vs HC, fig.height=5, fig.width=4}
+res_df <- res %>%
+  dplyr::mutate(
+    Gene = rownames(res),
+    significance = dplyr::case_when(
+      FDR < 0.2 & logFC > 0.5 ~ "Increased",
+      FDR < 0.2 & logFC < -0.5 ~ "Decreased",
+      TRUE ~ "Not significant"
+    ),
+    significance = factor(significance, levels = names(volcano_cols))
+  )
+
+n_h  <- sum(meta$Group == "HC")
+n_hf <- sum(meta$Group == "HF")
+
+EnhancedVolcano(
+  res_df,
+  lab = res_df$Gene,
+  x = "logFC",
+  y = "FDR",
+  labSize = 0,
+  legendLabSize = 12,
+  titleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 0,
+  pointSize = 0.8,
+  FCcutoff = 0.5,
+  pCutoff = 0.2,
+  ylim = c(0, 2),
+  xlim = c(-3.75, 3.75),
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  ylab = bquote(-Log[10]~FDR),
+  subtitle = NULL,
+  title = paste0("HMEC
+HF (n=", n_hf, ") vs HC (n=", n_h, ")"),
+  colCustom = setNames(
+    volcano_cols[as.character(res_df$significance)],
+    as.character(res_df$significance)
+  )
+) +
+  theme(legend.position = "none")
+```
+
+```{r, fig.height=6, fig.width=6}
+n_top <- 500
+
+logCPM <- cpm(y, log = TRUE, prior.count = 1)
+var_genes <- apply(logCPM, 1, var)
+top_genes <- names(sort(var_genes, decreasing = TRUE))[1:n_top]
+
+mat <- logCPM
+
+mat_z <- t(scale(t(mat)))
+
+annotation_col <- data.frame(
+  Group  = group,
+  row.names = colnames(mat_z)
+)
+
+pheatmap(
+  mat_z,
+  annotation_col = annotation_col,
+  show_rownames = FALSE,
+  cluster_cols = TRUE,
+  clustering_distance_rows = "euclidean",
+  clustering_distance_cols = "euclidean",
+  main = paste("All genes")
+)
+```
+
+```{r, fig.height=6, fig.width=6}
+n_top <- 500
+
+logCPM <- cpm(y, log = TRUE, prior.count = 1)
+var_genes <- apply(logCPM, 1, var)
+top_genes <- names(sort(var_genes, decreasing = TRUE))[1:n_top]
+
+mat <- logCPM[top_genes, ]
+
+mat_z <- t(scale(t(mat)))
+
+annotation_col <- data.frame(
+  Group  = group,
+  row.names = colnames(mat_z)
+)
+
+pheatmap(
+  mat_z,
+  annotation_col = annotation_col,
+  show_rownames = FALSE,
+  cluster_cols = TRUE,
+  clustering_distance_rows = "euclidean",
+  clustering_distance_cols = "euclidean",
+  main = paste("Top", n_top, "variable genes")
+)
+```
+
+```{r, fig.width=6, fig.height=5}
+ec_fb_markers <- c("VWF", "PECAM1", "CDH5", "KDR", "ENG", "ESAM", "ST6GALNAC3", "PIK3R3","COL1A1", "VIM", "FN1", "POSTN", "NEBL", "NEGR1", "ACSM3", "DCN", "COL1A2","LUM","COL3A1","TAGLN","ACTA2")
+
+markers_present <- ec_fb_markers[ec_fb_markers %in% rownames(logCPM)]
+markers_present
+
+logCPM_markers <- logCPM[markers_present, , drop = FALSE]
+
+pheatmap(
+  logCPM_markers,
+  annotation_col = annotation_col,
+  main = "Endothelial markers expression (log2-CPM)"
+)
+```
+
+```{r, fig.height=6, fig.width=6.5}
+pc1_scores <- pr$x[, 1]
+
+pc1_loadings <- pr$rotation[, 1]
+
+top_n <- 25
+top_pc1_genes <- names(sort(abs(pc1_loadings), decreasing = TRUE))[1:top_n]
+top_pc1_genes
+
+mat_pc1 <- logCPM[top_pc1_genes, , drop = FALSE]
+
+ord <- order(pc1_scores, decreasing = TRUE)
+
+annotation_col2 <- annotation_col
+annotation_col2$PC1 <- pc1_scores
+
+pheatmap(
+  mat_pc1[, ord, drop = FALSE],
+  scale = "row",
+  annotation_col = annotation_col2[ord, , drop = FALSE],
+  show_colnames = TRUE,
+  main = "Top PC1 loading genes (row-scaled log2-CPM)"
+)
+
+
+```
+
+```{r, fig.height=5, fig.width=5}
+fb_markers <- c("COL1A1","COL1A2","DCN","LUM","COL3A1","TAGLN","ACTA2","POSTN","FN1", "NEGR1")
+fb_present <- intersect(fb_markers, rownames(logCPM))
+
+fb_score <- colMeans(logCPM[fb_present, , drop = FALSE], na.rm = TRUE)
+ct <- cor.test(pc1_scores, fb_score, method = "spearman")
+ct
+
+plot(
+  pc1_scores, fb_score,
+  pch = 16,
+  col = as.numeric(group),
+  xlab = "PC1 score",
+  ylab = "Fibroblast marker score (mean log2-CPM)"
+)
+
+legend(
+  "topleft",
+  legend = levels(group),
+  col = seq_along(levels(group)),
+  pch = 16,
+  bty = "n"
+)
+
+text(
+  pc1_scores, fb_score,
+  labels = meta$Sample,
+  pos = 3,
+  cex = 0.7
+)
+
+txt <- paste0(
+  "Spearman r = ", round(ct$estimate, 2),
+  "\nP = ", formatC(ct$p.value, format = "e", digits = 2)
+)
+usr <- par("usr")
+
+text(
+  x = usr[2] - 0.05 * diff(usr[1:2]),
+  y = usr[4] - 0.05 * diff(usr[3:4]),
+  labels = txt,
+  adj = c(-0.2, 0.6),
+  cex = 0.9,
+  bg = "white"
+)
+
+annotation_col2$fb_score <- fb_score
+```
+
+```{r, fig.height=5, fig.width=7}
+ec_markers <- c("VWF","PECAM1","CDH5","KDR","ENG","ESAM","ST6GALNAC3","PIK3R3")
+mix_markers <- unique(c(ec_markers, fb_markers))
+mix_present <- intersect(mix_markers, rownames(logCPM))
+
+pheatmap(
+  logCPM[mix_present, ord, drop = FALSE],
+  scale = "row",
+  annotation_col = annotation_col2[ord, , drop = FALSE],
+  main = "Endothelial and fibroblast markers (row-scaled log2-CPM)"
+)
+```
+
+```{r, fig.height=5, fig.width=5}
+ec_markers <- c("VWF","PECAM1","CDH5","KDR","ENG","ESAM","ST6GALNAC3","PIK3R3")
+ec_present <- intersect(ec_markers, rownames(logCPM))
+
+ec_score <- colMeans(logCPM[ec_present, , drop = FALSE], na.rm = TRUE)
+ct2 <- cor.test(ec_score, fb_score, method = "spearman")
+ct2
+plot(
+  ec_score, fb_score,
+  pch = 16,
+  col = as.numeric(group),
+  xlab = "Endothelial marker score (mean log2-CPM)",
+  ylab = "Fibroblast marker score (mean log2-CPM)"
+)
+
+legend(
+  "bottomleft",
+  legend = levels(group),
+  col = seq_along(levels(group)),
+  pch = 16,
+  bty = "n"
+)
+
+text(
+  ec_score, fb_score,
+  labels = meta$Sample,
+  pos = 3,
+  cex = 0.7
+)
+
+txt2 <- paste0(
+  "Spearman r = ", round(ct2$estimate, 2),
+  "\nP = ", formatC(ct2$p.value, format = "e", digits = 2)
+)
+
+usr <- par("usr")
+text(
+  x = usr[2] - 0.05 * diff(usr[1:2]),
+  y = usr[4] - 0.05 * diff(usr[3:4]),
+  labels = txt2,
+  adj = c(1, 0.6),
+  cex = 0.9,
+  bg = "white"
+)
+
+```
+
+## DCM RV
+
+```{r}
+library(qs2)
+DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV.qs2"), nthreads = 32)
+DefaultAssay(DCM_RV) <- "RNA"
+DCM_RV <- NormalizeData(DCM_RV)
+DCM_RV <- DCM_RV[, sample(colnames(DCM_RV), size =20000, replace=F)]
+```
+
+```{r}
+DotPlot_scCustom(
+  seurat_object   = DCM_RV,
+  features = top_pc1_genes,
+  group.by = "cell_type",
+  dot.scale = 6
+) +
+  RotatedAxis() +
+  scale_y_discrete(limits = rev) +
+  theme_classic(base_size = 11) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title = element_text(face = "bold"),
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    title = "Top PC1 genes across cardiac cell types",
+    x = NULL,
+    y = NULL
+  )
+```
+
+```{r}
+DotPlot_scCustom(
+  seurat_object   = DCM_RV,
+  features = ec_fb_markers,
+  group.by = "cell_type",
+  dot.scale = 6
+) +
+  RotatedAxis() +
+  scale_y_discrete(limits = rev) +
+  theme_classic(base_size = 11) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title = element_text(face = "bold"),
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    title = "EC and FB markers across cardiac cell types",
+    x = NULL,
+    y = NULL
+  )
+```
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r ranked_genes}
+res$metric <- res$logFC*-log10(res$PValue)
+res$gene <- rownames(res)
+entrezid <- bitr(res$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+res <- merge(res, entrezid, by.x = "gene", by.y = "SYMBOL", all.x = TRUE)
+res[duplicated(res$metric) | duplicated(res$metric, fromLast = TRUE),]
+res <- res[!duplicated(res$metric), ]
+ranked_genes <- res[!is.na(res$ENTREZID), ]
+genelist <- ranked_genes$metric
+names(genelist) <-ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+```
+
+```{r heatmap top 20 up down prepare, fig.height=6, fig.width=6}
+top_up <- res |>
+  dplyr::arrange(dplyr::desc(metric)) |>
+  dplyr::slice(1:20)
+
+top_down <- res |>
+  dplyr::arrange(metric) |>
+  dplyr::slice(1:20)
+
+genes_up <- top_up$gene
+genes_down <- top_down$gene
+
+genes_up
+genes_down
+
+genes_ordered <- c(genes_up, genes_down)
+genes_ordered <- genes_ordered[genes_ordered %in% rownames(logCPM)]
+
+mat_metric <- logCPM[genes_ordered, , drop = FALSE]
+
+group_heatmap <- factor(meta[colnames(mat_metric), "Group", drop = TRUE], levels = c("HC", "HF"))
+ord <- order(group_heatmap)
+
+mat_metric_ord <- mat_metric[, ord, drop = FALSE]
+mat_metric_ord_z <- t(scale(t(mat_metric_ord)))
+mat_metric_ord_z[is.na(mat_metric_ord_z)] <- 0
+
+annotation_col_ord <- data.frame(
+  Group = group_heatmap[ord],
+  row.names = colnames(mat_metric_ord)
+)
+
+ha_hmec <- HeatmapAnnotation(
+  Group = annotation_col_ord$Group,
+  col = list(Group = group_cols),
+  annotation_name_gp = grid::gpar(fontsize = 10, fontface = "bold")
+)
+
+Heatmap(
+  mat_metric_ord_z,
+  name = "Z-score",
+  top_annotation = ha_hmec,
+  col = heat_cols,
+  cluster_rows = FALSE,
+  cluster_columns = FALSE,
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  column_names_gp = grid::gpar(fontsize = 7),
+  row_names_gp = grid::gpar(fontsize = 8),
+  column_title = "Top 20 up and top 20 down genes",
+  column_title_gp = grid::gpar(fontsize = 14, fontface = "bold")
+)
+```
+
+
+
+```{r save GSEA_GO, eval=TRUE}
+GSEA_GO <- gseGO(geneList = genelist,
+                OrgDb = org.Hs.eg.db,
+                ont = "ALL",
+                keyType = "ENTREZID",
+                nPermSimple = 10000,
+                minGSSize = 10, 
+                pvalueCutoff  = 0.1)
+
+
+GSEA_GO <- reorder_GO_by_pvalue(GSEA_GO)
+```
+
+```{r GSEA_GO, fig.height=8, fig.width=8}
+dotplot(GSEA_GO, showCategory = 10, split=".sign", title = "GO Enrichment Analysis", label_format = 40, font.size = 14) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold", lineheight = 0.65, size = 12),
+        axis.text.x = element_text(size = 9),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r classify_terms}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+```
+
+```{r GSEA_GO_emapplot, fig.height=10, fig.width=20}
+GSEA_GO@result <- classify_terms(GSEA_GO@result)
+
+activated_terms <- subset(GSEA_GO@result, sign == "activated")
+suppressed_terms <- subset(GSEA_GO@result, sign == "suppressed")
+
+GSEA_GO_activated <- GSEA_GO
+GSEA_GO_activated@result <- activated_terms
+GSEA_GO_activated <- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed <- GSEA_GO
+GSEA_GO_suppressed@result <- suppressed_terms
+GSEA_GO_suppressed <- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 <- emapplot(GSEA_GO_activated, showCategory = 50, size_category = 0.7, min_edge = 0.25) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_GO_suppressed, showCategory = 50, size_category = 0.7, min_edge = 0.25) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r GSEA_GO_simplified, fig.height=6, fig.width=8}
+GSEA_GO_simplified <- clusterProfiler::simplify(
+  GSEA_GO,
+  cutoff = 0.6,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+dotplot(GSEA_GO_simplified, showCategory = 10, split=".sign", title = "GO Enrichment Analysis", label_format = 40, font.size = 14) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold", lineheight = 0.65, size = 12),
+        axis.text.x = element_text(size = 9),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+
+```{r GSEA_GO_simplified_emapplot, fig.height=10, fig.width=20}
+GSEA_GO_simplified@result <- classify_terms(GSEA_GO_simplified@result)
+
+activated_terms <- subset(GSEA_GO_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_GO_simplified@result, sign == "suppressed")
+
+GSEA_GO_activated <- GSEA_GO_simplified
+GSEA_GO_activated@result <- activated_terms
+GSEA_GO_activated <- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed <- GSEA_GO_simplified
+GSEA_GO_suppressed@result <- suppressed_terms
+GSEA_GO_suppressed <- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 <- emapplot(GSEA_GO_activated, showCategory = 50, size_category = 0.7, min_edge = 0.2) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_GO_suppressed, showCategory = 50, size_category = 0.7, min_edge = 0.2) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r GSEA_GO_simplified_ridgeplot, fig.height=12, fig.width=12}
+p1 <- ridgeplot(GSEA_GO_simplified, showCategory = 30) + labs(x = "enrichment distribution")
+print(p1)
+```
+
+```{r make gsea barplot helper}
+make_gsea_barplot <- function(gsea_obj, label_width = 40, top_n = 10, base_size = 11) {
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  gsea_bar_df <- gsea_obj@result %>%
+    as_tibble() %>%
+    dplyr::filter(!is.na(NES), !is.na(p.adjust), p.adjust < 0.05)
+
+  if (nrow(gsea_bar_df) == 0) return(NULL)
+
+  gsea_bar_df <- gsea_bar_df %>%
+    dplyr::mutate(score = -log10(p.adjust) * sign(NES))
+
+  gsea_bar_df_pos <- gsea_bar_df %>%
+    dplyr::filter(NES > 0) %>%
+    dplyr::arrange(desc(NES)) %>%
+    dplyr::slice_head(n = top_n)
+
+  gsea_bar_df_neg <- gsea_bar_df %>%
+    dplyr::filter(NES < 0) %>%
+    dplyr::arrange(NES) %>%
+    dplyr::slice_head(n = top_n)
+
+  gsea_bar_df_plot <- dplyr::bind_rows(gsea_bar_df_pos, gsea_bar_df_neg)
+
+  if (nrow(gsea_bar_df_plot) == 0) return(NULL)
+
+  gsea_bar_df_plot$Description <- factor(
+    gsea_bar_df_plot$Description,
+    levels = gsea_bar_df_plot$Description[order(gsea_bar_df_plot$NES)]
+  )
+
+  L <- unname(quantile(abs(gsea_bar_df_plot$score), probs = 0.80, na.rm = TRUE))
+  if (!is.finite(L) || L == 0) L <- max(abs(gsea_bar_df_plot$score), na.rm = TRUE)
+
+  ggplot(gsea_bar_df_plot, aes(x = Description, y = NES, fill = score)) +
+    geom_col(width = 0.9) +
+    scale_fill_gradient2(
+      low = "#004C8C",
+      mid = "white",
+      high = "#A63A2A",
+      midpoint = 0,
+      limits = c(-L, L),
+      oob = scales::squish,
+      name = expression(-log[10](adj.~p) %*% sign(NES))
+    ) +
+    scale_x_discrete(labels = function(x) wrap_2lines(x, width = label_width)) +
+    coord_flip() +
+    labs(x = NULL, y = "Normalized enrichment score (NES)") +
+    theme_bw(base_size = base_size) +
+    theme(
+      text = element_text(color = "black"),
+      axis.text = element_text(color = "black"),
+      axis.title = element_text(color = "black", size = 13),
+      plot.title = element_blank(),
+      axis.text.y = element_text(size = 11),
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.title = element_text(size = 9),
+      legend.text = element_text(size = 9)
+    ) +
+    guides(fill = guide_colorbar(
+      barwidth = grid::unit(6, "cm"),
+      barheight = grid::unit(0.3, "cm"),
+      title.position = "top",
+      title.hjust = 0.5
+    ))
+}
+```
+
+```{r reorder_GO_by_NES}
+reorder_GO_by_NES <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(desc(go_results$NES)), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r default_labeller}
+default_labeller <- function(n) {
+    function(str){
+        str <- gsub("_", " ", str)
+        ep_str_wrap(str, n)
+    }
+}
+```
+
+```{r barplot.enrichResult}
+barplot.enrichResult <- function (height, x = "Count", color = "p.adjust", showCategory = 8, 
+  font.size = 12, title = "", label_format = 30, ...) 
+{
+  object <- height
+  colorBy <- match.arg(color, c("pvalue", "p.adjust", "qvalue"))
+  if (x == "geneRatio" || x == "GeneRatio") {
+    x <- "GeneRatio"
+  }
+  else if (x == "count" || x == "Count") {
+    x <- "Count"
+  }
+  df <- fortify(object, showCategory = showCategory, by = x, 
+    ...)
+  if (colorBy %in% colnames(df)) {
+    p <- ggplot(df, aes_string(x = x, y = "Description", 
+      fill = colorBy)) + theme_dose(font.size) + set_enrichplot_color(type = "fill", 
+      name = color)
+  }
+  else {
+    p <- ggplot(df, aes_string(x = x, y = "Description", 
+      fill = "Description")) + theme_dose(font.size) + 
+      theme(legend.position = "none")
+  }
+  label_func <- default_labeller(label_format)
+  if (is.function(label_format)) {
+    label_func <- label_format
+  }
+  p + geom_col() + scale_y_discrete(labels = label_func) + 
+    ggtitle(title) + ylab(NULL)
+}
+```
+
+```{r ep_str_wrap}
+ep_str_wrap <- function(string, width) {
+    x <- gregexpr(' ', string)
+    vapply(seq_along(x),
+           FUN = function(i) {
+               y <- x[[i]]
+               n <- nchar(string[i])
+               len <- (c(y,n) - c(0, y)) ## length + 1
+               idx <- len > width
+               j <- which(!idx)
+               if (length(j) && max(j) == length(len)) {
+                   j <- j[-length(j)]
+               }
+               if (length(j)) {
+                   idx[j] <- len[j] + len[j+1] > width
+               }
+               idx <- idx[-length(idx)] ## length - 1
+               start <- c(1, y[idx] + 1)
+               end <- c(y[idx] - 1, n)
+               words <- substring(string[i], start, end)
+               paste0(words, collapse="\n")
+           },
+           FUN.VALUE = character(1)
+    )
+}
+```
+
+```{r GSEA_GO_simplified_barplot, fig.height=14, fig.width=15}
+barplot.enrichResult(reorder_GO_by_NES(GSEA_GO_simplified), x="NES", showCategory = 100, label_format = 45) + 
+  ggtitle("Gene Ontology Enrichment Analysis") + 
+  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5))
+```
+
+```{r GSEA_GO_simplified_barplot_top20, fig.width=6, fig.height=5}
+p_go_bar <- make_gsea_barplot(GSEA_GO_simplified, label_width = 43, top_n = 10)
+
+if (!is.null(p_go_bar)) {
+  p_go_bar
+}
+```
+
+## Gene programs and selected genes
+
+```{r hmec gene program definitions}
+group_cols <- c("HC" = "grey85", "HF" = "grey45")
+
+format_p_label <- function(p) {
+  if (length(p) == 0 || is.na(p)) return("NA")
+  dplyr::case_when(
+    p < 0.0001 ~ "****",
+    p < 0.001  ~ "***",
+    p < 0.01   ~ "**",
+    p < 0.05   ~ "*",
+    TRUE ~ sprintf("%.4f", p)
+  )
+}
+
+format_p_fontface <- function(p) {
+  if (length(p) == 0 || is.na(p)) return("plain")
+  dplyr::case_when(
+    p < 0.05 ~ "bold",
+    TRUE ~ "plain"
+  )
+}
+
+collapse_duplicate_genes <- function(mat) {
+  rowsum_mat <- rowsum(mat, group = rownames(mat), reorder = FALSE)
+  gene_n <- table(rownames(mat))[rownames(rowsum_mat)]
+  sweep(rowsum_mat, 1, as.numeric(gene_n), "/")
+}
+
+angiogenesis_genes <- c("ESM1", "ANGPT2", "KDR", "APLN", "CXCR4", "PGF", "DLL4", "KIT")
+
+redox_no_genes <- c("NOX4", "NOS3", "SOD1")
+
+mito_homeostasis_genes <- c("TFAM", "PPARGC1A")
+
+apoptotic_priming_genes <- c(
+  "BCL2L11", "BBC3", "PMAIP1", "BAX",
+  "BID", "BAD", "BMF", "BIK",
+  "BNIP3", "BNIP3L"
+)
+
+s_phase_genes <- Seurat::cc.genes.updated.2019$s.genes
+g2m_phase_genes <- Seurat::cc.genes.updated.2019$g2m.genes
+
+s_phase_genes_plot <- c("MCM2", "MCM5", "PCNA", "TYMS", "RRM2", "TK1")
+g2m_phase_genes_plot <- c("TOP2A", "UBE2C", "CENPF", "BIRC5", "CDC20", "AURKB")
+
+aerobic_respiration_genes <- AnnotationDbi::select(
+  org.Hs.eg.db,
+  keys = "GO:0009060",
+  keytype = "GOALL",
+  columns = "SYMBOL"
+) %>%
+  dplyr::pull(SYMBOL) %>%
+  unique() %>%
+  na.omit() %>%
+  as.character()
+
+program_list <- list(
+  Angiogenesis = angiogenesis_genes,
+  `Aerobic respiration` = aerobic_respiration_genes,
+  `S phase` = s_phase_genes,
+  `G2M phase` = g2m_phase_genes,
+  `Redox / NO` = redox_no_genes,
+  `Mitochondrial homeostasis` = mito_homeostasis_genes,
+  `Apoptotic priming` = apoptotic_priming_genes
+)
+
+selected_gene_list <- unique(c(
+  angiogenesis_genes,
+  redox_no_genes,
+  mito_homeostasis_genes,
+  apoptotic_priming_genes,
+  s_phase_genes_plot,
+  g2m_phase_genes_plot
+))
+```
+
+```{r hmec program scores}
+logcpm_scores <- edgeR::cpm(y, log = TRUE, prior.count = 1)
+logcpm_scores_gene <- collapse_duplicate_genes(logcpm_scores)
+
+make_program_score <- function(mat, genes) {
+  genes_present <- intersect(genes, rownames(mat))
+
+  if (length(genes_present) == 0) {
+    out <- rep(NA_real_, ncol(mat))
+    names(out) <- colnames(mat)
+    return(out)
+  }
+
+  mat_sub <- mat[genes_present, , drop = FALSE]
+  mat_z <- t(scale(t(mat_sub)))
+  mat_z[!is.finite(mat_z)] <- 0
+
+  colMeans(mat_z, na.rm = TRUE)
+}
+
+score_df <- meta %>%
+  dplyr::mutate(Sample = rownames(meta)) %>%
+  dplyr::select(Sample, Group) %>%
+  dplyr::mutate(Group = factor(Group, levels = c("HC", "HF")))
+
+for (nm in names(program_list)) {
+  score_df[[paste0(gsub("[^A-Za-z0-9]+", "_", tolower(nm)), "_score")]] <-
+    make_program_score(logcpm_scores_gene, program_list[[nm]])[score_df$Sample]
+}
+
+program_summary <- tibble::tibble(
+  program = names(program_list),
+  n_genes_total = lengths(program_list),
+  n_genes_present = vapply(program_list, function(x) length(intersect(x, rownames(logcpm_scores_gene))), integer(1)),
+  genes_missing = vapply(program_list, function(x) paste(setdiff(x, rownames(logcpm_scores_gene)), collapse = ";"), character(1))
+)
+
+write.csv(score_df, file = file.path(output_dir_data, "HMEC_gene_program_scores.csv"), quote = FALSE, row.names = FALSE)
+write.csv(program_summary, file = file.path(output_dir_data, "HMEC_gene_program_gene_presence.csv"), quote = FALSE, row.names = FALSE)
+
+program_summary
+```
+
+```{r export hmec score stats}
+score_cols <- grep("_score$", colnames(score_df), value = TRUE)
+
+score_title_map <- c(
+  angiogenesis_score = "Angio score",
+  aerobic_respiration_score = "Aerobic respiration score",
+  s_phase_score = "S-phase score",
+  g2m_phase_score = "G2M-phase score",
+  redox_no_score = "Redox / NO score",
+  mitochondrial_homeostasis_score = "Mitochondrial homeostasis score",
+  apoptotic_priming_score = "Apoptotic priming score"
+)
+
+score_stats <- purrr::map_dfr(score_cols, function(score_col) {
+  df_sub <- score_df %>%
+    dplyr::select(Sample, Group, score = dplyr::all_of(score_col)) %>%
+    dplyr::filter(!is.na(score))
+
+  if (nrow(df_sub) == 0 || dplyr::n_distinct(df_sub$Group) < 2) {
+    return(NULL)
+  }
+
+  fit <- lm(score ~ Group, data = df_sub)
+
+  broom::tidy(fit) %>%
+    dplyr::mutate(
+      feature = score_col,
+      feature_label = dplyr::coalesce(unname(score_title_map[score_col]), score_col),
+      comparison = "HF_vs_HC"
+    )
+})
+
+score_stats <- score_stats %>%
+  dplyr::group_by(term) %>%
+  dplyr::mutate(FDR = p.adjust(p.value, method = "BH")) %>%
+  dplyr::ungroup()
+
+score_stats_group <- score_stats %>%
+  dplyr::filter(term == "GroupHF") %>%
+  dplyr::arrange(p.value)
+
+write.csv(
+  score_stats,
+  file = file.path(output_dir_data, "HMEC_gene_program_score_stats_HF_vs_HC_all_terms.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  score_stats_group,
+  file = file.path(output_dir_data, "HMEC_gene_program_score_stats_HF_vs_HC_group_effect.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+```
+
+```{r hmec score plotting functions}
+plot_program_score <- function(df, score_col, title) {
+  df <- df %>%
+    dplyr::select(Sample, Group, score = dplyr::all_of(score_col)) %>%
+    dplyr::filter(!is.na(score))
+
+  fit <- lm(score ~ Group, data = df)
+  p_group <- broom::tidy(fit) %>%
+    dplyr::filter(term == "GroupHF") %>%
+    dplyr::pull(p.value)
+
+  y_max <- max(df$score, na.rm = TRUE)
+  y_min <- min(df$score, na.rm = TRUE)
+  y_range <- y_max - y_min
+  if (!is.finite(y_range) || y_range == 0) y_range <- 1
+
+  ggplot(df, aes(x = Group, y = score, fill = Group)) +
+    geom_boxplot(width = 0.55, outlier.shape = NA, color = "black", linewidth = 0.5) +
+    geom_jitter(width = 0.10, size = 1.5, shape = 21, stroke = 0.4, color = "black") +
+    geom_segment(
+      aes(x = 1, xend = 2, y = y_max + 0.10 * y_range, yend = y_max + 0.10 * y_range),
+      inherit.aes = FALSE
+    ) +
+    annotate(
+      "text",
+      x = 1.5,
+      y = y_max + 0.16 * y_range,
+      label = format_p_label(p_group),
+      size = 5,
+      fontface = format_p_fontface(p_group)
+    ) +
+    scale_fill_manual(values = group_cols) +
+    coord_cartesian(ylim = c(y_min - 0.05 * y_range, y_max + 0.22 * y_range)) +
+    labs(title = title, x = NULL, y = "Score") +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.title.y = element_text(face = "bold"),
+      legend.position = "none"
+    )
+}
+
+plot_gene_logcpm <- function(gene_name) {
+  idx <- which(rownames(logcpm_scores_gene) == gene_name)
+
+  if (length(idx) == 0) {
+    stop("Gene not found: ", gene_name)
+  }
+
+  gene_mat <- logcpm_scores_gene[idx, , drop = FALSE]
+
+  if (nrow(gene_mat) > 1) {
+    gene_values <- colMeans(gene_mat, na.rm = TRUE)
+  } else {
+    gene_values <- as.numeric(gene_mat[1, ])
+  }
+
+  if (length(gene_values) != ncol(logcpm_scores_gene)) {
+    stop(
+      "Length mismatch for ", gene_name,
+      ": got ", length(gene_values),
+      " values, expected ", ncol(logcpm_scores_gene)
+    )
+  }
+
+  df <- tibble::tibble(
+    Sample = colnames(logcpm_scores_gene),
+    gene = rep(gene_name, ncol(logcpm_scores_gene)),
+    logCPM = gene_values,
+    Group = factor(meta[colnames(logcpm_scores_gene), "Group", drop = TRUE], levels = c("HC", "HF"))
+  )
+
+  fit <- lm(logCPM ~ Group, data = df)
+
+  p_group <- broom::tidy(fit) %>%
+    dplyr::filter(term == "GroupHF") %>%
+    dplyr::pull(p.value)
+
+  y_max <- max(df$logCPM, na.rm = TRUE)
+  y_min <- min(df$logCPM, na.rm = TRUE)
+  y_range <- y_max - y_min
+  if (!is.finite(y_range) || y_range == 0) y_range <- 1
+
+  ggplot(df, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(width = 0.55, outlier.shape = NA, color = "black", linewidth = 0.5) +
+    geom_jitter(width = 0.10, size = 1.5, shape = 21, stroke = 0.4, color = "black") +
+    geom_segment(
+      aes(x = 1, xend = 2, y = y_max + 0.10 * y_range, yend = y_max + 0.10 * y_range),
+      inherit.aes = FALSE
+    ) +
+    annotate(
+      "text",
+      x = 1.5,
+      y = y_max + 0.16 * y_range,
+      label = format_p_label(p_group),
+      size = 5,
+      fontface = format_p_fontface(p_group)
+    ) +
+    scale_fill_manual(values = group_cols) +
+    coord_cartesian(ylim = c(y_min - 0.05 * y_range, y_max + 0.22 * y_range)) +
+    labs(title = gene_name, x = NULL, y = "logCPM") +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.title.y = element_text(face = "bold"),
+      legend.position = "none"
+    )
+}
+```
+
+## Gene program score plots
+
+```{r hmec program score plots, fig.width=3, fig.height=3.7}
+score_cols <- grep("_score$", colnames(score_df), value = TRUE)
+
+score_title_map <- c(
+  angiogenesis_score = "Angio score",
+  aerobic_respiration_score = "Aerobic respiration score",
+  s_phase_score = "S-phase score",
+  g2m_phase_score = "G2M-phase score",
+  redox_no_score = "Redox / NO score",
+  mitochondrial_homeostasis_score = "Mitochondrial homeostasis score",
+  apoptotic_priming_score = "Apoptotic priming score"
+)
+
+for (score_col in score_cols) {
+  title <- unname(score_title_map[score_col])
+
+  if (is.na(title)) {
+    title <- score_col %>%
+      gsub("_score$", "", .) %>%
+      gsub("_", " ", .) %>%
+      tools::toTitleCase() %>%
+      paste("score")
+  }
+
+  print(plot_program_score(score_df, score_col, title))
+}
+```
+
+## Selected gene expression plots
+
+```{r hmec selected gene plots, fig.width=2.8, fig.height=3.7, warning=FALSE}
+selected_genes_present <- unique(selected_gene_list[selected_gene_list %in% rownames(logcpm_scores_gene)])
+selected_genes_missing <- setdiff(selected_gene_list, rownames(logcpm_scores_gene))
+
+write.csv(
+  data.frame(gene_missing = selected_genes_missing),
+  file = file.path(output_dir_data, "HMEC_selected_genes_missing.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+gene_program_lookup <- purrr::imap_dfr(program_list, function(genes, program) {
+  tibble::tibble(gene = genes, program = program)
+}) %>%
+  dplyr::group_by(gene) %>%
+  dplyr::summarise(program = paste(unique(program), collapse = "; "), .groups = "drop")
+
+selected_gene_logcpm_df <- purrr::map_dfr(selected_genes_present, function(gene_name) {
+  idx <- which(rownames(logcpm_scores_gene) == gene_name)
+  gene_mat <- logcpm_scores_gene[idx, , drop = FALSE]
+
+  if (nrow(gene_mat) > 1) {
+    gene_values <- colMeans(gene_mat, na.rm = TRUE)
+  } else {
+    gene_values <- as.numeric(gene_mat[1, ])
+  }
+
+  tibble::tibble(
+    Sample = colnames(logcpm_scores_gene),
+    Group = factor(meta[colnames(logcpm_scores_gene), "Group", drop = TRUE], levels = c("HC", "HF")),
+    gene = gene_name,
+    logCPM = gene_values
+  )
+}) %>%
+  dplyr::left_join(gene_program_lookup, by = "gene")
+
+selected_gene_stats <- selected_gene_logcpm_df %>%
+  dplyr::group_by(gene, program) %>%
+  dplyr::group_modify(~ {
+    if (nrow(.x) == 0 || dplyr::n_distinct(.x$Group) < 2) {
+      return(tibble::tibble())
+    }
+    broom::tidy(lm(logCPM ~ Group, data = .x))
+  }) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(comparison = "HF_vs_HC") %>%
+  dplyr::group_by(term) %>%
+  dplyr::mutate(FDR = p.adjust(p.value, method = "BH")) %>%
+  dplyr::ungroup()
+
+selected_gene_stats_group <- selected_gene_stats %>%
+  dplyr::filter(term == "GroupHF") %>%
+  dplyr::arrange(p.value)
+
+write.csv(
+  selected_gene_logcpm_df,
+  file = file.path(output_dir_data, "HMEC_selected_gene_logCPM_by_sample.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  selected_gene_stats,
+  file = file.path(output_dir_data, "HMEC_selected_gene_stats_HF_vs_HC_all_terms.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  selected_gene_stats_group,
+  file = file.path(output_dir_data, "HMEC_selected_gene_stats_HF_vs_HC_group_effect.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+for (gene in selected_genes_present) {
+  print(plot_gene_logcpm(gene))
+}
+```
+
+## Heatmap of selected genes and program scores
+
+```{r hmec selected genes heatmap, fig.width=7, fig.height=6}
+genes_for_heatmap <- selected_genes_present
+
+mat_gene_z <- t(scale(t(logcpm_scores_gene[genes_for_heatmap, , drop = FALSE])))
+mat_gene_z[!is.finite(mat_gene_z)] <- 0
+
+ann_col <- data.frame(
+  Group = factor(meta[colnames(mat_gene_z), "Group", drop = TRUE], levels = c("HC", "HF")),
+  row.names = colnames(mat_gene_z)
+)
+
+pheatmap::pheatmap(
+  mat_gene_z,
+  annotation_col = ann_col,
+  show_rownames = TRUE,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  main = "Selected genes (row-scaled logCPM)"
+)
+```
+
+
+
+```{r hmec program score heatmap, fig.width=7, fig.height=4}
+score_mat <- score_df %>%
+  dplyr::select(Sample, dplyr::ends_with("_score")) %>%
+  tibble::column_to_rownames("Sample") %>%
+  as.matrix()
+
+score_mat_t <- t(score_mat)
+
+score_mat_z <- t(scale(t(score_mat_t)))
+score_mat_z[!is.finite(score_mat_z)] <- 0
+
+ann_col_scores <- data.frame(
+  Group = factor(score_df$Group, levels = c("HC", "HF")),
+  row.names = score_df$Sample
+)
+
+pheatmap::pheatmap(
+  score_mat_z,
+  annotation_col = ann_col_scores,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  main = "Gene program scores"
+)
+```
+
+# Remove two samples
+
+```{r}
+keep_samples <- c("CZD12", "CZD13", "CZD15", "CZD19", "CZD22",  "CZD25",   "HT28",  "HT30",  "HT31",  "LV65",  "LV66",  "LV69", "LV72",  "LV75")
+
+idx <- meta$Sample %in% keep_samples
+meta_sub <- meta[idx, , drop = FALSE]
+counts_sub <- counts_mat[, idx, drop = FALSE]
+
+group <- factor(meta_sub$Group)
+y2 <- DGEList(counts = counts_sub, samples = meta_sub)
+y2$samples$group <- group
+
+keep_genes <- filterByExpr(y2, group = group, min.count = 20)
+y2 <- y2[keep_genes, , keep.lib.sizes = FALSE]
+y2 <- calcNormFactors(y2)
+
+group <- relevel(group, ref = "HC")
+y2$samples$group <- group
+
+design <- model.matrix(~ 0 + group)
+colnames(design) <- levels(group)
+
+contrast <- makeContrasts(HF_vs_HC = HF - HC, levels = design)
+
+y2 <- estimateDisp(y2, design)
+fit <- glmQLFit(y2, design)
+qlf <- glmQLFTest(fit, contrast = contrast)
+
+res2 <- topTags(qlf, n = Inf)$table
+```
+
+```{r volcano HF vs HC no CZD23 CZD27, fig.height=5, fig.width=4}
+res2_df <- res2 %>%
+  dplyr::mutate(
+    Gene = rownames(res2),
+    significance = dplyr::case_when(
+      FDR < 0.2 & logFC > 0.5 ~ "Increased",
+      FDR < 0.2 & logFC < -0.5 ~ "Decreased",
+      TRUE ~ "Not significant"
+    ),
+    significance = factor(significance, levels = names(volcano_cols))
+  )
+
+n_h2  <- sum(meta_sub$Group == "HC")
+n_hf2 <- sum(meta_sub$Group == "HF")
+
+EnhancedVolcano(
+  res2_df,
+  lab = res2_df$Gene,
+  x = "logFC",
+  y = "FDR",
+  labSize = 0,
+  legendLabSize = 12,
+  titleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 0,
+  pointSize = 0.8,
+  FCcutoff = 0.5,
+  pCutoff = 0.2,
+  ylim = c(0, 2),
+  xlim = c(-3.75, 3.75),
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  ylab = bquote(-Log[10]~FDR),
+  subtitle = NULL,
+  title = paste0("HMEC
+HF (n=", n_hf2, ") vs HC (n=", n_h2, ")
+(no CZD23 and CZD27)"),
+  colCustom = setNames(
+    volcano_cols[as.character(res2_df$significance)],
+    as.character(res2_df$significance)
+  )
+) +
+  theme(legend.position = "none")
+```
+
+
