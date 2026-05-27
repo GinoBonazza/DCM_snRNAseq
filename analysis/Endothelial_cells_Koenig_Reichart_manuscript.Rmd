@@ -2247,7 +2247,7 @@ ggplot(score_df_cc, aes(x = Group, y = S_phase_score, fill = Group)) +
   annotate("text", x = 1.5, y = y_max_s + 0.16 * y_range_s, label = p_s_label, size = 5, fontface = "bold") +
   scale_fill_manual(values = group_cols) +
   coord_cartesian(ylim = c(y_min_s - 0.05 * y_range_s, y_max_s + 0.22 * y_range_s)) +
-  labs(title = "S-phase genes", x = NULL, y = "Score") +
+  labs(title = "S-phase score", x = NULL, y = "Score") +
   theme_classic(base_size = 12) +
   theme(
     plot.title = element_text(face = "bold", hjust = 0.5),
@@ -2283,7 +2283,7 @@ ggplot(score_df_cc, aes(x = Group, y = G2M_phase_score, fill = Group)) +
   annotate("text", x = 1.5, y = y_max_g2m + 0.16 * y_range_g2m, label = p_g2m_label, size = 5, fontface = "bold") +
   scale_fill_manual(values = group_cols) +
   coord_cartesian(ylim = c(y_min_g2m - 0.05 * y_range_g2m, y_max_g2m + 0.22 * y_range_g2m)) +
-  labs(title = "G2/M-phase genes", x = NULL, y = "Score") +
+  labs(title = "G2/M-phase score", x = NULL, y = "Score") +
   theme_classic(base_size = 12) +
   theme(
     plot.title = element_text(face = "bold", hjust = 0.5),
@@ -2728,7 +2728,7 @@ write.csv(
 
 ```{r annotate endothelial cell states}
 EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("0"), "cell_state"] = "EC_capillary"
-EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("1"), "cell_state"] = "EC_arterial_PCSK5"
+EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("1"), "cell_state"] = "EC_arterial_NEBL"
 EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("2"), "cell_state"] = "EC_venous"
 EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("3"), "cell_state"] = "EC_interferon"
 EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("4"), "cell_state"] = "EC_activated"
@@ -2736,12 +2736,14 @@ EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("5"), "cell_s
 EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("6"), "cell_state"] = "EC_arterial_NKAIN2"
 EC_combined@meta.data[EC_combined@meta.data$SCT_snn_res.0.3 %in% c("7"), "cell_state"] = "EC_CM_contamination"
 
-EC_combined$cell_state <- factor(EC_combined$cell_state, levels = c("EC_capillary", "EC_arterial_PCSK5", "EC_venous", "EC_interferon", "EC_activated", "EC_inflammatory", "EC_arterial_NKAIN2", "EC_CM_contamination"))
+EC_combined$cell_state <- factor(EC_combined$cell_state, levels = c("EC_capillary", "EC_arterial_NEBL", "EC_venous", "EC_interferon", "EC_activated", "EC_inflammatory", "EC_arterial_NKAIN2", "EC_CM_contamination"))
 Idents(EC_combined) <- EC_combined$cell_state
 ```
 
 ```{r}
-EC_combined <- subset(EC_combined, cell_state %in% c("EC_capillary", "EC_arterial_PCSK5", "EC_venous", "EC_interferon", "EC_activated", "EC_inflammatory", "EC_arterial_NKAIN2"))
+EC_combined <- subset(EC_combined, cell_state %in% c("EC_capillary", "EC_arterial_NEBL", "EC_venous", "EC_interferon", "EC_activated", "EC_inflammatory", "EC_arterial_NKAIN2"))
+EC_combined$cell_state <- factor(EC_combined$cell_state, levels = c("EC_capillary", "EC_arterial_NEBL", "EC_venous", "EC_interferon", "EC_activated", "EC_inflammatory", "EC_arterial_NKAIN2"))
+Idents(EC_combined) <- EC_combined$cell_state
 ```
 
 ```{r save EC_combined_subclustering qs2, eval=FALSE}
@@ -2760,7 +2762,7 @@ EC_combined <- qs_read(
 )
 ```
 
-```{r UMAP cell states, fig.width=7, fig.height=6}
+```{r UMAP cell states, fig.width=6, fig.height=5, dpi = 300}
 plot_group <- if ("cell_state" %in% colnames(EC_combined@meta.data)) "cell_state" else "SCT_snn_res.0.3"
 
 p <- DimPlot(
@@ -2994,7 +2996,7 @@ abund_h_vs_hf
 
 ```
 
-```{r cluster proportions by dataset and group_2, fig.width=9, fig.height=4.5}
+```{r cluster proportions by dataset and group_2, fig.width=10, fig.height=3.5, dpi = 300}
 pd <- position_dodge(width = 0.75)
 pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
 
@@ -3388,7 +3390,7 @@ qs_save(
 
 ## Endothelial-cell subset programs
 
-```{r subset gene sets}
+```{r subset gene sets 2}
 angiogenesis_genes_subset_score <- c("ESM1", "ANGPT2", "KDR", "APLN", "CXCR4", "PGF", "DLL4", "KIT")
 angiogenesis_genes_subset_plot  <- angiogenesis_genes_subset_score
 
@@ -3673,20 +3675,6 @@ subset_gene_df_sc <- expr_sc %>%
     Sex = factor(Sex, levels = c("F", "M")),
     Age = as.numeric(Age)
   )
-
-write.csv(
-  df_score_sc,
-  file = file.path(output_dir_data, "EC_subsets_single_cell_scores.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
-
-write.csv(
-  subset_gene_df_sc,
-  file = file.path(output_dir_data, "EC_subsets_single_cell_gene_expression.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
 ```
 
 ## Subset pseudobulk for H vs HF comparisons
@@ -3743,27 +3731,6 @@ pb_subset_meta_keep$Group <- factor(pb_subset_meta_keep$Group, levels = c("H", "
 pb_subset_meta_keep$Dataset <- factor(pb_subset_meta_keep$Dataset, levels = c("Koenig", "Reichart"))
 pb_subset_meta_keep$Sex <- factor(pb_subset_meta_keep$Sex, levels = c("F", "M"))
 pb_subset_meta_keep$Age <- as.numeric(pb_subset_meta_keep$Age)
-
-write.csv(
-  pb_subset_meta,
-  file = file.path(output_dir_data, "EC_subsets_pseudobulk_metadata_all.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
-
-write.csv(
-  pb_subset_meta_keep,
-  file = file.path(output_dir_data, "EC_subsets_pseudobulk_metadata_kept.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
-
-write.csv(
-  pb_subset_meta %>% dplyr::filter(!(pb_id %in% pb_subset_meta_keep$pb_id)),
-  file = file.path(output_dir_data, "EC_subsets_pseudobulk_metadata_filtered_out.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
 
 dge_subset <- edgeR::DGEList(counts = pb_subset_counts_keep)
 dge_subset <- edgeR::calcNormFactors(dge_subset)
@@ -3836,39 +3803,11 @@ subset_gene_df <- purrr::map_dfr(names(subset_gene_plot_list), function(program_
       )
   })
 })
-
-write.csv(
-  phase_score_df,
-  file = file.path(output_dir_data, "EC_subsets_phase_scores_per_sample.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
-
-write.csv(
-  subset_score_df,
-  file = file.path(output_dir_data, "EC_subsets_gene_set_scores.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
-
-write.csv(
-  subset_gene_df,
-  file = file.path(output_dir_data, "EC_subsets_gene_logCPM.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
-
-write.csv(
-  data.frame(gene_missing = score_genes_missing),
-  file = file.path(output_dir_data, "EC_subsets_score_genes_missing.csv"),
-  row.names = FALSE,
-  quote = FALSE
-)
 ```
 
 ## Phase scores per subset
 
-```{r s score subset differences, fig.width=8.5, fig.height=3.8}
+```{r s score subset differences, fig.width=8.5, fig.height=3.8, eval = FALSE}
 print(
   plot_subset_overall_sc(
     seurat_object = EC_combined_scores,
@@ -3893,7 +3832,7 @@ print(
 )
 ```
 
-```{r g2m score subset differences, fig.width=8.5, fig.height=3.8}
+```{r g2m score subset differences, fig.width=8.5, fig.height=3.8, eval = FALSE}
 print(
   plot_subset_overall_sc(
     seurat_object = EC_combined_scores,
@@ -3920,7 +3859,7 @@ print(
 
 ## Gene-set scores per subset
 
-```{r aerobic respiration score subset differences, fig.width=8.5, fig.height=3.8}
+```{r aerobic respiration score subset differences, fig.width=8.5, fig.height=3.8, eval = FALSE}
 print(
   plot_subset_overall_sc(
     seurat_object = EC_combined_scores,
@@ -3946,7 +3885,7 @@ print(
 )
 ```
 
-```{r angiogenesis score subset differences, fig.width=8.5, fig.height=3.8}
+```{r angiogenesis score subset differences, fig.width=8.5, fig.height=3.8, eval = FALSE}
 print(
   plot_subset_overall_sc(
     seurat_object = EC_combined_scores,
@@ -3971,7 +3910,7 @@ print(
 )
 ```
 
-```{r apoptotic priming score subset differences, fig.width=8.5, fig.height=3.8}
+```{r apoptotic priming score subset differences, fig.width=8.5, fig.height=3.8, eval = FALSE}
 print(
   plot_subset_overall_sc(
     seurat_object = EC_combined_scores,
@@ -3998,7 +3937,7 @@ print(
 
 ## Individual angiogenesis and apoptosis genes per subset
 
-```{r angiogenesis genes subset differences, fig.width=8.5, fig.height=3.8}
+```{r angiogenesis genes subset differences, fig.width=8.5, fig.height=3.8, eval = FALSE}
 for (gene_here in angiogenesis_genes_subset_plot[angiogenesis_genes_subset_plot %in% rownames(EC_combined_scores)]) {
   p <- plot_subset_overall_sc(
     seurat_object = EC_combined_scores,
@@ -4027,7 +3966,7 @@ for (gene_here in angiogenesis_genes_subset_plot[angiogenesis_genes_subset_plot 
 }
 ```
 
-```{r apoptosis genes subset differences, fig.width=8.5, fig.height=3.8}
+```{r apoptosis genes subset differences, fig.width=8.5, fig.height=3.8, eval = FALSE}
 for (gene_here in apoptotic_priming_genes_subset[apoptotic_priming_genes_subset %in% rownames(EC_combined_scores)]) {
   p <- plot_subset_overall_sc(
     seurat_object = EC_combined_scores,
@@ -4058,7 +3997,7 @@ for (gene_here in apoptotic_priming_genes_subset[apoptotic_priming_genes_subset 
 
 ## EC_activated subset: differential expression and GO GSEA
 
-```{r ec_activated subset pseudobulk prepare}
+```{r ec_activated subset pseudobulk prepare, eval = FALSE}
 DefaultAssay(EC_combined) <- "RNA"
 
 EC_activated <- subset(
@@ -4123,7 +4062,7 @@ logcpm_EC_activated <- edgeR::cpm(
 )
 ```
 
-```{r ec_activated differential expression}
+```{r ec_activated differential expression, eval = FALSE}
 fit_EC_activated <- edgeR::glmQLFit(
   pseudobulk_EC_activated,
   design_EC_activated,
@@ -4172,7 +4111,7 @@ write.csv(
 
 ### EC_activated volcano plot
 
-```{r ec_activated volcano, fig.width=4, fig.height=5}
+```{r ec_activated volcano, fig.width=4, fig.height=5, eval = FALSE}
 n_h_EC_activated <- sum(EC_activated_meta$Group == "H")
 n_hf_EC_activated <- sum(EC_activated_meta$Group == "HF")
 
@@ -4209,7 +4148,7 @@ EnhancedVolcano(
 
 ### EC_activated heatmaps
 
-```{r ec_activated order heatmap columns}
+```{r ec_activated order heatmap columns, eval = FALSE}
 column_order_EC_activated <- EC_activated_meta %>%
   dplyr::arrange(Group, Dataset, Age, Sex) %>%
   dplyr::pull(Sample)
@@ -4239,7 +4178,7 @@ ha_EC_activated <- ComplexHeatmap::HeatmapAnnotation(
 )
 ```
 
-```{r ec_activated heatmap all degs, fig.width=9, fig.height=12}
+```{r ec_activated heatmap all degs, fig.width=9, fig.height=12, eval = FALSE}
 mat_all_deg_EC_activated <- logcpm_EC_activated[
   rownames(logcpm_EC_activated) %in% signif_EC_activated$gene,
   column_order_EC_activated,
@@ -4271,7 +4210,7 @@ ComplexHeatmap::Heatmap(
 )
 ```
 
-```{r ec_activated heatmap top 25 up down, fig.width=9, fig.height=8}
+```{r ec_activated heatmap top 25 up down, fig.width=9, fig.height=8, eval = FALSE}
 top_up_EC_activated <- results_EC_activated %>%
   dplyr::filter(FDR < 0.05, logFC > 0.5) %>%
   dplyr::arrange(desc(metric)) %>%
@@ -4317,7 +4256,7 @@ ComplexHeatmap::Heatmap(
 
 ### EC_activated GO GSEA
 
-```{r ec_activated gsea run and save, eval=TRUE}
+```{r ec_activated gsea run and save, eval = FALSE}
 ranked_genes_EC_activated <- results_EC_activated %>%
   dplyr::select(gene, metric) %>%
   dplyr::filter(!is.na(metric))
@@ -4409,7 +4348,7 @@ write.csv(
 )
 ```
 
-```{r ec_activated gsea load saved}
+```{r ec_activated gsea load saved, eval = FALSE}
 ranked_genes_EC_activated <- qs2::qs_read(
   file.path(output_dir_data, "ranked_genes_EC_activated.qs")
 )
@@ -4431,7 +4370,7 @@ GSEA_GO_EC_activated_simplified <- qs2::qs_read(
 )
 ```
 
-```{r ec_activated go dotplot, fig.width=10, fig.height=8}
+```{r ec_activated go dotplot, fig.width=10, fig.height=8, eval = FALSE}
 p_go_dot_EC_activated <- make_gsea_dotplot(
   GSEA_GO_EC_activated_simplified,
   title_text = "EC_activated\nGene ontology enrichment analysis\nHF vs H",
@@ -4442,3 +4381,842 @@ if (!is.null(p_go_dot_EC_activated)) {
   p_go_dot_EC_activated
 }
 ```
+
+
+## Endothelial-cell subset programs (pseudobulk only)
+
+```{r subset gene sets, dpi=300}
+angiogenesis_genes_subset_score <- c("ESM1", "ANGPT2", "KDR", "APLN", "CXCR4", "PGF", "DLL4", "KIT")
+angiogenesis_genes_subset_plot  <- angiogenesis_genes_subset_score
+
+apoptotic_priming_genes_subset <- c(
+  "BAX", "BAK1", "BBC3", "BCL2L11", "PMAIP1", "BID",
+  "CASP3", "CASP9", "APAF1", "DIABLO", "CYCS"
+)
+
+redox_no_genes_subset <- redox_no_genes
+mito_homeostasis_genes_subset <- mito_homeostasis_genes
+
+aerobic_respiration_genes_subset <- aerobic_respiration_genes
+
+phase_gene_sets_subset <- list(
+  S_phase_score = s_phase_genes_present,
+  G2M_phase_score = g2m_phase_genes_present
+)
+
+subset_score_gene_sets <- c(
+  phase_gene_sets_subset,
+  list(
+    Angiogenesis_score = angiogenesis_genes_subset_score,
+    Apoptotic_priming_score = apoptotic_priming_genes_subset,
+    Aerobic_respiration_score = aerobic_respiration_genes_subset
+  )
+)
+
+subset_gene_plot_list <- list(
+  angiogenesis = angiogenesis_genes_subset_plot,
+  apoptosis = apoptotic_priming_genes_subset,
+  redox_no = redox_no_genes_subset,
+  mito_homeostasis = mito_homeostasis_genes_subset
+)
+```
+
+```{r subset metadata and helper functions 2, dpi=300}
+DefaultAssay(EC_combined) <- "RNA"
+Idents(EC_combined) <- EC_combined$cell_state
+
+EC_combined$cell_state <- factor(
+  EC_combined$cell_state,
+  levels = levels(EC_combined$cell_state)
+)
+EC_combined$Group <- factor(EC_combined$Group, levels = c("H", "HF"))
+EC_combined$Dataset <- factor(EC_combined$Dataset, levels = c("Koenig", "Reichart"))
+EC_combined$Sex <- factor(EC_combined$Sex, levels = c("F", "M"))
+EC_combined$Age <- as.numeric(EC_combined$Age)
+
+subset_levels <- levels(droplevels(EC_combined$cell_state))
+subset_cols <- setNames(cell_type_cols[seq_along(subset_levels)], subset_levels)
+
+sample_subset_meta <- EC_combined@meta.data %>%
+  dplyr::select(Sample, cell_state, Group, Sex, Age, Dataset) %>%
+  dplyr::distinct() %>%
+  dplyr::filter(!is.na(Sample), !is.na(cell_state), !is.na(Group), !is.na(Sex), !is.na(Age), !is.na(Dataset))
+
+format_p_label <- function(p) {
+  if (is.na(p)) return("NA")
+  if (p < 0.001) return("***")
+  if (p < 0.01) return("**")
+  if (p < 0.05) return("*")
+  sprintf("p=%.2f", p)
+}
+
+format_p_fontface <- function(p) {
+  ifelse(!is.na(p) && p < 0.05, "bold", "plain")
+}
+
+safe_colmean_score <- function(gene_vec, score_mat, ids) {
+  genes_here <- intersect(gene_vec, rownames(score_mat))
+  if (length(genes_here) == 0) {
+    return(rep(NA_real_, length(ids)))
+  }
+  out <- colMeans(score_mat[genes_here, , drop = FALSE])
+  as.numeric(out[ids])
+}
+
+plot_compact_score_by_subset <- function(df, value_col, title_text, ylab_text) {
+  df <- df %>%
+    dplyr::filter(!is.na(.data[[value_col]])) %>%
+    dplyr::mutate(
+      cell_state = factor(cell_state, levels = subset_levels),
+      Group = factor(Group, levels = c("H", "HF"))
+    )
+
+  pd  <- position_dodge(width = 0.75)
+  pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+  p_df <- lapply(subset_levels, function(cs) {
+    df_sub <- df %>% dplyr::filter(cell_state == cs)
+    if (nrow(df_sub) == 0 || dplyr::n_distinct(df_sub$Group) < 2) {
+      return(data.frame(cell_state = cs, p_value = NA_real_))
+    }
+
+    fit <- tryCatch(
+      lm(stats::as.formula(paste0(value_col, " ~ Group + Age + Sex + Dataset")), data = df_sub),
+      error = function(e) NULL
+    )
+
+    p_val <- if (!is.null(fit)) {
+      broom::tidy(fit) %>%
+        dplyr::filter(term == "GroupHF") %>%
+        dplyr::pull(p.value)
+    } else {
+      NA_real_
+    }
+
+    data.frame(cell_state = cs, p_value = ifelse(length(p_val) == 0, NA_real_, p_val))
+  }) %>% dplyr::bind_rows()
+
+  y_annot <- df %>%
+    dplyr::group_by(cell_state) %>%
+    dplyr::summarise(y = max(.data[[value_col]], na.rm = TRUE) + 0.35, .groups = "drop") %>%
+    dplyr::left_join(p_df, by = "cell_state") %>%
+    dplyr::mutate(
+      p_label = vapply(p_value, format_p_label, character(1)),
+      p_fontface = vapply(p_value, format_p_fontface, character(1))
+    )
+
+  ggplot(df, aes(x = cell_state, y = .data[[value_col]], fill = Group)) +
+    geom_boxplot(
+      outlier.shape = NA,
+      alpha = 0.8,
+      width = 0.7,
+      position = pd
+    ) +
+    geom_point(
+      position = pjd,
+      size = 0.8,
+      alpha = 0.65,
+      shape = 16
+    ) +
+    geom_segment(
+      data = y_annot,
+      aes(
+        x = as.numeric(cell_state) - 0.18,
+        xend = as.numeric(cell_state) + 0.18,
+        y = y,
+        yend = y
+      ),
+      inherit.aes = FALSE,
+      linewidth = 0.4
+    ) +
+    geom_text(
+      data = y_annot,
+      aes(
+        x = cell_state,
+        y = y + 0.10,
+        label = p_label,
+        fontface = p_fontface
+      ),
+      inherit.aes = FALSE,
+      size = 3.2
+    ) +
+    scale_fill_manual(values = group_cols) +
+    labs(title = title_text, x = NULL, y = ylab_text) +
+    coord_cartesian(ylim = c(min(df[[value_col]], na.rm = TRUE), max(y_annot$y + 0.18, na.rm = TRUE))) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.text.y = element_text(face = "bold"),
+      axis.title = element_text(face = "bold"),
+      legend.title = element_blank()
+    )
+}
+
+compute_subset_gene_stats <- function(df_program) {
+  res <- purrr::map_dfr(sort(unique(df_program$cell_state)), function(cs) {
+    purrr::map_dfr(sort(unique(df_program$gene)), function(g) {
+      df_sub <- df_program %>% dplyr::filter(cell_state == cs, gene == g)
+
+      if (nrow(df_sub) == 0 || dplyr::n_distinct(df_sub$Group) < 2) {
+        return(data.frame(
+          cell_state = cs,
+          gene = g,
+          estimate = NA_real_,
+          p_value = NA_real_
+        ))
+      }
+
+      fit <- tryCatch(
+        lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub),
+        error = function(e) NULL
+      )
+
+      if (is.null(fit)) {
+        return(data.frame(
+          cell_state = cs,
+          gene = g,
+          estimate = NA_real_,
+          p_value = NA_real_
+        ))
+      }
+
+      tt <- broom::tidy(fit) %>% dplyr::filter(term == "GroupHF")
+      if (nrow(tt) == 0) {
+        return(data.frame(
+          cell_state = cs,
+          gene = g,
+          estimate = NA_real_,
+          p_value = NA_real_
+        ))
+      }
+
+      data.frame(
+        cell_state = cs,
+        gene = g,
+        estimate = tt$estimate[1],
+        p_value = tt$p.value[1]
+      )
+    })
+  })
+
+  res %>%
+    dplyr::mutate(
+      padj = p.adjust(p_value, method = "fdr"),
+      sig = !is.na(padj) & padj < 0.05,
+      neglog10p = -log10(p_value),
+      neglog10p = ifelse(is.infinite(neglog10p), max(neglog10p[is.finite(neglog10p)], na.rm = TRUE) + 1, neglog10p),
+      cell_state = factor(cell_state, levels = rev(subset_levels))
+    )
+}
+
+plot_subset_gene_dotplot <- function(df_program, title_text) {
+  stat_df <- compute_subset_gene_stats(df_program)
+
+  ggplot(stat_df, aes(x = gene, y = cell_state)) +
+    geom_point(
+      aes(size = neglog10p, fill = estimate),
+      shape = 21,
+      color = "grey35",
+      stroke = 0.25
+    ) +
+    geom_point(
+      data = stat_df %>% dplyr::filter(sig),
+      aes(size = neglog10p),
+      shape = 21,
+      fill = NA,
+      color = "black",
+      stroke = 0.9
+    ) +
+    scale_size_continuous(name = expression(-log[10](p)), range = c(1.8, 8)) +
+    scale_fill_gradient2(
+      low = "#2166AC",
+      mid = "white",
+      high = "#B2182B",
+      midpoint = 0,
+      name = "HF vs H\ncoefficient"
+    ) +
+    labs(title = title_text, x = NULL, y = NULL) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.text.y = element_text(face = "bold"),
+      legend.title = element_text(face = "bold")
+    )
+}
+```
+
+## Subset pseudobulk for all score and gene comparisons
+
+```{r subset pseudobulk prepare 2, dpi=300}
+min_subset_libsize <- 10000
+
+pb_subsets <- Seurat2PB(
+  EC_combined,
+  sample = "Sample",
+  cluster = "cell_state"
+)
+
+pb_subset_counts <- tryCatch(pb_subsets$counts, error = function(e) NULL)
+if (is.null(pb_subset_counts)) {
+  pb_subset_counts <- tryCatch(pb_subsets[, ]$counts, error = function(e) NULL)
+}
+if (is.null(pb_subset_counts)) {
+  stop("Could not extract pseudobulk counts from pb_subsets.")
+}
+
+pb_subset_meta <- tryCatch(as.data.frame(pb_subsets$samples), error = function(e) NULL)
+if (is.null(pb_subset_meta)) {
+  pb_subset_meta <- tryCatch(as.data.frame(SummarizedExperiment::colData(pb_subsets)), error = function(e) NULL)
+}
+if (is.null(pb_subset_meta)) {
+  stop("Could not extract pseudobulk sample metadata from pb_subsets.")
+}
+
+pb_subset_meta <- pb_subset_meta %>%
+  dplyr::transmute(
+    Sample = sample,
+    cell_state = cluster
+  ) %>%
+  dplyr::left_join(sample_subset_meta, by = c("Sample", "cell_state"))
+
+colnames(pb_subset_counts) <- paste(pb_subset_meta$Sample, pb_subset_meta$cell_state, sep = "__")
+pb_subset_meta$pb_id <- colnames(pb_subset_counts)
+rownames(pb_subset_meta) <- pb_subset_meta$pb_id
+
+subset_libsizes <- colSums(pb_subset_counts)
+pb_subset_meta$libsize <- subset_libsizes[pb_subset_meta$pb_id]
+
+pb_subset_meta_keep <- pb_subset_meta %>%
+  dplyr::filter(!is.na(Group), !is.na(Sex), !is.na(Age), !is.na(Dataset), libsize >= min_subset_libsize)
+
+pb_subset_counts_keep <- pb_subset_counts[, pb_subset_meta_keep$pb_id, drop = FALSE]
+stopifnot(all(colnames(pb_subset_counts_keep) == pb_subset_meta_keep$pb_id))
+
+pb_subset_meta_keep$cell_state <- factor(pb_subset_meta_keep$cell_state, levels = subset_levels)
+pb_subset_meta_keep$Group <- factor(pb_subset_meta_keep$Group, levels = c("H", "HF"))
+pb_subset_meta_keep$Dataset <- factor(pb_subset_meta_keep$Dataset, levels = c("Koenig", "Reichart"))
+pb_subset_meta_keep$Sex <- factor(pb_subset_meta_keep$Sex, levels = c("F", "M"))
+pb_subset_meta_keep$Age <- as.numeric(pb_subset_meta_keep$Age)
+
+dge_subset <- edgeR::DGEList(counts = pb_subset_counts_keep)
+dge_subset <- edgeR::calcNormFactors(dge_subset)
+logcpm_subset <- edgeR::cpm(dge_subset, log = TRUE, prior.count = 1)
+```
+
+```{r subset z-score matrices and score tables, dpi=300}
+subset_score_genes_all <- unique(unlist(subset_score_gene_sets, use.names = FALSE))
+score_genes_present <- subset_score_genes_all[subset_score_genes_all %in% rownames(logcpm_subset)]
+score_genes_missing <- setdiff(subset_score_genes_all, rownames(logcpm_subset))
+
+logcpm_subset_scores <- logcpm_subset[
+  rownames(logcpm_subset) %in% score_genes_present,
+  ,
+  drop = FALSE
+]
+
+logcpm_subset_scores_z <- t(scale(t(logcpm_subset_scores)))
+logcpm_subset_scores_z[is.na(logcpm_subset_scores_z)] <- 0
+
+subset_score_df <- pb_subset_meta_keep %>%
+  dplyr::mutate(
+    S_phase_score = safe_colmean_score(phase_gene_sets_subset$S_phase_score, logcpm_subset_scores_z, pb_id),
+    G2M_phase_score = safe_colmean_score(phase_gene_sets_subset$G2M_phase_score, logcpm_subset_scores_z, pb_id),
+    Angiogenesis_score = safe_colmean_score(angiogenesis_genes_subset_score, logcpm_subset_scores_z, pb_id),
+    Apoptotic_priming_score = safe_colmean_score(apoptotic_priming_genes_subset, logcpm_subset_scores_z, pb_id),
+    Aerobic_respiration_score = safe_colmean_score(aerobic_respiration_genes_subset, logcpm_subset_scores_z, pb_id)
+  )
+
+subset_gene_df <- purrr::map_dfr(names(subset_gene_plot_list), function(program_name) {
+  genes_here <- subset_gene_plot_list[[program_name]]
+  genes_here <- genes_here[genes_here %in% rownames(logcpm_subset)]
+  if (length(genes_here) == 0) return(NULL)
+
+  purrr::map_dfr(genes_here, function(g) {
+    pb_subset_meta_keep %>%
+      dplyr::transmute(
+        pb_id,
+        Sample,
+        Dataset,
+        Group,
+        Sex,
+        Age,
+        cell_state,
+        program = program_name,
+        gene = g,
+        logCPM = as.numeric(logcpm_subset[g, pb_id])
+      )
+  })
+})
+```
+
+## Endothelial-cell subset programs
+
+```{r subset gene sets 3, dpi=300}
+angiogenesis_genes_subset_score <- c("ESM1", "ANGPT2", "KDR", "APLN", "CXCR4", "PGF", "DLL4", "KIT")
+angiogenesis_genes_subset_plot  <- angiogenesis_genes_subset_score
+
+apoptotic_priming_genes_subset <- c(
+  "BAX", "BAK1", "BBC3", "BCL2L11", "PMAIP1", "BID",
+  "CASP3", "CASP9", "APAF1", "DIABLO", "CYCS"
+)
+
+redox_no_genes_subset <- redox_no_genes
+mito_homeostasis_genes_subset <- mito_homeostasis_genes
+
+aerobic_respiration_genes_subset <- aerobic_respiration_genes
+
+phase_gene_sets_subset <- list(
+  S_phase_score = s_phase_genes_present,
+  G2M_phase_score = g2m_phase_genes_present
+)
+
+subset_score_gene_sets <- list(
+  S_phase_score = phase_gene_sets_subset$S_phase_score,
+  G2M_phase_score = phase_gene_sets_subset$G2M_phase_score,
+  Angiogenesis_score = angiogenesis_genes_subset_score,
+  Apoptotic_priming_score = apoptotic_priming_genes_subset,
+  Aerobic_respiration_score = aerobic_respiration_genes_subset
+)
+
+subset_gene_plot_list <- list(
+  angiogenesis = angiogenesis_genes_subset_plot,
+  apoptosis = apoptotic_priming_genes_subset,
+  redox_and_mito_homeostasis = unique(c(redox_no_genes_subset, mito_homeostasis_genes_subset))
+)
+```
+
+```{r subset metadata and helper functions 3, dpi=300}
+DefaultAssay(EC_combined) <- "RNA"
+Idents(EC_combined) <- EC_combined$cell_state
+
+EC_combined$cell_state <- factor(
+  EC_combined$cell_state,
+  levels = levels(EC_combined$cell_state)
+)
+EC_combined$Group <- factor(EC_combined$Group, levels = c("H", "HF"))
+EC_combined$Dataset <- factor(EC_combined$Dataset, levels = c("Koenig", "Reichart"))
+EC_combined$Sex <- factor(EC_combined$Sex, levels = c("F", "M"))
+EC_combined$Age <- as.numeric(EC_combined$Age)
+
+subset_levels <- levels(droplevels(EC_combined$cell_state))
+subset_cols <- setNames(cell_type_cols[seq_along(subset_levels)], subset_levels)
+
+sample_subset_meta <- EC_combined@meta.data %>%
+  dplyr::select(Sample, cell_state, Group, Sex, Age, Dataset) %>%
+  dplyr::distinct() %>%
+  dplyr::filter(!is.na(Sample), !is.na(cell_state), !is.na(Group), !is.na(Sex), !is.na(Age), !is.na(Dataset))
+
+safe_colmean_score <- function(gene_vec, score_mat, ids) {
+  genes_here <- intersect(gene_vec, rownames(score_mat))
+  if (length(genes_here) == 0) {
+    return(rep(NA_real_, length(ids)))
+  }
+  out <- colMeans(score_mat[genes_here, , drop = FALSE])
+  as.numeric(out[ids])
+}
+
+format_p_label <- function(p) {
+  if (is.na(p)) return("NA")
+  if (p < 0.001) return("***")
+  if (p < 0.01) return("**")
+  if (p < 0.05) return("*")
+  "ns"
+}
+
+format_p_fontface <- function(p) {
+  ifelse(!is.na(p) & p < 0.05, "bold", "plain")
+}
+
+plot_hvhf_compact <- function(df, value_col, title_text, ylab_text) {
+  pd <- position_dodge(width = 0.75)
+  pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+  df <- df %>%
+    dplyr::filter(!is.na(.data[[value_col]])) %>%
+    dplyr::mutate(
+      cell_state = factor(cell_state, levels = subset_levels),
+      Group = factor(Group, levels = c("H", "HF"))
+    )
+
+  p_df <- lapply(subset_levels, function(cs) {
+    df_sub <- df %>% dplyr::filter(cell_state == cs)
+    if (nrow(df_sub) == 0 || dplyr::n_distinct(df_sub$Group) < 2) {
+      return(data.frame(cell_state = cs, p_value = NA_real_))
+    }
+
+    fit <- tryCatch(
+      lm(stats::as.formula(paste0(value_col, " ~ Group + Age + Sex + Dataset")), data = df_sub),
+      error = function(e) NULL
+    )
+
+    p_val <- if (!is.null(fit)) {
+      broom::tidy(fit) %>%
+        dplyr::filter(term == "GroupHF") %>%
+        dplyr::pull(p.value)
+    } else {
+      NA_real_
+    }
+
+    data.frame(cell_state = cs, p_value = ifelse(length(p_val) == 0, NA_real_, p_val))
+  }) %>% dplyr::bind_rows()
+
+  y_annot <- df %>%
+    dplyr::group_by(cell_state) %>%
+    dplyr::summarise(y = max(.data[[value_col]], na.rm = TRUE), .groups = "drop") %>%
+    dplyr::left_join(p_df, by = "cell_state") %>%
+    dplyr::mutate(
+      y = y + 0.08 * diff(range(df[[value_col]], na.rm = TRUE)),
+      label_y = y + 0.04 * diff(range(df[[value_col]], na.rm = TRUE)),
+      p_label = vapply(p_value, format_p_label, character(1)),
+      p_fontface = vapply(p_value, format_p_fontface, character(1))
+    )
+
+  ggplot(df, aes(x = cell_state, y = .data[[value_col]], fill = Group)) +
+    geom_boxplot(
+      outlier.shape = NA,
+      alpha = 0.8,
+      width = 0.7,
+      position = pd
+    ) +
+    geom_point(
+      position = pjd,
+      size = 0.8,
+      alpha = 0.65,
+      shape = 16
+    ) +
+    geom_segment(
+      data = y_annot,
+      aes(
+        x = as.numeric(cell_state) - 0.18,
+        xend = as.numeric(cell_state) + 0.18,
+        y = y,
+        yend = y
+      ),
+      inherit.aes = FALSE,
+      linewidth = 0.4
+    ) +
+    geom_text(
+      data = y_annot,
+      aes(
+        x = cell_state,
+        y = label_y,
+        label = p_label,
+        fontface = p_fontface
+      ),
+      inherit.aes = FALSE,
+      size = 3.2
+    ) +
+    scale_fill_manual(values = group_cols) +
+    labs(title = title_text, x = NULL, y = ylab_text) +
+    coord_cartesian(clip = "off") +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.text.y = element_text(face = "bold"),
+      axis.title = element_text(face = "bold"),
+      legend.title = element_blank(),
+      legend.position = "top",
+      plot.margin = margin(5.5, 20, 5.5, 5.5)
+    )
+}
+
+make_subset_gene_stats <- function(df_program) {
+  res <- lapply(split(df_program, interaction(df_program$cell_state, df_program$gene, drop = TRUE)), function(dd) {
+    if (nrow(dd) == 0 || dplyr::n_distinct(dd$Group) < 2) return(NULL)
+
+    fit <- tryCatch(
+      lm(logCPM ~ Group + Age + Sex + Dataset, data = dd),
+      error = function(e) NULL
+    )
+    if (is.null(fit)) return(NULL)
+
+    tt <- broom::tidy(fit) %>%
+      dplyr::filter(term == "GroupHF")
+
+    if (nrow(tt) == 0) return(NULL)
+
+    data.frame(
+      cell_state = as.character(dd$cell_state[1]),
+      gene = as.character(dd$gene[1]),
+      estimate = tt$estimate[1],
+      p_value = tt$p.value[1],
+      stringsAsFactors = FALSE
+    )
+  }) %>% dplyr::bind_rows()
+
+  if (is.null(res) || nrow(res) == 0) return(res)
+
+  res %>%
+    dplyr::mutate(
+      padj = p.adjust(p_value, method = "fdr"),
+      neglog10p = -log10(p_value),
+      sig = padj < 0.05,
+      cell_state = factor(cell_state, levels = rev(subset_levels))
+    )
+}
+
+plot_subset_gene_dotplot <- function(stats_df, gene_order, title_text) {
+  stats_df <- stats_df %>%
+    dplyr::mutate(
+      gene = factor(gene, levels = gene_order),
+      cell_state = factor(cell_state, levels = rev(subset_levels))
+    )
+
+  ggplot() +
+    geom_point(
+      data = stats_df %>% dplyr::filter(!sig),
+      aes(x = gene, y = cell_state, size = neglog10p, fill = estimate),
+      shape = 21,
+      color = "black",
+      stroke = 0.25
+    ) +
+    geom_point(
+      data = stats_df %>% dplyr::filter(sig),
+      aes(x = gene, y = cell_state, size = neglog10p, fill = estimate),
+      shape = 21,
+      color = "black",
+      stroke = 1.0
+    ) +
+    scale_fill_gradient2(
+      low = "#4575B4",
+      mid = "white",
+      high = "#D73027",
+      midpoint = 0,
+      name = "HF vs H\ncoefficient"
+    ) +
+    scale_size_continuous(name = expression(-log[10](p))) +
+    labs(title = title_text, x = NULL, y = NULL) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+      axis.text.y = element_text(face = "bold"),
+      legend.title = element_text(face = "bold")
+    )
+}
+```
+
+## Subset pseudobulk for H vs HF comparisons
+
+```{r subset pseudobulk prepare 3, dpi=300}
+min_subset_libsize <- 10000
+
+pb_subsets <- Seurat2PB(
+  EC_combined,
+  sample = "Sample",
+  cluster = "cell_state"
+)
+
+pb_subset_counts <- tryCatch(pb_subsets$counts, error = function(e) NULL)
+if (is.null(pb_subset_counts)) {
+  pb_subset_counts <- tryCatch(pb_subsets[, ]$counts, error = function(e) NULL)
+}
+if (is.null(pb_subset_counts)) {
+  stop("Could not extract pseudobulk counts from pb_subsets.")
+}
+
+pb_subset_meta <- tryCatch(as.data.frame(pb_subsets$samples), error = function(e) NULL)
+if (is.null(pb_subset_meta)) {
+  pb_subset_meta <- tryCatch(as.data.frame(SummarizedExperiment::colData(pb_subsets)), error = function(e) NULL)
+}
+if (is.null(pb_subset_meta)) {
+  stop("Could not extract pseudobulk sample metadata from pb_subsets.")
+}
+
+pb_subset_meta <- pb_subset_meta %>%
+  dplyr::transmute(
+    Sample = sample,
+    cell_state = cluster
+  ) %>%
+  dplyr::left_join(sample_subset_meta, by = c("Sample", "cell_state"))
+
+colnames(pb_subset_counts) <- paste(pb_subset_meta$Sample, pb_subset_meta$cell_state, sep = "__")
+pb_subset_meta$pb_id <- colnames(pb_subset_counts)
+rownames(pb_subset_meta) <- pb_subset_meta$pb_id
+
+subset_libsizes <- colSums(pb_subset_counts)
+pb_subset_meta$libsize <- subset_libsizes[pb_subset_meta$pb_id]
+
+pb_subset_meta_keep <- pb_subset_meta %>%
+  dplyr::filter(!is.na(Group), !is.na(Sex), !is.na(Age), !is.na(Dataset), libsize >= min_subset_libsize)
+
+pb_subset_counts_keep <- pb_subset_counts[, pb_subset_meta_keep$pb_id, drop = FALSE]
+
+stopifnot(all(colnames(pb_subset_counts_keep) == pb_subset_meta_keep$pb_id))
+
+pb_subset_meta_keep$cell_state <- factor(pb_subset_meta_keep$cell_state, levels = subset_levels)
+pb_subset_meta_keep$Group <- factor(pb_subset_meta_keep$Group, levels = c("H", "HF"))
+pb_subset_meta_keep$Dataset <- factor(pb_subset_meta_keep$Dataset, levels = c("Koenig", "Reichart"))
+pb_subset_meta_keep$Sex <- factor(pb_subset_meta_keep$Sex, levels = c("F", "M"))
+pb_subset_meta_keep$Age <- as.numeric(pb_subset_meta_keep$Age)
+
+dge_subset <- edgeR::DGEList(counts = pb_subset_counts_keep)
+dge_subset <- edgeR::calcNormFactors(dge_subset)
+logcpm_subset <- edgeR::cpm(dge_subset, log = TRUE, prior.count = 1)
+```
+
+```{r subset scores and gene matrices 2, dpi=300}
+subset_score_genes_all <- unique(unlist(subset_score_gene_sets, use.names = FALSE))
+score_genes_present <- subset_score_genes_all[subset_score_genes_all %in% rownames(logcpm_subset)]
+
+logcpm_subset_scores <- logcpm_subset[
+  rownames(logcpm_subset) %in% score_genes_present,
+  ,
+  drop = FALSE
+]
+
+logcpm_subset_scores_z <- t(scale(t(logcpm_subset_scores)))
+logcpm_subset_scores_z[is.na(logcpm_subset_scores_z)] <- 0
+
+subset_score_df <- pb_subset_meta_keep %>%
+  dplyr::mutate(
+    S_phase_score = safe_colmean_score(phase_gene_sets_subset$S_phase_score, logcpm_subset_scores_z, pb_id),
+    G2M_phase_score = safe_colmean_score(phase_gene_sets_subset$G2M_phase_score, logcpm_subset_scores_z, pb_id),
+    Angiogenesis_score = safe_colmean_score(angiogenesis_genes_subset_score, logcpm_subset_scores_z, pb_id),
+    Apoptotic_priming_score = safe_colmean_score(apoptotic_priming_genes_subset, logcpm_subset_scores_z, pb_id),
+    Aerobic_respiration_score = safe_colmean_score(aerobic_respiration_genes_subset, logcpm_subset_scores_z, pb_id)
+  )
+
+subset_gene_df <- purrr::map_dfr(names(subset_gene_plot_list), function(program_name) {
+  genes_here <- subset_gene_plot_list[[program_name]]
+  genes_here <- genes_here[genes_here %in% rownames(logcpm_subset)]
+  if (length(genes_here) == 0) return(NULL)
+
+  purrr::map_dfr(genes_here, function(g) {
+    pb_subset_meta_keep %>%
+      dplyr::transmute(
+        pb_id,
+        Sample,
+        Dataset,
+        Group,
+        Sex,
+        Age,
+        cell_state,
+        program = program_name,
+        gene = g,
+        logCPM = as.numeric(logcpm_subset[g, pb_id])
+      )
+  })
+})
+```
+
+## Compact score plots
+
+```{r s score h vs hf within subset compact, fig.width=5, fig.height=3.5, dpi=300}
+print(
+  plot_hvhf_compact(
+    df = subset_score_df,
+    value_col = "S_phase_score",
+    title_text = "S-phase score",
+    ylab_text = "Mean pseudobulk z-score"
+  )
+)
+```
+
+```{r g2m score h vs hf within subset compact, fig.width=5, fig.height=3.5, dpi=300}
+print(
+  plot_hvhf_compact(
+    df = subset_score_df,
+    value_col = "G2M_phase_score",
+    title_text = "G2/M-phase score",
+    ylab_text = "Mean pseudobulk z-score"
+  )
+)
+```
+
+```{r aerobic respiration score h vs hf within subset compact, fig.width=5, fig.height=3.5, dpi=300}
+print(
+  plot_hvhf_compact(
+    df = subset_score_df,
+    value_col = "Aerobic_respiration_score",
+    title_text = "Aerobic respiration score",
+    ylab_text = "Mean pseudobulk z-score"
+  )
+)
+```
+
+```{r angiogenesis score h vs hf within subset compact, fig.width=5, fig.height=3.5, dpi=300}
+print(
+  plot_hvhf_compact(
+    df = subset_score_df,
+    value_col = "Angiogenesis_score",
+    title_text = "Angiogenesis score",
+    ylab_text = "Mean pseudobulk z-score"
+  )
+)
+```
+
+```{r apoptotic priming score h vs hf within subset compact, fig.width=6, fig.height=3.5, dpi=300}
+print(
+  plot_hvhf_compact(
+    df = subset_score_df,
+    value_col = "Apoptotic_priming_score",
+    title_text = "Apoptotic priming score",
+    ylab_text = "Mean pseudobulk z-score"
+  )
+)
+```
+
+## Gene dotplots
+
+```{r angiogenesis genes h vs hf dotplot, fig.width=6, fig.height=3.5, dpi=300}
+angiogenesis_gene_stats <- subset_gene_df %>%
+  dplyr::filter(program == "angiogenesis") %>%
+  make_subset_gene_stats()
+
+if (!is.null(angiogenesis_gene_stats) && nrow(angiogenesis_gene_stats) > 0) {
+  print(
+    plot_subset_gene_dotplot(
+      stats_df = angiogenesis_gene_stats,
+      gene_order = angiogenesis_genes_subset_plot[angiogenesis_genes_subset_plot %in% unique(angiogenesis_gene_stats$gene)],
+      title_text = "Angiogenesis genes"
+    )
+  )
+}
+```
+
+```{r apoptosis genes h vs hf dotplot, fig.width=6, fig.height=3.5, dpi=300}
+apoptosis_gene_stats <- subset_gene_df %>%
+  dplyr::filter(program == "apoptosis") %>%
+  make_subset_gene_stats()
+
+if (!is.null(apoptosis_gene_stats) && nrow(apoptosis_gene_stats) > 0) {
+  print(
+    plot_subset_gene_dotplot(
+      stats_df = apoptosis_gene_stats,
+      gene_order = apoptotic_priming_genes_subset[apoptotic_priming_genes_subset %in% unique(apoptosis_gene_stats$gene)],
+      title_text = "Apoptotic priming genes"
+    )
+  )
+}
+```
+
+```{r redox and mitochondrial homeostasis genes h vs hf dotplot, fig.width=6, fig.height=3.5, dpi=300}
+redox_mito_gene_order <- unique(c(
+  redox_no_genes_subset[redox_no_genes_subset %in% unique(subset_gene_df$gene)],
+  mito_homeostasis_genes_subset[mito_homeostasis_genes_subset %in% unique(subset_gene_df$gene)]
+))
+
+redox_mito_gene_stats <- subset_gene_df %>%
+  dplyr::filter(program == "redox_and_mito_homeostasis", gene %in% redox_mito_gene_order) %>%
+  make_subset_gene_stats()
+
+if (!is.null(redox_mito_gene_stats) && nrow(redox_mito_gene_stats) > 0) {
+  print(
+    plot_subset_gene_dotplot(
+      stats_df = redox_mito_gene_stats,
+      gene_order = redox_mito_gene_order,
+      title_text = "Redox and mitochondrial homeostasis"
+    )
+  )
+}
+```
+
+```{r}
+FeaturePlot(Reichart, "CYBB")
+FeaturePlot(Koenig, "CYBB")
+```
+
