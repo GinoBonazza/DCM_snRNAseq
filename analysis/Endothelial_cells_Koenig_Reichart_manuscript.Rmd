@@ -1875,6 +1875,11 @@ gene_barplot_df <- logcpm_scores %>%
   dplyr::left_join(metadata_scores, by = "Sample")
 ```
 
+```{r init global gene stats}
+global_gene_stats <- list()
+```
+
+
 
 ```{r barplots angiogenesis genes, fig.width=2.66, fig.height=3.7}
 for (gene in angiogenesis_genes) {
@@ -1883,6 +1888,8 @@ for (gene in angiogenesis_genes) {
     fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
     fit_gene_tidy <- broom::tidy(fit_gene)
     print(fit_gene_tidy)
+    global_gene_stats[[length(global_gene_stats) + 1]] <- fit_gene_tidy %>%
+      dplyr::mutate(gene = gene, gene_set = "angiogenesis")
 
     p_gene <- fit_gene_tidy %>%
       dplyr::filter(term == "GroupHF") %>%
@@ -1955,6 +1962,8 @@ for (gene in redox_no_genes) {
     fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
     fit_gene_tidy <- broom::tidy(fit_gene)
     print(fit_gene_tidy)
+    global_gene_stats[[length(global_gene_stats) + 1]] <- fit_gene_tidy %>%
+      dplyr::mutate(gene = gene, gene_set = "redox_no")
 
     p_gene <- fit_gene_tidy %>%
       dplyr::filter(term == "GroupHF") %>%
@@ -2027,6 +2036,8 @@ for (gene in mito_homeostasis_genes) {
     fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
     fit_gene_tidy <- broom::tidy(fit_gene)
     print(fit_gene_tidy)
+    global_gene_stats[[length(global_gene_stats) + 1]] <- fit_gene_tidy %>%
+      dplyr::mutate(gene = gene, gene_set = "mitochondrial_homeostasis")
 
     p_gene <- fit_gene_tidy %>%
       dplyr::filter(term == "GroupHF") %>%
@@ -2099,6 +2110,8 @@ for (gene in apoptotic_priming_genes) {
     fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
     fit_gene_tidy <- broom::tidy(fit_gene)
     print(fit_gene_tidy)
+    global_gene_stats[[length(global_gene_stats) + 1]] <- fit_gene_tidy %>%
+      dplyr::mutate(gene = gene, gene_set = "apoptosis")
 
     p_gene <- fit_gene_tidy %>%
       dplyr::filter(term == "GroupHF") %>%
@@ -2293,6 +2306,24 @@ ggplot(score_df_cc, aes(x = Group, y = G2M_phase_score, fill = Group)) +
   )
 ```
 
+```{r export global score stats}
+global_score_stats <- dplyr::bind_rows(
+  fit_aerobic_tidy %>% dplyr::mutate(feature = "aerobic_respiration_score"),
+  fit_angio_tidy %>% dplyr::mutate(feature = "angiogenesis_score"),
+  fit_apop_tidy %>% dplyr::mutate(feature = "apoptotic_priming_score"),
+  fit_s_tidy %>% dplyr::mutate(feature = "S_phase_score"),
+  fit_g2m_tidy %>% dplyr::mutate(feature = "G2M_phase_score")
+)
+
+write.csv(
+  global_score_stats,
+  file = file.path(output_dir_data, "EC_global_score_stats.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
+
 ## Representative genes for each program
 
 ```{r representative genes for cell cycle programs}
@@ -2308,6 +2339,8 @@ for (gene in s_phase_genes_plot[s_phase_genes_plot %in% unique(gene_barplot_df$g
   fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
   fit_gene_tidy <- broom::tidy(fit_gene)
   print(fit_gene_tidy)
+  global_gene_stats[[length(global_gene_stats) + 1]] <- fit_gene_tidy %>%
+    dplyr::mutate(gene = gene, gene_set = "S_phase")
 
   p_gene <- fit_gene_tidy %>%
     dplyr::filter(term == "GroupHF") %>%
@@ -2348,6 +2381,8 @@ for (gene in g2m_phase_genes_plot[g2m_phase_genes_plot %in% unique(gene_barplot_
   fit_gene <- lm(logCPM ~ Group + Age + Sex + Dataset, data = df_sub)
   fit_gene_tidy <- broom::tidy(fit_gene)
   print(fit_gene_tidy)
+  global_gene_stats[[length(global_gene_stats) + 1]] <- fit_gene_tidy %>%
+    dplyr::mutate(gene = gene, gene_set = "G2M_phase")
 
   p_gene <- fit_gene_tidy %>%
     dplyr::filter(term == "GroupHF") %>%
@@ -2379,6 +2414,18 @@ for (gene in g2m_phase_genes_plot[g2m_phase_genes_plot %in% unique(gene_barplot_
   print(p)
 }
 ```
+
+```{r export global gene stats}
+global_gene_stats_df <- dplyr::bind_rows(global_gene_stats)
+
+write.csv(
+  global_gene_stats_df,
+  file = file.path(output_dir_data, "EC_global_gene_stats.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
 
 ## Endothelial-cell subclustering across datasets
 
@@ -4385,7 +4432,7 @@ if (!is.null(p_go_dot_EC_activated)) {
 
 ## Endothelial-cell subset programs (pseudobulk only)
 
-```{r subset gene sets, dpi=300}
+```{r subset gene sets programs, dpi=300}
 angiogenesis_genes_subset_score <- c("ESM1", "ANGPT2", "KDR", "APLN", "CXCR4", "PGF", "DLL4", "KIT")
 angiogenesis_genes_subset_plot  <- angiogenesis_genes_subset_score
 
@@ -4753,7 +4800,7 @@ subset_gene_df <- purrr::map_dfr(names(subset_gene_plot_list), function(program_
 
 ## Endothelial-cell subset programs
 
-```{r subset gene sets 3, dpi=300}
+```{r subset gene sets matrices, dpi=300}
 angiogenesis_genes_subset_score <- c("ESM1", "ANGPT2", "KDR", "APLN", "CXCR4", "PGF", "DLL4", "KIT")
 angiogenesis_genes_subset_plot  <- angiogenesis_genes_subset_score
 
@@ -4787,7 +4834,7 @@ subset_gene_plot_list <- list(
 )
 ```
 
-```{r subset metadata and helper functions 3, dpi=300}
+```{r subset metadata and helper functions main, dpi=300}
 DefaultAssay(EC_combined) <- "RNA"
 Idents(EC_combined) <- EC_combined$cell_state
 
@@ -5058,7 +5105,7 @@ dge_subset <- edgeR::calcNormFactors(dge_subset)
 logcpm_subset <- edgeR::cpm(dge_subset, log = TRUE, prior.count = 1)
 ```
 
-```{r subset scores and gene matrices 2, dpi=300}
+```{r subset scores and gene matrices main, dpi=300}
 subset_score_genes_all <- unique(unlist(subset_score_gene_sets, use.names = FALSE))
 score_genes_present <- subset_score_genes_all[subset_score_genes_all %in% rownames(logcpm_subset)]
 
@@ -5102,6 +5149,53 @@ subset_gene_df <- purrr::map_dfr(names(subset_gene_plot_list), function(program_
   })
 })
 ```
+
+```{r export subset score stats}
+subset_score_vars <- c(
+  "S_phase_score",
+  "G2M_phase_score",
+  "Aerobic_respiration_score",
+  "Angiogenesis_score",
+  "Apoptotic_priming_score"
+)
+
+subset_score_stats <- purrr::map_dfr(
+  subset_score_vars,
+  function(score_var) {
+    purrr::map_dfr(unique(subset_score_df$cell_state), function(cs) {
+      df_sub <- subset_score_df %>%
+        dplyr::filter(cell_state == cs)
+
+      if (nrow(df_sub) == 0 || dplyr::n_distinct(df_sub$Group) < 2) {
+        return(NULL)
+      }
+
+      fit <- tryCatch(
+        lm(stats::as.formula(paste0(score_var, " ~ Group + Age + Sex + Dataset")), data = df_sub),
+        error = function(e) NULL
+      )
+
+      if (is.null(fit)) {
+        return(NULL)
+      }
+
+      broom::tidy(fit) %>%
+        dplyr::mutate(
+          cell_state = cs,
+          feature = score_var
+        )
+    })
+  }
+)
+
+write.csv(
+  subset_score_stats,
+  file = file.path(output_dir_data, "EC_subset_score_stats.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
 
 ## Compact score plots
 
@@ -5178,6 +5272,16 @@ if (!is.null(angiogenesis_gene_stats) && nrow(angiogenesis_gene_stats) > 0) {
 }
 ```
 
+```{r export angiogenesis_gene_stats}
+write.csv(
+  angiogenesis_gene_stats,
+  file = file.path(output_dir_data, "EC_subset_gene_stats_angiogenesis.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
+
 ```{r apoptosis genes h vs hf dotplot, fig.width=6, fig.height=3.5, dpi=300}
 apoptosis_gene_stats <- subset_gene_df %>%
   dplyr::filter(program == "apoptosis") %>%
@@ -5193,6 +5297,16 @@ if (!is.null(apoptosis_gene_stats) && nrow(apoptosis_gene_stats) > 0) {
   )
 }
 ```
+
+```{r export apoptosis_gene_stats}
+write.csv(
+  apoptosis_gene_stats,
+  file = file.path(output_dir_data, "EC_subset_gene_stats_apoptosis.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
 
 ```{r redox and mitochondrial homeostasis genes h vs hf dotplot, fig.width=6, fig.height=3.5, dpi=300}
 redox_mito_gene_order <- unique(c(
@@ -5215,8 +5329,17 @@ if (!is.null(redox_mito_gene_stats) && nrow(redox_mito_gene_stats) > 0) {
 }
 ```
 
+```{r export redox_mito_gene_stats}
+write.csv(
+  redox_mito_gene_stats,
+  file = file.path(output_dir_data, "EC_subset_gene_stats_redox_mito.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+```
+
+
 ```{r}
 FeaturePlot(Reichart, "CYBB")
 FeaturePlot(Koenig, "CYBB")
 ```
-
