@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>HMEC second run RNAseq</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Variance_partitioning.html">Variance partitioning</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="Fibrosis_hypertrophy.html">Fibrosis and hypertrophy</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="Olink_proteomics.html">Olink proteomics</a>
+    </li>
+    <li>
+      <a href="MS_proteomics.html">MS proteomics</a>
+    </li>
+    <li>
+      <a href="Integration_transcriptomics_proteomics.html">Integration transcriptomics and proteomics</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">HMEC second run RNAseq</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">27 May, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-05-27
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreec0da2acf271e984f362d07fa1cdfec77840522b0targetblankc0da2aca">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/c0da2acf271e984f362d07fa1cdfec77840522b0" target="_blank">c0da2ac</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreec0da2acf271e984f362d07fa1cdfec77840522b0targetblankc0da2aca"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/c0da2acf271e984f362d07fa1cdfec77840522b0" target="_blank">c0da2ac</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/figure/
+    Ignored:    analysis/site_libs/
+    Ignored:    output/CellChat/
+    Ignored:    output/Cell_cell_communication_Macrophages/
+    Ignored:    output/Chaffin_2022/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/Koenig_2022/
+    Ignored:    output/Matrifibrocytes/
+    Ignored:    output/Matrifibrocytes_disease_vs_HC_adj_subsets/
+    Ignored:    output/SSc_PAH/
+    Ignored:    output/Variance_partitioning/
+
+Untracked files:
+    Untracked:  .Rprofile
+    Untracked:  Chaffin_wilcox.csv
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  Koenig_wilcox.csv
+    Untracked:  analysis/Amrute_2024_fibroblast_integration.Rmd
+    Untracked:  analysis/Amrute_2024_fibroblast_pseudobulk.Rmd
+    Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Check_IMC_panel.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DE_Fibrosis_fibroblasts.Rmd
+    Untracked:  analysis/DE_Group_all_cell_types.Rmd
+    Untracked:  analysis/EC_capillary_angiogenic_boxplot_stats.csv
+    Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
+    Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
+    Untracked:  analysis/Genes_Luxembourg.Rmd
+    Untracked:  analysis/HC_DEGs_clustering.Rmd
+    Untracked:  analysis/Koenig_2022.Rmd
+    Untracked:  analysis/Mass_Spec_RV_dysf.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_2.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_3.Rmd
+    Untracked:  analysis/Matrifibrocytes.Rmd
+    Untracked:  analysis/Matrifibrocytes_2.Rmd
+    Untracked:  analysis/Matrifibrocytes_3.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj_subsets.Rmd
+    Untracked:  analysis/Matrifibrocytes_high_score_populations_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_integration.Rmd
+    Untracked:  analysis/Olink_RV_dysf.Rmd
+    Untracked:  analysis/Olink_SSc_PAH.Rmd
+    Untracked:  analysis/Olink_SSc_PAH_draft.Rmd
+    Untracked:  analysis/Olink_proteomics_2.Rmd
+    Untracked:  analysis/Proteomics_OLINK_MS.Rmd
+    Untracked:  analysis/Proteomics_combined.Rmd
+    Untracked:  analysis/Proteomics_combined_2.Rmd
+    Untracked:  analysis/Pseudobulk_all.csv
+    Untracked:  analysis/Pseudobulk_all_2.csv
+    Untracked:  analysis/Pseudobulk_byCellType_facetGrid.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col_proportional.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.filtered.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox_2.csv
+    Untracked:  analysis/QC_integration_annotation_HC.Rmd
+    Untracked:  analysis/Reichart_ncRNA.Rmd
+    Untracked:  analysis/Reichart_wilcox.csv
+    Untracked:  analysis/Selection_genes_histology.Rmd
+    Untracked:  analysis/TAPSE_sPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/TOM/
+    Untracked:  analysis/UntitledR.R
+    Untracked:  analysis/VennDiagram.2024-09-16_14-12-56.160498.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-17.340014.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-13-57.942673.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-22-50.621507.log
+    Untracked:  analysis/VennDiagram.2024-09-16_14-24-47.010131.log
+    Untracked:  analysis/VennDiagram.2024-09-18_11-22-29.278827.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-35.50458.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-41.199096.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-41-59.64245.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-45-11.922474.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-50-36.483812.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-56-46.244322.log
+    Untracked:  analysis/VennDiagram.2025-03-25_17-58-30.74362.log
+    Untracked:  analysis/VennDiagram.2025-03-26_15-54-09.244636.log
+    Untracked:  analysis/VennDiagram.2025-06-11_14-53-30.499963.log
+    Untracked:  analysis/ec_Reichart_logCPM.csv
+    Untracked:  analysis/mPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  analysis/prot_test.Rmd
+    Untracked:  analysis/test_1.Rmd
+    Untracked:  analysis/test_fb_prot.Rmd
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/Endothelial_cells_cubclustering_removed.Rmd
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/Removed_chunks.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/HMEC_RNAseq/
+    Untracked:  data/Heart_datasets/
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec/
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK/
+    Untracked:  data/OLINK_LVAD/
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Amrute_2024_fibroblast_integration/
+    Untracked:  output/Amrute_2024_fibroblast_pseudobulk/
+    Untracked:  output/Amrute_2024_matrifibrocyte_markers/
+    Untracked:  output/Biomarkers_selection/
+    Untracked:  output/CM_lncRNAs/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Cell_cell_communication/
+    Untracked:  output/Cell_cell_communication_LV/
+    Untracked:  output/Cell_cell_communication_LV2/
+    Untracked:  output/Cell_cycle/
+    Untracked:  output/Check_IMC_panel/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_Fibrosis_all_cell_types/
+    Untracked:  output/DE_Fibrosis_fibroblasts/
+    Untracked:  output/DE_Group_all_cell_types/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Dysferlin/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart_manuscript/
+    Untracked:  output/Endothelial_cells_SGLT2_I/
+    Untracked:  output/Endothelial_cells_published_datasets/
+    Untracked:  output/Endothelial_cells_subclustering/
+    Untracked:  output/Fibroblasts_DA_DE_26/
+    Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/Figures_manuscript/
+    Untracked:  output/Genes_Luxembourg/
+    Untracked:  output/Genes_Luxembourg_2/
+    Untracked:  output/HC_DEGs_clustering/
+    Untracked:  output/HMEC/
+    Untracked:  output/HMEC_second_run/
+    Untracked:  output/HMEC_second_run_manuscript/
+    Untracked:  output/LVAD_OLINK/
+    Untracked:  output/LV_Klaudia/
+    Untracked:  output/LV_datasets_DCM_vs_HC/
+    Untracked:  output/Lymphocytes_subclustering/
+    Untracked:  output/MS_proteomics/
+    Untracked:  output/Macrophages_subclustering/
+    Untracked:  output/Mass_Spec_RV_dysf/
+    Untracked:  output/Mass_Spec_proteomics/
+    Untracked:  output/Mass_Spec_proteomics_2/
+    Untracked:  output/Mass_Spec_proteomics_3/
+    Untracked:  output/Matrifibrocytes_1/
+    Untracked:  output/Matrifibrocytes_2/
+    Untracked:  output/Matrifibrocytes_2_adjusted/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_high_score_populations_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_integration/
+    Untracked:  output/Matrifibrocytes_subclusters_disease_vs_HC_adj/
+    Untracked:  output/Mural_cells_subclustering/
+    Untracked:  output/Olink_RV_dysf/
+    Untracked:  output/Olink_SSc_PAH/
+    Untracked:  output/Olink_SSc_PAH_draft/
+    Untracked:  output/Olink_proteomics/
+    Untracked:  output/Olink_proteomics_2/
+    Untracked:  output/Proteomics_FB_state_PCA/
+    Untracked:  output/Proteomics_PCA_cell_state_composition/
+    Untracked:  output/Proteomics_combined/
+    Untracked:  output/Proteomics_combined_2/
+    Untracked:  output/Proteomics_combined_3/
+    Untracked:  output/Proteomics_combined_4/
+    Untracked:  output/Proteomics_combined_final/
+    Untracked:  output/Proteomics_combined_final_males_only/
+    Untracked:  output/Proteomics_combined_final_males_only_no_PK259/
+    Untracked:  output/Proteomics_combined_final_males_only_no_batch2/
+    Untracked:  output/Proteomics_matched_PCA_multicell_states_v2/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_HC/
+    Untracked:  output/Reichart2022_ventricle_specificity_noncoding/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/Selection_genes_histology/
+    Untracked:  output/TAPSE_sPAP_concordance_3datasets/
+    Untracked:  output/TAPSE_sPAP_proteomics_snrna/
+    Untracked:  output/UntitledR.R
+    Untracked:  output/mPAP_concordance_3datasets/
+    Untracked:  redsfewfref.R
+    Untracked:  reference_sources/
+    Untracked:  renv.lock
+    Untracked:  renv/
+    Untracked:  wflow_publish.log
+
+Unstaged changes:
+    Modified:   analysis/Amrute_2024_matrifibrocyte_markers.Rmd
+    Modified:   analysis/CM_lncRNAs.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cardiomyocytes_subclustering.Rmd
+    Modified:   analysis/Cell_cycle.Rmd
+    Modified:   analysis/Comparison_LV.Rmd
+    Modified:   analysis/DA_DE_all_cell_types_and_parameters.Rmd
+    Modified:   analysis/DE_Fibrosis_all_cell_types.Rmd
+    Modified:   analysis/DE_mPAP_all_cell_types.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+    Modified:   analysis/Endothelial_cells_Koenig_Reichart_manuscript.Rmd
+    Modified:   analysis/Endothelial_cells_published_datasets.rmd
+    Modified:   analysis/Endothelial_cells_subclustering.Rmd
+    Modified:   analysis/Figures_manuscript.Rmd
+    Modified:   analysis/HMEC.Rmd
+    Modified:   analysis/LV_Klaudia.Rmd
+    Modified:   analysis/Macrophages_subclustering.Rmd
+    Modified:   analysis/Olink_proteomics.Rmd
+    Modified:   analysis/Proteomics_PCA_cell_state_composition.Rmd
+    Modified:   analysis/Proteomics_combined_final.Rmd
+    Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
+    Modified:   analysis/SSc_PAH.Rmd
+    Modified:   analysis/Variance_partitioning.Rmd
+    Modified:   analysis/_site.yml
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/HMEC_second_run_manuscript.Rmd</code>) and HTML
+(<code>docs/HMEC_second_run_manuscript.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/c0da2acf271e984f362d07fa1cdfec77840522b0/analysis/HMEC_second_run_manuscript.Rmd" target="_blank">c0da2ac</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-05-27
+</td>
+<td>
+wflow_publish("analysis/HMEC_second_run_manuscript.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code>current_file &lt;- &quot;HMEC_second_run_manuscript&quot;
+
+library(here)
+library(readr)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(edgeR)
+library(limma)
+library(reactable)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(enrichplot)
+library(DOSE)
+library(EnhancedVolcano)
+library(ComplexHeatmap)
+library(circlize)
+library(ggrepel)
+library(broom)
+
+
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;), recursive = TRUE)
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+group_cols &lt;- c(&quot;HC&quot; = &quot;grey85&quot;, &quot;HF&quot; = &quot;grey45&quot;)
+volcano_cols &lt;- c(
+  &quot;Decreased&quot; = &quot;#004C8C&quot;,
+  &quot;Not significant&quot; = &quot;grey75&quot;,
+  &quot;Increased&quot; = &quot;#A63A2A&quot;
+)
+heat_cols &lt;- circlize::colorRamp2(c(-2, 0, 2), c(&quot;#2166AC&quot;, &quot;white&quot;, &quot;#B2182B&quot;))
+
+wrap_2lines &lt;- function(x, width = 35) {
+  vapply(x, function(s) {
+    s &lt;- as.character(s)
+    if (nchar(s) &lt;= width) return(s)
+    cut &lt;- stringr::str_locate_all(substr(s, 1, width), &quot; &quot;)[[1]]
+    cut &lt;- if (nrow(cut) == 0) width else max(cut[, 1])
+    line1 &lt;- stringr::str_trim(substr(s, 1, cut))
+    rest  &lt;- stringr::str_trim(substr(s, cut + 1, nchar(s)))
+    if (nchar(rest) &gt; width) rest &lt;- paste0(substr(rest, 1, width - 1), &quot;…&quot;)
+    paste(line1, rest, sep = &quot;\n&quot;)
+  }, FUN.VALUE = character(1))
+}</code></pre>
+<pre class="r"><code>counts &lt;- read_tsv(&quot;/shares/rheumatologie.usz/Gino/HMEC_second_run/results_rnaseq/star_salmon/salmon.merged.gene_counts.tsv&quot;, col_types = cols())
+
+gene_col &lt;- colnames(counts)[2]
+counts_mat &lt;- as.matrix(counts[, -c(1, 2)])
+rownames(counts_mat) &lt;- counts[[gene_col]]
+storage.mode(counts_mat) &lt;- &quot;numeric&quot;
+
+meta &lt;- read_excel(here::here(&quot;data&quot;, &quot;HMEC_RNAseq&quot;, &quot;HMEC_second_run_sample_group_ID.xlsx&quot;)) %&gt;%
+  dplyr::select(Sample, Group) %&gt;%
+  dplyr::filter(Sample %in% colnames(counts_mat)) %&gt;%
+  dplyr::arrange(match(Sample, colnames(counts_mat)))
+
+counts_mat &lt;- counts_mat[, meta$Sample, drop = FALSE]
+rownames(meta) &lt;- meta$Sample
+group &lt;- factor(meta$Group)
+
+y &lt;- DGEList(counts = counts_mat, samples = meta)
+y$samples$group &lt;- group</code></pre>
+<pre class="r"><code>table(group)</code></pre>
+<pre><code>group
+HC HF 
+ 8  8 </code></pre>
+<pre class="r"><code>keep &lt;- filterByExpr(y, group = group, min.count = 20)
+
+y &lt;- y[keep, , keep.lib.sizes = FALSE]
+dim(y)</code></pre>
+<pre><code>[1] 13882    16</code></pre>
+<pre class="r"><code>y &lt;- calcNormFactors(y)
+
+y$samples</code></pre>
+<pre><code>      group lib.size norm.factors Sample Group
+CZD12    HC 38605189    0.9473311  CZD12    HC
+CZD13    HC 34818262    0.9629520  CZD13    HC
+CZD15    HC 36494138    1.0262843  CZD15    HC
+CZD19    HC 37358858    1.0548481  CZD19    HC
+CZD22    HC 37042158    0.9950305  CZD22    HC
+CZD23    HC 40284933    1.0396722  CZD23    HC
+CZD25    HC 50498046    1.0254877  CZD25    HC
+CZD27    HC 35398758    1.0017756  CZD27    HC
+HT28     HF 41337798    1.0337475   HT28    HF
+HT30     HF 37352702    1.0119841   HT30    HF
+HT31     HF 37473211    0.9487964   HT31    HF
+LV65     HF 36960776    1.0110130   LV65    HF
+LV66     HF 37589322    0.9796717   LV66    HF
+LV69     HF 38240833    1.0072778   LV69    HF
+LV72     HF 38653720    0.9765017   LV72    HF
+LV75     HF 43694607    0.9853295   LV75    HF</code></pre>
+<pre class="r"><code>plotMDS(y, labels = meta$Sample, col = as.numeric(group))
+legend(&quot;bottomright&quot;, legend = levels(group), col = 1:length(levels(group)), pch = 16)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-3-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>logcpm &lt;- cpm(y, log = TRUE, prior.count = 1)
+pr &lt;- prcomp(t(logcpm), scale. = FALSE)
+
+pve &lt;- (pr$sdev^2) / sum(pr$sdev^2) * 100
+
+pca_df &lt;- data.frame(
+  Sample = rownames(meta),
+  Group = factor(meta$Group, levels = c(&quot;HC&quot;, &quot;HF&quot;)),
+  PC1 = pr$x[, 1],
+  PC2 = pr$x[, 2]
+)
+
+ggplot(pca_df, aes(x = PC1, y = PC2, fill = Group, label = Sample)) +
+  geom_point(shape = 21, size = 3, stroke = 0.4, color = &quot;black&quot;) +
+  ggrepel::geom_text_repel(
+    size = 3,
+    max.overlaps = Inf,
+    box.padding = 0.4,
+    point.padding = 0.3,
+    min.segment.length = 0,
+    segment.size = 0.25
+  ) +
+  scale_fill_manual(values = group_cols) +
+  scale_x_continuous(expand = expansion(mult = 0.18)) +
+  scale_y_continuous(expand = expansion(mult = 0.18)) +
+  labs(
+    title = &quot;PCA&quot;,
+    x = paste0(&quot;PC1 (&quot;, round(pve[1], 1), &quot;%)&quot;),
+    y = paste0(&quot;PC2 (&quot;, round(pve[2], 1), &quot;%)&quot;)
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = &quot;bold&quot;, hjust = 0.5),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_text(face = &quot;bold&quot;),
+    legend.position = &quot;right&quot;
+  )</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/pca%20samples-1.png" width="1500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>levels(group)</code></pre>
+<pre><code>[1] &quot;HC&quot; &quot;HF&quot;</code></pre>
+<pre class="r"><code>group &lt;- relevel(group, ref = &quot;HC&quot;)
+y$samples$group &lt;- group
+
+design &lt;- model.matrix(~ 0 + group)
+colnames(design) &lt;- levels(group)
+design</code></pre>
+<pre><code>   HC HF
+1   1  0
+2   1  0
+3   1  0
+4   1  0
+5   1  0
+6   1  0
+7   1  0
+8   1  0
+9   0  1
+10  0  1
+11  0  1
+12  0  1
+13  0  1
+14  0  1
+15  0  1
+16  0  1
+attr(,&quot;assign&quot;)
+[1] 1 1
+attr(,&quot;contrasts&quot;)
+attr(,&quot;contrasts&quot;)$group
+[1] &quot;contr.treatment&quot;</code></pre>
+<pre class="r"><code>contrast &lt;- makeContrasts(
+  HF_vs_HC = HF - HC,
+  levels = design
+)
+
+y &lt;- estimateDisp(y, design)
+plotBCV(y)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-4-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>fit &lt;- glmQLFit(y, design)
+
+qlf &lt;- glmQLFTest(fit, contrast = contrast)
+
+res &lt;- topTags(qlf, n = Inf)$table
+head(res)</code></pre>
+<pre><code>              logFC   logCPM        F       PValue       FDR
+EIF4EBP2 -0.5071179 6.700985 38.94010 8.598854e-06 0.1041152
+PRIM1     0.5322302 3.113253 30.82077 3.400328e-05 0.1041152
+LIMS1    -0.3721924 7.633601 28.55622 5.208594e-05 0.1041152
+ADCY1    -2.7527368 0.930841 27.74884 6.291934e-05 0.1041152
+ADGRE5   -0.7789979 2.563360 27.51679 6.385967e-05 0.1041152
+TJP1     -0.3626337 6.928516 27.35452 6.591673e-05 0.1041152</code></pre>
+<pre class="r"><code>res_export &lt;- res %&gt;%
+  tibble::rownames_to_column(&quot;gene&quot;) %&gt;%
+  dplyr::mutate(
+    metric = logFC * -log10(PValue),
+    significance = dplyr::case_when(
+      FDR &lt; 0.2 &amp; logFC &gt; 0.5 ~ &quot;Increased&quot;,
+      FDR &lt; 0.2 &amp; logFC &lt; -0.5 ~ &quot;Decreased&quot;,
+      TRUE ~ &quot;Not significant&quot;
+    ),
+    comparison = &quot;HF_vs_HC&quot;
+  ) %&gt;%
+  dplyr::arrange(FDR, dplyr::desc(abs(logFC)))
+
+res_signif_export &lt;- res_export %&gt;%
+  dplyr::filter(FDR &lt; 0.2, abs(logFC) &gt; 0.5) %&gt;%
+  dplyr::arrange(dplyr::desc(metric))
+
+write.csv(
+  res_export,
+  file = file.path(output_dir_data, &quot;HMEC_DE_results_HF_vs_HC_all_genes.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  res_signif_export,
+  file = file.path(output_dir_data, &quot;HMEC_DE_results_HF_vs_HC_significant_genes.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>res_df &lt;- res %&gt;%
+  dplyr::mutate(
+    Gene = rownames(res),
+    significance = dplyr::case_when(
+      FDR &lt; 0.2 &amp; logFC &gt; 0.5 ~ &quot;Increased&quot;,
+      FDR &lt; 0.2 &amp; logFC &lt; -0.5 ~ &quot;Decreased&quot;,
+      TRUE ~ &quot;Not significant&quot;
+    ),
+    significance = factor(significance, levels = names(volcano_cols))
+  )
+
+n_h  &lt;- sum(meta$Group == &quot;HC&quot;)
+n_hf &lt;- sum(meta$Group == &quot;HF&quot;)
+
+EnhancedVolcano(
+  res_df,
+  lab = res_df$Gene,
+  x = &quot;logFC&quot;,
+  y = &quot;FDR&quot;,
+  labSize = 0,
+  legendLabSize = 12,
+  titleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 0,
+  pointSize = 0.8,
+  FCcutoff = 0.5,
+  pCutoff = 0.2,
+  ylim = c(0, 2),
+  xlim = c(-3.75, 3.75),
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  ylab = bquote(-Log[10]~FDR),
+  subtitle = NULL,
+  title = paste0(&quot;HMEC
+HF (n=&quot;, n_hf, &quot;) vs HC (n=&quot;, n_h, &quot;)&quot;),
+  colCustom = setNames(
+    volcano_cols[as.character(res_df$significance)],
+    as.character(res_df$significance)
+  )
+) +
+  theme(legend.position = &quot;none&quot;)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/volcano%20HF%20vs%20HC-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>n_top &lt;- 500
+
+logCPM &lt;- cpm(y, log = TRUE, prior.count = 1)
+var_genes &lt;- apply(logCPM, 1, var)
+top_genes &lt;- names(sort(var_genes, decreasing = TRUE))[1:n_top]
+
+mat &lt;- logCPM
+
+mat_z &lt;- t(scale(t(mat)))
+
+annotation_col &lt;- data.frame(
+  Group  = group,
+  row.names = colnames(mat_z)
+)
+
+pheatmap(
+  mat_z,
+  annotation_col = annotation_col,
+  show_rownames = FALSE,
+  cluster_cols = TRUE,
+  clustering_distance_rows = &quot;euclidean&quot;,
+  clustering_distance_cols = &quot;euclidean&quot;,
+  main = paste(&quot;All genes&quot;)
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-5-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>n_top &lt;- 500
+
+logCPM &lt;- cpm(y, log = TRUE, prior.count = 1)
+var_genes &lt;- apply(logCPM, 1, var)
+top_genes &lt;- names(sort(var_genes, decreasing = TRUE))[1:n_top]
+
+mat &lt;- logCPM[top_genes, ]
+
+mat_z &lt;- t(scale(t(mat)))
+
+annotation_col &lt;- data.frame(
+  Group  = group,
+  row.names = colnames(mat_z)
+)
+
+pheatmap(
+  mat_z,
+  annotation_col = annotation_col,
+  show_rownames = FALSE,
+  cluster_cols = TRUE,
+  clustering_distance_rows = &quot;euclidean&quot;,
+  clustering_distance_cols = &quot;euclidean&quot;,
+  main = paste(&quot;Top&quot;, n_top, &quot;variable genes&quot;)
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-6-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>ec_fb_markers &lt;- c(&quot;VWF&quot;, &quot;PECAM1&quot;, &quot;CDH5&quot;, &quot;KDR&quot;, &quot;ENG&quot;, &quot;ESAM&quot;, &quot;ST6GALNAC3&quot;, &quot;PIK3R3&quot;,&quot;COL1A1&quot;, &quot;VIM&quot;, &quot;FN1&quot;, &quot;POSTN&quot;, &quot;NEBL&quot;, &quot;NEGR1&quot;, &quot;ACSM3&quot;, &quot;DCN&quot;, &quot;COL1A2&quot;,&quot;LUM&quot;,&quot;COL3A1&quot;,&quot;TAGLN&quot;,&quot;ACTA2&quot;)
+
+markers_present &lt;- ec_fb_markers[ec_fb_markers %in% rownames(logCPM)]
+markers_present</code></pre>
+<pre><code> [1] &quot;VWF&quot;        &quot;PECAM1&quot;     &quot;CDH5&quot;       &quot;KDR&quot;        &quot;ENG&quot;       
+ [6] &quot;ESAM&quot;       &quot;ST6GALNAC3&quot; &quot;PIK3R3&quot;     &quot;COL1A1&quot;     &quot;VIM&quot;       
+[11] &quot;FN1&quot;        &quot;POSTN&quot;      &quot;NEBL&quot;       &quot;NEGR1&quot;      &quot;ACSM3&quot;     
+[16] &quot;DCN&quot;        &quot;COL1A2&quot;     &quot;LUM&quot;        &quot;COL3A1&quot;     &quot;TAGLN&quot;     
+[21] &quot;ACTA2&quot;     </code></pre>
+<pre class="r"><code>logCPM_markers &lt;- logCPM[markers_present, , drop = FALSE]
+
+pheatmap(
+  logCPM_markers,
+  annotation_col = annotation_col,
+  main = &quot;Endothelial markers expression (log2-CPM)&quot;
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-7-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pc1_scores &lt;- pr$x[, 1]
+
+pc1_loadings &lt;- pr$rotation[, 1]
+
+top_n &lt;- 25
+top_pc1_genes &lt;- names(sort(abs(pc1_loadings), decreasing = TRUE))[1:top_n]
+top_pc1_genes</code></pre>
+<pre><code> [1] &quot;HOXA5&quot;            &quot;CTC-429P9.4&quot;      &quot;SELP&quot;             &quot;RP11-65I12.1&quot;    
+ [5] &quot;BMPER&quot;            &quot;HOXB4&quot;            &quot;VIPR1&quot;            &quot;SPOCK1&quot;          
+ [9] &quot;HOXA9&quot;            &quot;COL25A1&quot;          &quot;HOXB6&quot;            &quot;HOTAIRM1&quot;        
+[13] &quot;CXCL6&quot;            &quot;RP11-632C17__A.1&quot; &quot;G0S2&quot;             &quot;LAMC2&quot;           
+[17] &quot;ABI3BP&quot;           &quot;HOPX&quot;             &quot;RP11-706O15.5&quot;    &quot;EFNA5&quot;           
+[21] &quot;CADM3&quot;            &quot;TMEM100&quot;          &quot;ACP5&quot;             &quot;SHISA2&quot;          
+[25] &quot;HEY2&quot;            </code></pre>
+<pre class="r"><code>mat_pc1 &lt;- logCPM[top_pc1_genes, , drop = FALSE]
+
+ord &lt;- order(pc1_scores, decreasing = TRUE)
+
+annotation_col2 &lt;- annotation_col
+annotation_col2$PC1 &lt;- pc1_scores
+
+pheatmap(
+  mat_pc1[, ord, drop = FALSE],
+  scale = &quot;row&quot;,
+  annotation_col = annotation_col2[ord, , drop = FALSE],
+  show_colnames = TRUE,
+  main = &quot;Top PC1 loading genes (row-scaled log2-CPM)&quot;
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-8-1.png" width="1950" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>fb_markers &lt;- c(&quot;COL1A1&quot;,&quot;COL1A2&quot;,&quot;DCN&quot;,&quot;LUM&quot;,&quot;COL3A1&quot;,&quot;TAGLN&quot;,&quot;ACTA2&quot;,&quot;POSTN&quot;,&quot;FN1&quot;, &quot;NEGR1&quot;)
+fb_present &lt;- intersect(fb_markers, rownames(logCPM))
+
+fb_score &lt;- colMeans(logCPM[fb_present, , drop = FALSE], na.rm = TRUE)
+ct &lt;- cor.test(pc1_scores, fb_score, method = &quot;spearman&quot;)
+ct</code></pre>
+<pre><code>
+    Spearman&#39;s rank correlation rho
+
+data:  pc1_scores and fb_score
+S = 516, p-value = 0.3669
+alternative hypothesis: true rho is not equal to 0
+sample estimates:
+      rho 
+0.2411765 </code></pre>
+<pre class="r"><code>plot(
+  pc1_scores, fb_score,
+  pch = 16,
+  col = as.numeric(group),
+  xlab = &quot;PC1 score&quot;,
+  ylab = &quot;Fibroblast marker score (mean log2-CPM)&quot;
+)
+
+legend(
+  &quot;topleft&quot;,
+  legend = levels(group),
+  col = seq_along(levels(group)),
+  pch = 16,
+  bty = &quot;n&quot;
+)
+
+text(
+  pc1_scores, fb_score,
+  labels = meta$Sample,
+  pos = 3,
+  cex = 0.7
+)
+
+txt &lt;- paste0(
+  &quot;Spearman r = &quot;, round(ct$estimate, 2),
+  &quot;\nP = &quot;, formatC(ct$p.value, format = &quot;e&quot;, digits = 2)
+)
+usr &lt;- par(&quot;usr&quot;)
+
+text(
+  x = usr[2] - 0.05 * diff(usr[1:2]),
+  y = usr[4] - 0.05 * diff(usr[3:4]),
+  labels = txt,
+  adj = c(-0.2, 0.6),
+  cex = 0.9,
+  bg = &quot;white&quot;
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-9-1.png" width="1500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>annotation_col2$fb_score &lt;- fb_score</code></pre>
+<pre class="r"><code>ec_markers &lt;- c(&quot;VWF&quot;,&quot;PECAM1&quot;,&quot;CDH5&quot;,&quot;KDR&quot;,&quot;ENG&quot;,&quot;ESAM&quot;,&quot;ST6GALNAC3&quot;,&quot;PIK3R3&quot;)
+mix_markers &lt;- unique(c(ec_markers, fb_markers))
+mix_present &lt;- intersect(mix_markers, rownames(logCPM))
+
+pheatmap(
+  logCPM[mix_present, ord, drop = FALSE],
+  scale = &quot;row&quot;,
+  annotation_col = annotation_col2[ord, , drop = FALSE],
+  main = &quot;Endothelial and fibroblast markers (row-scaled log2-CPM)&quot;
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-10-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>ec_markers &lt;- c(&quot;VWF&quot;,&quot;PECAM1&quot;,&quot;CDH5&quot;,&quot;KDR&quot;,&quot;ENG&quot;,&quot;ESAM&quot;,&quot;ST6GALNAC3&quot;,&quot;PIK3R3&quot;)
+ec_present &lt;- intersect(ec_markers, rownames(logCPM))
+
+ec_score &lt;- colMeans(logCPM[ec_present, , drop = FALSE], na.rm = TRUE)
+ct2 &lt;- cor.test(ec_score, fb_score, method = &quot;spearman&quot;)
+ct2</code></pre>
+<pre><code>
+    Spearman&#39;s rank correlation rho
+
+data:  ec_score and fb_score
+S = 834, p-value = 0.3976
+alternative hypothesis: true rho is not equal to 0
+sample estimates:
+       rho 
+-0.2264706 </code></pre>
+<pre class="r"><code>plot(
+  ec_score, fb_score,
+  pch = 16,
+  col = as.numeric(group),
+  xlab = &quot;Endothelial marker score (mean log2-CPM)&quot;,
+  ylab = &quot;Fibroblast marker score (mean log2-CPM)&quot;
+)
+
+legend(
+  &quot;bottomleft&quot;,
+  legend = levels(group),
+  col = seq_along(levels(group)),
+  pch = 16,
+  bty = &quot;n&quot;
+)
+
+text(
+  ec_score, fb_score,
+  labels = meta$Sample,
+  pos = 3,
+  cex = 0.7
+)
+
+txt2 &lt;- paste0(
+  &quot;Spearman r = &quot;, round(ct2$estimate, 2),
+  &quot;\nP = &quot;, formatC(ct2$p.value, format = &quot;e&quot;, digits = 2)
+)
+
+usr &lt;- par(&quot;usr&quot;)
+text(
+  x = usr[2] - 0.05 * diff(usr[1:2]),
+  y = usr[4] - 0.05 * diff(usr[3:4]),
+  labels = txt2,
+  adj = c(1, 0.6),
+  cex = 0.9,
+  bg = &quot;white&quot;
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-11-1.png" width="1500" style="display: block; margin: auto;" /></p>
+</div>
+<div id="dcm-rv" class="section level2">
+<h2>DCM RV</h2>
+<pre class="r"><code>library(qs2)
+DCM_RV &lt;- qs_read(here::here(&quot;output&quot;, &quot;QC_integration_annotation&quot;, &quot;DCM_RV.qs2&quot;), nthreads = 32)
+DefaultAssay(DCM_RV) &lt;- &quot;RNA&quot;
+DCM_RV &lt;- NormalizeData(DCM_RV)
+DCM_RV &lt;- DCM_RV[, sample(colnames(DCM_RV), size =20000, replace=F)]</code></pre>
+<pre class="r"><code>DotPlot_scCustom(
+  seurat_object   = DCM_RV,
+  features = top_pc1_genes,
+  group.by = &quot;cell_type&quot;,
+  dot.scale = 6
+) +
+  RotatedAxis() +
+  scale_y_discrete(limits = rev) +
+  theme_classic(base_size = 11) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title = element_text(face = &quot;bold&quot;),
+    plot.title = element_text(face = &quot;bold&quot;)
+  ) +
+  labs(
+    title = &quot;Top PC1 genes across cardiac cell types&quot;,
+    x = NULL,
+    y = NULL
+  )</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-13-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DotPlot_scCustom(
+  seurat_object   = DCM_RV,
+  features = ec_fb_markers,
+  group.by = &quot;cell_type&quot;,
+  dot.scale = 6
+) +
+  RotatedAxis() +
+  scale_y_discrete(limits = rev) +
+  theme_classic(base_size = 11) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title = element_text(face = &quot;bold&quot;),
+    plot.title = element_text(face = &quot;bold&quot;)
+  ) +
+  labs(
+    title = &quot;EC and FB markers across cardiac cell types&quot;,
+    x = NULL,
+    y = NULL
+  )</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/unnamed-chunk-14-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>reorder_GO_by_pvalue &lt;- function(enrichGO_result) {
+  go_results &lt;- enrichGO_result@result
+  go_results_sorted &lt;- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result &lt;- go_results_sorted
+  return(enrichGO_result)
+}</code></pre>
+<pre class="r"><code>res$metric &lt;- res$logFC*-log10(res$PValue)
+res$gene &lt;- rownames(res)
+entrezid &lt;- bitr(res$gene, fromType=&quot;SYMBOL&quot;, toType=&quot;ENTREZID&quot;, OrgDb=&quot;org.Hs.eg.db&quot;, drop = TRUE)
+res &lt;- merge(res, entrezid, by.x = &quot;gene&quot;, by.y = &quot;SYMBOL&quot;, all.x = TRUE)
+res[duplicated(res$metric) | duplicated(res$metric, fromLast = TRUE),]</code></pre>
+<pre><code>      gene       logFC     logCPM          F    PValue       FDR       metric
+11722  TEC -0.03778112 -0.8567853 0.01095903 0.9178604 0.9705578 -0.001406341
+11723  TEC -0.03778112 -0.8567853 0.01095903 0.9178604 0.9705578 -0.001406341
+       ENTREZID
+11722      7006
+11723 100124696</code></pre>
+<pre class="r"><code>res &lt;- res[!duplicated(res$metric), ]
+ranked_genes &lt;- res[!is.na(res$ENTREZID), ]
+genelist &lt;- ranked_genes$metric
+names(genelist) &lt;-ranked_genes$ENTREZID
+genelist &lt;- genelist[order(genelist, decreasing = T)]</code></pre>
+<pre class="r"><code>top_up &lt;- res |&gt;
+  dplyr::arrange(dplyr::desc(metric)) |&gt;
+  dplyr::slice(1:20)
+
+top_down &lt;- res |&gt;
+  dplyr::arrange(metric) |&gt;
+  dplyr::slice(1:20)
+
+genes_up &lt;- top_up$gene
+genes_down &lt;- top_down$gene
+
+genes_up</code></pre>
+<pre><code> [1] &quot;HOXA5&quot;        &quot;SNORD3C&quot;      &quot;SCN8A&quot;        &quot;HOTAIRM1&quot;     &quot;TUBA8&quot;       
+ [6] &quot;MRC1&quot;         &quot;LAMC2&quot;        &quot;HOXB4&quot;        &quot;IL1RL1&quot;       &quot;AC011330.5&quot;  
+[11] &quot;RPL13P12&quot;     &quot;HOXB3&quot;        &quot;TRBC2&quot;        &quot;NRN1&quot;         &quot;RP11-61L23.2&quot;
+[16] &quot;SERPINB9P1&quot;   &quot;MYO5B&quot;        &quot;GPAT3&quot;        &quot;RGS7BP&quot;       &quot;HIST2H3PS2&quot;  </code></pre>
+<pre class="r"><code>genes_down</code></pre>
+<pre><code> [1] &quot;ADCY1&quot;        &quot;RP11-343H5.4&quot; &quot;RP4-765C7.2&quot;  &quot;PDE1A&quot;        &quot;VIPR1&quot;       
+ [6] &quot;H2AFY2&quot;       &quot;SMOC1&quot;        &quot;TNFRSF19&quot;     &quot;SELL&quot;         &quot;WNT5B&quot;       
+[11] &quot;COL5A3&quot;       &quot;CECR2&quot;        &quot;HLA-H&quot;        &quot;BMPR1A&quot;       &quot;SELP&quot;        
+[16] &quot;HAND2-AS1&quot;    &quot;FAM84A&quot;       &quot;GPRC5C&quot;       &quot;PODN&quot;         &quot;FRRS1&quot;       </code></pre>
+<pre class="r"><code>genes_ordered &lt;- c(genes_up, genes_down)
+genes_ordered &lt;- genes_ordered[genes_ordered %in% rownames(logCPM)]
+
+mat_metric &lt;- logCPM[genes_ordered, , drop = FALSE]
+
+group_heatmap &lt;- factor(meta[colnames(mat_metric), &quot;Group&quot;, drop = TRUE], levels = c(&quot;HC&quot;, &quot;HF&quot;))
+ord &lt;- order(group_heatmap)
+
+mat_metric_ord &lt;- mat_metric[, ord, drop = FALSE]
+mat_metric_ord_z &lt;- t(scale(t(mat_metric_ord)))
+mat_metric_ord_z[is.na(mat_metric_ord_z)] &lt;- 0
+
+annotation_col_ord &lt;- data.frame(
+  Group = group_heatmap[ord],
+  row.names = colnames(mat_metric_ord)
+)
+
+ha_hmec &lt;- HeatmapAnnotation(
+  Group = annotation_col_ord$Group,
+  col = list(Group = group_cols),
+  annotation_name_gp = grid::gpar(fontsize = 10, fontface = &quot;bold&quot;)
+)
+
+Heatmap(
+  mat_metric_ord_z,
+  name = &quot;Z-score&quot;,
+  top_annotation = ha_hmec,
+  col = heat_cols,
+  cluster_rows = FALSE,
+  cluster_columns = FALSE,
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  column_names_gp = grid::gpar(fontsize = 7),
+  row_names_gp = grid::gpar(fontsize = 8),
+  column_title = &quot;Top 20 up and top 20 down genes&quot;,
+  column_title_gp = grid::gpar(fontsize = 14, fontface = &quot;bold&quot;)
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/heatmap%20top%2020%20up%20down%20prepare-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GSEA_GO &lt;- gseGO(geneList = genelist,
+                OrgDb = org.Hs.eg.db,
+                ont = &quot;ALL&quot;,
+                keyType = &quot;ENTREZID&quot;,
+                nPermSimple = 10000,
+                minGSSize = 10, 
+                pvalueCutoff  = 0.1)
+
+
+GSEA_GO &lt;- reorder_GO_by_pvalue(GSEA_GO)</code></pre>
+<pre class="r"><code>dotplot(GSEA_GO, showCategory = 10, split=&quot;.sign&quot;, title = &quot;GO Enrichment Analysis&quot;, label_format = 40, font.size = 14) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;, lineheight = 0.65, size = 12),
+        axis.text.x = element_text(size = 9),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/GSEA_GO-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>classify_terms &lt;- function(df) {
+  df$sign &lt;- ifelse(df$NES &gt; 0, &quot;activated&quot;, &quot;suppressed&quot;)
+  return(df)
+}</code></pre>
+<pre class="r"><code>GSEA_GO@result &lt;- classify_terms(GSEA_GO@result)
+
+activated_terms &lt;- subset(GSEA_GO@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_GO@result, sign == &quot;suppressed&quot;)
+
+GSEA_GO_activated &lt;- GSEA_GO
+GSEA_GO_activated@result &lt;- activated_terms
+GSEA_GO_activated &lt;- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed &lt;- GSEA_GO
+GSEA_GO_suppressed@result &lt;- suppressed_terms
+GSEA_GO_suppressed &lt;- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 &lt;- emapplot(GSEA_GO_activated, showCategory = 50, size_category = 0.7, min_edge = 0.25) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+p2 &lt;- emapplot(GSEA_GO_suppressed, showCategory = 50, size_category = 0.7, min_edge = 0.25) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/GSEA_GO_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GSEA_GO_simplified &lt;- clusterProfiler::simplify(
+  GSEA_GO,
+  cutoff = 0.6,
+  by = &quot;p.adjust&quot;,
+  select_fun = min,
+  measure = &quot;Wang&quot;,
+  semData = NULL
+)
+dotplot(GSEA_GO_simplified, showCategory = 10, split=&quot;.sign&quot;, title = &quot;GO Enrichment Analysis&quot;, label_format = 40, font.size = 14) +
+  theme(plot.title = element_text( face = &quot;bold&quot;, size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = &quot;bold&quot;, lineheight = 0.65, size = 12),
+        axis.text.x = element_text(size = 9),
+        strip.text = element_text(face = &quot;bold&quot;, size = 18)) +
+  facet_grid(.~.sign)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/GSEA_GO_simplified-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>GSEA_GO_simplified@result &lt;- classify_terms(GSEA_GO_simplified@result)
+
+activated_terms &lt;- subset(GSEA_GO_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_GO_simplified@result, sign == &quot;suppressed&quot;)
+
+GSEA_GO_activated &lt;- GSEA_GO_simplified
+GSEA_GO_activated@result &lt;- activated_terms
+GSEA_GO_activated &lt;- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed &lt;- GSEA_GO_simplified
+GSEA_GO_suppressed@result &lt;- suppressed_terms
+GSEA_GO_suppressed &lt;- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 &lt;- emapplot(GSEA_GO_activated, showCategory = 50, size_category = 0.7, min_edge = 0.2) +
+  ggtitle(&quot;Activated Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+p2 &lt;- emapplot(GSEA_GO_suppressed, showCategory = 50, size_category = 0.7, min_edge = 0.2) +
+  ggtitle(&quot;Suppressed Terms&quot;) +
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5))
+
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/GSEA_GO_simplified_emapplot-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p1 &lt;- ridgeplot(GSEA_GO_simplified, showCategory = 30) + labs(x = &quot;enrichment distribution&quot;)
+print(p1)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/GSEA_GO_simplified_ridgeplot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>make_gsea_barplot &lt;- function(gsea_obj, label_width = 40, top_n = 10, base_size = 11) {
+  if (is.null(gsea_obj) || nrow(gsea_obj@result) == 0) return(NULL)
+
+  gsea_bar_df &lt;- gsea_obj@result %&gt;%
+    as_tibble() %&gt;%
+    dplyr::filter(!is.na(NES), !is.na(p.adjust), p.adjust &lt; 0.05)
+
+  if (nrow(gsea_bar_df) == 0) return(NULL)
+
+  gsea_bar_df &lt;- gsea_bar_df %&gt;%
+    dplyr::mutate(score = -log10(p.adjust) * sign(NES))
+
+  gsea_bar_df_pos &lt;- gsea_bar_df %&gt;%
+    dplyr::filter(NES &gt; 0) %&gt;%
+    dplyr::arrange(desc(NES)) %&gt;%
+    dplyr::slice_head(n = top_n)
+
+  gsea_bar_df_neg &lt;- gsea_bar_df %&gt;%
+    dplyr::filter(NES &lt; 0) %&gt;%
+    dplyr::arrange(NES) %&gt;%
+    dplyr::slice_head(n = top_n)
+
+  gsea_bar_df_plot &lt;- dplyr::bind_rows(gsea_bar_df_pos, gsea_bar_df_neg)
+
+  if (nrow(gsea_bar_df_plot) == 0) return(NULL)
+
+  gsea_bar_df_plot$Description &lt;- factor(
+    gsea_bar_df_plot$Description,
+    levels = gsea_bar_df_plot$Description[order(gsea_bar_df_plot$NES)]
+  )
+
+  L &lt;- unname(quantile(abs(gsea_bar_df_plot$score), probs = 0.80, na.rm = TRUE))
+  if (!is.finite(L) || L == 0) L &lt;- max(abs(gsea_bar_df_plot$score), na.rm = TRUE)
+
+  ggplot(gsea_bar_df_plot, aes(x = Description, y = NES, fill = score)) +
+    geom_col(width = 0.9) +
+    scale_fill_gradient2(
+      low = &quot;#004C8C&quot;,
+      mid = &quot;white&quot;,
+      high = &quot;#A63A2A&quot;,
+      midpoint = 0,
+      limits = c(-L, L),
+      oob = scales::squish,
+      name = expression(-log[10](adj.~p) %*% sign(NES))
+    ) +
+    scale_x_discrete(labels = function(x) wrap_2lines(x, width = label_width)) +
+    coord_flip() +
+    labs(x = NULL, y = &quot;Normalized enrichment score (NES)&quot;) +
+    theme_bw(base_size = base_size) +
+    theme(
+      text = element_text(color = &quot;black&quot;),
+      axis.text = element_text(color = &quot;black&quot;),
+      axis.title = element_text(color = &quot;black&quot;, size = 13),
+      plot.title = element_blank(),
+      axis.text.y = element_text(size = 11),
+      legend.position = &quot;bottom&quot;,
+      legend.direction = &quot;horizontal&quot;,
+      legend.title = element_text(size = 9),
+      legend.text = element_text(size = 9)
+    ) +
+    guides(fill = guide_colorbar(
+      barwidth = grid::unit(6, &quot;cm&quot;),
+      barheight = grid::unit(0.3, &quot;cm&quot;),
+      title.position = &quot;top&quot;,
+      title.hjust = 0.5
+    ))
+}</code></pre>
+<pre class="r"><code>reorder_GO_by_NES &lt;- function(enrichGO_result) {
+  go_results &lt;- enrichGO_result@result
+  go_results_sorted &lt;- go_results[order(desc(go_results$NES)), ]
+  enrichGO_result@result &lt;- go_results_sorted
+  return(enrichGO_result)
+}</code></pre>
+<pre class="r"><code>default_labeller &lt;- function(n) {
+    function(str){
+        str &lt;- gsub(&quot;_&quot;, &quot; &quot;, str)
+        ep_str_wrap(str, n)
+    }
+}</code></pre>
+<pre class="r"><code>barplot.enrichResult &lt;- function (height, x = &quot;Count&quot;, color = &quot;p.adjust&quot;, showCategory = 8, 
+  font.size = 12, title = &quot;&quot;, label_format = 30, ...) 
+{
+  object &lt;- height
+  colorBy &lt;- match.arg(color, c(&quot;pvalue&quot;, &quot;p.adjust&quot;, &quot;qvalue&quot;))
+  if (x == &quot;geneRatio&quot; || x == &quot;GeneRatio&quot;) {
+    x &lt;- &quot;GeneRatio&quot;
+  }
+  else if (x == &quot;count&quot; || x == &quot;Count&quot;) {
+    x &lt;- &quot;Count&quot;
+  }
+  df &lt;- fortify(object, showCategory = showCategory, by = x, 
+    ...)
+  if (colorBy %in% colnames(df)) {
+    p &lt;- ggplot(df, aes_string(x = x, y = &quot;Description&quot;, 
+      fill = colorBy)) + theme_dose(font.size) + set_enrichplot_color(type = &quot;fill&quot;, 
+      name = color)
+  }
+  else {
+    p &lt;- ggplot(df, aes_string(x = x, y = &quot;Description&quot;, 
+      fill = &quot;Description&quot;)) + theme_dose(font.size) + 
+      theme(legend.position = &quot;none&quot;)
+  }
+  label_func &lt;- default_labeller(label_format)
+  if (is.function(label_format)) {
+    label_func &lt;- label_format
+  }
+  p + geom_col() + scale_y_discrete(labels = label_func) + 
+    ggtitle(title) + ylab(NULL)
+}</code></pre>
+<pre class="r"><code>ep_str_wrap &lt;- function(string, width) {
+    x &lt;- gregexpr(&#39; &#39;, string)
+    vapply(seq_along(x),
+           FUN = function(i) {
+               y &lt;- x[[i]]
+               n &lt;- nchar(string[i])
+               len &lt;- (c(y,n) - c(0, y)) ## length + 1
+               idx &lt;- len &gt; width
+               j &lt;- which(!idx)
+               if (length(j) &amp;&amp; max(j) == length(len)) {
+                   j &lt;- j[-length(j)]
+               }
+               if (length(j)) {
+                   idx[j] &lt;- len[j] + len[j+1] &gt; width
+               }
+               idx &lt;- idx[-length(idx)] ## length - 1
+               start &lt;- c(1, y[idx] + 1)
+               end &lt;- c(y[idx] - 1, n)
+               words &lt;- substring(string[i], start, end)
+               paste0(words, collapse=&quot;\n&quot;)
+           },
+           FUN.VALUE = character(1)
+    )
+}</code></pre>
+<pre class="r"><code>barplot.enrichResult(reorder_GO_by_NES(GSEA_GO_simplified), x=&quot;NES&quot;, showCategory = 100, label_format = 45) + 
+  ggtitle(&quot;Gene Ontology Enrichment Analysis&quot;) + 
+  theme(plot.title = element_text(face = &quot;bold&quot;, size = 14, hjust = 0.5))</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/GSEA_GO_simplified_barplot-1.png" width="4500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>p_go_bar &lt;- make_gsea_barplot(GSEA_GO_simplified, label_width = 43, top_n = 10)
+
+if (!is.null(p_go_bar)) {
+  p_go_bar
+}</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/GSEA_GO_simplified_barplot_top20-1.png" width="1800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="gene-programs-and-selected-genes" class="section level2">
+<h2>Gene programs and selected genes</h2>
+<pre class="r"><code>group_cols &lt;- c(&quot;HC&quot; = &quot;grey85&quot;, &quot;HF&quot; = &quot;grey45&quot;)
+
+format_p_label &lt;- function(p) {
+  if (length(p) == 0 || is.na(p)) return(&quot;NA&quot;)
+  dplyr::case_when(
+    p &lt; 0.0001 ~ &quot;****&quot;,
+    p &lt; 0.001  ~ &quot;***&quot;,
+    p &lt; 0.01   ~ &quot;**&quot;,
+    p &lt; 0.05   ~ &quot;*&quot;,
+    TRUE ~ sprintf(&quot;%.4f&quot;, p)
+  )
+}
+
+format_p_fontface &lt;- function(p) {
+  if (length(p) == 0 || is.na(p)) return(&quot;plain&quot;)
+  dplyr::case_when(
+    p &lt; 0.05 ~ &quot;bold&quot;,
+    TRUE ~ &quot;plain&quot;
+  )
+}
+
+collapse_duplicate_genes &lt;- function(mat) {
+  rowsum_mat &lt;- rowsum(mat, group = rownames(mat), reorder = FALSE)
+  gene_n &lt;- table(rownames(mat))[rownames(rowsum_mat)]
+  sweep(rowsum_mat, 1, as.numeric(gene_n), &quot;/&quot;)
+}
+
+angiogenesis_genes &lt;- c(&quot;ESM1&quot;, &quot;ANGPT2&quot;, &quot;KDR&quot;, &quot;APLN&quot;, &quot;CXCR4&quot;, &quot;PGF&quot;, &quot;DLL4&quot;, &quot;KIT&quot;)
+
+redox_no_genes &lt;- c(&quot;NOX4&quot;, &quot;NOS3&quot;, &quot;SOD1&quot;)
+
+mito_homeostasis_genes &lt;- c(&quot;TFAM&quot;, &quot;PPARGC1A&quot;)
+
+apoptotic_priming_genes &lt;- c(
+  &quot;BCL2L11&quot;, &quot;BBC3&quot;, &quot;PMAIP1&quot;, &quot;BAX&quot;,
+  &quot;BID&quot;, &quot;BAD&quot;, &quot;BMF&quot;, &quot;BIK&quot;,
+  &quot;BNIP3&quot;, &quot;BNIP3L&quot;
+)
+
+s_phase_genes &lt;- Seurat::cc.genes.updated.2019$s.genes
+g2m_phase_genes &lt;- Seurat::cc.genes.updated.2019$g2m.genes
+
+s_phase_genes_plot &lt;- c(&quot;MCM2&quot;, &quot;MCM5&quot;, &quot;PCNA&quot;, &quot;TYMS&quot;, &quot;RRM2&quot;, &quot;TK1&quot;)
+g2m_phase_genes_plot &lt;- c(&quot;TOP2A&quot;, &quot;UBE2C&quot;, &quot;CENPF&quot;, &quot;BIRC5&quot;, &quot;CDC20&quot;, &quot;AURKB&quot;)
+
+aerobic_respiration_genes &lt;- AnnotationDbi::select(
+  org.Hs.eg.db,
+  keys = &quot;GO:0009060&quot;,
+  keytype = &quot;GOALL&quot;,
+  columns = &quot;SYMBOL&quot;
+) %&gt;%
+  dplyr::pull(SYMBOL) %&gt;%
+  unique() %&gt;%
+  na.omit() %&gt;%
+  as.character()
+
+program_list &lt;- list(
+  Angiogenesis = angiogenesis_genes,
+  `Aerobic respiration` = aerobic_respiration_genes,
+  `S phase` = s_phase_genes,
+  `G2M phase` = g2m_phase_genes,
+  `Redox / NO` = redox_no_genes,
+  `Mitochondrial homeostasis` = mito_homeostasis_genes,
+  `Apoptotic priming` = apoptotic_priming_genes
+)
+
+selected_gene_list &lt;- unique(c(
+  angiogenesis_genes,
+  redox_no_genes,
+  mito_homeostasis_genes,
+  apoptotic_priming_genes,
+  s_phase_genes_plot,
+  g2m_phase_genes_plot
+))</code></pre>
+<pre class="r"><code>logcpm_scores &lt;- edgeR::cpm(y, log = TRUE, prior.count = 1)
+logcpm_scores_gene &lt;- collapse_duplicate_genes(logcpm_scores)
+
+make_program_score &lt;- function(mat, genes) {
+  genes_present &lt;- intersect(genes, rownames(mat))
+
+  if (length(genes_present) == 0) {
+    out &lt;- rep(NA_real_, ncol(mat))
+    names(out) &lt;- colnames(mat)
+    return(out)
+  }
+
+  mat_sub &lt;- mat[genes_present, , drop = FALSE]
+  mat_z &lt;- t(scale(t(mat_sub)))
+  mat_z[!is.finite(mat_z)] &lt;- 0
+
+  colMeans(mat_z, na.rm = TRUE)
+}
+
+score_df &lt;- meta %&gt;%
+  dplyr::mutate(Sample = rownames(meta)) %&gt;%
+  dplyr::select(Sample, Group) %&gt;%
+  dplyr::mutate(Group = factor(Group, levels = c(&quot;HC&quot;, &quot;HF&quot;)))
+
+for (nm in names(program_list)) {
+  score_df[[paste0(gsub(&quot;[^A-Za-z0-9]+&quot;, &quot;_&quot;, tolower(nm)), &quot;_score&quot;)]] &lt;-
+    make_program_score(logcpm_scores_gene, program_list[[nm]])[score_df$Sample]
+}
+
+program_summary &lt;- tibble::tibble(
+  program = names(program_list),
+  n_genes_total = lengths(program_list),
+  n_genes_present = vapply(program_list, function(x) length(intersect(x, rownames(logcpm_scores_gene))), integer(1)),
+  genes_missing = vapply(program_list, function(x) paste(setdiff(x, rownames(logcpm_scores_gene)), collapse = &quot;;&quot;), character(1))
+)
+
+write.csv(score_df, file = file.path(output_dir_data, &quot;HMEC_gene_program_scores.csv&quot;), quote = FALSE, row.names = FALSE)
+write.csv(program_summary, file = file.path(output_dir_data, &quot;HMEC_gene_program_gene_presence.csv&quot;), quote = FALSE, row.names = FALSE)
+
+program_summary</code></pre>
+<pre><code># A tibble: 7 × 4
+  program                   n_genes_total n_genes_present genes_missing         
+  &lt;chr&gt;                             &lt;int&gt;           &lt;int&gt; &lt;chr&gt;                 
+1 Angiogenesis                          8               8 &quot;&quot;                    
+2 Aerobic respiration                 297             235 &quot;ACTN3;ALDOB;ATP5F1A;…
+3 S phase                              43              43 &quot;&quot;                    
+4 G2M phase                            54              52 &quot;PIMREG;JPT1&quot;         
+5 Redox / NO                            3               3 &quot;&quot;                    
+6 Mitochondrial homeostasis             2               1 &quot;PPARGC1A&quot;            
+7 Apoptotic priming                    10              10 &quot;&quot;                    </code></pre>
+<pre class="r"><code>score_cols &lt;- grep(&quot;_score$&quot;, colnames(score_df), value = TRUE)
+
+score_title_map &lt;- c(
+  angiogenesis_score = &quot;Angio score&quot;,
+  aerobic_respiration_score = &quot;Aerobic respiration score&quot;,
+  s_phase_score = &quot;S-phase score&quot;,
+  g2m_phase_score = &quot;G2M-phase score&quot;,
+  redox_no_score = &quot;Redox / NO score&quot;,
+  mitochondrial_homeostasis_score = &quot;Mitochondrial homeostasis score&quot;,
+  apoptotic_priming_score = &quot;Apoptotic priming score&quot;
+)
+
+score_stats &lt;- purrr::map_dfr(score_cols, function(score_col) {
+  df_sub &lt;- score_df %&gt;%
+    dplyr::select(Sample, Group, score = dplyr::all_of(score_col)) %&gt;%
+    dplyr::filter(!is.na(score))
+
+  if (nrow(df_sub) == 0 || dplyr::n_distinct(df_sub$Group) &lt; 2) {
+    return(NULL)
+  }
+
+  fit &lt;- lm(score ~ Group, data = df_sub)
+
+  broom::tidy(fit) %&gt;%
+    dplyr::mutate(
+      feature = score_col,
+      feature_label = dplyr::coalesce(unname(score_title_map[score_col]), score_col),
+      comparison = &quot;HF_vs_HC&quot;
+    )
+})
+
+score_stats &lt;- score_stats %&gt;%
+  dplyr::group_by(term) %&gt;%
+  dplyr::mutate(FDR = p.adjust(p.value, method = &quot;BH&quot;)) %&gt;%
+  dplyr::ungroup()
+
+score_stats_group &lt;- score_stats %&gt;%
+  dplyr::filter(term == &quot;GroupHF&quot;) %&gt;%
+  dplyr::arrange(p.value)
+
+write.csv(
+  score_stats,
+  file = file.path(output_dir_data, &quot;HMEC_gene_program_score_stats_HF_vs_HC_all_terms.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  score_stats_group,
+  file = file.path(output_dir_data, &quot;HMEC_gene_program_score_stats_HF_vs_HC_group_effect.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>plot_program_score &lt;- function(df, score_col, title) {
+  df &lt;- df %&gt;%
+    dplyr::select(Sample, Group, score = dplyr::all_of(score_col)) %&gt;%
+    dplyr::filter(!is.na(score))
+
+  fit &lt;- lm(score ~ Group, data = df)
+  p_group &lt;- broom::tidy(fit) %&gt;%
+    dplyr::filter(term == &quot;GroupHF&quot;) %&gt;%
+    dplyr::pull(p.value)
+
+  y_max &lt;- max(df$score, na.rm = TRUE)
+  y_min &lt;- min(df$score, na.rm = TRUE)
+  y_range &lt;- y_max - y_min
+  if (!is.finite(y_range) || y_range == 0) y_range &lt;- 1
+
+  ggplot(df, aes(x = Group, y = score, fill = Group)) +
+    geom_boxplot(width = 0.55, outlier.shape = NA, color = &quot;black&quot;, linewidth = 0.5) +
+    geom_jitter(width = 0.10, size = 1.5, shape = 21, stroke = 0.4, color = &quot;black&quot;) +
+    geom_segment(
+      aes(x = 1, xend = 2, y = y_max + 0.10 * y_range, yend = y_max + 0.10 * y_range),
+      inherit.aes = FALSE
+    ) +
+    annotate(
+      &quot;text&quot;,
+      x = 1.5,
+      y = y_max + 0.16 * y_range,
+      label = format_p_label(p_group),
+      size = 5,
+      fontface = format_p_fontface(p_group)
+    ) +
+    scale_fill_manual(values = group_cols) +
+    coord_cartesian(ylim = c(y_min - 0.05 * y_range, y_max + 0.22 * y_range)) +
+    labs(title = title, x = NULL, y = &quot;Score&quot;) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = &quot;bold&quot;, hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+      axis.title.y = element_text(face = &quot;bold&quot;),
+      legend.position = &quot;none&quot;
+    )
+}
+
+plot_gene_logcpm &lt;- function(gene_name) {
+  idx &lt;- which(rownames(logcpm_scores_gene) == gene_name)
+
+  if (length(idx) == 0) {
+    stop(&quot;Gene not found: &quot;, gene_name)
+  }
+
+  gene_mat &lt;- logcpm_scores_gene[idx, , drop = FALSE]
+
+  if (nrow(gene_mat) &gt; 1) {
+    gene_values &lt;- colMeans(gene_mat, na.rm = TRUE)
+  } else {
+    gene_values &lt;- as.numeric(gene_mat[1, ])
+  }
+
+  if (length(gene_values) != ncol(logcpm_scores_gene)) {
+    stop(
+      &quot;Length mismatch for &quot;, gene_name,
+      &quot;: got &quot;, length(gene_values),
+      &quot; values, expected &quot;, ncol(logcpm_scores_gene)
+    )
+  }
+
+  df &lt;- tibble::tibble(
+    Sample = colnames(logcpm_scores_gene),
+    gene = rep(gene_name, ncol(logcpm_scores_gene)),
+    logCPM = gene_values,
+    Group = factor(meta[colnames(logcpm_scores_gene), &quot;Group&quot;, drop = TRUE], levels = c(&quot;HC&quot;, &quot;HF&quot;))
+  )
+
+  fit &lt;- lm(logCPM ~ Group, data = df)
+
+  p_group &lt;- broom::tidy(fit) %&gt;%
+    dplyr::filter(term == &quot;GroupHF&quot;) %&gt;%
+    dplyr::pull(p.value)
+
+  y_max &lt;- max(df$logCPM, na.rm = TRUE)
+  y_min &lt;- min(df$logCPM, na.rm = TRUE)
+  y_range &lt;- y_max - y_min
+  if (!is.finite(y_range) || y_range == 0) y_range &lt;- 1
+
+  ggplot(df, aes(x = Group, y = logCPM, fill = Group)) +
+    geom_boxplot(width = 0.55, outlier.shape = NA, color = &quot;black&quot;, linewidth = 0.5) +
+    geom_jitter(width = 0.10, size = 1.5, shape = 21, stroke = 0.4, color = &quot;black&quot;) +
+    geom_segment(
+      aes(x = 1, xend = 2, y = y_max + 0.10 * y_range, yend = y_max + 0.10 * y_range),
+      inherit.aes = FALSE
+    ) +
+    annotate(
+      &quot;text&quot;,
+      x = 1.5,
+      y = y_max + 0.16 * y_range,
+      label = format_p_label(p_group),
+      size = 5,
+      fontface = format_p_fontface(p_group)
+    ) +
+    scale_fill_manual(values = group_cols) +
+    coord_cartesian(ylim = c(y_min - 0.05 * y_range, y_max + 0.22 * y_range)) +
+    labs(title = gene_name, x = NULL, y = &quot;logCPM&quot;) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = &quot;bold&quot;, hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+      axis.title.y = element_text(face = &quot;bold&quot;),
+      legend.position = &quot;none&quot;
+    )
+}</code></pre>
+</div>
+<div id="gene-program-score-plots" class="section level2">
+<h2>Gene program score plots</h2>
+<pre class="r"><code>score_cols &lt;- grep(&quot;_score$&quot;, colnames(score_df), value = TRUE)
+
+score_title_map &lt;- c(
+  angiogenesis_score = &quot;Angio score&quot;,
+  aerobic_respiration_score = &quot;Aerobic respiration score&quot;,
+  s_phase_score = &quot;S-phase score&quot;,
+  g2m_phase_score = &quot;G2M-phase score&quot;,
+  redox_no_score = &quot;Redox / NO score&quot;,
+  mitochondrial_homeostasis_score = &quot;Mitochondrial homeostasis score&quot;,
+  apoptotic_priming_score = &quot;Apoptotic priming score&quot;
+)
+
+for (score_col in score_cols) {
+  title &lt;- unname(score_title_map[score_col])
+
+  if (is.na(title)) {
+    title &lt;- score_col %&gt;%
+      gsub(&quot;_score$&quot;, &quot;&quot;, .) %&gt;%
+      gsub(&quot;_&quot;, &quot; &quot;, .) %&gt;%
+      tools::toTitleCase() %&gt;%
+      paste(&quot;score&quot;)
+  }
+
+  print(plot_program_score(score_df, score_col, title))
+}</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20program%20score%20plots-1.png" width="900" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20program%20score%20plots-2.png" width="900" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20program%20score%20plots-3.png" width="900" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20program%20score%20plots-4.png" width="900" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20program%20score%20plots-5.png" width="900" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20program%20score%20plots-6.png" width="900" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20program%20score%20plots-7.png" width="900" style="display: block; margin: auto;" /></p>
+</div>
+<div id="selected-gene-expression-plots" class="section level2">
+<h2>Selected gene expression plots</h2>
+<pre class="r"><code>selected_genes_present &lt;- unique(selected_gene_list[selected_gene_list %in% rownames(logcpm_scores_gene)])
+selected_genes_missing &lt;- setdiff(selected_gene_list, rownames(logcpm_scores_gene))
+
+write.csv(
+  data.frame(gene_missing = selected_genes_missing),
+  file = file.path(output_dir_data, &quot;HMEC_selected_genes_missing.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+gene_program_lookup &lt;- purrr::imap_dfr(program_list, function(genes, program) {
+  tibble::tibble(gene = genes, program = program)
+}) %&gt;%
+  dplyr::group_by(gene) %&gt;%
+  dplyr::summarise(program = paste(unique(program), collapse = &quot;; &quot;), .groups = &quot;drop&quot;)
+
+selected_gene_logcpm_df &lt;- purrr::map_dfr(selected_genes_present, function(gene_name) {
+  idx &lt;- which(rownames(logcpm_scores_gene) == gene_name)
+  gene_mat &lt;- logcpm_scores_gene[idx, , drop = FALSE]
+
+  if (nrow(gene_mat) &gt; 1) {
+    gene_values &lt;- colMeans(gene_mat, na.rm = TRUE)
+  } else {
+    gene_values &lt;- as.numeric(gene_mat[1, ])
+  }
+
+  tibble::tibble(
+    Sample = colnames(logcpm_scores_gene),
+    Group = factor(meta[colnames(logcpm_scores_gene), &quot;Group&quot;, drop = TRUE], levels = c(&quot;HC&quot;, &quot;HF&quot;)),
+    gene = gene_name,
+    logCPM = gene_values
+  )
+}) %&gt;%
+  dplyr::left_join(gene_program_lookup, by = &quot;gene&quot;)
+
+selected_gene_stats &lt;- selected_gene_logcpm_df %&gt;%
+  dplyr::group_by(gene, program) %&gt;%
+  dplyr::group_modify(~ {
+    if (nrow(.x) == 0 || dplyr::n_distinct(.x$Group) &lt; 2) {
+      return(tibble::tibble())
+    }
+    broom::tidy(lm(logCPM ~ Group, data = .x))
+  }) %&gt;%
+  dplyr::ungroup() %&gt;%
+  dplyr::mutate(comparison = &quot;HF_vs_HC&quot;) %&gt;%
+  dplyr::group_by(term) %&gt;%
+  dplyr::mutate(FDR = p.adjust(p.value, method = &quot;BH&quot;)) %&gt;%
+  dplyr::ungroup()
+
+selected_gene_stats_group &lt;- selected_gene_stats %&gt;%
+  dplyr::filter(term == &quot;GroupHF&quot;) %&gt;%
+  dplyr::arrange(p.value)
+
+write.csv(
+  selected_gene_logcpm_df,
+  file = file.path(output_dir_data, &quot;HMEC_selected_gene_logCPM_by_sample.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  selected_gene_stats,
+  file = file.path(output_dir_data, &quot;HMEC_selected_gene_stats_HF_vs_HC_all_terms.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  selected_gene_stats_group,
+  file = file.path(output_dir_data, &quot;HMEC_selected_gene_stats_HF_vs_HC_group_effect.csv&quot;),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+for (gene in selected_genes_present) {
+  print(plot_gene_logcpm(gene))
+}</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-1.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-2.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-3.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-4.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-5.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-6.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-7.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-8.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-9.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-10.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-11.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-12.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-13.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-14.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-15.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-16.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-17.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-18.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-19.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-20.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-21.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-22.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-23.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-24.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-25.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-26.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-27.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-28.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-29.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-30.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-31.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-32.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-33.png" width="840" style="display: block; margin: auto;" /><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20gene%20plots-34.png" width="840" style="display: block; margin: auto;" /></p>
+</div>
+<div id="heatmap-of-selected-genes-and-program-scores"
+class="section level2">
+<h2>Heatmap of selected genes and program scores</h2>
+<pre class="r"><code>genes_for_heatmap &lt;- selected_genes_present
+
+mat_gene_z &lt;- t(scale(t(logcpm_scores_gene[genes_for_heatmap, , drop = FALSE])))
+mat_gene_z[!is.finite(mat_gene_z)] &lt;- 0
+
+ann_col &lt;- data.frame(
+  Group = factor(meta[colnames(mat_gene_z), &quot;Group&quot;, drop = TRUE], levels = c(&quot;HC&quot;, &quot;HF&quot;)),
+  row.names = colnames(mat_gene_z)
+)
+
+pheatmap::pheatmap(
+  mat_gene_z,
+  annotation_col = ann_col,
+  show_rownames = TRUE,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  main = &quot;Selected genes (row-scaled logCPM)&quot;
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20selected%20genes%20heatmap-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>score_mat &lt;- score_df %&gt;%
+  dplyr::select(Sample, dplyr::ends_with(&quot;_score&quot;)) %&gt;%
+  tibble::column_to_rownames(&quot;Sample&quot;) %&gt;%
+  as.matrix()
+
+score_mat_t &lt;- t(score_mat)
+
+score_mat_z &lt;- t(scale(t(score_mat_t)))
+score_mat_z[!is.finite(score_mat_z)] &lt;- 0
+
+ann_col_scores &lt;- data.frame(
+  Group = factor(score_df$Group, levels = c(&quot;HC&quot;, &quot;HF&quot;)),
+  row.names = score_df$Sample
+)
+
+pheatmap::pheatmap(
+  score_mat_z,
+  annotation_col = ann_col_scores,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  main = &quot;Gene program scores&quot;
+)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/hmec%20program%20score%20heatmap-1.png" width="2100" style="display: block; margin: auto;" /></p>
+</div>
+<div id="remove-two-samples" class="section level1">
+<h1>Remove two samples</h1>
+<pre class="r"><code>keep_samples &lt;- c(&quot;CZD12&quot;, &quot;CZD13&quot;, &quot;CZD15&quot;, &quot;CZD19&quot;, &quot;CZD22&quot;,  &quot;CZD25&quot;,   &quot;HT28&quot;,  &quot;HT30&quot;,  &quot;HT31&quot;,  &quot;LV65&quot;,  &quot;LV66&quot;,  &quot;LV69&quot;, &quot;LV72&quot;,  &quot;LV75&quot;)
+
+idx &lt;- meta$Sample %in% keep_samples
+meta_sub &lt;- meta[idx, , drop = FALSE]
+counts_sub &lt;- counts_mat[, idx, drop = FALSE]
+
+group &lt;- factor(meta_sub$Group)
+y2 &lt;- DGEList(counts = counts_sub, samples = meta_sub)
+y2$samples$group &lt;- group
+
+keep_genes &lt;- filterByExpr(y2, group = group, min.count = 20)
+y2 &lt;- y2[keep_genes, , keep.lib.sizes = FALSE]
+y2 &lt;- calcNormFactors(y2)
+
+group &lt;- relevel(group, ref = &quot;HC&quot;)
+y2$samples$group &lt;- group
+
+design &lt;- model.matrix(~ 0 + group)
+colnames(design) &lt;- levels(group)
+
+contrast &lt;- makeContrasts(HF_vs_HC = HF - HC, levels = design)
+
+y2 &lt;- estimateDisp(y2, design)
+fit &lt;- glmQLFit(y2, design)
+qlf &lt;- glmQLFTest(fit, contrast = contrast)
+
+res2 &lt;- topTags(qlf, n = Inf)$table</code></pre>
+<pre class="r"><code>res2_df &lt;- res2 %&gt;%
+  dplyr::mutate(
+    Gene = rownames(res2),
+    significance = dplyr::case_when(
+      FDR &lt; 0.2 &amp; logFC &gt; 0.5 ~ &quot;Increased&quot;,
+      FDR &lt; 0.2 &amp; logFC &lt; -0.5 ~ &quot;Decreased&quot;,
+      TRUE ~ &quot;Not significant&quot;
+    ),
+    significance = factor(significance, levels = names(volcano_cols))
+  )
+
+n_h2  &lt;- sum(meta_sub$Group == &quot;HC&quot;)
+n_hf2 &lt;- sum(meta_sub$Group == &quot;HF&quot;)
+
+EnhancedVolcano(
+  res2_df,
+  lab = res2_df$Gene,
+  x = &quot;logFC&quot;,
+  y = &quot;FDR&quot;,
+  labSize = 0,
+  legendLabSize = 12,
+  titleLabSize = 14,
+  axisLabSize = 12,
+  captionLabSize = 0,
+  pointSize = 0.8,
+  FCcutoff = 0.5,
+  pCutoff = 0.2,
+  ylim = c(0, 2),
+  xlim = c(-3.75, 3.75),
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  ylab = bquote(-Log[10]~FDR),
+  subtitle = NULL,
+  title = paste0(&quot;HMEC
+HF (n=&quot;, n_hf2, &quot;) vs HC (n=&quot;, n_h2, &quot;)
+(no CZD23 and CZD27)&quot;),
+  colCustom = setNames(
+    volcano_cols[as.character(res2_df$significance)],
+    as.character(res2_df$significance)
+  )
+) +
+  theme(legend.position = &quot;none&quot;)</code></pre>
+<p><img src="figure/HMEC_second_run_manuscript.Rmd/volcano%20HF%20vs%20HC%20no%20CZD23%20CZD27-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices datasets  utils    
+[8] methods   base     
+
+other attached packages:
+ [1] qs2_0.1.7                   broom_1.0.11               
+ [3] circlize_0.4.16             ComplexHeatmap_2.26.0      
+ [5] EnhancedVolcano_1.29.1      ggrepel_0.9.6              
+ [7] DOSE_4.4.0                  enrichplot_1.30.4          
+ [9] dorothea_1.22.0             OmnipathR_3.18.2           
+[11] decoupleR_2.16.0            reactable_0.4.5            
+[13] edgeR_4.8.0                 limma_3.66.0               
+[15] ReactomePA_1.54.0           AnnotationHub_4.0.0        
+[17] BiocFileCache_3.0.0         dbplyr_2.5.1               
+[19] org.Hs.eg.db_3.22.0         AnnotationDbi_1.72.0       
+[21] clusterProfiler_4.18.2      gprofiler2_0.2.4           
+[23] harmony_1.2.4               Rcpp_1.1.0                 
+[25] clustree_0.5.1              ggraph_2.2.2               
+[27] statmod_1.5.1               patchwork_1.3.2            
+[29] scater_1.38.0               scuttle_1.20.0             
+[31] Matrix.utils_0.9.7          RColorBrewer_1.1-3         
+[33] scales_1.4.0                knitr_1.50                 
+[35] gridExtra_2.3               png_0.1-8                  
+[37] pheatmap_1.0.13             reshape2_1.4.5             
+[39] lubridate_1.9.4             forcats_1.0.1              
+[41] stringr_1.6.0               purrr_1.2.0                
+[43] tidyr_1.3.1                 tibble_3.3.0               
+[45] tidyverse_2.0.0             magrittr_2.0.4             
+[47] ggplot2_4.0.1               dplyr_1.2.1                
+[49] scCustomize_3.2.2           scDblFinder_1.24.0         
+[51] Matrix_1.6-5                DropletUtils_1.30.0        
+[53] SingleCellExperiment_1.32.0 SummarizedExperiment_1.40.0
+[55] Biobase_2.70.0              GenomicRanges_1.62.0       
+[57] Seqinfo_1.0.0               IRanges_2.44.0             
+[59] S4Vectors_0.48.0            BiocGenerics_0.56.0        
+[61] generics_0.1.4              MatrixGenerics_1.22.0      
+[63] matrixStats_1.5.0           SeuratObject_5.0.2         
+[65] Seurat_4.4.0                readxl_1.4.5               
+[67] readr_2.1.6                 here_1.0.2                 
+
+loaded via a namespace (and not attached):
+  [1] igraph_2.2.1              graph_1.88.0             
+  [3] ica_1.0-3                 plotly_4.11.0            
+  [5] rematch2_2.1.2            tidyselect_1.2.1         
+  [7] rvest_1.0.5               bit_4.6.0                
+  [9] doParallel_1.0.17         clue_0.3-66              
+ [11] lattice_0.22-7            rjson_0.2.23             
+ [13] blob_1.2.4                S4Arrays_1.10.1          
+ [15] parallel_4.5.2            cli_3.6.5                
+ [17] ggplotify_0.1.3           goftest_1.2-3            
+ [19] BiocIO_1.20.0             bluster_1.20.0           
+ [21] grr_0.9.5                 BiocNeighbors_2.4.0      
+ [23] uwot_0.2.4                curl_7.0.0               
+ [25] mime_0.13                 evaluate_1.0.5           
+ [27] tidytree_0.4.6            leiden_0.4.3.1           
+ [29] stringi_1.8.7             backports_1.5.0          
+ [31] XML_3.99-0.20             httpuv_1.6.16            
+ [33] paletteer_1.6.0           rappdirs_0.3.3           
+ [35] splines_4.5.2             logger_0.4.1             
+ [37] bcellViper_1.46.0         sctransform_0.4.2        
+ [39] ggbeeswarm_0.7.3          sessioninfo_1.2.3        
+ [41] DBI_1.2.3                 HDF5Array_1.38.0         
+ [43] jquerylib_0.1.4           reactome.db_1.94.0       
+ [45] withr_3.0.2               git2r_0.36.2             
+ [47] systemfonts_1.3.1         rprojroot_2.1.1          
+ [49] xgboost_3.1.2.1           lmtest_0.9-40            
+ [51] ggnewscale_0.5.2          tidygraph_1.3.1          
+ [53] rtracklayer_1.70.0        BiocManager_1.30.27      
+ [55] htmlwidgets_1.6.4         fs_1.6.6                 
+ [57] labeling_0.4.3            SparseArray_1.10.4       
+ [59] cellranger_1.1.0          h5mread_1.2.1            
+ [61] reticulate_1.44.1         zoo_1.8-14               
+ [63] XVector_0.50.0            UCSC.utils_1.6.0         
+ [65] timechange_0.3.0          foreach_1.5.2            
+ [67] data.table_1.17.8         ggtree_4.0.1             
+ [69] rhdf5_2.54.0              R.oo_1.27.1              
+ [71] ggiraph_0.9.2             irlba_2.3.5.1            
+ [73] ggrastr_1.0.2             gridGraphics_0.5-1       
+ [75] lazyeval_0.2.2            yaml_2.3.11              
+ [77] survival_3.8-3            scattermore_1.2          
+ [79] BiocVersion_3.22.0        crayon_1.5.3             
+ [81] RcppAnnoy_0.0.22          progressr_0.18.0         
+ [83] tweenr_2.0.3              later_1.4.4              
+ [85] ggridges_0.5.7            codetools_0.2-20         
+ [87] GlobalOptions_0.1.3       KEGGREST_1.50.0          
+ [89] Rtsne_0.17                shape_1.4.6.1            
+ [91] gdtools_0.4.4             Rsamtools_2.26.0         
+ [93] filelock_1.0.3            pkgconfig_2.0.3          
+ [95] xml2_1.5.1                spatstat.univar_3.1-5    
+ [97] GenomicAlignments_1.46.0  aplot_0.2.9              
+ [99] spatstat.sparse_3.1-0     ape_5.8-1                
+[101] viridisLite_0.4.2         xtable_1.8-4             
+[103] plyr_1.8.9                httr_1.4.7               
+[105] tools_4.5.2               globals_0.18.0           
+[107] beeswarm_0.4.0            checkmate_2.3.3          
+[109] nlme_3.1-168              digest_0.6.39            
+[111] farver_2.1.2              tzdb_0.5.0               
+[113] yulab.utils_0.2.2         viridis_0.6.5            
+[115] glue_1.8.0                cachem_1.1.0             
+[117] polyclip_1.10-7           Biostrings_2.78.0        
+[119] parallelly_1.45.1         ScaledMatrix_1.18.0      
+[121] fontBitstreamVera_0.1.1   pbapply_1.7-4            
+[123] httr2_1.2.1               tcltk_4.5.2              
+[125] vroom_1.6.7               spam_2.11-1              
+[127] gson_0.1.0                dqrng_0.4.1              
+[129] utf8_1.2.6                graphlayouts_1.2.2       
+[131] shiny_1.12.0              tidydr_0.0.6             
+[133] R.utils_2.13.0            rhdf5filters_1.22.0      
+[135] RCurl_1.98-1.17           memoise_2.0.1            
+[137] rmarkdown_2.30            R.methodsS3_1.8.2        
+[139] future_1.68.0             RANN_2.6.2               
+[141] fontLiberation_0.1.0      renv_1.1.5               
+[143] Cairo_1.7-0               stringfish_0.18.0        
+[145] spatstat.data_3.1-9       rstudioapi_0.17.1        
+[147] cluster_2.1.8.1           whisker_0.4.1            
+[149] janitor_2.2.1             spatstat.utils_3.2-0     
+[151] hms_1.1.4                 fitdistrplus_1.2-4       
+[153] cowplot_1.2.0             colorspace_2.1-2         
+[155] rlang_1.2.0               GenomeInfoDb_1.46.1      
+[157] DelayedMatrixStats_1.32.0 sparseMatrixStats_1.22.0 
+[159] dotCall64_1.2             ggforce_0.5.0            
+[161] ggtangle_0.0.9            xfun_0.56                
+[163] iterators_1.0.14          abind_1.4-8              
+[165] GOSemSim_2.36.0           treeio_1.34.0            
+[167] Rhdf5lib_1.32.0           bitops_1.0-9             
+[169] promises_1.5.0            scatterpie_0.2.6         
+[171] RSQLite_2.4.5             qvalue_2.42.0            
+[173] fgsea_1.36.0              DelayedArray_0.36.0      
+[175] GO.db_3.22.0              compiler_4.5.2           
+[177] prettyunits_1.2.0         beachmat_2.26.0          
+[179] graphite_1.56.0           listenv_0.10.0           
+[181] fontquiver_0.2.1          workflowr_1.7.2          
+[183] BiocSingular_1.26.1       tensor_1.5.1             
+[185] MASS_7.3-65               progress_1.2.3           
+[187] BiocParallel_1.44.0       spatstat.random_3.4-3    
+[189] R6_2.6.1                  fastmap_1.2.0            
+[191] fastmatch_1.1-6           vipor_0.4.7              
+[193] ROCR_1.0-11               rsvd_1.0.5               
+[195] gtable_0.3.6              KernSmooth_2.23-26       
+[197] miniUI_0.1.2              deldir_2.0-4             
+[199] htmltools_0.5.9           RcppParallel_5.1.11-1    
+[201] bit64_4.6.0-1             spatstat.explore_3.6-0   
+[203] lifecycle_1.0.5           ggprism_1.0.7            
+[205] S7_0.2.1                  zip_2.3.3                
+[207] restfulr_0.0.16           sass_0.4.10              
+[209] vctrs_0.7.3               spatstat.geom_3.6-1      
+[211] snakecase_0.11.1          scran_1.38.0             
+[213] ggfun_0.2.0               sp_2.2-0                 
+[215] future.apply_1.20.0       bslib_0.9.0              
+[217] pillar_1.11.1             metapod_1.18.0           
+[219] locfit_1.5-9.12           otel_0.2.0               
+[221] jsonlite_2.0.0            cigarillo_1.0.0          
+[223] GetoptLong_1.1.0         </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
