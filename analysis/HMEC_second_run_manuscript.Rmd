@@ -963,12 +963,156 @@ selected_gene_list <- unique(c(
 ))
 ```
 
-```{r hmec program scores}
-logcpm_scores <- edgeR::cpm(y, log = TRUE, prior.count = 1)
-logcpm_scores_gene <- collapse_duplicate_genes(logcpm_scores)
+```{r hmec unfiltered logcpm for scores and selected genes}
+# Use the unfiltered count matrix for descriptive scores and selected-gene plots.
+# The filtered edgeR object y is still used above for DE, but not here.
+y_scores <- edgeR::DGEList(counts = counts_mat, samples = meta)
+y_scores <- edgeR::calcNormFactors(y_scores)
 
+logcpm_scores <- edgeR::cpm(y_scores, log = TRUE, prior.count = 1)
+logcpm_scores_gene <- collapse_duplicate_genes(logcpm_scores)
+```
+
+```{r hmec gene symbol alias mapping}
+# Keep the expression matrix unchanged, and instead resolve gene lists to the
+# symbols/aliases actually present in logcpm_scores_gene.
+
+manual_gene_alias_map <- c(
+  "ATP5F1A" = "ATP5A1",
+  "ATP5F1B" = "ATP5B",
+  "ATP5F1C" = "ATP5C1",
+  "ATP5F1D" = "ATP5D",
+  "ATP5F1E" = "ATP5E",
+  "ATP5PB"  = "ATP5F1",
+  "ATP5ME"  = "ATP5I",
+  "ATP5PF"  = "ATP5J2",
+  "ATP5PO"  = "ATP5O",
+  "ATP5MF"  = "ATP5J2",
+  "ATP5PD"  = "ATP5H",
+  "ATP5MG"  = "ATP5L",
+  "ATP5IF1" = "ATPIF1",
+  "MACROH2A1" = "H2AFY",
+  "NOP53" = "GLTSCR2",
+  "ANTKMT" = "C10orf2",
+  "KGD4" = "MRPS36",
+  "ATPSCKMT" = "CKMT2",
+  "ETFRF1" = "LYRM5",
+  "PRXL2C" = "AAED1",
+  "CSKMT" = "METTL12",
+  "MLDHR" = "C16orf70",
+  "PIMREG" = "FAM64A",
+  "JPT1" = "HN1"
+)
+
+get_symbol_alias_candidates <- function(gene) {
+  out <- character(0)
+
+  by_symbol <- suppressMessages(
+    AnnotationDbi::select(
+      org.Hs.eg.db,
+      keys = gene,
+      keytype = "SYMBOL",
+      columns = c("SYMBOL", "ALIAS")
+    )
+  )
+
+  if (nrow(by_symbol) > 0) {
+    out <- c(out, by_symbol$SYMBOL, by_symbol$ALIAS)
+  }
+
+  by_alias <- suppressMessages(
+    AnnotationDbi::select(
+      org.Hs.eg.db,
+      keys = gene,
+      keytype = "ALIAS",
+      columns = c("SYMBOL", "ALIAS")
+    )
+  )
+
+  if (nrow(by_alias) > 0) {
+    out <- c(out, by_alias$SYMBOL, by_alias$ALIAS)
+  }
+
+  unique(stats::na.omit(as.character(out)))
+}
+
+resolve_gene_symbol <- function(gene, matrix_genes) {
+  if (gene %in% matrix_genes) {
+    return(tibble::tibble(
+      original_gene = gene,
+      resolved_gene = gene,
+      mapping_status = "direct",
+      map_source = "matrix rowname"
+    ))
+  }
+
+  manual_hit <- unname(manual_gene_alias_map[gene])
+  if (!is.na(manual_hit) && manual_hit %in% matrix_genes) {
+    return(tibble::tibble(
+      original_gene = gene,
+      resolved_gene = manual_hit,
+      mapping_status = "mapped",
+      map_source = "manual alias map"
+    ))
+  }
+
+  candidates <- get_symbol_alias_candidates(gene)
+  candidate_hits <- candidates[candidates %in% matrix_genes]
+
+  if (length(candidate_hits) > 0) {
+    return(tibble::tibble(
+      original_gene = gene,
+      resolved_gene = candidate_hits[1],
+      mapping_status = "mapped",
+      map_source = "org.Hs.eg.db SYMBOL/ALIAS"
+    ))
+  }
+
+  tibble::tibble(
+    original_gene = gene,
+    resolved_gene = NA_character_,
+    mapping_status = "missing",
+    map_source = NA_character_
+  )
+}
+
+resolve_gene_vector <- function(genes, matrix_genes) {
+  purrr::map_dfr(unique(genes), resolve_gene_symbol, matrix_genes = matrix_genes)
+}
+
+program_gene_map <- purrr::imap_dfr(program_list, function(genes, program) {
+  resolve_gene_vector(genes, rownames(logcpm_scores_gene)) %>%
+    dplyr::mutate(program = program, .before = 1)
+})
+
+program_gene_map <- program_gene_map %>%
+  dplyr::mutate(
+    total_raw_counts = dplyr::if_else(
+      !is.na(resolved_gene),
+      as.numeric(Matrix::rowSums(counts_mat[resolved_gene, , drop = FALSE])),
+      NA_real_
+    )
+  )
+
+write.csv(
+  program_gene_map,
+  file = file.path(output_dir_data, "HMEC_gene_program_gene_presence_detailed_alias_mapped.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+program_gene_map %>%
+  dplyr::filter(mapping_status != "direct")
+```
+
+```{r hmec program scores}
 make_program_score <- function(mat, genes) {
-  genes_present <- intersect(genes, rownames(mat))
+  gene_map <- resolve_gene_vector(genes, rownames(mat))
+
+  genes_present <- gene_map %>%
+    dplyr::filter(!is.na(resolved_gene)) %>%
+    dplyr::pull(resolved_gene) %>%
+    unique()
 
   if (length(genes_present) == 0) {
     out <- rep(NA_real_, ncol(mat))
@@ -993,12 +1137,19 @@ for (nm in names(program_list)) {
     make_program_score(logcpm_scores_gene, program_list[[nm]])[score_df$Sample]
 }
 
-program_summary <- tibble::tibble(
-  program = names(program_list),
-  n_genes_total = lengths(program_list),
-  n_genes_present = vapply(program_list, function(x) length(intersect(x, rownames(logcpm_scores_gene))), integer(1)),
-  genes_missing = vapply(program_list, function(x) paste(setdiff(x, rownames(logcpm_scores_gene)), collapse = ";"), character(1))
-)
+program_summary <- program_gene_map %>%
+  dplyr::group_by(program) %>%
+  dplyr::summarise(
+    n_genes_total = dplyr::n(),
+    n_genes_resolved = sum(!is.na(resolved_gene)),
+    n_unique_features_used = dplyr::n_distinct(resolved_gene[!is.na(resolved_gene)]),
+    genes_mapped = paste(
+      unique(paste0(original_gene[mapping_status == "mapped"], "->", resolved_gene[mapping_status == "mapped"])),
+      collapse = ";"
+    ),
+    genes_missing_after_mapping = paste(original_gene[is.na(resolved_gene)], collapse = ";"),
+    .groups = "drop"
+  )
 
 write.csv(score_df, file = file.path(output_dir_data, "HMEC_gene_program_scores.csv"), quote = FALSE, row.names = FALSE)
 write.csv(program_summary, file = file.path(output_dir_data, "HMEC_gene_program_gene_presence.csv"), quote = FALSE, row.names = FALSE)
@@ -1010,7 +1161,7 @@ program_summary
 score_cols <- grep("_score$", colnames(score_df), value = TRUE)
 
 score_title_map <- c(
-  angiogenesis_score = "Angio score",
+  angiogenesis_score = "Angiogenesis score",
   aerobic_respiration_score = "Aerobic respiration score",
   s_phase_score = "S-phase score",
   g2m_phase_score = "G2M-phase score",
@@ -1105,32 +1256,23 @@ plot_program_score <- function(df, score_col, title) {
     )
 }
 
-plot_gene_logcpm <- function(gene_name) {
-  idx <- which(rownames(logcpm_scores_gene) == gene_name)
-
-  if (length(idx) == 0) {
-    stop("Gene not found: ", gene_name)
+plot_gene_logcpm <- function(original_gene, resolved_gene = NULL) {
+  if (is.null(resolved_gene)) {
+    gene_map <- resolve_gene_symbol(original_gene, rownames(logcpm_scores_gene))
+    resolved_gene <- gene_map$resolved_gene[1]
   }
 
-  gene_mat <- logcpm_scores_gene[idx, , drop = FALSE]
-
-  if (nrow(gene_mat) > 1) {
-    gene_values <- colMeans(gene_mat, na.rm = TRUE)
-  } else {
-    gene_values <- as.numeric(gene_mat[1, ])
+  if (is.na(resolved_gene) || !(resolved_gene %in% rownames(logcpm_scores_gene))) {
+    stop("Gene not found after alias mapping: ", original_gene)
   }
 
-  if (length(gene_values) != ncol(logcpm_scores_gene)) {
-    stop(
-      "Length mismatch for ", gene_name,
-      ": got ", length(gene_values),
-      " values, expected ", ncol(logcpm_scores_gene)
-    )
-  }
+  gene_mat <- logcpm_scores_gene[resolved_gene, , drop = FALSE]
+  gene_values <- as.numeric(gene_mat[1, ])
 
   df <- tibble::tibble(
     Sample = colnames(logcpm_scores_gene),
-    gene = rep(gene_name, ncol(logcpm_scores_gene)),
+    gene = original_gene,
+    resolved_gene = resolved_gene,
     logCPM = gene_values,
     Group = factor(meta[colnames(logcpm_scores_gene), "Group", drop = TRUE], levels = c("HC", "HF"))
   )
@@ -1145,6 +1287,12 @@ plot_gene_logcpm <- function(gene_name) {
   y_min <- min(df$logCPM, na.rm = TRUE)
   y_range <- y_max - y_min
   if (!is.finite(y_range) || y_range == 0) y_range <- 1
+
+  plot_title <- if (original_gene == resolved_gene) {
+    original_gene
+  } else {
+    paste0(original_gene, " (", resolved_gene, ")")
+  }
 
   ggplot(df, aes(x = Group, y = logCPM, fill = Group)) +
     geom_boxplot(width = 0.55, outlier.shape = NA, color = "black", linewidth = 0.5) +
@@ -1163,7 +1311,7 @@ plot_gene_logcpm <- function(gene_name) {
     ) +
     scale_fill_manual(values = group_cols) +
     coord_cartesian(ylim = c(y_min - 0.05 * y_range, y_max + 0.22 * y_range)) +
-    labs(title = gene_name, x = NULL, y = "logCPM") +
+    labs(title = plot_title, x = NULL, y = "logCPM") +
     theme_classic(base_size = 12) +
     theme(
       plot.title = element_text(face = "bold", hjust = 0.5),
@@ -1180,7 +1328,7 @@ plot_gene_logcpm <- function(gene_name) {
 score_cols <- grep("_score$", colnames(score_df), value = TRUE)
 
 score_title_map <- c(
-  angiogenesis_score = "Angio score",
+  angiogenesis_score = "Angiogenesis score",
   aerobic_respiration_score = "Aerobic respiration score",
   s_phase_score = "S-phase score",
   g2m_phase_score = "G2M-phase score",
@@ -1207,8 +1355,22 @@ for (score_col in score_cols) {
 ## Selected gene expression plots
 
 ```{r hmec selected gene plots, fig.width=2.8, fig.height=3.7, warning=FALSE}
-selected_genes_present <- unique(selected_gene_list[selected_gene_list %in% rownames(logcpm_scores_gene)])
-selected_genes_missing <- setdiff(selected_gene_list, rownames(logcpm_scores_gene))
+selected_gene_map <- resolve_gene_vector(selected_gene_list, rownames(logcpm_scores_gene))
+
+selected_genes_present <- selected_gene_map %>%
+  dplyr::filter(!is.na(resolved_gene)) %>%
+  dplyr::distinct(original_gene, resolved_gene, mapping_status, map_source)
+
+selected_genes_missing <- selected_gene_map %>%
+  dplyr::filter(is.na(resolved_gene)) %>%
+  dplyr::pull(original_gene)
+
+write.csv(
+  selected_gene_map,
+  file = file.path(output_dir_data, "HMEC_selected_genes_presence_alias_mapped.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
 
 write.csv(
   data.frame(gene_missing = selected_genes_missing),
@@ -1218,32 +1380,29 @@ write.csv(
 )
 
 gene_program_lookup <- purrr::imap_dfr(program_list, function(genes, program) {
-  tibble::tibble(gene = genes, program = program)
+  tibble::tibble(original_gene = genes, program = program)
 }) %>%
-  dplyr::group_by(gene) %>%
+  dplyr::group_by(original_gene) %>%
   dplyr::summarise(program = paste(unique(program), collapse = "; "), .groups = "drop")
 
-selected_gene_logcpm_df <- purrr::map_dfr(selected_genes_present, function(gene_name) {
-  idx <- which(rownames(logcpm_scores_gene) == gene_name)
-  gene_mat <- logcpm_scores_gene[idx, , drop = FALSE]
+selected_gene_logcpm_df <- purrr::map_dfr(seq_len(nrow(selected_genes_present)), function(i) {
+  original_gene <- selected_genes_present$original_gene[i]
+  resolved_gene <- selected_genes_present$resolved_gene[i]
 
-  if (nrow(gene_mat) > 1) {
-    gene_values <- colMeans(gene_mat, na.rm = TRUE)
-  } else {
-    gene_values <- as.numeric(gene_mat[1, ])
-  }
+  gene_values <- as.numeric(logcpm_scores_gene[resolved_gene, ])
 
   tibble::tibble(
     Sample = colnames(logcpm_scores_gene),
     Group = factor(meta[colnames(logcpm_scores_gene), "Group", drop = TRUE], levels = c("HC", "HF")),
-    gene = gene_name,
+    gene = original_gene,
+    resolved_gene = resolved_gene,
     logCPM = gene_values
   )
 }) %>%
-  dplyr::left_join(gene_program_lookup, by = "gene")
+  dplyr::left_join(gene_program_lookup, by = c("gene" = "original_gene"))
 
 selected_gene_stats <- selected_gene_logcpm_df %>%
-  dplyr::group_by(gene, program) %>%
+  dplyr::group_by(gene, resolved_gene, program) %>%
   dplyr::group_modify(~ {
     if (nrow(.x) == 0 || dplyr::n_distinct(.x$Group) < 2) {
       return(tibble::tibble())
@@ -1281,18 +1440,28 @@ write.csv(
   row.names = FALSE
 )
 
-for (gene in selected_genes_present) {
-  print(plot_gene_logcpm(gene))
+for (i in seq_len(nrow(selected_genes_present))) {
+  print(plot_gene_logcpm(
+    original_gene = selected_genes_present$original_gene[i],
+    resolved_gene = selected_genes_present$resolved_gene[i]
+  ))
 }
 ```
 
 ## Heatmap of selected genes and program scores
 
 ```{r hmec selected genes heatmap, fig.width=7, fig.height=6}
-genes_for_heatmap <- selected_genes_present
+genes_for_heatmap <- selected_genes_present %>%
+  dplyr::distinct(original_gene, resolved_gene)
 
-mat_gene_z <- t(scale(t(logcpm_scores_gene[genes_for_heatmap, , drop = FALSE])))
+mat_gene_z <- t(scale(t(logcpm_scores_gene[genes_for_heatmap$resolved_gene, , drop = FALSE])))
 mat_gene_z[!is.finite(mat_gene_z)] <- 0
+
+rownames(mat_gene_z) <- ifelse(
+  genes_for_heatmap$original_gene == genes_for_heatmap$resolved_gene,
+  genes_for_heatmap$original_gene,
+  paste0(genes_for_heatmap$original_gene, " (", genes_for_heatmap$resolved_gene, ")")
+)
 
 ann_col <- data.frame(
   Group = factor(meta[colnames(mat_gene_z), "Group", drop = TRUE], levels = c("HC", "HF")),
@@ -1337,6 +1506,8 @@ pheatmap::pheatmap(
   main = "Gene program scores"
 )
 ```
+
+
 
 # Remove two samples
 
@@ -1414,5 +1585,7 @@ HF (n=", n_hf2, ") vs HC (n=", n_h2, ")
 ) +
   theme(legend.position = "none")
 ```
+
+
 
 
