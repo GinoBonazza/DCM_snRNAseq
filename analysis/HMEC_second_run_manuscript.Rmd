@@ -139,7 +139,7 @@ y$samples
 plotMDS(y, labels = meta$Sample, col = as.numeric(group))
 legend("bottomright", legend = levels(group), col = 1:length(levels(group)), pch = 16)
 ```
-```{r pca samples, fig.height=5, fig.width=5}
+```{r pca samples, fig.height=4, fig.width=4.5, dpi =300}
 logcpm <- cpm(y, log = TRUE, prior.count = 1)
 pr <- prcomp(t(logcpm), scale. = FALSE)
 
@@ -153,6 +153,13 @@ pca_df <- data.frame(
 )
 
 ggplot(pca_df, aes(x = PC1, y = PC2, fill = Group, label = Sample)) +
+  stat_ellipse(
+    aes(color = Group),
+    type = "norm",
+    level = 0.9,
+    linewidth = 0.7,
+    show.legend = FALSE
+  ) +
   geom_point(shape = 21, size = 3, stroke = 0.4, color = "black") +
   ggrepel::geom_text_repel(
     size = 3,
@@ -163,6 +170,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, fill = Group, label = Sample)) +
     segment.size = 0.25
   ) +
   scale_fill_manual(values = group_cols) +
+  scale_color_manual(values = group_cols) +
   scale_x_continuous(expand = expansion(mult = 0.18)) +
   scale_y_continuous(expand = expansion(mult = 0.18)) +
   labs(
@@ -1304,7 +1312,7 @@ plot_gene_logcpm <- function(original_gene, resolved_gene = NULL) {
     annotate(
       "text",
       x = 1.5,
-      y = y_max + 0.16 * y_range,
+      y = y_max + 0.17 * y_range,
       label = format_p_label(p_group),
       size = 5,
       fontface = format_p_fontface(p_group)
@@ -1312,9 +1320,9 @@ plot_gene_logcpm <- function(original_gene, resolved_gene = NULL) {
     scale_fill_manual(values = group_cols) +
     coord_cartesian(ylim = c(y_min - 0.05 * y_range, y_max + 0.22 * y_range)) +
     labs(title = plot_title, x = NULL, y = "logCPM") +
-    theme_classic(base_size = 12) +
+    theme_classic(base_size = 13) +
     theme(
-      plot.title = element_text(face = "bold", hjust = 0.5),
+      plot.title = element_text(face = "bold", hjust = 0.5, size = 13),
       axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
       axis.title.y = element_text(face = "bold"),
       legend.position = "none"
@@ -1354,7 +1362,7 @@ for (score_col in score_cols) {
 
 ## Selected gene expression plots
 
-```{r hmec selected gene plots, fig.width=2.8, fig.height=3.7, warning=FALSE}
+```{r hmec selected gene plots, fig.width=2, fig.height=2.8, dpi = 300}
 selected_gene_map <- resolve_gene_vector(selected_gene_list, rownames(logcpm_scores_gene))
 
 selected_genes_present <- selected_gene_map %>%
@@ -1450,31 +1458,83 @@ for (i in seq_len(nrow(selected_genes_present))) {
 
 ## Heatmap of selected genes and program scores
 
-```{r hmec selected genes heatmap, fig.width=7, fig.height=6}
-genes_for_heatmap <- selected_genes_present %>%
-  dplyr::distinct(original_gene, resolved_gene)
+```{r hmec selected genes heatmap, fig.height=6, fig.width=6}
+genes_for_heatmap_ordered <- tibble::tibble(
+  category = c(
+    rep("Angiogenesis", length(angiogenesis_genes)),
+    rep("S phase", length(s_phase_genes_plot)),
+    rep("G2M phase", length(g2m_phase_genes_plot)),
+    rep("Redox / NO", length(redox_no_genes)),
+    rep("Mitochondrial homeostasis", length(mito_homeostasis_genes))
+  ),
+  original_gene = c(
+    angiogenesis_genes,
+    s_phase_genes_plot,
+    g2m_phase_genes_plot,
+    redox_no_genes,
+    mito_homeostasis_genes
+  )
+) %>%
+  dplyr::left_join(
+    selected_genes_present %>%
+      dplyr::distinct(original_gene, resolved_gene),
+    by = "original_gene"
+  ) %>%
+  dplyr::filter(!is.na(resolved_gene)) %>%
+  dplyr::distinct(original_gene, resolved_gene, .keep_all = TRUE)
 
-mat_gene_z <- t(scale(t(logcpm_scores_gene[genes_for_heatmap$resolved_gene, , drop = FALSE])))
-mat_gene_z[!is.finite(mat_gene_z)] <- 0
+mat_gene <- logcpm_scores_gene[
+  genes_for_heatmap_ordered$resolved_gene,
+  ,
+  drop = FALSE
+]
 
-rownames(mat_gene_z) <- ifelse(
-  genes_for_heatmap$original_gene == genes_for_heatmap$resolved_gene,
-  genes_for_heatmap$original_gene,
-  paste0(genes_for_heatmap$original_gene, " (", genes_for_heatmap$resolved_gene, ")")
+group_heatmap <- factor(
+  meta[colnames(mat_gene), "Group", drop = TRUE],
+  levels = c("HC", "HF")
 )
 
-ann_col <- data.frame(
-  Group = factor(meta[colnames(mat_gene_z), "Group", drop = TRUE], levels = c("HC", "HF")),
-  row.names = colnames(mat_gene_z)
+ord <- order(group_heatmap)
+
+mat_gene_ord <- mat_gene[, ord, drop = FALSE]
+mat_gene_ord_z <- t(scale(t(mat_gene_ord)))
+mat_gene_ord_z[!is.finite(mat_gene_ord_z)] <- 0
+
+rownames(mat_gene_ord_z) <- ifelse(
+  genes_for_heatmap_ordered$original_gene == genes_for_heatmap_ordered$resolved_gene,
+  genes_for_heatmap_ordered$original_gene,
+  paste0(
+    genes_for_heatmap_ordered$original_gene,
+    " (",
+    genes_for_heatmap_ordered$resolved_gene,
+    ")"
+  )
 )
 
-pheatmap::pheatmap(
-  mat_gene_z,
-  annotation_col = ann_col,
-  show_rownames = TRUE,
-  cluster_cols = TRUE,
-  cluster_rows = TRUE,
-  main = "Selected genes (row-scaled logCPM)"
+annotation_col_ord <- data.frame(
+  Group = group_heatmap[ord],
+  row.names = colnames(mat_gene_ord)
+)
+
+ha_hmec_selected <- HeatmapAnnotation(
+  Group = annotation_col_ord$Group,
+  col = list(Group = group_cols),
+  annotation_name_gp = grid::gpar(fontsize = 10, fontface = "bold")
+)
+
+Heatmap(
+  mat_gene_ord_z,
+  name = "Z-score",
+  top_annotation = ha_hmec_selected,
+  col = heat_cols,
+  cluster_rows = FALSE,
+  cluster_columns = FALSE,
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  column_names_gp = grid::gpar(fontsize = 7),
+  row_names_gp = grid::gpar(fontsize = 8),
+  column_title = "Selected genes",
+  column_title_gp = grid::gpar(fontsize = 14, fontface = "bold")
 )
 ```
 
