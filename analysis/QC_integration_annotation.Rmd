@@ -54,6 +54,7 @@ library(statmod)
 library(clustree)
 library(harmony)
 library(speckle)
+library(qs2)
 
 #Output paths
 output_dir_data <- here::here("output", current_file)
@@ -269,12 +270,16 @@ QC_pre_Doublets
 ```
 
 ```{r save DCM_RV_preQC, eval=FALSE}
-saveRDS(DCM_RV_preQC, 
-        here::here(output_dir_data, "DCM_RV_preQC.rds"))
+qs_save(DCM_RV_preQC
+        file = here::here(output_dir_data, "DCM_RV_preQC.qs2"),
+        nthreads = 32
+        )
 ```
 
 ```{r read DCM_RV_preQC, eval=TRUE}
-DCM_RV_preQC <- readRDS(here::here(output_dir_data, "DCM_RV_preQC.rds"))
+DCM_RV_preQC <- qs_read(file = here::here(output_dir_data, "DCM_RV_preQC.qs2"),
+        nthreads = 32
+        )
 ```
 
 Remove doublets
@@ -514,12 +519,16 @@ DCM_RV <- subset(DCM_RV, subset = SCT_snn_res.0.2 %in% c("0", "1", "2", "3", "4"
 ```
 
 ```{r save DCM_RV, eval=FALSE}
-saveRDS(DCM_RV, 
-        here::here(output_dir_data, "DCM_RV.rds"))
+qs_save(DCM_RV,
+        file = here::here(output_dir_data, "DCM_RV.qs2"),
+        nthreads = 32
+        )
 ```
 
 ```{r read DCM_RV}
-DCM_RV <- readRDS(here::here(output_dir_data, "DCM_RV.rds"))
+DCM_RV <- qs_read(file = here::here(output_dir_data, "DCM_RV.qs2"),
+        nthreads = 32
+        )
 ```
 
 Reintegrate and recluster
@@ -765,11 +774,6 @@ table(DCM_RV$cell_type)
 ```
 
 ```{r save DCM_RV final, eval = FALSE}
-saveRDS(DCM_RV, 
-        here::here(output_dir_data, "DCM_RV.rds"))
-```
-
-```{r save DCM_RV_qs2, eval = FALSE}
 qs_save(DCM_RV,
         file = here::here(output_dir_data, "DCM_RV.qs2"),
         nthreads = 32
@@ -785,4 +789,9 @@ qs_save(DCM_RV_RNA,
         nthreads = 32
         )
 rm(DCM_RV_RNA)
+```
+
+```{r save DCM_RV rds, eval = FALSE}
+saveRDS(DCM_RV, 
+        here::here(output_dir_data, "DCM_RV.rds"))
 ```
