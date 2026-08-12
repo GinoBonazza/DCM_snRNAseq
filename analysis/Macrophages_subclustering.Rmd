@@ -197,7 +197,7 @@ VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "8")
 
 Annotate the clusters
 
-```{r MP_contamination, eval=FALSE}
+```{r MP_contamination, eval=TRUE}
 MP@meta.data[MP@meta.data$SCT_snn_res.0.4 %in% c("0"), "cell_state"] = "MP_resident_1"
 MP@meta.data[MP@meta.data$SCT_snn_res.0.4 %in% c("1"), "cell_state"] = "MP_resident_2"
 MP@meta.data[MP@meta.data$SCT_snn_res.0.4 %in% c("2"), "cell_state"] = "MP_resident_3"
@@ -212,7 +212,7 @@ MP$cell_state <- factor(MP$cell_state, levels = c("MP_resident_1", "MP_resident_
 Idents(MP) <- MP$cell_state
 ```
 
-```{r MP_cell_states_contamination.csv, eval=FALSE}
+```{r MP_cell_states_contamination.csv, eval=TRUE}
 cell_states_contamination <- data.frame(
   cell = colnames(subset(MP, cell_state %in% c("MP_contamination"))),
   cell_state = subset(MP, cell_state %in% c("MP_contamination"))$cell_state
@@ -227,11 +227,11 @@ write.csv(
 
 Remove low quality cells
 
-```{r remove MC_contamination, eval=FALSE}
+```{r remove MC_contamination, eval=TRUE}
 MP <- subset(MP, cell_state %in% c("MP_resident_1", "MP_resident_2", "MP_resident_3","MP_classical_monocyte", "MP_lipid", "MP_dendritic_cell", "MP_nonclassical_monocyte", "MP_interferon"))
 ```
 
-```{r read MP}
+```{r read MP, eval=FALSE}
 MP <- qs_read(here::here(output_dir_data, "MP.qs2"), nthreads = 32)
 ```
 
@@ -323,8 +323,8 @@ FeaturePlot_scCustom(MP, features = c(
 FeaturePlot_scCustom(MP, features = Markers_top3$gene, num_columns = 3)
 ```
 
-```{r FeatPlot_markers_3, fig.width=12, fig.height=5}
-FeaturePlot_scCustom(MP, features = c("GLIS3", "IGSF21", "TFRC", "VCAN", "TPRG1", "IL1R2", "RIPOR2", "IFI44L"), num_columns = 3, order=T)
+```{r FeatPlot_markers_3, fig.width=12, fig.height=5.5, dpi=300}
+FeaturePlot_scCustom(MP, features = c("GLIS3", "IGSF21", "TFRC", "VCAN", "TPRG1", "IL1R2", "RIPOR2", "IFI44L"), num_columns = 4, order=T)
 ```
 
 ```{r Barplot_MP_Sample, fig.height=6, fig.width=17.5, message=FALSE}
@@ -407,7 +407,7 @@ dotplot(REACTOME, label_format = 45, title = "REACTOME", showCategory = 4) +
 
 ```{r metadata}
 metadata <- MP@meta.data %>%
-  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVIT_mm, LVEF_percent, LVEDD_mm) %>%
   unique() %>%
   dplyr::arrange(match(Sample, names(table(MP$Sample))))
 
@@ -520,7 +520,7 @@ net <- net %>%
 TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
 ```
 
-```{r TF_tfsulm, eval=FALSE}
+```{r TF_tfsulm, eval=TRUE}
 mat <- as.matrix(MP@assays$RNA@data)
 
 acts <- decoupleR::run_ulm(mat = mat, 
@@ -683,7 +683,7 @@ net_path <- get_progeny(organism = 'human', top = 100000)
 Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FEC233"))(101)
 ```
 
-```{r Pathway_pathwaysmlm, eval=FALSE}
+```{r Pathway_pathwaysmlm, eval=TRUE}
 acts_pathway <- decoupleR::run_mlm(mat = mat, 
                            net = net_path, 
                            .source = 'source', 
@@ -774,7 +774,7 @@ pheatmap::pheatmap(mat = top_acts_mat,
                    treeheight_col = 20) 
 ```
 
-```{r MP_cell_states.csv, eval=FALSE}
+```{r MP_cell_states.csv, eval=TRUE}
 cell_states <- data.frame(
   cell = colnames(MP),
   cell_state = MP$cell_state
@@ -787,7 +787,7 @@ write.csv(
 )
 ```
 
-```{r save MP final, eval=FALSE}
+```{r save MP final, eval=TRUE}
 DefaultAssay(MP) <- "RNA"
 qs_save(MP,
         file = here::here(output_dir_data, "MP.qs2"),
@@ -795,3 +795,23 @@ qs_save(MP,
         )
 ```
 
+```{r Supplementary_data_export, eval=TRUE}
+MP_counts <- as.data.frame(props$Counts) %>%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+supp_data_file <- here::here(output_dir_data, "MP_subclustering_SuppData.xlsx")
+if (file.exists(supp_data_file)) file.remove(supp_data_file)
+
+writexl::write_xlsx(
+  list(
+    Markers_all = Markers,
+    Cell_counts = MP_counts,
+    Cell_proportions = MP_proportions,
+    Differential_abundance = differential_abundance
+  ),
+  path = supp_data_file
+)
+```

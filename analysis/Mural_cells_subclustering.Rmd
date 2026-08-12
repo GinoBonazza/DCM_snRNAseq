@@ -197,7 +197,7 @@ VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "6")
 
 Annotate the clusters
 
-```{r MC_contamination, eval=FALSE}
+```{r MC_contamination, eval=TRUE}
 MC@meta.data[MC@meta.data$SCT_snn_res.0.3 %in% c("0"), "cell_state"] = "MC_pericyte"
 MC@meta.data[MC@meta.data$SCT_snn_res.0.3 %in% c("1"), "cell_state"] = "MC_pericyte_LAMA2"
 MC@meta.data[MC@meta.data$SCT_snn_res.0.3 %in% c("2"), "cell_state"] = "MC_SMC"
@@ -210,7 +210,7 @@ MC$cell_state <- factor(MC$cell_state, levels = c("MC_pericyte", "MC_pericyte_LA
 Idents(MC) <- MC$cell_state
 ```
 
-```{r read MC}
+```{r read MC, eval=TRUE}
 MC <- qs_read(here::here(output_dir_data, "MC.qs2"), nthreads = 32)
 ```
 
@@ -378,7 +378,7 @@ dotplot(REACTOME, label_format = 50, title = "REACTOME", showCategory = 4) +
 
 ```{r metadata}
 metadata <- MC@meta.data %>%
-  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVIT_mm, LVEF_percent, LVEDD_mm) %>%
   unique() %>%
   dplyr::arrange(match(Sample, names(table(MC$Sample))))
 
@@ -491,7 +491,7 @@ net <- net %>%
 TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
 ```
 
-```{r TF_tfsulm, eval=FALSE}
+```{r TF_tfsulm, eval=TRUE}
 mat <- as.matrix(MC@assays$RNA@data)
 
 acts <- decoupleR::run_ulm(mat = mat, 
@@ -654,7 +654,7 @@ net_path <- get_progeny(organism = 'human', top = 100000)
 Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FEC233"))(101)
 ```
 
-```{r Pathway_pathwaysmlm, eval=FALSE}
+```{r Pathway_pathwaysmlm, eval=TRUE}
 acts_pathway <- decoupleR::run_mlm(mat = mat, 
                            net = net_path, 
                            .source = 'source', 
@@ -745,7 +745,7 @@ pheatmap::pheatmap(mat = top_acts_mat,
                    treeheight_col = 20) 
 ```
 
-```{r MC_cell_states.csv, eval=FALSE}
+```{r MC_cell_states.csv, eval=TRUE}
 cell_states <- data.frame(
   cell = colnames(MC),
   cell_state = MC$cell_state
@@ -766,3 +766,23 @@ qs_save(MC,
         )
 ```
 
+```{r Supplementary_data_export, eval=TRUE}
+MC_counts <- as.data.frame(props$Counts) %>%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+supp_data_file <- here::here(output_dir_data, "MC_subclustering_SuppData.xlsx")
+if (file.exists(supp_data_file)) file.remove(supp_data_file)
+
+writexl::write_xlsx(
+  list(
+    Markers_all = Markers,
+    Cell_counts = MC_counts,
+    Cell_proportions = MC_proportions,
+    Differential_abundance = differential_abundance
+  ),
+  path = supp_data_file
+)
+```

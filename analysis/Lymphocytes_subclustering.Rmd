@@ -295,7 +295,7 @@ FeaturePlot_scCustom(LC, features = c(
 
 Annotate the clusters
 
-```{r LC_contamination, eval=FALSE}
+```{r LC_contamination, eval=TRUE}
 LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("0"), "cell_state"] = "LC_T_CD4_memory"
 LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("1"), "cell_state"] = "LC_T_CD8_activated"
 LC@meta.data[LC@meta.data$SCT_snn_res.0.4 %in% c("2"), "cell_state"] = "LC_NK"
@@ -312,7 +312,7 @@ LC$cell_state <- factor(LC$cell_state, levels = c("LC_T_CD4_memory", "LC_T_CD8_a
 Idents(LC) <- LC$cell_state
 ```
 
-```{r LC_cell_states_contamination.csv, eval=FALSE}
+```{r LC_cell_states_contamination.csv, eval=TRUE}
 cell_states_contamination <- data.frame(
   cell = colnames(subset(LC, cell_state %in% c("LC_contamination"))),
   cell_state = subset(LC, cell_state %in% c("LC_contamination"))$cell_state
@@ -327,11 +327,11 @@ write.csv(
 
 Remove low quality cells
 
-```{r remove MC_contamination, eval=FALSE}
+```{r remove MC_contamination, eval=TRUE}
 LC <- subset(LC, cell_state %in% c("LC_T_CD4_memory", "LC_T_CD8_activated", "LC_NK","LC_T_CD4_naive", "LC_T_CD8_cytotoxic", "LC_T_γδ", "LC_T_innate_like", "LC_plasma_cells", "LC_T_reg", "LC_B_cells"))
 ```
 
-```{r read LC}
+```{r read LC, eval=FALSE}
 LC <- qs_read(here::here(output_dir_data, "LC.qs2"), nthreads = 32)
 ```
 
@@ -494,7 +494,7 @@ dotplot(REACTOME, label_format = 60, title = "REACTOME", showCategory = 4) +
 
 ```{r metadata}
 metadata <- LC@meta.data %>%
-  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVIT_mm, LVEF_percent, LVEDD_mm) %>%
   unique() %>%
   dplyr::arrange(match(Sample, names(table(LC$Sample))))
 
@@ -607,7 +607,7 @@ net <- net %>%
 TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
 ```
 
-```{r TF_tfsulm, eval=FALSE}
+```{r TF_tfsulm, eval=TRUE}
 mat <- as.matrix(LC@assays$RNA@data)
 
 acts <- decoupleR::run_ulm(mat = mat, 
@@ -770,7 +770,7 @@ net_path <- get_progeny(organism = 'human', top = 100000)
 Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FEC233"))(101)
 ```
 
-```{r Pathway_pathwaysmlm, eval=FALSE}
+```{r Pathway_pathwaysmlm, eval=TRUE}
 acts_pathway <- decoupleR::run_mlm(mat = mat, 
                            net = net_path, 
                            .source = 'source', 
@@ -841,7 +841,7 @@ pheatmap::pheatmap(mat = top_acts_mat,
                    treeheight_col = 20) 
 ```
 
-```{r LC_cell_states.csv, eval=FALSE}
+```{r LC_cell_states.csv, eval=TRUE}
 cell_states <- data.frame(
   cell = colnames(LC),
   cell_state = LC$cell_state
@@ -854,7 +854,7 @@ write.csv(
 )
 ```
 
-```{r save LC final, eval=FALSE}
+```{r save LC final, eval=TRUE}
 DefaultAssay(LC) <- "RNA"
 qs_save(LC,
         file = here::here(output_dir_data, "LC.qs2"),
@@ -862,3 +862,23 @@ qs_save(LC,
         )
 ```
 
+```{r Supplementary_data_export, eval=TRUE}
+LC_counts <- as.data.frame(props$Counts) %>%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+supp_data_file <- here::here(output_dir_data, "LC_subclustering_SuppData.xlsx")
+if (file.exists(supp_data_file)) file.remove(supp_data_file)
+
+writexl::write_xlsx(
+  list(
+    Markers_all = Markers,
+    Cell_counts = LC_counts,
+    Cell_proportions = LC_proportions,
+    Differential_abundance = differential_abundance
+  ),
+  path = supp_data_file
+)
+```

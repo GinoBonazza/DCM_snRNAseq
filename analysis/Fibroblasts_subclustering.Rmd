@@ -193,7 +193,7 @@ VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "5")
 
 Annotate the clusters
 
-```{r FB_contamination, eval=FALSE}
+```{r FB_contamination, eval=TRUE}
 FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("0"), "cell_state"] = "FB1"
 FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("1"), "cell_state"] = "FB2"
 FB@meta.data[FB@meta.data$SCT_snn_res.0.3 %in% c("2"), "cell_state"] = "FB3"
@@ -205,7 +205,7 @@ FB$cell_state <- factor(FB$cell_state, levels = c("FB1", "FB2", "FB3","FB4", "FB
 Idents(FB) <- FB$cell_state
 ```
 
-```{r FB_cell_states_contamination.csv, eval=FALSE}
+```{r FB_cell_states_contamination.csv, eval=TRUE}
 cell_states_contamination <- data.frame(
   cell = colnames(subset(FB, cell_state %in% c("FB_contamination"))),
   cell_state = subset(FB, cell_state %in% c("FB_contamination"))$cell_state
@@ -220,11 +220,11 @@ write.csv(
 
 Remove low quality cells
 
-```{r remove MC_contamination, eval=FALSE}
+```{r remove MC_contamination, eval=TRUE}
 FB <- subset(FB, cell_state %in% c("FB1", "FB2", "FB3","FB4", "FB5"))
 ```
 
-```{r read FB}
+```{r read FB, eval=FALSE}
 FB <- qs_read(here::here(output_dir_data, "FB.qs2"), nthreads = 32)
 ```
 
@@ -372,7 +372,7 @@ dotplot(REACTOME, label_format = 45, title = "REACTOME", showCategory = 4)
 
 ```{r metadata}
 metadata <- FB@meta.data %>%
-  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVIT_mm, LVEF_percent, LVEDD_mm) %>%
   unique() %>%
   dplyr::arrange(match(Sample, names(table(FB$Sample))))
 
@@ -486,7 +486,7 @@ net <- net %>%
 TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
 ```
 
-```{r TF_tfsulm, eval=FALSE}
+```{r TF_tfsulm, eval=TRUE}
 mat <- as.matrix(FB@assays$RNA@data)
 
 acts <- decoupleR::run_ulm(mat = mat, 
@@ -649,7 +649,7 @@ net_path <- get_progeny(organism = 'human', top = 100000)
 Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FFB233"))(101)
 ```
 
-```{r Pathway_pathwaysmlm, eval=FALSE}
+```{r Pathway_pathwaysmlm, eval=TRUE}
 acts_pathway <- decoupleR::run_mlm(mat = mat, 
                            net = net_path, 
                            .source = 'source', 
@@ -720,7 +720,7 @@ pheatmap::pheatmap(mat = top_acts_mat,
                    treeheight_col = 20) 
 ```
 
-```{r FB_cell_states.csv, eval=FALSE}
+```{r FB_cell_states.csv, eval=TRUE}
 cell_states <- data.frame(
   cell = colnames(FB),
   cell_state = FB$cell_state
@@ -733,10 +733,31 @@ write.csv(
 )
 ```
 
-```{r save FB final, eval=FALSE}
+```{r save FB final, eval=TRUE}
 DefaultAssay(FB) <- "RNA"
 qs_save(FB,
         file = here::here(output_dir_data, "FB.qs2"),
         nthreads = 32
         )
+```
+
+```{r Supplementary_data_export, eval=TRUE}
+FB_counts <- as.data.frame(props$Counts) %>%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+supp_data_file <- here::here(output_dir_data, "FB_subclustering_SuppData.xlsx")
+if (file.exists(supp_data_file)) file.remove(supp_data_file)
+
+writexl::write_xlsx(
+  list(
+    Markers_all = Markers,
+    Cell_counts = FB_counts,
+    Cell_proportions = FB_proportions,
+    Differential_abundance = differential_abundance
+  ),
+  path = supp_data_file
+)
 ```

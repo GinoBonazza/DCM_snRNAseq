@@ -130,13 +130,13 @@ CM <- RunHarmony(CM,
                  )
 ```
 
-```{r read CM}
+```{r read CM, eval=FALSE}
 CM <- qs_read(here::here(output_dir_data, "CM.qs2"), nthreads = 32)
 ```
 
 Clustering after integration
 
-```{r clustering integrated, eval=FALSE}
+```{r clustering integrated, eval=TRUE}
 DefaultAssay(CM) <- "SCT"
 CM <- RunUMAP(CM, dims = 1:30, reduction = "harmony")
 CM <- FindNeighbors(CM, dims = 1:30, reduction = "harmony")
@@ -180,6 +180,10 @@ Check QC parameters in each cluster
 
 ```{r QC_VlnPlots_1, fig.width=8, fig.height=6}
 VlnPlot_scCustom(CM, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp"), num_columns = 2, pt.size = 0, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())
+```
+
+```{r QC_VlnPlots_1b, fig.width=12, fig.height=3, dpi = 300}
+VlnPlot_scCustom(CM, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), num_columns = 3, pt.size = 0, colors_use = cell_type_cols) + theme(axis.title.x = element_blank())
 ```
 
 ```{r QC_VlnPlots_2, fig.width=8, fig.height=6}
@@ -243,7 +247,7 @@ LabelClusters(p,
               repel    = TRUE)
 ```
 
-```{r DotPlot_markers, fig.width=8, fig.height=4}
+```{r DotPlot_markers, fig.width=6.5, fig.height=4, dpi = 300}
 Idents(CM) <- factor(
   Idents(CM),
   levels = rev(levels(Idents(CM)))
@@ -341,7 +345,7 @@ dotplot(REACTOME, label_format = 40, title = "REACTOME", showCategory = 4)
 
 ```{r metadata}
 metadata <- CM@meta.data %>%
-  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVIT_mm, LVEF_percent, LVEDD_mm) %>%
   unique() %>%
   dplyr::arrange(match(Sample, names(table(CM$Sample))))
 
@@ -505,7 +509,7 @@ net <- net %>%
 TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
 ```
 
-```{r TF_tfsulm, eval=FALSE}
+```{r TF_tfsulm, eval=TRUE}
 mat <- as.matrix(CM@assays$RNA@data)
 
 acts <- decoupleR::run_ulm(mat = mat, 
@@ -668,7 +672,7 @@ net_path <- get_progeny(organism = 'human', top = 100000)
 Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FFB233"))(101)
 ```
 
-```{r Pathway_pathwaysmlm, eval=FALSE}
+```{r Pathway_pathwaysmlm, eval=TRUE}
 acts_pathway <- decoupleR::run_mlm(mat = mat, 
                            net = net_path, 
                            .source = 'source', 
@@ -739,7 +743,7 @@ p <- p1 | p2
 p
 ```
 
-```{r CM_cell_states.csv, eval=FALSE}
+```{r CM_cell_states.csv, eval=TRUE}
 cell_states <- data.frame(
   cell = colnames(CM),
   cell_state = CM$cell_state
@@ -752,7 +756,7 @@ write.csv(
 )
 ```
 
-```{r save CM final, eval=FALSE}
+```{r save CM final, eval=TRUE}
 DefaultAssay(CM) <- "RNA"
 qs_save(CM,
         file = here::here(output_dir_data, "CM.qs2"),
@@ -760,3 +764,23 @@ qs_save(CM,
         )
 ```
 
+```{r Supplementary_data_export, eval=TRUE}
+CM_counts <- as.data.frame(props$Counts) %>%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+supp_data_file <- here::here(output_dir_data, "CM_subclustering_SuppData.xlsx")
+if (file.exists(supp_data_file)) file.remove(supp_data_file)
+
+writexl::write_xlsx(
+  list(
+    Markers_all = Markers,
+    Cell_counts = CM_counts,
+    Cell_proportions = CM_proportions,
+    Differential_abundance = differential_abundance
+  ),
+  path = supp_data_file
+)
+```

@@ -197,23 +197,23 @@ VlnPlot_scCustom(DCM_RV, features = dplyr::filter(Markers_top10, cluster == "7")
 
 Annotate the clusters
 
-```{r EC_contamination, eval=FALSE}
+```{r EC_contamination, eval=TRUE}
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("0"), "cell_state"] = "EC_capillary"
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("1"), "cell_state"] = "EC_capillary_venous"
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("2"), "cell_state"] = "EC_capillary_arterial"
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("3"), "cell_state"] = "EC_venous"
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("4"), "cell_state"] = "EC_arterial_PCSK5"
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("5"), "cell_state"] = "EC_arterial_NTRK2"
-EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("6"), "cell_state"] = "EC_remodeling"
+EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("6"), "cell_state"] = "EC_activated"
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("7"), "cell_state"] = "EC_RGS5"
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("8"), "cell_state"] = "EC_interferon"
 EC@meta.data[EC@meta.data$SCT_snn_res.0.4 %in% c("9"), "cell_state"] = "EC_contamination"
 
-EC$cell_state <- factor(EC$cell_state, levels = c("EC_capillary", "EC_capillary_venous", "EC_capillary_arterial","EC_venous", "EC_arterial_PCSK5", "EC_arterial_NTRK2", "EC_remodeling", "EC_RGS5", "EC_interferon", "EC_contamination"))
+EC$cell_state <- factor(EC$cell_state, levels = c("EC_capillary", "EC_capillary_venous", "EC_capillary_arterial","EC_venous", "EC_arterial_PCSK5", "EC_arterial_NTRK2", "EC_activated", "EC_RGS5", "EC_interferon", "EC_contamination"))
 Idents(EC) <- EC$cell_state
 ```
 
-```{r EC_cell_states_contamination.csv, eval=FALSE}
+```{r EC_cell_states_contamination.csv, eval=TRUE}
 cell_states_contamination <- data.frame(
   cell = colnames(subset(EC, cell_state %in% c("EC_contamination"))),
   cell_state = subset(EC, cell_state %in% c("EC_contamination"))$cell_state
@@ -228,16 +228,16 @@ write.csv(
 
 Remove low quality cells
 
-```{r remove MC_contamination, eval=FALSE}
-EC <- subset(EC, cell_state %in% c("EC_capillary", "EC_capillary_venous", "EC_capillary_arterial","EC_venous", "EC_arterial_PCSK5", "EC_arterial_NTRK2", "EC_remodeling", "EC_RGS5", "EC_interferon"))
+```{r remove MC_contamination, eval=TRUE}
+EC <- subset(EC, cell_state %in% c("EC_capillary", "EC_capillary_venous", "EC_capillary_arterial","EC_venous", "EC_arterial_PCSK5", "EC_arterial_NTRK2", "EC_activated", "EC_RGS5", "EC_interferon"))
 ```
 
-```{r read EC}
+```{r read EC, eval=FALSE}
 EC <- qs_read(here::here(output_dir_data, "EC.qs2"), nthreads = 32)
 ```
 
 ```{r FindAllMarkers cell_state}
-EC$cell_state <- factor(EC$cell_state, levels = c("EC_capillary", "EC_capillary_venous", "EC_capillary_arterial","EC_venous", "EC_arterial_PCSK5", "EC_arterial_NTRK2", "EC_remodeling", "EC_RGS5", "EC_interferon"))
+EC$cell_state <- factor(EC$cell_state, levels = c("EC_capillary", "EC_capillary_venous", "EC_capillary_arterial","EC_venous", "EC_arterial_PCSK5", "EC_arterial_NTRK2", "EC_activated", "EC_RGS5", "EC_interferon"))
 DefaultAssay(EC) <- "RNA"
 Markers <- FindAllMarkers(EC, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
 write.csv(Markers, here::here(output_dir_data, "EC_Markers_all_cell_state.csv"))
@@ -300,16 +300,42 @@ p + theme(
 Idents(EC) <- EC$cell_state
 ```
 
-```{r VlnPlot_markers_EC, fig.width=12, fig.height=8}
-VlnPlot_scCustom(EC, features = c("EPB41L2", "RGS6", "SMAD6", "POSTN", "PCSK5", "NTRK2", "PDGFD", "RGS6", "IFI44L"), num_columns = 4, colors_use = cell_type_cols, pt.size = 0)
+```{r VlnPlot_markers_EC, fig.width=15, fig.height=8}
+VlnPlot_scCustom(EC, features = c("EPB41L2", "RGS6", "SMAD6", "POSTN", "PCSK5", "NTRK2", "PDGFD", "RGS5", "IFI44L"), num_columns = 5, colors_use = cell_type_cols, pt.size = 0)
 ```
 
 ```{r FeatPlot_markers_EC, fig.width=9, fig.height=20}
 FeaturePlot_scCustom(EC, features = Markers_top3$gene, num_columns = 3)
 ```
 
-```{r FeatPlot_markers_myoEC, fig.width=12, fig.height=5}
-FeaturePlot_scCustom(EC, features = c("EPB41L2", "RGS6", "SMAD6", "POSTN", "PCSK5", "NTRK2", "PDGFD", "RGS6", "IFI44L"), num_columns = 4, order=T)
+```{r FeatPlot_markers_myoEC, fig.width=9, fig.height=7, dpi=300}
+FeaturePlot_scCustom(EC, features = c("EPB41L2", "RGS6", "SMAD6", "POSTN", "PCSK5", "NTRK2", "PDGFD", "RGS5", "IFI44L"), num_columns = 3, order=T)
+```
+
+```{r QC_VlnPlots_cell_state, fig.width=15, fig.height=8, dpi = 300}
+VlnPlot_scCustom(EC, features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.rp", "RYR2", "EGFLAM", "PECAM1", "scDblFinder.score"), assay="RNA", num_columns = 4, pt.size = 0.0, colors_use = cell_type_cols)
+```
+
+```{r, fig.width=9, fig.height=3.5, dpi = 300}
+Idents(EC) <- EC$cell_state
+Idents(EC) <- factor(
+  Idents(EC),
+  levels = rev(levels(Idents(EC)))
+)
+
+p <- DotPlot_scCustom(
+        EC,
+        features       = c("FABP4", "FABP5", "AQP1", "B2M", "HLA-B", "HLA-C", "IFI27", "IFITM3"),
+        x_lab_rotate   = TRUE
+)
+
+p + theme(
+      axis.text.x  = element_text(size = 12,        
+                                  angle = 60,          
+                                  vjust = 1,
+                                  hjust = 1),
+      axis.text.y  = element_text(size = 15))  
+Idents(EC) <- EC$cell_state
 ```
 
 ```{r Barplot_EC_Sample, fig.height=6, fig.width=17.5, message=FALSE}
@@ -392,7 +418,7 @@ dotplot(REACTOME, label_format = 45, title = "REACTOME", showCategory = 4) +
 
 ```{r metadata}
 metadata <- EC@meta.data %>%
-  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVID_mm, LVEF_percent, LVEDD_mm) %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVIT_mm, LVEF_percent, LVEDD_mm) %>%
   unique() %>%
   dplyr::arrange(match(Sample, names(table(EC$Sample))))
 
@@ -505,7 +531,7 @@ net <- net %>%
 TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
 ```
 
-```{r TF_tfsulm, eval=FALSE}
+```{r TF_tfsulm, eval=TRUE}
 mat <- as.matrix(EC@assays$RNA@data)
 
 acts <- decoupleR::run_ulm(mat = mat, 
@@ -668,7 +694,7 @@ net_path <- get_progeny(organism = 'human', top = 100000)
 Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FEC233"))(101)
 ```
 
-```{r Pathway_pathwaysmlm, eval=FALSE}
+```{r Pathway_pathwaysmlm, eval=TRUE}
 acts_pathway <- decoupleR::run_mlm(mat = mat, 
                            net = net_path, 
                            .source = 'source', 
@@ -759,7 +785,7 @@ pheatmap::pheatmap(mat = top_acts_mat,
                    treeheight_col = 20) 
 ```
 
-```{r EC_cell_states.csv, eval=FALSE}
+```{r EC_cell_states.csv, eval=TRUE}
 cell_states <- data.frame(
   cell = colnames(EC),
   cell_state = EC$cell_state
@@ -772,7 +798,7 @@ write.csv(
 )
 ```
 
-```{r save EC final, eval=FALSE}
+```{r save EC final, eval=TRUE}
 DefaultAssay(EC) <- "RNA"
 qs_save(EC,
         file = here::here(output_dir_data, "EC.qs2"),
@@ -780,3 +806,23 @@ qs_save(EC,
         )
 ```
 
+```{r Supplementary_data_export, eval=TRUE}
+EC_counts <- as.data.frame(props$Counts) %>%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+supp_data_file <- here::here(output_dir_data, "EC_subclustering_SuppData.xlsx")
+if (file.exists(supp_data_file)) file.remove(supp_data_file)
+
+writexl::write_xlsx(
+  list(
+    Markers_all = Markers,
+    Cell_counts = EC_counts,
+    Cell_proportions = EC_proportions,
+    Differential_abundance = differential_abundance
+  ),
+  path = supp_data_file
+)
+```
