@@ -92,12 +92,36 @@ if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
 Load DCM_RV dataset
 
 ```{r read CM}
-DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.qs2"), nthreads = 32)
+DCM_RV <- qs_read(here::here("output", "Add_cell_states_remove_contamination", "DCM_RV_cell_states_RNA.qs2"), nthreads = 32)
 ```
 
 ```{r NormalizeData}
 DefaultAssay(DCM_RV) <- "RNA"
 DCM_RV <- NormalizeData(DCM_RV)
+```
+
+```{r}
+Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_22.xlsx"))
+
+# make cell-level metadata by matching Sample
+add_metadata <- DCM_RV[[]] %>%
+  dplyr::select(Sample) %>%
+  left_join(Clinical_data, by = "Sample")
+
+row.names(add_metadata) <- row.names(DCM_RV[[]])
+
+# remove old columns that are present in the new clinical file
+cols_to_overwrite <- setdiff(colnames(Clinical_data), "Sample")
+
+DCM_RV@meta.data[, cols_to_overwrite] <- NULL
+
+# add corrected metadata
+DCM_RV <- AddMetaData(
+  DCM_RV,
+  metadata = add_metadata
+)
+
+rm(add_metadata, Clinical_data, cols_to_overwrite)
 ```
 
 ## Differential abundance analysis
@@ -107,9 +131,9 @@ DCM_RV$TAPSE_sPAP <- DCM_RV$TAPSE_mm/DCM_RV$sPAP_mmHg
 table(DCM_RV$TAPSE_sPAP)
 
 metadata <- DCM_RV@meta.data %>%
-  dplyr::select(Sample:CO_l.min, TAPSE_sPAP) %>%
+  dplyr::select(Sample, Batch_processing:CO_l.min, TAPSE_sPAP) %>%
   unique() %>%
-  dplyr::select(-LVID_mm, -RVIT_mm) 
+  dplyr::select(-LVID_mm, -RVOT_mm) 
 metadata <- metadata %>%
   dplyr::select(1:3, 5, 6, 4, 7:ncol(metadata)) %>%
   dplyr::arrange(match(Sample, names(table(DCM_RV$Sample))))
@@ -235,7 +259,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "Cardiomyocytes")
 ```
 
-```{r Cardiomyocytes save percent_stats, eval=FALSE}
+```{r Cardiomyocytes save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -403,7 +427,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "Fibroblasts")
 ```
 
-```{r Fibroblasts save percent_stats, eval=FALSE}
+```{r Fibroblasts save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -551,7 +575,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "Endothelial cells")
 ```
 
-```{r Endothelial_cells save percent_stats, eval=FALSE}
+```{r Endothelial_cells save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -697,7 +721,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "Pericytes")
 ```
 
-```{r Pericytes save percent_stats, eval=FALSE}
+```{r Pericytes save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -844,7 +868,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "Macrophages")
 ```
 
-```{r Macrophages save percent_stats, eval=FALSE}
+```{r Macrophages save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -991,7 +1015,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "T lymphocytes")
 ```
 
-```{r Lymphocytes save percent_stats, eval=FALSE}
+```{r Lymphocytes save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -1125,7 +1149,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "Smooth muscle cells")
 ```
 
-```{r Smooth_muscle_cells save percent_stats, eval=FALSE}
+```{r Smooth_muscle_cells save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -1272,7 +1296,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "Neuronal cells")
 ```
 
-```{r Neuronal_cells save percent_stats, eval=FALSE}
+```{r Neuronal_cells save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -1405,7 +1429,7 @@ Remove genes expressed in <1% of cells and MT and RP genes
 data <- subset(DCM_RV, cell_type == "Endocardial cells")
 ```
 
-```{r Endocardial_cells save percent_stats, eval=FALSE}
+```{r Endocardial_cells save percent_stats, eval=TRUE}
 expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
 non_zero_cells <- rowSums(expr_matrix > 0)
 total_cells <- ncol(expr_matrix)
@@ -1567,5 +1591,1970 @@ pheatmap(deg_mat,
          display_numbers = TRUE,           # <- this adds the numbers
          number_format = "%.0f",           # format as integer (no decimal)
          number_color = "black")
+```
+
+```{r deg_count_heatmap_mainfig, fig.height=4.6, fig.width=6.4, dpi = 300}
+# ---- Cell types in desired order ----
+cell_types <- c(
+  "Cardiomyocytes",
+  "Fibroblasts",
+  "Endothelial_cells",
+  "Pericytes",
+  "Smooth_muscle_cells",
+  "Macrophages",
+  "Neuronal_cells",
+  "T_lymphocytes",
+  "Endocardial_cells"
+)
+
+# ---- Variables shown in the main DEG/volcano figure ----
+vars_keep <- c(
+  "mPAP_mmHg",
+  "sPAP_mmHg",
+  "PCW_mmHg",
+  "PVR_WU",
+  "TAPSE_mm",
+  "RVIT_mm",
+  "LVEF_percent",
+  "LVEDD_mm"
+)
+
+# ---- Nice labels ----
+pretty_vars <- c(
+  "mPAP_mmHg"    = "mPAP (mmHg)",
+  "sPAP_mmHg"    = "sPAP (mmHg)",
+  "PCW_mmHg"     = "PCWP (mmHg)",
+  "PVR_WU"       = "PVR (WU)",
+  "TAPSE_mm"     = "TAPSE (mm)",
+  "RVIT_mm"      = "RVIT (mm)",
+  "LVEF_percent" = "LVEF (%)",
+  "LVEDD_mm"     = "LVEDD (mm)"
+)
+
+pretty_celltypes <- c(
+  "Cardiomyocytes"       = "Cardiomyocytes",
+  "Fibroblasts"          = "Fibroblasts",
+  "Endothelial_cells"    = "Endothelial cells",
+  "Pericytes"            = "Pericytes",
+  "Smooth_muscle_cells"  = "Smooth muscle cells",
+  "Macrophages"          = "Macrophages",
+  "Neuronal_cells"       = "Neuronal cells",
+  "T_lymphocytes"        = "T lymphocytes",
+  "Endocardial_cells"    = "Endocardial cells"
+)
+
+# ---- Read summary CSVs ----
+deg_summary_list <- lapply(cell_types, function(celltype) {
+  file <- file.path(output_dir_data, paste0(celltype, "_n_de_genes.csv"))
+
+  read.csv(file) %>%
+    dplyr::select(metadata, n_tot) %>%
+    dplyr::rename(parameter = metadata) %>%
+    dplyr::mutate(cell_type = celltype)
+})
+
+deg_summary <- dplyr::bind_rows(deg_summary_list)
+
+# ---- Build matrix ----
+deg_mat <- deg_summary %>%
+  dplyr::filter(parameter %in% vars_keep) %>%
+  dplyr::mutate(
+    parameter = factor(parameter, levels = vars_keep),
+    cell_type = factor(cell_type, levels = cell_types)
+  ) %>%
+  tidyr::pivot_wider(
+    names_from = cell_type,
+    values_from = n_tot,
+    values_fill = 0
+  ) %>%
+  dplyr::arrange(parameter) %>%
+  tibble::column_to_rownames("parameter") %>%
+  as.matrix()
+
+deg_mat <- deg_mat[vars_keep, cell_types, drop = FALSE]
+
+# ---- Optional: hide zeros in the displayed numbers ----
+deg_numbers <- ifelse(deg_mat == 0, "", deg_mat)
+
+# ---- Proteomics-style red heatmap palette ----
+deg_cols <- colorRampPalette(c("white", "#A63A2A"))(100)
+
+# ---- Plot ----
+pheatmap::pheatmap(
+  deg_mat,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  color = deg_cols,
+  breaks = seq(0, max(deg_mat, na.rm = TRUE), length.out = 101),
+  fontsize = 10,
+  fontsize_row = 11,
+  fontsize_col = 10,
+  border_color = "grey90",
+  display_numbers = deg_numbers,
+  number_color = "black",
+  labels_row = pretty_vars[rownames(deg_mat)],
+  labels_col = pretty_celltypes[colnames(deg_mat)],
+  angle_col = 45,
+  main = NA,
+  legend = TRUE
+)
+```
+
+```{r deg_count_heatmap_simple_mainfig_narrow, fig.width=5, fig.height=5.4, dpi=300}
+cell_types <- c(
+  "Cardiomyocytes",
+  "Fibroblasts",
+  "Endothelial_cells",
+  "Pericytes",
+  "Smooth_muscle_cells",
+  "Macrophages",
+  "Neuronal_cells",
+  "T_lymphocytes",
+  "Endocardial_cells"
+)
+
+# ---- Variables in desired order ----
+# PVR and PCWP inverted
+vars_keep <- c(
+  "mPAP_mmHg",
+  "sPAP_mmHg",
+  "PVR_WU",
+  "PCW_mmHg",
+  "TAPSE_mm",
+  "RVIT_mm",
+  "LVEF_percent",
+  "LVEDD_mm"
+)
+
+# ---- Nice labels ----
+pretty_vars <- c(
+  "mPAP_mmHg"    = "mPAP (mmHg)",
+  "sPAP_mmHg"    = "sPAP (mmHg)",
+  "PVR_WU"       = "PVR (WU)",
+  "PCW_mmHg"     = "PCWP (mmHg)",
+  "TAPSE_mm"     = "TAPSE (mm)",
+  "RVIT_mm"      = "RVIT (mm)",
+  "LVEF_percent" = "LVEF (%)",
+  "LVEDD_mm"     = "LVEDD (mm)"
+)
+
+pretty_celltypes <- c(
+  "Cardiomyocytes"       = "Cardiomyocytes",
+  "Fibroblasts"          = "Fibroblasts",
+  "Endothelial_cells"    = "Endothelial cells",
+  "Pericytes"            = "Pericytes",
+  "Smooth_muscle_cells"  = "Smooth muscle cells",
+  "Macrophages"          = "Macrophages",
+  "Neuronal_cells"       = "Neuronal cells",
+  "T_lymphocytes"        = "T lymphocytes",
+  "Endocardial_cells"    = "Endocardial cells"
+)
+
+# ---- Read all DEG count summaries ----
+deg_summary_list <- lapply(cell_types, function(celltype) {
+  file <- file.path(output_dir_data, paste0(celltype, "_n_de_genes.csv"))
+
+  read.csv(file) %>%
+    dplyr::select(metadata, n_tot) %>%
+    dplyr::rename(parameter = metadata) %>%
+    dplyr::mutate(cell_type = celltype)
+})
+
+deg_summary <- dplyr::bind_rows(deg_summary_list) %>%
+  dplyr::filter(parameter %in% vars_keep) %>%
+  dplyr::mutate(
+    parameter = factor(parameter, levels = vars_keep),
+    parameter_label = factor(
+      pretty_vars[as.character(parameter)],
+      levels = rev(pretty_vars[vars_keep])
+    ),
+    cell_type = factor(cell_type, levels = cell_types),
+    cell_type_label = factor(
+      pretty_celltypes[as.character(cell_type)],
+      levels = pretty_celltypes[cell_types]
+    )
+  )
+
+# ---- Make sure missing combinations are shown as 0 ----
+deg_summary_plot <- deg_summary %>%
+  tidyr::complete(
+    parameter_label,
+    cell_type_label,
+    fill = list(n_tot = 0)
+  )
+
+ggplot(deg_summary_plot, aes(x = cell_type_label, y = parameter_label, fill = n_tot)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(
+    aes(label = ifelse(n_tot == 0, "", n_tot)),
+    size = 3.5,
+    color = "black"
+  ) +
+  scale_fill_gradient(
+    low = "grey95",
+    high = "#A63A2A",
+    limits = c(0, max(deg_summary_plot$n_tot, na.rm = TRUE))
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    fill = NULL
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    axis.line = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1,
+      face = "bold",
+      size = 11,
+      color = "black"
+    ),
+    axis.text.y = element_text(
+      face = "bold",
+      size = 12,
+      color = "black"
+    ),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    plot.margin = margin(t = 5, r = 6, b = 5, l = 5)
+  ) +
+  guides(
+    fill = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(4.0, "cm"),
+      barheight = unit(0.35, "cm")
+    )
+  )
+```
+
+```{r}
+deg_scale_max <- max(unlist(lapply(cell_types, function(celltype) {
+  file <- file.path(output_dir_data, paste0(celltype, "_n_de_genes.csv"))
+
+  x <- read.csv(file)
+
+  c(
+    x$n_upregulated[x$metadata %in% vars_keep],
+    x$n_downregulated[x$metadata %in% vars_keep]
+  )
+})), na.rm = TRUE)
+```
+
+```{r deg_count_heatmap_simple_mainfig_narrow_upregulated, fig.width=5, fig.height=5.4, dpi=300}
+cell_types <- c(
+  "Cardiomyocytes",
+  "Fibroblasts",
+  "Endothelial_cells",
+  "Pericytes",
+  "Smooth_muscle_cells",
+  "Macrophages",
+  "Neuronal_cells",
+  "T_lymphocytes",
+  "Endocardial_cells"
+)
+
+vars_keep <- c(
+  "mPAP_mmHg",
+  "sPAP_mmHg",
+  "PVR_WU",
+  "PCW_mmHg",
+  "TAPSE_mm",
+  "RVIT_mm",
+  "LVEF_percent",
+  "LVEDD_mm"
+)
+
+pretty_vars <- c(
+  "mPAP_mmHg"    = "mPAP (mmHg)",
+  "sPAP_mmHg"    = "sPAP (mmHg)",
+  "PVR_WU"       = "PVR (WU)",
+  "PCW_mmHg"     = "PCWP (mmHg)",
+  "TAPSE_mm"     = "TAPSE (mm)",
+  "RVIT_mm"      = "RVIT (mm)",
+  "LVEF_percent" = "LVEF (%)",
+  "LVEDD_mm"     = "LVEDD (mm)"
+)
+
+pretty_celltypes <- c(
+  "Cardiomyocytes"       = "Cardiomyocytes",
+  "Fibroblasts"          = "Fibroblasts",
+  "Endothelial_cells"    = "Endothelial cells",
+  "Pericytes"            = "Pericytes",
+  "Smooth_muscle_cells"  = "Smooth muscle cells",
+  "Macrophages"          = "Macrophages",
+  "Neuronal_cells"       = "Neuronal cells",
+  "T_lymphocytes"        = "T lymphocytes",
+  "Endocardial_cells"    = "Endocardial cells"
+)
+
+deg_summary_list <- lapply(cell_types, function(celltype) {
+  file <- file.path(output_dir_data, paste0(celltype, "_n_de_genes.csv"))
+
+  read.csv(file) %>%
+    dplyr::select(metadata, n_upregulated) %>%
+    dplyr::rename(parameter = metadata, n_tot = n_upregulated) %>%
+    dplyr::mutate(cell_type = celltype)
+})
+
+deg_summary <- dplyr::bind_rows(deg_summary_list) %>%
+  dplyr::filter(parameter %in% vars_keep) %>%
+  dplyr::mutate(
+    parameter = factor(parameter, levels = vars_keep),
+    parameter_label = factor(
+      pretty_vars[as.character(parameter)],
+      levels = rev(pretty_vars[vars_keep])
+    ),
+    cell_type = factor(cell_type, levels = cell_types),
+    cell_type_label = factor(
+      pretty_celltypes[as.character(cell_type)],
+      levels = pretty_celltypes[cell_types]
+    )
+  )
+
+deg_summary_plot <- deg_summary %>%
+  tidyr::complete(
+    parameter_label,
+    cell_type_label,
+    fill = list(n_tot = 0)
+  )
+
+ggplot(deg_summary_plot, aes(x = cell_type_label, y = parameter_label, fill = n_tot)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(
+    aes(label = ifelse(n_tot == 0, "", n_tot)),
+    size = 3.5,
+    color = "black"
+  ) +
+  scale_fill_gradient(
+    low = "grey95",
+    high = "#A63A2A",
+    limits = c(0, deg_scale_max)
+  ) +
+  labs(
+    title = "Upregulated genes",
+    x = NULL,
+    y = NULL,
+    fill = NULL
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    axis.line = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1,
+      face = "bold",
+      size = 11,
+      color = "black"
+    ),
+    axis.text.y = element_text(
+      face = "bold",
+      size = 12,
+      color = "black"
+    ),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    plot.margin = margin(t = 5, r = 6, b = 5, l = 5)
+  ) +
+  guides(
+    fill = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(4.0, "cm"),
+      barheight = unit(0.35, "cm")
+    )
+  )
+```
+
+```{r deg_count_heatmap_simple_mainfig_narrow_downregulated, fig.width=5, fig.height=5.4, dpi=300}
+deg_summary_list <- lapply(cell_types, function(celltype) {
+  file <- file.path(output_dir_data, paste0(celltype, "_n_de_genes.csv"))
+
+  read.csv(file) %>%
+    dplyr::select(metadata, n_downregulated) %>%
+    dplyr::rename(parameter = metadata, n_tot = n_downregulated) %>%
+    dplyr::mutate(cell_type = celltype)
+})
+
+deg_summary <- dplyr::bind_rows(deg_summary_list) %>%
+  dplyr::filter(parameter %in% vars_keep) %>%
+  dplyr::mutate(
+    parameter = factor(parameter, levels = vars_keep),
+    parameter_label = factor(
+      pretty_vars[as.character(parameter)],
+      levels = rev(pretty_vars[vars_keep])
+    ),
+    cell_type = factor(cell_type, levels = cell_types),
+    cell_type_label = factor(
+      pretty_celltypes[as.character(cell_type)],
+      levels = pretty_celltypes[cell_types]
+    )
+  )
+
+deg_summary_plot <- deg_summary %>%
+  tidyr::complete(
+    parameter_label,
+    cell_type_label,
+    fill = list(n_tot = 0)
+  )
+
+ggplot(deg_summary_plot, aes(x = cell_type_label, y = parameter_label, fill = n_tot)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(
+    aes(label = ifelse(n_tot == 0, "", n_tot)),
+    size = 3.5,
+    color = "black"
+  ) +
+  scale_fill_gradient(
+    low = "grey95",
+    high = "#A63A2A",
+    limits = c(0, deg_scale_max)
+  ) +
+  labs(
+    title = "Downregulated genes",
+    x = NULL,
+    y = NULL,
+    fill = NULL
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    axis.line = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1,
+      face = "bold",
+      size = 11,
+      color = "black"
+    ),
+    axis.text.y = element_text(
+      face = "bold",
+      size = 12,
+      color = "black"
+    ),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    plot.margin = margin(t = 5, r = 6, b = 5, l = 5)
+  ) +
+  guides(
+    fill = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(4.0, "cm"),
+      barheight = unit(0.35, "cm")
+    )
+  )
+```
+
+## Cardiomyocyte threshold-based differential expression
+
+
+```{r Cardiomyocytes_threshold_DE_setup}
+if (!"TAPSE_sPAP" %in% colnames(metadata_DCM)) {
+  metadata_DCM$TAPSE_sPAP <- metadata_DCM$TAPSE_mm / metadata_DCM$sPAP_mmHg
+}
+
+cm_threshold_contrasts <- list(
+  mPAP_ge35 = list(
+    variable = "mPAP_mmHg",
+    test_fun = function(x) x >= 35,
+    test_label = "mPAP >=35",
+    reference_label = "<35"
+  ),
+  TAPSE_lt16 = list(
+    variable = "TAPSE_mm",
+    test_fun = function(x) x < 16,
+    test_label = "TAPSE <16",
+    reference_label = ">=16"
+  ),
+  RVIT_ge42 = list(
+    variable = "RVIT_mm",
+    test_fun = function(x) x >= 42,
+    test_label = "RVIT >=42",
+    reference_label = "<42"
+  ),
+  TAPSE_sPAP_le032 = list(
+    variable = "TAPSE_sPAP",
+    test_fun = function(x) x <= 0.32,
+    test_label = "TAPSE/sPAP <=0.32",
+    reference_label = ">0.32"
+  )
+)
+
+# ---- Read cardiomyocyte pseudobulk object generated above ----
+cm_pseudocounts <- readRDS(here::here(output_dir_data, "Cardiomyocytes_pseudocounts.rds"))
+
+cm_percent_stats <- read.csv(here::here(output_dir_data, "Cardiomyocytes_percent_stats.csv"))
+rownames(cm_percent_stats) <- cm_percent_stats$gene
+
+cm_samples <- intersect(metadata_DCM$Sample, colnames(cm_pseudocounts$counts))
+metadata_DCM_cm <- metadata_DCM %>%
+  dplyr::filter(Sample %in% cm_samples) %>%
+  dplyr::arrange(match(Sample, cm_samples))
+
+cm_pseudocounts_DCM <- cm_pseudocounts[, metadata_DCM_cm$Sample]
+all.equal(metadata_DCM_cm$Sample, colnames(cm_pseudocounts_DCM$counts))
+```
+
+```{r Cardiomyocytes_threshold_DE}
+cm_threshold_results <- list()
+cm_threshold_signif <- list()
+cm_threshold_volcano <- list()
+cm_threshold_n_de_genes <- data.frame()
+
+for (contrast_name in names(cm_threshold_contrasts)) {
+
+  contrast_info <- cm_threshold_contrasts[[contrast_name]]
+  variable <- contrast_info$variable
+
+  metadata_subset <- metadata_DCM_cm %>%
+    dplyr::filter(!is.na(.data[[variable]]), !is.na(Age_years)) %>%
+    dplyr::mutate(
+      DE_group = ifelse(contrast_info$test_fun(.data[[variable]]), "test", "reference"),
+      DE_group = factor(DE_group, levels = c("reference", "test"))
+    )
+
+  n_test <- sum(metadata_subset$DE_group == "test")
+  n_reference <- sum(metadata_subset$DE_group == "reference")
+
+  contrast_label <- paste0(
+    contrast_info$test_label, " (n=", n_test, ") vs ",
+    contrast_info$reference_label, " (n=", n_reference, ")"
+  )
+
+  pseudocounts_subset <- cm_pseudocounts_DCM[, metadata_subset$Sample]
+  pseudocounts_subset <- normLibSizes(pseudocounts_subset)
+
+  design <- model.matrix(~ DE_group + Age_years, data = metadata_subset)
+
+  pseudocounts_subset <- estimateDisp(pseudocounts_subset, design)
+
+  fit <- glmQLFit(pseudocounts_subset, design, robust = TRUE)
+  fit <- glmQLFTest(fit, coef = "DE_grouptest")
+
+  res <- topTags(fit, n = Inf)$table
+
+  if (!"gene" %in% colnames(res)) {
+    res <- res %>%
+      tibble::rownames_to_column("gene")
+  }
+
+  res <- res %>%
+    dplyr::left_join(cm_percent_stats[, c("gene", "percentCells")], by = "gene") %>%
+    dplyr::arrange(FDR)
+
+  sig <- res %>%
+    dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>%
+    dplyr::arrange(FDR)
+
+  cm_threshold_results[[contrast_name]] <- res
+  cm_threshold_signif[[contrast_name]] <- sig
+
+  write.csv(
+    res,
+    file = here::here(output_dir_data, paste0("Cardiomyocytes_DE_Results_threshold_", contrast_name, ".csv")),
+    quote = FALSE,
+    row.names = FALSE
+  )
+
+  write.csv(
+    sig,
+    file = here::here(output_dir_data, paste0("Cardiomyocytes_DE_Significant_threshold_", contrast_name, ".csv")),
+    quote = FALSE,
+    row.names = FALSE
+  )
+
+  cm_threshold_n_de_genes_temp <- data.frame(
+    contrast = contrast_name,
+    variable = variable,
+    comparison = contrast_label,
+    n_test = n_test,
+    n_reference = n_reference,
+    n_upregulated = sum(sig$logFC > 0.5),
+    n_downregulated = sum(sig$logFC < -0.5),
+    n_tot = nrow(sig)
+  )
+
+  cm_threshold_n_de_genes <- rbind(cm_threshold_n_de_genes, cm_threshold_n_de_genes_temp)
+
+  keyvals <- rep("grey", nrow(res))
+  names(keyvals) <- rep("Not significant", nrow(res))
+
+  keyvals[res$logFC > 0.5 & res$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+
+  keyvals[res$logFC < -0.5 & res$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+  cm_threshold_volcano[[contrast_name]] <- EnhancedVolcano(
+    res,
+    lab = res$gene,
+    x = "logFC",
+    y = "FDR",
+    labSize = 0,
+    titleLabSize = 13,
+    subtitleLabSize = 8,
+    axisLabSize = 12,
+    captionLabSize = 9,
+    pointSize = 0.5,
+    FCcutoff = 0.5,
+    pCutoff = 0.05,
+    ylim = c(0, 3.5),
+    colCustom = keyvals,
+    colAlpha = 1,
+    drawConnectors = FALSE,
+    title = "Cardiomyocytes",
+    subtitle = contrast_label
+  ) +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5, size = 8)
+    )
+
+  ggsave(
+    filename = here::here(output_dir_figs, paste0("Cardiomyocytes_volcano_threshold_", contrast_name, ".png")),
+    plot = cm_threshold_volcano[[contrast_name]],
+    width = 3,
+    height = 4.5,
+    dpi = 600
+  )
+}
+
+write.csv(
+  cm_threshold_n_de_genes,
+  file = here::here(output_dir_data, "Cardiomyocytes_threshold_n_de_genes.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+reactable(
+  cm_threshold_n_de_genes,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)
+
+rm(
+  contrast_name, contrast_info, variable, metadata_subset, n_test, n_reference,
+  contrast_label, pseudocounts_subset, design, fit, res, sig, keyvals,
+  cm_threshold_n_de_genes_temp
+)
+```
+
+```{r Cardiomyocytes_threshold_volcano_mPAP_ge35, fig.width=3, fig.height=4.5, dpi=300}
+cm_threshold_volcano[["mPAP_ge35"]]
+```
+
+```{r Cardiomyocytes_threshold_volcano_TAPSE_lt16, fig.width=3, fig.height=4.5, dpi=300}
+cm_threshold_volcano[["TAPSE_lt16"]]
+```
+
+```{r Cardiomyocytes_threshold_volcano_RVIT_ge42, fig.width=3, fig.height=4.5, dpi=300}
+cm_threshold_volcano[["RVIT_ge42"]]
+```
+
+```{r Cardiomyocytes_threshold_volcano_TAPSE_sPAP_le032, fig.width=3, fig.height=4.5, dpi=300}
+cm_threshold_volcano[["TAPSE_sPAP_le032"]]
+```
+
+## mPAP threshold differential expression in all cell types
+
+Repeat the mPAP >=35 versus <35 comparison in all cell types included in the continuous differential expression analysis. The cardiomyocyte analysis above is kept unchanged and is used for the figures.
+
+```{r mPAP_threshold_all_cell_types, eval=TRUE}
+threshold_cell_types <- c(
+  "Fibroblasts",
+  "Endothelial_cells",
+  "Pericytes",
+  "Macrophages",
+  "T_lymphocytes",
+  "Smooth_muscle_cells",
+  "Neuronal_cells",
+  "Endocardial_cells"
+)
+
+mPAP_threshold_all_summary <- cm_threshold_n_de_genes %>%
+  dplyr::filter(contrast == "mPAP_ge35") %>%
+  dplyr::mutate(cell_type = "Cardiomyocytes", .before = 1)
+
+for (celltype in threshold_cell_types) {
+  threshold_pseudocounts <- readRDS(
+    here::here(output_dir_data, paste0(celltype, "_pseudocounts.rds"))
+  )
+  threshold_percent_stats <- read.csv(
+    here::here(output_dir_data, paste0(celltype, "_percent_stats.csv"))
+  )
+
+  threshold_samples <- intersect(
+    metadata_DCM$Sample,
+    colnames(threshold_pseudocounts$counts)
+  )
+
+  threshold_metadata <- metadata_DCM %>%
+    dplyr::filter(
+      Sample %in% threshold_samples,
+      !is.na(mPAP_mmHg),
+      !is.na(Age_years)
+    ) %>%
+    dplyr::arrange(match(Sample, threshold_samples)) %>%
+    dplyr::mutate(
+      DE_group = ifelse(mPAP_mmHg >= 35, "test", "reference"),
+      DE_group = factor(DE_group, levels = c("reference", "test"))
+    )
+
+  n_test <- sum(threshold_metadata$DE_group == "test")
+  n_reference <- sum(threshold_metadata$DE_group == "reference")
+
+  if (n_test < 2L | n_reference < 2L) {
+    stop(
+      "Fewer than two samples are available in one of the mPAP threshold groups for ",
+      celltype,
+      "."
+    )
+  }
+
+  threshold_pseudocounts_subset <- threshold_pseudocounts[, threshold_metadata$Sample]
+  threshold_pseudocounts_subset <- normLibSizes(threshold_pseudocounts_subset)
+
+  threshold_design <- model.matrix(~ DE_group + Age_years, data = threshold_metadata)
+  threshold_pseudocounts_subset <- estimateDisp(threshold_pseudocounts_subset, threshold_design)
+
+  threshold_fit <- glmQLFit(threshold_pseudocounts_subset, threshold_design, robust = TRUE)
+  threshold_fit <- glmQLFTest(threshold_fit, coef = "DE_grouptest")
+
+  threshold_results <- topTags(threshold_fit, n = Inf)$table
+
+  if (!"gene" %in% colnames(threshold_results)) {
+    threshold_results <- threshold_results %>%
+      tibble::rownames_to_column("gene")
+  }
+
+  threshold_results <- threshold_results %>%
+    dplyr::left_join(
+      threshold_percent_stats[, c("gene", "percentCells")],
+      by = "gene"
+    ) %>%
+    dplyr::arrange(FDR)
+
+  threshold_significant <- threshold_results %>%
+    dplyr::filter(FDR < 0.05, abs(logFC) > 0.5) %>%
+    dplyr::arrange(FDR)
+
+  write.csv(
+    threshold_results,
+    file = here::here(
+      output_dir_data,
+      paste0(celltype, "_DE_Results_threshold_mPAP_ge35.csv")
+    ),
+    quote = FALSE,
+    row.names = FALSE
+  )
+
+  write.csv(
+    threshold_significant,
+    file = here::here(
+      output_dir_data,
+      paste0(celltype, "_DE_Significant_threshold_mPAP_ge35.csv")
+    ),
+    quote = FALSE,
+    row.names = FALSE
+  )
+
+  threshold_summary <- data.frame(
+    cell_type = celltype,
+    contrast = "mPAP_ge35",
+    variable = "mPAP_mmHg",
+    comparison = paste0(
+      "mPAP >=35 (n=", n_test, ") vs <35 (n=", n_reference, ")"
+    ),
+    n_test = n_test,
+    n_reference = n_reference,
+    n_upregulated = sum(threshold_significant$logFC > 0.5),
+    n_downregulated = sum(threshold_significant$logFC < -0.5),
+    n_tot = nrow(threshold_significant)
+  )
+
+  mPAP_threshold_all_summary <- rbind(
+    mPAP_threshold_all_summary,
+    threshold_summary
+  )
+}
+
+write.csv(
+  mPAP_threshold_all_summary,
+  file = here::here(output_dir_data, "mPAP_ge35_all_cell_types_summary.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+reactable(
+  mPAP_threshold_all_summary,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)
+
+rm(
+  celltype, threshold_pseudocounts, threshold_percent_stats,
+  threshold_samples, threshold_metadata, n_test, n_reference,
+  threshold_pseudocounts_subset, threshold_design, threshold_fit,
+  threshold_results, threshold_significant, threshold_summary
+)
+```
+
+## mPAP linear versus mPAP threshold comparison
+
+```{r Cardiomyocytes_mPAP_linear_threshold_prepare}
+cm_mpap_linear <- read.csv(
+  here::here(output_dir_data, "Cardiomyocytes_DE_Results_mPAP_mmHg.csv")
+)
+
+cm_mpap_threshold <- cm_threshold_results[["mPAP_ge35"]]
+
+cm_mpap_linear_sig <- cm_mpap_linear %>%
+  dplyr::filter(FDR < 0.05, abs(logFC) > 0.5)
+
+cm_mpap_threshold_sig <- cm_mpap_threshold %>%
+  dplyr::filter(FDR < 0.05, abs(logFC) > 0.5)
+
+cm_mpap_gene_sets <- list(
+  "Linear mPAP up" = cm_mpap_linear_sig %>%
+    dplyr::filter(logFC > 0.5) %>%
+    dplyr::pull(gene),
+  "mPAP >=35 up" = cm_mpap_threshold_sig %>%
+    dplyr::filter(logFC > 0.5) %>%
+    dplyr::pull(gene),
+  "Linear mPAP down" = cm_mpap_linear_sig %>%
+    dplyr::filter(logFC < -0.5) %>%
+    dplyr::pull(gene),
+  "mPAP >=35 down" = cm_mpap_threshold_sig %>%
+    dplyr::filter(logFC < -0.5) %>%
+    dplyr::pull(gene)
+)
+
+cm_mpap_overlap_table <- tibble(
+  gene = unique(unlist(cm_mpap_gene_sets)),
+  linear_mPAP_up = gene %in% cm_mpap_gene_sets[["Linear mPAP up"]],
+  threshold_mPAP_ge35_up = gene %in% cm_mpap_gene_sets[["mPAP >=35 up"]],
+  linear_mPAP_down = gene %in% cm_mpap_gene_sets[["Linear mPAP down"]],
+  threshold_mPAP_ge35_down = gene %in% cm_mpap_gene_sets[["mPAP >=35 down"]]
+)
+
+write.csv(
+  cm_mpap_overlap_table,
+  file = here::here(output_dir_data, "Cardiomyocytes_mPAP_linear_vs_threshold_overlap_genes.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+cm_mpap_overlap_summary <- tibble(
+  comparison = c(
+    "Linear up and threshold up",
+    "Linear down and threshold down",
+    "Linear up and threshold down",
+    "Linear down and threshold up"
+  ),
+  n_genes = c(
+    sum(cm_mpap_overlap_table$linear_mPAP_up & cm_mpap_overlap_table$threshold_mPAP_ge35_up),
+    sum(cm_mpap_overlap_table$linear_mPAP_down & cm_mpap_overlap_table$threshold_mPAP_ge35_down),
+    sum(cm_mpap_overlap_table$linear_mPAP_up & cm_mpap_overlap_table$threshold_mPAP_ge35_down),
+    sum(cm_mpap_overlap_table$linear_mPAP_down & cm_mpap_overlap_table$threshold_mPAP_ge35_up)
+  )
+)
+
+write.csv(
+  cm_mpap_overlap_summary,
+  file = here::here(output_dir_data, "Cardiomyocytes_mPAP_linear_vs_threshold_overlap_summary.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+cm_mpap_compare <- cm_mpap_linear %>%
+  dplyr::select(gene, logFC_linear = logFC, FDR_linear = FDR, PValue_linear = PValue) %>%
+  dplyr::inner_join(
+    cm_mpap_threshold %>%
+      dplyr::select(gene, logFC_threshold = logFC, FDR_threshold = FDR, PValue_threshold = PValue),
+    by = "gene"
+  ) %>%
+  dplyr::mutate(
+    linear_significant = FDR_linear < 0.05 & abs(logFC_linear) > 0.5,
+    threshold_significant = FDR_threshold < 0.05 & abs(logFC_threshold) > 0.5,
+    significance_group = dplyr::case_when(
+      linear_significant & threshold_significant ~ "Both",
+      linear_significant & !threshold_significant ~ "Linear only",
+      !linear_significant & threshold_significant ~ "mPAP >=35 only",
+      TRUE ~ "Not significant"
+    ),
+    neglog10FDR_linear = -log10(pmax(FDR_linear, .Machine$double.xmin)),
+    neglog10FDR_threshold = -log10(pmax(FDR_threshold, .Machine$double.xmin)),
+    neglog10FDR_linear = pmin(neglog10FDR_linear, 50),
+    neglog10FDR_threshold = pmin(neglog10FDR_threshold, 50)
+  )
+
+write.csv(
+  cm_mpap_compare,
+  file = here::here(output_dir_data, "Cardiomyocytes_mPAP_linear_vs_threshold_all_genes.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+cm_mpap_logFC_cor <- cor(
+  cm_mpap_compare$logFC_linear,
+  cm_mpap_compare$logFC_threshold,
+  use = "complete.obs",
+  method = "pearson"
+)
+
+cm_mpap_FDR_cor <- cor(
+  cm_mpap_compare$neglog10FDR_linear,
+  cm_mpap_compare$neglog10FDR_threshold,
+  use = "complete.obs",
+  method = "pearson"
+)
+```
+
+```{r Cardiomyocytes_mPAP_linear_threshold_upset, fig.width=4.35, fig.height=4.5, dpi=300}
+cm_mpap_comb_mat <- ComplexHeatmap::make_comb_mat(cm_mpap_gene_sets, mode = "intersect")
+
+# Keep only real overlaps, so the top bars do not repeat the single-set sizes shown on the right.
+cm_mpap_comb_mat_overlap <- cm_mpap_comb_mat[ComplexHeatmap::comb_degree(cm_mpap_comb_mat) >= 2]
+
+ComplexHeatmap::UpSet(
+  cm_mpap_comb_mat_overlap,
+  column_title = "Cardiomyocytes: mPAP linear vs mPAP >=35",
+  comb_order = order(ComplexHeatmap::comb_size(cm_mpap_comb_mat_overlap), decreasing = TRUE),
+  top_annotation = ComplexHeatmap::upset_top_annotation(
+    cm_mpap_comb_mat_overlap,
+    add_numbers = TRUE
+  ),
+  right_annotation = ComplexHeatmap::upset_right_annotation(
+    cm_mpap_comb_mat_overlap,
+    add_numbers = TRUE
+  )
+)
+```
+
+```{r Cardiomyocytes_mPAP_logFC_correlation, fig.width=4, fig.height=4, dpi=300}
+cm_mpap_logFC_plot <- ggplot(
+  cm_mpap_compare,
+  aes(x = logFC_linear, y = logFC_threshold)
+) +
+  coord_equal(xlim = c(-6, 6), ylim = c(-6, 6)) +
+  scale_x_continuous(breaks = c(-6, -3, 0, 3, 6)) +
+  scale_y_continuous(breaks = c(-6, -3, 0, 3, 6)) +
+  geom_point(aes(color = significance_group), size = 0.7, alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", linewidth = 0.4) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.5) +
+  scale_color_manual(
+    values = c(
+      "Both" = "black",
+      "Linear only" = "#004C8C",
+      "mPAP >=35 only" = "#A63A2A",
+      "Not significant" = "grey75"
+    )
+  ) +
+  annotate(
+    "text",
+    x = -Inf,
+    y = Inf,
+    hjust = -0.05,
+    vjust = 1.2,
+    size = 3.5,
+    label = paste0("Pearson r = ", round(cm_mpap_logFC_cor, 2))
+  ) +
+  theme_classic() +
+  theme(
+    text = element_text(size = 12),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(
+    title = "Cardiomyocytes",
+    x = "mPAP linear log2FC",
+    y = "mPAP >=35 log2FC"
+  )
+
+cm_mpap_logFC_plot
+
+ggsave(
+  filename = here::here(output_dir_figs, "Cardiomyocytes_mPAP_linear_vs_threshold_logFC_correlation.png"),
+  plot = cm_mpap_logFC_plot,
+  width = 4,
+  height = 4,
+  dpi = 600
+)
+```
+
+```{r Cardiomyocytes_mPAP_FDR_correlation, fig.width=4, fig.height=4, dpi=300}
+cm_mpap_FDR_plot <- ggplot(
+  cm_mpap_compare,
+  aes(x = neglog10FDR_linear, y = neglog10FDR_threshold)
+) +
+  geom_point(aes(color = significance_group), size = 0.7, alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", linewidth = 0.4) +
+  scale_color_manual(
+    values = c(
+      "Both" = "black",
+      "Linear only" = "#004C8C",
+      "mPAP >=35 only" = "#A63A2A",
+      "Not significant" = "grey75"
+    )
+  ) +
+  annotate(
+    "text",
+    x = -Inf,
+    y = Inf,
+    hjust = -0.05,
+    vjust = 1.2,
+    size = 3.5,
+    label = paste0("Pearson r = ", round(cm_mpap_FDR_cor, 2))
+  ) +
+  theme_classic() +
+  theme(
+    text = element_text(size = 12),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(
+    title = "Cardiomyocytes",
+    x = expression("mPAP linear " * -log[10] * " FDR"),
+    y = expression("mPAP >=35 " * -log[10] * " FDR")
+  )
+
+cm_mpap_FDR_plot
+
+ggsave(
+  filename = here::here(output_dir_figs, "Cardiomyocytes_mPAP_linear_vs_threshold_FDR_correlation.png"),
+  plot = cm_mpap_FDR_plot,
+  width = 4,
+  height = 4,
+  dpi = 600
+)
+```
+
+## RV compensation and decompensation
+
+Patients with mPAP >20 mmHg were classified as compensated or
+decompensated using a TAPSE/sPAP threshold of 0.36.
+
+```{r RV_state_definition_prepare}
+required_rv_state_columns <- c(
+  "Sample",
+  "Age_years",
+  "mPAP_mmHg",
+  "sPAP_mmHg",
+  "TAPSE_mm"
+)
+
+missing_rv_state_columns <- setdiff(
+  required_rv_state_columns,
+  colnames(metadata_DCM)
+)
+
+if (length(missing_rv_state_columns) > 0L) {
+  stop(
+    "Missing metadata columns: ",
+    paste(
+      missing_rv_state_columns,
+      collapse = ", "
+    )
+  )
+}
+
+rv_state_metadata <- metadata_DCM %>%
+  dplyr::select(
+    dplyr::all_of(
+      required_rv_state_columns
+    )
+  ) %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(
+    TAPSE_sPAP =
+      TAPSE_mm /
+      sPAP_mmHg
+  ) %>%
+  dplyr::filter(
+    is.finite(mPAP_mmHg),
+    is.finite(TAPSE_sPAP)
+  ) %>%
+  dplyr::mutate(
+    RV_state = dplyr::case_when(
+      mPAP_mmHg <= 20 ~
+        "Not overloaded",
+      TAPSE_sPAP > 0.36 ~
+        "Compensated",
+      TAPSE_sPAP <= 0.36 ~
+        "Decompensated",
+      TRUE ~ NA_character_
+    ),
+    RV_state = factor(
+      RV_state,
+      levels = c(
+        "Not overloaded",
+        "Compensated",
+        "Decompensated"
+      )
+    )
+  ) %>%
+  dplyr::arrange(Sample)
+
+stopifnot(
+  !anyDuplicated(
+    rv_state_metadata$Sample
+  )
+)
+
+rv_state_counts <- rv_state_metadata %>%
+  dplyr::count(
+    RV_state,
+    .drop = FALSE
+  )
+
+rv_state_labels <- stats::setNames(
+  paste0(
+    as.character(
+      rv_state_counts$RV_state
+    ),
+    " (n=",
+    rv_state_counts$n,
+    ")"
+  ),
+  as.character(
+    rv_state_counts$RV_state
+  )
+)
+
+rv_state_cols <- c(
+  "Not overloaded" = "#BDBDBD",
+  "Compensated" = "#E38C82",
+  "Decompensated" = "#9E3434"
+)
+
+write.csv(
+  rv_state_metadata,
+  file = here::here(
+    output_dir_data,
+    paste0(
+      "RV_state_assignments_",
+      "mPAP20_TAPSEsPAP036.csv"
+    )
+  ),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+reactable(
+  rv_state_metadata,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)
+```
+
+```{r RV_state_definition_plot, fig.width=4, fig.height=5.3, dpi=300}
+rv_state_plot <- ggplot(
+  rv_state_metadata,
+  aes(
+    x = mPAP_mmHg,
+    y = TAPSE_sPAP,
+    fill = RV_state
+  )
+) +
+  annotate(
+    "rect",
+    xmin = -Inf,
+    xmax = 20,
+    ymin = -Inf,
+    ymax = Inf,
+    fill = rv_state_cols[
+      "Not overloaded"
+    ],
+    alpha = 0.12
+  ) +
+  annotate(
+    "rect",
+    xmin = 20,
+    xmax = Inf,
+    ymin = 0.36,
+    ymax = Inf,
+    fill = rv_state_cols[
+      "Compensated"
+    ],
+    alpha = 0.10
+  ) +
+  annotate(
+    "rect",
+    xmin = 20,
+    xmax = Inf,
+    ymin = -Inf,
+    ymax = 0.36,
+    fill = rv_state_cols[
+      "Decompensated"
+    ],
+    alpha = 0.08
+  ) +
+  geom_vline(
+    xintercept = 20,
+    linetype = "dashed",
+    linewidth = 0.5
+  ) +
+  geom_hline(
+    yintercept = 0.36,
+    linetype = "dashed",
+    linewidth = 0.5
+  ) +
+  geom_point(
+    shape = 21,
+    size = 3,
+    stroke = 0.4,
+    color = "black"
+  ) +
+  scale_fill_manual(
+    values = rv_state_cols,
+    breaks = levels(
+      rv_state_metadata$RV_state
+    ),
+    labels = rv_state_labels[
+      levels(
+        rv_state_metadata$RV_state
+      )
+    ],
+    drop = FALSE
+  ) +
+  labs(
+    title = "RV state definition",
+    x = "mPAP (mmHg)",
+    y = "TAPSE/sPAP (mm/mmHg)",
+    fill = NULL
+  ) +
+theme_classic(
+  base_size = 12
+) +
+theme(
+  plot.title = element_text(
+    hjust = 0.5,
+    face = "bold",
+    size = 13
+  ),
+  legend.position = "bottom",
+  legend.direction = "vertical",
+  legend.justification = "center",
+  legend.box = "vertical",
+  legend.text = element_text(
+    size = 9
+  ),
+  legend.spacing.y = unit(
+    0.05,
+    "cm"
+  ),
+  legend.margin = margin(
+    t = 4,
+    r = 0,
+    b = 0,
+    l = 0
+  )
+) +
+guides(
+  fill = guide_legend(
+    ncol = 1,
+    byrow = TRUE,
+    title = NULL,
+    override.aes = list(
+      shape = 21,
+      size = 3,
+      color = "black"
+    )
+  )
+)
+
+rv_state_plot
+
+ggsave(
+  filename = here::here(
+    output_dir_figs,
+    paste0(
+      "RV_state_definition_",
+      "mPAP20_TAPSEsPAP036.png"
+    )
+  ),
+  plot = rv_state_plot,
+  width = 3.6,
+  height = 4.5,
+  dpi = 600
+)
+```
+
+## Cardiomyocyte decompensation differential expression
+
+Positive log2 fold changes indicate higher expression in decompensated
+than compensated RVs.
+
+```{r Cardiomyocytes_decompensation_DE}
+cm_decomp_metadata <- rv_state_metadata %>%
+  dplyr::filter(
+    RV_state %in% c(
+      "Compensated",
+      "Decompensated"
+    ),
+    !is.na(Age_years)
+  ) %>%
+  dplyr::mutate(
+    RV_state = factor(
+      as.character(RV_state),
+      levels = c(
+        "Compensated",
+        "Decompensated"
+      )
+    )
+  )
+
+cm_decomp_pseudocounts <- readRDS(
+  here::here(
+    output_dir_data,
+    "Cardiomyocytes_pseudocounts.rds"
+  )
+)
+
+cm_decomp_percent_stats <- read.csv(
+  here::here(
+    output_dir_data,
+    "Cardiomyocytes_percent_stats.csv"
+  )
+)
+
+cm_decomp_samples <- intersect(
+  cm_decomp_metadata$Sample,
+  colnames(
+    cm_decomp_pseudocounts$counts
+  )
+)
+
+cm_decomp_metadata <- cm_decomp_metadata %>%
+  dplyr::filter(
+    Sample %in% cm_decomp_samples
+  ) %>%
+  dplyr::arrange(
+    match(
+      Sample,
+      cm_decomp_samples
+    )
+  )
+
+cm_decomp_pseudocounts <-
+  cm_decomp_pseudocounts[
+    ,
+    cm_decomp_metadata$Sample
+  ]
+
+stopifnot(
+  identical(
+    cm_decomp_metadata$Sample,
+    colnames(
+      cm_decomp_pseudocounts$counts
+    )
+  )
+)
+
+cm_decomp_group_counts <- table(
+  cm_decomp_metadata$RV_state
+)
+
+if (
+  any(
+    cm_decomp_group_counts < 2L
+  )
+) {
+  stop(
+    "Fewer than two samples are available ",
+    "in one of the RV-state groups."
+  )
+}
+
+cm_decomp_pseudocounts <- normLibSizes(
+  cm_decomp_pseudocounts
+)
+
+cm_decomp_design <- model.matrix(
+  ~ RV_state + Age_years,
+  data = cm_decomp_metadata
+)
+
+if (
+  qr(cm_decomp_design)$rank <
+    ncol(cm_decomp_design)
+) {
+  stop(
+    "The compensated/decompensated ",
+    "design matrix is not full rank."
+  )
+}
+
+cm_decomp_pseudocounts <- estimateDisp(
+  cm_decomp_pseudocounts,
+  cm_decomp_design
+)
+
+cm_decomp_fit <- glmQLFit(
+  cm_decomp_pseudocounts,
+  cm_decomp_design,
+  robust = TRUE
+)
+
+cm_decomp_test <- glmQLFTest(
+  cm_decomp_fit,
+  coef = "RV_stateDecompensated"
+)
+
+cm_decomp_results <- topTags(
+  cm_decomp_test,
+  n = Inf
+)$table
+
+if (
+  !"gene" %in%
+    colnames(cm_decomp_results)
+) {
+  cm_decomp_results <-
+    cm_decomp_results %>%
+    tibble::rownames_to_column(
+      "gene"
+    )
+}
+
+cm_decomp_results <- cm_decomp_results %>%
+  dplyr::left_join(
+    cm_decomp_percent_stats %>%
+      dplyr::select(
+        gene,
+        percentCells
+      ),
+    by = "gene"
+  ) %>%
+  dplyr::arrange(FDR)
+
+cm_decomp_significant <-
+  cm_decomp_results %>%
+  dplyr::filter(
+    FDR < 0.05,
+    abs(logFC) > 0.5
+  )
+
+n_compensated <- unname(
+  cm_decomp_group_counts[
+    "Compensated"
+  ]
+)
+
+n_decompensated <- unname(
+  cm_decomp_group_counts[
+    "Decompensated"
+  ]
+)
+
+cm_decomp_summary <- data.frame(
+  cell_type = "Cardiomyocytes",
+  n_compensated = n_compensated,
+  n_decompensated = n_decompensated,
+  n_upregulated = sum(
+    cm_decomp_significant$logFC > 0.5
+  ),
+  n_downregulated = sum(
+    cm_decomp_significant$logFC < -0.5
+  ),
+  n_total = nrow(
+    cm_decomp_significant
+  ),
+  minimum_FDR = min(
+    cm_decomp_results$FDR,
+    na.rm = TRUE
+  )
+)
+
+write.csv(
+  cm_decomp_results,
+  file = here::here(
+    output_dir_data,
+    paste0(
+      "Cardiomyocytes_DE_Results_",
+      "Decompensated_vs_Compensated.csv"
+    )
+  ),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  cm_decomp_significant,
+  file = here::here(
+    output_dir_data,
+    paste0(
+      "Cardiomyocytes_DE_Significant_",
+      "Decompensated_vs_Compensated.csv"
+    )
+  ),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  cm_decomp_summary,
+  file = here::here(
+    output_dir_data,
+    paste0(
+      "Cardiomyocytes_DE_Summary_",
+      "Decompensated_vs_Compensated.csv"
+    )
+  ),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+reactable(
+  cm_decomp_summary
+)
+```
+
+## Decompensation differential expression in all cell types
+
+Repeat the compensated versus decompensated comparison in all cell types included in the continuous differential expression analysis. The cardiomyocyte analysis above is kept unchanged and is used for the figure.
+
+```{r Decompensation_DE_all_cell_types, eval=TRUE}
+decomp_cell_types <- c(
+  "Fibroblasts",
+  "Endothelial_cells",
+  "Pericytes",
+  "Macrophages",
+  "T_lymphocytes",
+  "Smooth_muscle_cells",
+  "Neuronal_cells",
+  "Endocardial_cells"
+)
+
+decomp_all_summary <- cm_decomp_summary
+
+for (celltype in decomp_cell_types) {
+  decomp_metadata <- rv_state_metadata %>%
+    dplyr::filter(
+      RV_state %in% c(
+        "Compensated",
+        "Decompensated"
+      ),
+      !is.na(Age_years)
+    ) %>%
+    dplyr::mutate(
+      RV_state = factor(
+        as.character(RV_state),
+        levels = c(
+          "Compensated",
+          "Decompensated"
+        )
+      )
+    )
+
+  decomp_pseudocounts <- readRDS(
+    here::here(output_dir_data, paste0(celltype, "_pseudocounts.rds"))
+  )
+
+  decomp_percent_stats <- read.csv(
+    here::here(output_dir_data, paste0(celltype, "_percent_stats.csv"))
+  )
+
+  decomp_samples <- intersect(
+    decomp_metadata$Sample,
+    colnames(decomp_pseudocounts$counts)
+  )
+
+  decomp_metadata <- decomp_metadata %>%
+    dplyr::filter(Sample %in% decomp_samples) %>%
+    dplyr::arrange(match(Sample, decomp_samples))
+
+  decomp_pseudocounts <- decomp_pseudocounts[, decomp_metadata$Sample]
+
+  stopifnot(
+    identical(
+      decomp_metadata$Sample,
+      colnames(decomp_pseudocounts$counts)
+    )
+  )
+
+  decomp_group_counts <- table(decomp_metadata$RV_state)
+
+  if (any(decomp_group_counts < 2L)) {
+    stop(
+      "Fewer than two samples are available in one of the RV-state groups for ",
+      celltype,
+      "."
+    )
+  }
+
+  decomp_pseudocounts <- normLibSizes(decomp_pseudocounts)
+  decomp_design <- model.matrix(~ RV_state + Age_years, data = decomp_metadata)
+
+  if (qr(decomp_design)$rank < ncol(decomp_design)) {
+    stop(
+      "The compensated/decompensated design matrix is not full rank for ",
+      celltype,
+      "."
+    )
+  }
+
+  decomp_pseudocounts <- estimateDisp(decomp_pseudocounts, decomp_design)
+  decomp_fit <- glmQLFit(decomp_pseudocounts, decomp_design, robust = TRUE)
+  decomp_test <- glmQLFTest(decomp_fit, coef = "RV_stateDecompensated")
+
+  decomp_results <- topTags(decomp_test, n = Inf)$table
+
+  if (!"gene" %in% colnames(decomp_results)) {
+    decomp_results <- decomp_results %>%
+      tibble::rownames_to_column("gene")
+  }
+
+  decomp_results <- decomp_results %>%
+    dplyr::left_join(
+      decomp_percent_stats %>%
+        dplyr::select(gene, percentCells),
+      by = "gene"
+    ) %>%
+    dplyr::arrange(FDR)
+
+  decomp_significant <- decomp_results %>%
+    dplyr::filter(
+      FDR < 0.05,
+      abs(logFC) > 0.5
+    )
+
+  n_compensated_celltype <- unname(
+    decomp_group_counts["Compensated"]
+  )
+  n_decompensated_celltype <- unname(
+    decomp_group_counts["Decompensated"]
+  )
+
+  decomp_summary <- data.frame(
+    cell_type = celltype,
+    n_compensated = n_compensated_celltype,
+    n_decompensated = n_decompensated_celltype,
+    n_upregulated = sum(decomp_significant$logFC > 0.5),
+    n_downregulated = sum(decomp_significant$logFC < -0.5),
+    n_total = nrow(decomp_significant),
+    minimum_FDR = min(decomp_results$FDR, na.rm = TRUE)
+  )
+
+  write.csv(
+    decomp_results,
+    file = here::here(
+      output_dir_data,
+      paste0(
+        celltype,
+        "_DE_Results_Decompensated_vs_Compensated.csv"
+      )
+    ),
+    quote = FALSE,
+    row.names = FALSE
+  )
+
+  write.csv(
+    decomp_significant,
+    file = here::here(
+      output_dir_data,
+      paste0(
+        celltype,
+        "_DE_Significant_Decompensated_vs_Compensated.csv"
+      )
+    ),
+    quote = FALSE,
+    row.names = FALSE
+  )
+
+  write.csv(
+    decomp_summary,
+    file = here::here(
+      output_dir_data,
+      paste0(
+        celltype,
+        "_DE_Summary_Decompensated_vs_Compensated.csv"
+      )
+    ),
+    quote = FALSE,
+    row.names = FALSE
+  )
+
+  decomp_all_summary <- rbind(
+    decomp_all_summary,
+    decomp_summary
+  )
+}
+
+write.csv(
+  decomp_all_summary,
+  file = here::here(output_dir_data, "Decompensated_vs_Compensated_all_cell_types_summary.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+reactable(
+  decomp_all_summary,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)
+
+rm(
+  celltype, decomp_metadata, decomp_pseudocounts,
+  decomp_percent_stats, decomp_samples, decomp_group_counts,
+  decomp_design, decomp_fit, decomp_test, decomp_results,
+  decomp_significant, n_compensated_celltype,
+  n_decompensated_celltype, decomp_summary
+)
+```
+
+```{r Cardiomyocytes_decompensation_volcano_prepare}
+cm_decomp_keyvals <- rep(
+  "grey",
+  nrow(cm_decomp_results)
+)
+
+names(cm_decomp_keyvals) <- rep(
+  "Not significant",
+  nrow(cm_decomp_results)
+)
+
+cm_decomp_keyvals[
+  cm_decomp_results$logFC > 0.5 &
+    cm_decomp_results$FDR < 0.05
+] <- "#A63A2A"
+
+names(cm_decomp_keyvals)[
+  cm_decomp_keyvals == "#A63A2A"
+] <- "Increased"
+
+cm_decomp_keyvals[
+  cm_decomp_results$logFC < -0.5 &
+    cm_decomp_results$FDR < 0.05
+] <- "#004C8C"
+
+names(cm_decomp_keyvals)[
+  cm_decomp_keyvals == "#004C8C"
+] <- "Decreased"
+
+cm_decomp_comparison_label <- paste0(
+  "Decompensated (n=",
+  n_decompensated,
+  ") vs compensated (n=",
+  n_compensated,
+  ")"
+)
+
+cm_decomp_caption <- paste0(
+  nrow(cm_decomp_significant),
+  " genes at FDR <0.05 and ",
+  "|log2FC| >0.5"
+)
+
+cm_decomp_volcano <- EnhancedVolcano(
+  cm_decomp_results,
+  lab = cm_decomp_results$gene,
+  x = "logFC",
+  y = "FDR",
+  labSize = 0,
+  titleLabSize = 13,
+  subtitleLabSize = 8,
+  captionLabSize = 8,
+  axisLabSize = 12,
+  pointSize = 0.5,
+  FCcutoff = 0.5,
+  pCutoff = 0.05,
+  xlim = c(-5, 5),
+  ylim = c(0, 3.5),
+  colCustom = cm_decomp_keyvals,
+  colAlpha = 1,
+  drawConnectors = FALSE,
+  title = "Cardiomyocytes",
+  subtitle = cm_decomp_comparison_label,
+  caption = cm_decomp_caption
+) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      hjust = 0.5,
+      size = 8
+    ),
+    plot.caption = element_text(
+      hjust = 0.5,
+      size = 8
+    )
+  )
+
+ggsave(
+  filename = here::here(
+    output_dir_figs,
+    paste0(
+      "Cardiomyocytes_volcano_",
+      "Decompensated_vs_Compensated.png"
+    )
+  ),
+  plot = cm_decomp_volcano,
+  width = 3,
+  height = 4.5,
+  dpi = 600
+)
+```
+
+```{r Cardiomyocytes_decompensation_volcano, fig.width=3, fig.height=4.5, dpi=300}
+cm_decomp_volcano
+```
+
+## Figure 2 bottom row
+
+```{r Figure2_bottom_row, fig.width=9.6, fig.height=4.5, dpi=300}
+figure2_bottom_row <-
+  cm_threshold_volcano[["mPAP_ge35"]] |
+  rv_state_plot |
+  cm_decomp_volcano
+
+figure2_bottom_row <-
+  figure2_bottom_row +
+  patchwork::plot_layout(
+    widths = c(
+      1,
+      1.2,
+      1
+    )
+  )
+
+figure2_bottom_row
+
+ggsave(
+  filename = here::here(
+    output_dir_figs,
+    "Figure2_bottom_row.png"
+  ),
+  plot = figure2_bottom_row,
+  width = 9.6,
+  height = 4.5,
+  dpi = 600
+)
+```
+
+## Supplementary data export
+
+```{r Supplementary_data_export, eval=TRUE}
+supp_cell_types <- c(
+  "Cardiomyocytes",
+  "Fibroblasts",
+  "Endothelial_cells",
+  "Pericytes",
+  "Macrophages",
+  "T_lymphocytes",
+  "Smooth_muscle_cells",
+  "Neuronal_cells",
+  "Endocardial_cells"
+)
+
+supp_parameters <- colnames(metadata_DCM)[7:ncol(metadata_DCM)]
+
+supp_data <- list()
+
+supp_data[["Differential_abundance"]] <- differential_abundance
+
+supp_data[["Cell_type_counts"]] <- as.data.frame(props$Counts) %>%
+  tibble::rownames_to_column("cell_type")
+
+supp_data[["Cell_type_proportions"]] <- as.data.frame(props$Proportions) %>%
+  tibble::rownames_to_column("cell_type")
+
+for (celltype in supp_cell_types) {
+  continuous_results <- list()
+
+  for (parameter in supp_parameters) {
+    result_file <- here::here(
+      output_dir_data,
+      paste0(celltype, "_DE_Results_", parameter, ".csv")
+    )
+
+    if (!file.exists(result_file)) {
+      stop("Missing continuous DE result file: ", result_file)
+    }
+
+    result_temp <- read.csv(result_file) %>%
+      dplyr::mutate(parameter = .env$parameter, .before = 1)
+
+    continuous_results[[parameter]] <- result_temp
+  }
+
+  supp_data[[paste0("DE_", celltype)]] <- dplyr::bind_rows(continuous_results)
+}
+
+mPAP_threshold_results <- list()
+decompensation_results <- list()
+
+for (celltype in supp_cell_types) {
+  mPAP_threshold_file <- here::here(
+    output_dir_data,
+    paste0(celltype, "_DE_Results_threshold_mPAP_ge35.csv")
+  )
+
+  if (!file.exists(mPAP_threshold_file)) {
+    stop("Missing mPAP threshold DE result file: ", mPAP_threshold_file)
+  }
+
+  mPAP_threshold_results[[celltype]] <- read.csv(mPAP_threshold_file) %>%
+    dplyr::mutate(cell_type = .env$celltype, .before = 1)
+
+  decompensation_file <- here::here(
+    output_dir_data,
+    paste0(celltype, "_DE_Results_Decompensated_vs_Compensated.csv")
+  )
+
+  if (!file.exists(decompensation_file)) {
+    stop("Missing decompensation DE result file: ", decompensation_file)
+  }
+
+  decompensation_results[[celltype]] <- read.csv(decompensation_file) %>%
+    dplyr::mutate(cell_type = .env$celltype, .before = 1)
+}
+
+supp_data[["mPAP35_DE_all"]] <- dplyr::bind_rows(mPAP_threshold_results)
+supp_data[["RV_state_DE_all"]] <- dplyr::bind_rows(decompensation_results)
+supp_data[["RV_state_assignments"]] <- rv_state_metadata %>%
+  dplyr::mutate(RV_state = as.character(RV_state))
+supp_data[["mPAP_linear_threshold"]] <- cm_mpap_compare
+supp_data[["mPAP_overlap_genes"]] <- cm_mpap_overlap_table
+supp_data[["mPAP_overlap_summary"]] <- cm_mpap_overlap_summary
+
+DEG_counts <- lapply(
+  supp_cell_types,
+  function(celltype) {
+    read.csv(
+      here::here(output_dir_data, paste0(celltype, "_n_de_genes.csv"))
+    ) %>%
+      dplyr::mutate(cell_type = .env$celltype, .before = 1)
+  }
+) %>%
+  dplyr::bind_rows()
+
+supp_data[["DEG_counts"]] <- DEG_counts
+supp_data[["mPAP35_DEG_counts"]] <- mPAP_threshold_all_summary
+supp_data[["RV_state_DEG_counts"]] <- decomp_all_summary
+
+writexl::write_xlsx(
+  supp_data,
+  here::here(output_dir_data, "DA_DE_all_cell_types_SuppData.xlsx")
+)
 ```
 
