@@ -87,8 +87,32 @@ if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
 Load cardiomyocytes dataset
 
 ```{r read DCM_RV}
-DCM_RV <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV_RNA.rds"))
+DCM_RV <- qs2::qs_read(here::here("output", "Add_cell_states_remove_contamination", "DCM_RV_cell_states_RNA.qs2"), nthreads = 32)
 DefaultAssay(DCM_RV) <- "RNA"
+```
+
+```{r}
+Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_22.xlsx"))
+
+# make cell-level metadata by matching Sample
+add_metadata <- DCM_RV[[]] %>%
+  select(Sample) %>%
+  left_join(Clinical_data, by = "Sample")
+
+row.names(add_metadata) <- row.names(DCM_RV[[]])
+
+# remove old columns that are present in the new clinical file
+cols_to_overwrite <- setdiff(colnames(Clinical_data), "Sample")
+
+DCM_RV@meta.data[, cols_to_overwrite] <- NULL
+
+# add corrected metadata
+DCM_RV <- AddMetaData(
+  DCM_RV,
+  metadata = add_metadata
+)
+
+rm(add_metadata, Clinical_data, cols_to_overwrite)
 ```
 
 ```{r meta, fig.height=6, fig.width=12}
@@ -100,7 +124,7 @@ meta <- DCM_RV@meta.data %>%
                   "PCW_mmHg",
                   "PVR_WU",
                   "TAPSE_mm",
-                  "RVID_mm",
+                  "RVIT_mm",
                   "LVEF_percent",
                   "LVEDD_mm")
                 ) %>% 
@@ -110,10 +134,10 @@ meta <- DCM_RV@meta.data %>%
     `Age (years)`    = Age_years,
     `mPAP (mmHg)`    = mPAP_mmHg,
     `sPAP (mmHg)`    = sPAP_mmHg,
-    `PCW (mmHg)`     = PCW_mmHg,
+    `PCWP (mmHg)`     = PCW_mmHg,
     `PVR (WU)`       = PVR_WU,
     `TAPSE (mm)`     = TAPSE_mm,
-    `RVID (mm)`      = RVID_mm,
+    `RVIT (mm)`      = RVIT_mm,
     `LVEF (%)`       = LVEF_percent,
     `LVEDD (mm)`     = LVEDD_mm
   )
@@ -145,11 +169,11 @@ vobj <- voomWithDreamWeights(pb, ~ 1, meta)
 
 form <- ~ `Age (years)` +
   `TAPSE (mm)` +
-  `RVID (mm)` +
+  `RVIT (mm)` +
   `LVEF (%)` +
   `LVEDD (mm)` + 
   `mPAP (mmHg)` +
-  `PCW (mmHg)` +
+  `PCWP (mmHg)` +
   `PVR (WU)` +
   `LibSize`
 
@@ -222,7 +246,7 @@ p <- plotVarPart(varPart) +
 p
 ```
 
-```{r clinical_correlation_matrix, fig.height=8, fig.width=8, message=FALSE, warning=FALSE}
+```{r clinical_correlation_matrix, fig.height=8, fig.width=8, message=FALSE, warning=FALSE, dpi = 300}
 library(Hmisc)
 library(ggtext)
 
@@ -308,5 +332,178 @@ ggplot(df, aes(x = var2, y = var1, fill = r)) +
 
 ```
 
+```{r variance_partitioning_plot_helpers_mainfig}
+vp_order <- names(sort(colMeans(varPart), decreasing = TRUE))
 
+vp_long <- as.data.frame(varPart) %>%
+  tibble::rownames_to_column("gene") %>%
+  tidyr::pivot_longer(
+    cols = -gene,
+    names_to = "variable",
+    values_to = "fraction"
+  ) %>%
+  dplyr::mutate(
+    variable = factor(variable, levels = vp_order),
+    domain = dplyr::case_when(
+      variable %in% c("mPAP (mmHg)", "PCWP (mmHg)", "PVR (WU)", "sPAP (mmHg)") ~ "PH",
+      variable %in% c("RVIT (mm)", "TAPSE (mm)", "RVIT (mm)") ~ "RV",
+      variable %in% c("LVEF (%)", "LVEDD (mm)") ~ "LV",
+      variable %in% c("Age (years)") ~ "Demographic",
+      variable %in% c("LibSize", "BCA (mg/ml)", "Batch") ~ "Technical",
+      variable %in% c("Residuals", "Residual") ~ "Residuals",
+      TRUE ~ "Other"
+    )
+  )
 
+vp_summary <- vp_long %>%
+  dplyr::group_by(variable) %>%
+  dplyr::summarise(
+    mean_fraction = mean(fraction, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+domain_cols <- c(
+  "PH" = "#A63A2A",
+  "RV" = "#1F78B4",
+  "LV" = "#33A02C",
+  "Demographic" = "grey75",
+  "Technical" = "grey45",
+  "Residuals" = "grey85",
+  "Other" = "grey65"
+)
+
+vp_base_theme <- theme_classic(base_size = 14) +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1,
+      size = 12,
+      color = "black"
+    ),
+    axis.text.y = element_text(size = 12, color = "black"),
+    axis.title.y = element_text(size = 14, color = "black"),
+    axis.title.x = element_blank(),
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold",
+      size = 18,
+      color = "black"
+    ),
+    panel.grid.major.y = element_line(color = "grey88", linewidth = 0.35),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r Var_part_vln_mainfig_muted, fig.height=4.8, fig.width=7.2}
+domain_cols_muted <- c(
+  "PH" = "#BC6C5D",
+  "RV" = "#5B9BCB",
+  "LV" = "#7EB77F",
+  "Demographic" = "grey75",
+  "Technical" = "grey45",
+  "Residuals" = "grey85",
+  "Other" = "grey65"
+)
+
+ggplot(vp_long, aes(x = variable, y = fraction, fill = domain)) +
+  geom_violin(
+    color = "grey25",
+    linewidth = 0.35,
+    trim = TRUE,
+    scale = "width",
+    alpha = 0.85
+  ) +
+  geom_boxplot(
+    width = 0.11,
+    fill = "white",
+    color = "black",
+    linewidth = 0.35,
+    outlier.shape = NA
+  ) +
+  geom_point(
+    data = vp_summary,
+    aes(x = variable, y = mean_fraction),
+    inherit.aes = FALSE,
+    size = 2.5,
+    shape = 21,
+    fill = "black",
+    color = "black"
+  ) +
+  scale_fill_manual(values = domain_cols_muted) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.03)),
+    limits = c(0, 1)
+  ) +
+  labs(
+    y = "Fraction of variance explained",
+    title = "Variance partitioning across genes"
+  ) +
+  vp_base_theme +
+  theme(
+    legend.position = "none"
+  )
+```
+
+```{r Var_part_vln_mainfig_no_legend, fig.height=4.8, fig.width=7.2, dpi = 300}
+ggplot(vp_long, aes(x = variable, y = fraction, fill = domain)) +
+  geom_violin(
+    color = "grey25",
+    linewidth = 0.35,
+    trim = TRUE,
+    scale = "width",
+    alpha = 0.8
+  ) +
+  geom_boxplot(
+    width = 0.11,
+    fill = "white",
+    color = "black",
+    linewidth = 0.35,
+    outlier.shape = NA
+  ) +
+  geom_point(
+    data = vp_summary,
+    aes(x = variable, y = mean_fraction),
+    inherit.aes = FALSE,
+    size = 2.5,
+    shape = 21,
+    fill = "black",
+    color = "black"
+  ) +
+  scale_fill_manual(values = domain_cols) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.03)),
+    limits = c(0, 1)
+  ) +
+  labs(
+    y = "Fraction of variance explained",
+    title = "Variance partitioning across genes"
+  ) +
+  vp_base_theme +
+  theme(
+    legend.position = "none"
+  )
+```
+
+## Supplementary data export
+
+```{r Supplementary_data_export, eval=TRUE}
+Variance_by_gene <- as.data.frame(varPart) %>%
+  tibble::rownames_to_column("gene")
+
+Variance_mean <- data.frame(
+  variable = names(vp_mean),
+  mean_fraction = as.numeric(vp_mean)
+)
+
+writexl::write_xlsx(
+  list(
+    Variance_by_gene = Variance_by_gene,
+    Variance_mean = Variance_mean
+  ),
+  here::here(output_dir_data, "Variance_partitioning_SuppData.xlsx")
+)
+```
