@@ -136,14 +136,14 @@ table(DCM_RV$cell_type, DCM_RV$cell_state, useNA = "ifany")
 
 ## Save final objects
 
-```{r save DCM_RV cell states, eval = FALSE}
+```{r save DCM_RV cell states, eval = TRUE}
 qs_save(DCM_RV,
         file = here::here(output_dir_data, "DCM_RV_cell_states.qs2"),
         nthreads = 32
         )
 ```
 
-```{r save DCM_RV cell states RNA, eval = FALSE}
+```{r save DCM_RV cell states RNA, eval = TRUE}
 DCM_RV_RNA <- DCM_RV
 DCM_RV_RNA@assays[["SCT"]] <- NULL
 DefaultAssay(DCM_RV_RNA) <- "RNA"
