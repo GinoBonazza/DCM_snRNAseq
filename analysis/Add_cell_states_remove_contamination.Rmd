@@ -1,0 +1,155 @@
+---
+title: "Add cell states and remove contamination"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "Add_cell_states_remove_contamination"
+
+# Load libraries
+library(here)
+library(dplyr)
+library(Seurat)
+library(qs2)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+## Load dataset
+
+Load the complete DCM object generated in QC_integration_annotation.
+
+```{r Load data, eval=TRUE, echo = TRUE, results= "hide"}
+DCM_RV <- qs_read(here::here("output", "QC_integration_annotation", "DCM_RV.qs2"), nthreads = 32)
+```
+
+```{r cell numbers before removal, eval=TRUE}
+dim(DCM_RV)
+table(DCM_RV$cell_type, useNA = "ifany")
+```
+
+## Load cell state annotations and contamination lists
+
+```{r Load cell states, eval=TRUE}
+CM_cell_states <- read.csv(here::here("output", "Cardiomyocytes_subclustering", "CM_cell_states.csv"), stringsAsFactors = FALSE)
+FB_cell_states <- read.csv(here::here("output", "Fibroblasts_subclustering", "FB_cell_states.csv"), stringsAsFactors = FALSE)
+EC_cell_states <- read.csv(here::here("output", "Endothelial_cells_subclustering", "EC_cell_states.csv"), stringsAsFactors = FALSE)
+MC_cell_states <- read.csv(here::here("output", "Mural_cells_subclustering", "MC_cell_states.csv"), stringsAsFactors = FALSE)
+MP_cell_states <- read.csv(here::here("output", "Macrophages_subclustering", "MP_cell_states.csv"), stringsAsFactors = FALSE)
+LC_cell_states <- read.csv(here::here("output", "Lymphocytes_subclustering", "LC_cell_states.csv"), stringsAsFactors = FALSE)
+
+cell_states <- bind_rows(CM_cell_states, FB_cell_states, EC_cell_states, MC_cell_states, MP_cell_states, LC_cell_states)
+```
+
+```{r Load contamination, eval=TRUE}
+FB_contamination <- read.csv(here::here("output", "Fibroblasts_subclustering", "FB_cell_states_contamination.csv"), stringsAsFactors = FALSE)
+EC_contamination <- read.csv(here::here("output", "Endothelial_cells_subclustering", "EC_cell_states_contamination.csv"), stringsAsFactors = FALSE)
+MP_contamination <- read.csv(here::here("output", "Macrophages_subclustering", "MP_cell_states_contamination.csv"), stringsAsFactors = FALSE)
+LC_contamination <- read.csv(here::here("output", "Lymphocytes_subclustering", "LC_cell_states_contamination.csv"), stringsAsFactors = FALSE)
+
+cell_states_contamination <- bind_rows(FB_contamination, EC_contamination, MP_contamination, LC_contamination)
+
+table(cell_states_contamination$cell_state)
+```
+
+## Check cell annotations
+
+```{r Check cell annotations, eval=TRUE}
+if (!all(c("cell", "cell_state") %in% colnames(cell_states))) stop("The cell state files do not contain the expected cell and cell_state columns")
+if (!all(c("cell", "cell_state") %in% colnames(cell_states_contamination))) stop("The contamination files do not contain the expected cell and cell_state columns")
+
+if (anyDuplicated(cell_states$cell) > 0) stop("Duplicated cell barcodes were found in the cell state files")
+if (anyDuplicated(cell_states_contamination$cell) > 0) stop("Duplicated cell barcodes were found in the contamination files")
+if (any(cell_states$cell %in% cell_states_contamination$cell)) stop("Some cells are present in both the final cell state files and the contamination files")
+
+missing_cells <- setdiff(cell_states$cell, colnames(DCM_RV))
+missing_contamination <- setdiff(cell_states_contamination$cell, colnames(DCM_RV))
+
+if (length(missing_cells) > 0) stop(paste(length(missing_cells), "cells from the cell state files are not present in DCM_RV"))
+if (length(missing_contamination) > 0) stop(paste(length(missing_contamination), "cells from the contamination files are not present in DCM_RV"))
+
+length(cell_states$cell)
+length(cell_states_contamination$cell)
+```
+
+## Remove contamination
+
+```{r Remove contamination, eval=TRUE}
+DCM_RV <- subset(DCM_RV, cells = setdiff(colnames(DCM_RV), cell_states_contamination$cell))
+
+dim(DCM_RV)
+table(DCM_RV$cell_type, useNA = "ifany")
+```
+
+Check that all remaining cells from the subclustered cell types have a cell state annotation.
+
+```{r Check final cell state coverage, eval=TRUE}
+subclustered_cells <- rownames(DCM_RV@meta.data)[DCM_RV$cell_type %in% c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Pericytes", "Smooth muscle cells", "Macrophages", "T lymphocytes", "B lymphocytes")]
+
+cells_without_cell_state <- setdiff(subclustered_cells, cell_states$cell)
+
+if (length(cells_without_cell_state) > 0) stop(paste(length(cells_without_cell_state), "cells from subclustered cell types do not have a cell state annotation"))
+```
+
+## Add cell state annotations
+
+Cells from cell types that were not subclustered are left as NA.
+
+```{r Add cell states, eval=TRUE}
+DCM_RV$cell_state <- NA_character_
+DCM_RV@meta.data[cell_states$cell, "cell_state"] <- cell_states$cell_state
+```
+
+```{r Final cell numbers, eval=TRUE}
+dim(DCM_RV)
+
+table(DCM_RV$cell_type, useNA = "ifany")
+
+table(DCM_RV$cell_state, useNA = "ifany")
+
+table(DCM_RV$cell_type, DCM_RV$cell_state, useNA = "ifany")
+```
+
+## Save final objects
+
+```{r save DCM_RV cell states, eval = FALSE}
+qs_save(DCM_RV,
+        file = here::here(output_dir_data, "DCM_RV_cell_states.qs2"),
+        nthreads = 32
+        )
+```
+
+```{r save DCM_RV cell states RNA, eval = FALSE}
+DCM_RV_RNA <- DCM_RV
+DCM_RV_RNA@assays[["SCT"]] <- NULL
+DefaultAssay(DCM_RV_RNA) <- "RNA"
+qs_save(DCM_RV_RNA,
+        file = here::here(output_dir_data, "DCM_RV_cell_states_RNA.qs2"),
+        nthreads = 32
+        )
+rm(DCM_RV_RNA)
+```
