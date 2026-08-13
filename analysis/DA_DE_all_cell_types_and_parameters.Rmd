@@ -3419,38 +3419,6 @@ ggsave(
 cm_decomp_volcano
 ```
 
-## Figure 2 bottom row
-
-```{r Figure2_bottom_row, fig.width=9.6, fig.height=4.5, dpi=300}
-figure2_bottom_row <-
-  cm_threshold_volcano[["mPAP_ge35"]] |
-  rv_state_plot |
-  cm_decomp_volcano
-
-figure2_bottom_row <-
-  figure2_bottom_row +
-  patchwork::plot_layout(
-    widths = c(
-      1,
-      1.2,
-      1
-    )
-  )
-
-figure2_bottom_row
-
-ggsave(
-  filename = here::here(
-    output_dir_figs,
-    "Figure2_bottom_row.png"
-  ),
-  plot = figure2_bottom_row,
-  width = 9.6,
-  height = 4.5,
-  dpi = 600
-)
-```
-
 ## Supplementary data export
 
 ```{r Supplementary_data_export, eval=TRUE}
