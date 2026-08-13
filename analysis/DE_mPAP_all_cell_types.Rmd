@@ -1,5 +1,5 @@
 ---
-title: "Differential expression analysis in all cell types using mPAP"
+title: "Detailed mPAP differential expression analysis in cardiomyocytes and all cell types"
 author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: workflowr::wflow_html
@@ -25,25 +25,15 @@ current_file <- "DE_mPAP_all_cell_types"
 
 # Load libraries
 library(here)
-library(dplyr)
-library(ggplot2)
-library(tibble)
 library(readr)
 library(readxl)
-library(knitr)
-library(patchwork)
-library(scales)
-
-library(clusterProfiler)
-library(org.Hs.eg.db)
-library(enrichplot)
-
-
 library(Seurat)
 library(DropletUtils)
 library(Matrix)
 library(scDblFinder)
 library(scCustomize)
+library(dplyr)
+library(ggplot2)
 library(magrittr)
 library(tidyverse)
 library(reshape2)
@@ -52,25 +42,45 @@ library(SingleCellExperiment)
 library(pheatmap)
 library(png)
 library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
 library(Matrix.utils)
+library(tibble)
+library(ggplot2)
 library(scater)
+library(patchwork)
 library(statmod)
 library(clustree)
 library(harmony)
 library(gprofiler2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
 library(AnnotationHub)
 library(ReactomePA)
+library(statmod)
+library(edgeR)
 library(speckle)
 library(limma)
-library(reactable)
+library(EnhancedVolcano)
 library(decoupleR)
 library(OmnipathR)
 library(dorothea)
-library(edgeR)
-library(rtracklayer)
-library(EnhancedVolcano)
+library(enrichplot)
+library(png)
+library(reactable)
+library(UpSetR)
 library(ComplexHeatmap)
+library(msigdbr)
+library(simplifyEnrichment)
+library(miloR)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+library(DOSE)
+library(rtracklayer)
 library(cowplot)
+library(qs2)
 
 #Output paths
 output_dir_data <- here::here("output", current_file)
@@ -82,14 +92,1927 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
 ```
 
+Load cardiomyocytes dataset
 
-## DE mPAP
+```{r read CM, eval=TRUE}
+DCM_RV <- qs_read(here::here("output", "Add_cell_states_remove_contamination", "DCM_RV_cell_states_RNA.qs2"), nthreads = 32)
+DefaultAssay(DCM_RV) <- "RNA"
+Idents(DCM_RV) <- "cell_type"
 
-Load seurat object
-
-```{r read DCM_RV_integrated}
-DCM_RV_integrated <- readRDS(here::here("output", "QC_integration_annotation", "DCM_RV.rds"))
+CM <- qs_read(here::here("output", "Cardiomyocytes_subclustering", "CM.qs2"), nthreads = 32)
 ```
+
+```{r update clinical metadata, eval=TRUE}
+Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_22.xlsx"))
+
+add_metadata <- DCM_RV[[]] %>%
+  dplyr::select(Sample) %>%
+  left_join(Clinical_data, by = "Sample")
+
+row.names(add_metadata) <- row.names(DCM_RV[[]])
+
+cols_to_overwrite <- setdiff(colnames(Clinical_data), "Sample")
+
+DCM_RV@meta.data[, cols_to_overwrite] <- NULL
+
+DCM_RV <- AddMetaData(
+  DCM_RV,
+  metadata = add_metadata
+)
+
+add_metadata_CM <- CM[[]] %>%
+  dplyr::select(Sample) %>%
+  left_join(Clinical_data, by = "Sample")
+
+row.names(add_metadata_CM) <- row.names(CM[[]])
+
+CM@meta.data[, cols_to_overwrite] <- NULL
+
+CM <- AddMetaData(
+  CM,
+  metadata = add_metadata_CM
+)
+
+rm(add_metadata, add_metadata_CM, Clinical_data, cols_to_overwrite)
+```
+
+
+```{r NormalizeData}
+DefaultAssay(CM) <- "RNA"
+CM <- NormalizeData(CM)
+```
+
+## Differential abundance analysis
+
+```{r metadata}
+metadata <- CM@meta.data %>%
+  dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVIT_mm, LVEF_percent, LVEDD_mm) %>%
+  unique() %>%
+  dplyr::arrange(match(Sample, names(table(CM$Sample))))
+
+rownames(metadata) <- metadata$Sample
+
+all.equal(metadata$Sample, names(table(CM$Sample)))
+
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+
+metadata_DCM <- metadata %>%
+  dplyr::filter(Group == "DCM")
+```
+
+```{r Speckle_all}
+differential_abundance <- data.frame()
+props <- getTransformedProps(CM$cell_state, CM$Sample, transform="logit")
+
+for (i in 7:(length(metadata_DCM))) {
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[i]]),]
+  props_subset <- props
+  props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+  props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+  props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+  metadata_subset <- metadata_subset %>% 
+    arrange(Sample, colnames(props_subset$Proportions))
+  design <- model.matrix(~ metadata_subset[[i]] + metadata_subset[["Age_years"]])
+  fit <- lmFit(props_subset$TransformedProps, design)
+  fit <- eBayes(fit, robust=TRUE)
+  differential_abundance_temp <- topTable(fit, n = Inf, coef = 2)
+  differential_abundance_temp$metadata <- colnames(metadata_subset[i])
+  differential_abundance_temp$cell_state <- rownames(differential_abundance_temp)
+  differential_abundance <- rbind(differential_abundance, differential_abundance_temp)
+}
+
+rm(metadata_subset, props_subset, design, fit, differential_abundance_temp)
+
+rownames(differential_abundance) <- NULL
+differential_abundance <- dplyr::arrange(differential_abundance, adj.P.Val)
+
+write.csv(differential_abundance, file = here::here(output_dir_data, "CM_Differential_Abundance.csv"), row.names = F)
+
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Speckle_LVEDD_mm, fig.height=4, fig.width=20}
+metadata_subset <- metadata[complete.cases(metadata[["LVEDD_mm"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$LVEDD_mm + metadata_subset$Age_years)
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$LVEDD_mm, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab="Proportions", xlab="LVEDD_mm", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+```{r Speckle_LVEF_percent, fig.height=4, fig.width=20}
+metadata_subset <- metadata[complete.cases(metadata[["LVEF_percent"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$LVEF_percent + metadata_subset$Age_years)
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$LVEF_percent, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab="Proportions", xlab="LVEF_percent", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+```{r Speckle_mPAP_mmHg, fig.height=4, fig.width=20}
+metadata_subset <- metadata[complete.cases(metadata[["mPAP_mmHg"]]),]
+
+props_subset <- props
+props_subset$Counts <- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps <- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions <- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+
+metadata_subset <- metadata_subset %>% 
+  arrange(Sample, colnames(props_subset$Proportions))
+
+design <- model.matrix(~ metadata_subset$mPAP_mmHg + metadata_subset$Age_years)
+fit.prop <- lmFit(props_subset$Proportions,design)
+
+par(mfrow=c(1,5), mar = c(5, 5, 3, 1))
+for(i in seq(1,5,1)){
+  plot(metadata_subset$mPAP_mmHg, props_subset$Proportions[i,], main = rownames(props_subset$Proportions)[i],
+       pch=16, cex=2, ylab="Proportions", xlab="mPAP_mmHg", cex.lab=2, cex.axis=1.5,
+       cex.main=2.5)
+  abline(a=fit.prop$coefficients[i,1], b=fit.prop$coefficients[i,2], col=4,
+         lwd=1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)
+```
+
+
+```{r CM_proportions}
+CM_proportions <- as.data.frame(props$Proportions) %>%   
+  pivot_wider(
+    names_from  = clusters,  
+    values_from = Freq       
+  )
+
+write.csv(CM_proportions, file = here::here(output_dir_data, "CM_Proportions.csv"), row.names = F)
+```
+
+```{r rm differential_abundance, eval = FALSE}
+rm(differential_abundance, differential_abundance_HC, props, CM_proportions)
+```
+
+
+## Differential expression analysis
+
+Load the cardiomyocyte differential expression results generated in DA_DE_all_cell_types_and_parameters.
+
+```{r load CM DE results}
+parameters <- c("mPAP_mmHg",
+                "sPAP_mmHg",
+                "PCW_mmHg",
+                "PVR_WU",
+                "TAPSE_mm",
+                "RVIT_mm",
+                "LVEF_percent",
+                "LVEDD_mm"
+                )
+
+tested_param <- c("mPAP (mmHg)",
+                  "sPAP (mmHg)",
+                  "PCWP (mmHg)",
+                  "PVR (WU)",
+                  "TAPSE (mm)",
+                  "RVIT (mm)",
+                  "LVEF (%)",
+                  "LVEDD (mm)"
+                  )
+
+results <- list()
+signif <- list()
+volcano <- list()
+n_de_genes <- data.frame()
+
+for (i in seq_along(parameters)) {
+  results[[i]] <- read.csv(here::here("output", "DA_DE_all_cell_types_and_parameters", paste0("Cardiomyocytes_DE_Results_", parameters[i], ".csv")))
+  signif[[i]] <- read.csv(here::here("output", "DA_DE_all_cell_types_and_parameters", paste0("Cardiomyocytes_DE_Significant_", parameters[i], ".csv")))
+
+  names(results)[i] <- parameters[i]
+  names(signif)[i] <- parameters[i]
+
+  metadata_subset <- metadata_DCM[complete.cases(metadata_DCM[[parameters[i]]]),]
+
+  n_de_genes_temp <- data.frame(metadata = parameters[i],
+                                n_upregulated = sum(signif[[i]]$logFC > 0.5),
+                                n_downregulated = sum(signif[[i]]$logFC < -0.5),
+                                n_tot = nrow(signif[[i]])
+                                )
+  n_de_genes <- rbind(n_de_genes, n_de_genes_temp)
+
+  keyvals <- rep("grey", nrow(results[[i]]))
+  names(keyvals) <- rep("Not significant", nrow(results[[i]]))
+  keyvals[results[[i]]$logFC > 0.5 & results[[i]]$FDR < 0.05] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Increased"
+  keyvals[results[[i]]$logFC < -0.5 & results[[i]]$FDR < 0.05] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Decreased"
+
+  volcano[[i]] <- EnhancedVolcano(results[[i]],
+                  lab = results[[i]]$gene,
+                  x = "logFC",
+                  y = "FDR",
+                  ylab = bquote(~-Log[10] ~ italic(FDR)),
+                  labSize = 0,
+                  titleLabSize = 16,
+                  subtitleLabSize = 0,
+                  axisLabSize = 12,
+                  captionLabSize = 0,
+                  pointSize = 0.5,
+                  FCcutoff = 0.5,
+                  pCutoff  = 0.05,
+                  ylim = c(0, 3),
+                  colCustom = keyvals,
+                  colAlpha = 1,
+                  drawConnectors = FALSE,
+                  subtitle = NULL,
+                  title = paste0("Cardiomyocytes", "\n", tested_param[i], "\nn = ", nrow(metadata_subset))
+  ) + theme(legend.position = "none")
+  names(volcano)[i] <- parameters[i]
+}
+rm(metadata_subset, n_de_genes_temp, keyvals)
+```
+
+```{r load CM percent_stats and pseudocounts}
+percent_stats <- read.csv(here::here("output", "DA_DE_all_cell_types_and_parameters", "Cardiomyocytes_percent_stats.csv"))
+rownames(percent_stats) <- percent_stats$gene
+
+pseudocounts <- readRDS(here::here("output", "DA_DE_all_cell_types_and_parameters", "Cardiomyocytes_pseudocounts.rds"))
+
+reactable(percent_stats, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r n_de_genes}
+n_de_genes
+```
+
+```{r Volcano_all_metadata, fig.height=9, fig.width=12}
+print((volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]]) / 
+  (volcano[[5]] | volcano[[6]] |  volcano[[7]] | volcano[[8]]))
+```
+
+```{r Volcano_PH, fig.height=4.5, fig.width=12}
+print(volcano[[1]] | volcano[[2]] | volcano[[3]] | volcano[[4]])
+```
+
+```{r Volcano_RV, fig.height=4.5, fig.width=6}
+print(volcano[[5]] | volcano[[6]])
+```
+
+```{r Volcano_LV, fig.height=4.5, fig.width=6}
+print(volcano[[7]] | volcano[[8]])
+```
+
+```{r UpSet_plot_DE_up, fig.height=4, fig.width=6}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- dplyr::filter(signif[[i]], logFC > 0)$gene
+  names(gene_sets)[i] <- tested_param[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 1]
+
+UpSet(m, column_title = "Cardiomyocytes - Upregulated genes", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+```
+
+```{r UpSet_plot_DE_down, fig.height=4, fig.width=6}
+gene_sets <- list()
+for (i in 1:length(signif)) {
+  gene_sets[[i]] <- dplyr::filter(signif[[i]], logFC < 0)$gene
+  names(gene_sets)[i] <- tested_param[i]
+  }
+m <- make_comb_mat(gene_sets, mode = "intersect", min_set_size = 10)
+m <- m[comb_degree(m) >= 2]
+m <- m[comb_size(m) >= 1]
+
+UpSet(m, column_title = "Cardiomyocytes - Downregulated genes", comb_order = order(comb_size(m)), 
+                    top_annotation = upset_top_annotation(m, add_numbers = TRUE),
+                    right_annotation = upset_right_annotation(m, add_numbers = TRUE))
+```
+
+```{r rm upset, eval = FALSE}
+rm(m, gene_sets)
+```
+
+
+## Over-representation analysis
+
+```{r universe}
+universe_genes <- results[["mPAP_mmHg"]]$gene
+universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+```
+
+```{r ENTREZID}
+up_genes <- filter(signif[["mPAP_mmHg"]], logFC > 0.5)$gene
+up_genes <- bitr(up_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+down_genes <- filter(signif[["mPAP_mmHg"]], logFC < -0.5)$gene
+down_genes <- bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
+```
+
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r save ORA_GO_mPAP, eval=TRUE}
+mPAP_GO_up <- enrichGO(up_genes, OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+mPAP_GO_up <- gsfilter(mPAP_GO_up, by = 'Count', min = 3)
+mPAP_GO_up <- reorder_GO_by_pvalue(mPAP_GO_up)
+saveRDS(mPAP_GO_up, here::here(output_dir_data, "CM_ORA_GO_mPAP_up.rds"))
+
+mPAP_GO_down <- enrichGO(down_genes, OrgDb = "org.Hs.eg.db", universe = universe_entrez, ont = "ALL", readable = TRUE)
+mPAP_GO_down <- gsfilter(mPAP_GO_down, by = 'Count', min = 3)
+mPAP_GO_down <- reorder_GO_by_pvalue(mPAP_GO_down)
+saveRDS(mPAP_GO_down, here::here(output_dir_data, "CM_ORA_GO_mPAP_down.rds"))
+```
+
+```{r ORA_GO_mPAP, fig.height=8, fig.width=12}
+mPAP_GO_up <- readRDS(here::here(output_dir_data, "CM_ORA_GO_mPAP_up.rds"))
+mPAP_GO_down <- readRDS(here::here(output_dir_data, "CM_ORA_GO_mPAP_down.rds"))
+nrow(mPAP_GO_up)
+nrow(mPAP_GO_down)
+p1 <- dotplot(mPAP_GO_up, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nmPAP - Upnregulated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(mPAP_GO_down, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nmPAP - Downregulated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1|p2)
+```
+
+```{r ORA_GO_mPAP_simplified, fig.height=8, fig.width=12}
+mPAP_GO_simplified_up <- clusterProfiler::simplify(
+  mPAP_GO_up,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+mPAP_GO_simplified_down <- clusterProfiler::simplify(
+  mPAP_GO_down,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+p1 <- dotplot(mPAP_GO_simplified_up, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nmPAP - Upnregulated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+p2 <- dotplot(mPAP_GO_simplified_down, showCategory = 10, title = paste0("GO - Over-representation analysis", "\nmPAP - Downregulated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1 | p2)
+```
+
+```{r save ORA_KEGG_mPAP, eval=TRUE}
+mPAP_KEGG_up <- enrichKEGG(up_genes, organism = 'hsa', universe = universe_entrez)
+mPAP_KEGG_up <- gsfilter(mPAP_KEGG_up, by = 'Count', min = 3)
+saveRDS(mPAP_KEGG_up, here::here(output_dir_data, "CM_ORA_KEGG_mPAP_up.rds"))
+mPAP_KEGG_down <- enrichKEGG(down_genes,  organism = 'hsa', universe = universe_entrez)
+mPAP_KEGG_down <- gsfilter(mPAP_KEGG_down, by = 'Count', min = 3)
+saveRDS(mPAP_KEGG_down, here::here(output_dir_data, "CM_ORA_KEGG_mPAP_down.rds"))
+```
+
+```{r ORA_KEGG_mPAP, fig.height=8, fig.width=6}
+mPAP_KEGG_up <- readRDS(here::here(output_dir_data, "CM_ORA_KEGG_mPAP_up.rds"))
+mPAP_KEGG_down <- readRDS(here::here(output_dir_data, "CM_ORA_KEGG_mPAP_down.rds"))
+nrow(mPAP_KEGG_up)
+nrow(mPAP_KEGG_down)
+p1 <- dotplot(mPAP_KEGG_down, showCategory = 10, title = paste0("KEGG Pathways", "\nmPAP - Downregulated genes"), label_format = 27, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"))
+print(p1)
+```
+
+```{r save ORA_REACTOME_mPAP, eval=TRUE}
+mPAP_REACTOME_up <- enrichPathway(up_genes, organism = 'human', universe = universe_entrez, readable = TRUE)
+mPAP_REACTOME_up <- gsfilter(mPAP_REACTOME_up, by = 'Count', min = 3)
+saveRDS(mPAP_REACTOME_up, here::here(output_dir_data, "CM_ORA_REACTOME_mPAP_up.rds"))
+mPAP_REACTOME_down <- enrichPathway(down_genes, organism = 'human', universe = universe_entrez, readable = TRUE)
+mPAP_REACTOME_down <- gsfilter(mPAP_REACTOME_down, by = 'Count', min = 3)
+saveRDS(mPAP_REACTOME_down, here::here(output_dir_data, "CM_ORA_REACTOME_mPAP_down.rds"))
+```
+
+```{r ORA_REACTOME_mPAP, fig.height=8, fig.width=6}
+mPAP_REACTOME_up <- readRDS(here::here(output_dir_data, "CM_ORA_REACTOME_mPAP_up.rds"))
+mPAP_REACTOME_down <- readRDS(here::here(output_dir_data, "CM_ORA_REACTOME_mPAP_down.rds"))
+nrow(mPAP_REACTOME_up)
+nrow(mPAP_REACTOME_down)
+```
+
+```{r rm_GO, eval = FALSE}
+rm(mPAP_GO_up, mPAP_GO_down, mPAP_GO_simplified_up, mPAP_GO_simplified_down, mPAP_KEGG_up, mPAP_KEGG_down, mPAP_REACTOME_up, mPAP_REACTOME_down)
+```
+
+
+## Gene set enrichment analysis
+
+```{r ranked_genes}
+results_mPAP <- results[["mPAP_mmHg"]]
+results_mPAP$metric <- results_mPAP$logFC*-log10(results_mPAP$PValue)
+entrezid <- bitr(results_mPAP$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+results_mPAP <- merge(results_mPAP, entrezid, by.x = "gene", by.y = "SYMBOL", all.x = TRUE)
+results_mPAP[duplicated(results_mPAP$metric) | duplicated(results_mPAP$metric, fromLast = TRUE),]
+results_mPAP <- results_mPAP[!duplicated(results_mPAP$metric), ]
+write.csv(results_mPAP, file = here::here(output_dir_data, "CM_results_mPAP.csv"), row.names = F)
+reactable(results_mPAP, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+ranked_genes <- results_mPAP[!is.na(results_mPAP$ENTREZID), ]
+genelist <- ranked_genes$metric
+names(genelist) <-ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+```
+
+```{r save GSEA_GO, eval=TRUE}
+GSEA_GO <- gseGO(geneList = genelist,
+                OrgDb = org.Hs.eg.db,
+                ont = "ALL",
+                keyType = "ENTREZID",
+                nPermSimple = 100000,
+                minGSSize = 10)
+GSEA_GO <- reorder_GO_by_pvalue(GSEA_GO)
+
+saveRDS(GSEA_GO, here::here(output_dir_data, "CM_GSEA_GO_mPAP.rds"))
+```
+
+```{r GSEA_GO, fig.height=8, fig.width=8}
+GSEA_GO <- readRDS(here::here(output_dir_data, "CM_GSEA_GO_mPAP.rds"))
+
+dotplot(GSEA_GO, showCategory = 10, split=".sign", title = paste0("GO Enrichment Analysis", "\n mPAP-associated genes"), label_format = 30, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r classify_terms}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+```
+
+```{r GSEA_GO_emapplot, fig.height=10, fig.width=20}
+GSEA_GO@result <- classify_terms(GSEA_GO@result)
+
+activated_terms <- subset(GSEA_GO@result, sign == "activated")
+suppressed_terms <- subset(GSEA_GO@result, sign == "suppressed")
+
+GSEA_GO_activated <- GSEA_GO
+GSEA_GO_activated@result <- activated_terms
+GSEA_GO_activated <- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed <- GSEA_GO
+GSEA_GO_suppressed@result <- suppressed_terms
+GSEA_GO_suppressed <- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 <- emapplot(GSEA_GO_activated, showCategory = 100, node_label_size = 3.5, min_edge = 0.2) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_GO_suppressed, showCategory = 100, node_label_size = 3.5, min_edge = 0.2) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r GSEA_GO_simplified, fig.height=8, fig.width=8}
+GSEA_GO_simplified <- clusterProfiler::simplify(
+  GSEA_GO,
+  cutoff = 0.75,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+p1 <- dotplot(GSEA_GO_simplified, showCategory = 15, split=".sign", title = paste0("GO Enrichment Analysis", "\n mPAP-associated genes"), label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+print(p1)
+```
+
+
+```{r GSEA_GO_simplified_emapplot, fig.height=8, fig.width=16}
+GSEA_GO_simplified@result <- classify_terms(GSEA_GO_simplified@result)
+
+activated_terms <- subset(GSEA_GO_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_GO_simplified@result, sign == "suppressed")
+
+GSEA_GO_activated <- GSEA_GO_simplified
+GSEA_GO_activated@result <- activated_terms
+GSEA_GO_activated <- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed <- GSEA_GO_simplified
+GSEA_GO_suppressed@result <- suppressed_terms
+GSEA_GO_suppressed <- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 <- emapplot(GSEA_GO_activated, showCategory = 100, node_label_size = 3.5, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_GO_suppressed, showCategory = 100, node_label_size = 3.5, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r GSEA_GO_simplified_emapplot_unlabeled, fig.height=8, fig.width=14}
+emapplot(GSEA_GO_activated, showCategory = 100, node_label_size = 0, min_edge = 0.15) +
+  ggtitle("Gene Ontology Enrichment Analysis\nHigh mPAP-associated terms") + 
+  theme(plot.title = element_text(face = "bold", size = 20, hjust = 0.5),
+    legend.title = element_text(size = 16),
+    legend.text  = element_text(size = 14),
+    legend.key.size = unit(0.9, "cm")        
+  )
+```
+
+```{r GSEA_GO_simplified_ridgeplot, fig.height=12, fig.width=12}
+p1 <- ridgeplot(GSEA_GO_simplified, showCategory = 30) + labs(x = "enrichment distribution")
+print(p1)
+```
+
+```{r reorder_GO_by_NES}
+reorder_GO_by_NES <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(desc(go_results$NES)), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r default_labeller}
+default_labeller <- function(n) {
+    function(str){
+        str <- gsub("_", " ", str)
+        ep_str_wrap(str, n)
+    }
+}
+```
+
+```{r barplot.enrichResult}
+barplot.enrichResult <- function (height, x = "Count", color = "p.adjust", showCategory = 8, 
+  font.size = 12, title = "", label_format = 30, ...) 
+{
+  object <- height
+  colorBy <- match.arg(color, c("pvalue", "p.adjust", "qvalue"))
+  if (x == "geneRatio" || x == "GeneRatio") {
+    x <- "GeneRatio"
+  }
+  else if (x == "count" || x == "Count") {
+    x <- "Count"
+  }
+  df <- fortify(object, showCategory = showCategory, by = x, 
+    ...)
+  if (colorBy %in% colnames(df)) {
+    p <- ggplot(df, aes_string(x = x, y = "Description", 
+      fill = colorBy)) + theme_dose(font.size) + set_enrichplot_color(type = "fill", 
+      name = color)
+  }
+  else {
+    p <- ggplot(df, aes_string(x = x, y = "Description", 
+      fill = "Description")) + theme_dose(font.size) + 
+      theme(legend.position = "none")
+  }
+  label_func <- default_labeller(label_format)
+  if (is.function(label_format)) {
+    label_func <- label_format
+  }
+  p + geom_col() + scale_y_discrete(labels = label_func) + 
+    ggtitle(title) + ylab(NULL)
+}
+```
+
+```{r ep_str_wrap}
+ep_str_wrap <- function(string, width) {
+    x <- gregexpr(' ', string)
+    vapply(seq_along(x),
+           FUN = function(i) {
+               y <- x[[i]]
+               n <- nchar(string[i])
+               len <- (c(y,n) - c(0, y)) ## length + 1
+               idx <- len > width
+               j <- which(!idx)
+               if (length(j) && max(j) == length(len)) {
+                   j <- j[-length(j)]
+               }
+               if (length(j)) {
+                   idx[j] <- len[j] + len[j+1] > width
+               }
+               idx <- idx[-length(idx)] ## length - 1
+               start <- c(1, y[idx] + 1)
+               end <- c(y[idx] - 1, n)
+               words <- substring(string[i], start, end)
+               paste0(words, collapse="\n")
+           },
+           FUN.VALUE = character(1)
+    )
+}
+```
+
+```{r GSEA_GO_simplified_barplot, fig.height=12, fig.width=8}
+barplot.enrichResult(reorder_GO_by_NES(GSEA_GO_simplified), x="NES", showCategory = 100, label_format = 45) + 
+  ggtitle("Gene Ontology Enrichment Analysis\nHigh mPAP-associated terms") + 
+  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5))
+```
+
+```{r GSEA_GO_simplified_barplot_top20, fig.width=8, fig.height=5}
+top_terms <- GSEA_GO_simplified@result %>%
+  dplyr::arrange(desc(abs(NES))) %>%
+  dplyr::slice(1:20)
+
+GSEA_GO_top20 <- GSEA_GO_simplified
+GSEA_GO_top20@result <- top_terms
+barplot.enrichResult(reorder_GO_by_NES(GSEA_GO_top20), x='NES', showCategory = 100, label_format = 45) +  
+  ggtitle("Gene Ontology Enrichment Analysis\nHigh mPAP-associated terms") + 
+  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+        axis.title.x  = element_text(size = 14)) + 
+  labs(x = "Normalized Enrichment Score")
+```
+
+```{r GSEA_GO_simplified_treeplot, fig.height=12, fig.width=15}
+GSEA_GO_simplified <- pairwise_termsim(GSEA_GO_simplified)
+treeplot(GSEA_GO_simplified, showCategory = 100, nCluster = 9) +  ggtitle("Gene Ontology Enrichment Analysis\nHigh mPAP-associated terms") + 
+  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5))
+```
+
+```{r save GSEA_KEGG, eval=TRUE}
+GSEA_KEGG <- gseKEGG(geneList = genelist,
+                organism = "hsa",
+                keyType = "kegg",
+                nPermSimple = 100000)
+saveRDS(GSEA_KEGG, here::here(output_dir_data, "CM_GSEA_KEGG_mPAP.rds"))
+```
+
+```{r GSEA_KEGG, fig.height=8, fig.width=8}
+GSEA_KEGG <- readRDS(here::here(output_dir_data, "CM_GSEA_KEGG_mPAP.rds"))
+p1 <- dotplot(GSEA_KEGG, showCategory = 10, split=".sign", title = paste0("GSEA\nKEGG Pathways", "\n mPAP-associated genes"), label_format = 35, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+print(p1)
+```
+
+```{r GSEA_KEGG_emapplot, fig.height=8, fig.width=16}
+GSEA_KEGG@result <- classify_terms(GSEA_KEGG@result)
+
+activated_terms <- subset(GSEA_KEGG@result, sign == "activated")
+suppressed_terms <- subset(GSEA_KEGG@result, sign == "suppressed")
+
+GSEA_KEGG_activated <- GSEA_KEGG
+GSEA_KEGG_activated@result <- activated_terms
+GSEA_KEGG_activated <- pairwise_termsim(GSEA_KEGG_activated)
+
+GSEA_KEGG_suppressed <- GSEA_KEGG
+GSEA_KEGG_suppressed@result <- suppressed_terms
+GSEA_KEGG_suppressed <- pairwise_termsim(GSEA_KEGG_suppressed)
+
+p1 <- emapplot(GSEA_KEGG_activated, showCategory = 100, node_label_size = 3.5, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_KEGG_suppressed, showCategory = 100, node_label_size = 3.5, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r GSEA_KEGG_emapplot_unlabeled, fig.height=8, fig.width=14}
+emapplot(GSEA_KEGG_activated, showCategory = 100, node_label_size = 0, min_edge = 0.15) +
+  ggtitle("KEGG pathways Enrichment Analysis\nHigh mPAP-associated terms") + 
+  theme(plot.title = element_text(face = "bold", size = 20, hjust = 0.5),
+    legend.title = element_text(size = 16),
+    legend.text  = element_text(size = 14),
+    legend.key.size = unit(0.9, "cm")        
+  )
+```
+
+```{r GSEA_KEGG_ridgeplot, fig.height=12, fig.width=12}
+p1 <- ridgeplot(GSEA_KEGG, showCategory = 30) + labs(x = "enrichment distribution")
+print(p1)
+```
+
+```{r GSEA_KEGG_barplot, fig.height=5, fig.width=8}
+barplot.enrichResult(reorder_GO_by_NES(GSEA_KEGG), x="NES", showCategory = 100, label_format = 45) +  ggtitle("KEGG pathways Enrichment Analysis\nHigh mPAP-associated terms") + 
+  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+        axis.title.x  = element_text(size = 14)) + 
+  labs(x = "Normalized Enrichment Score")
+```
+
+```{r save GSEA_Reactome, eval=TRUE}
+GSEA_Reactome <- gsePathway(geneList = genelist,
+                organism = "human",
+                nPermSimple = 100000,
+                minGSSize = 10)
+saveRDS(GSEA_Reactome, here::here(output_dir_data, "CM_GSEA_Reactome_mPAP.rds"))
+```
+
+```{r GSEA_Reactome, fig.height=8, fig.width=8}
+GSEA_Reactome <- readRDS(here::here(output_dir_data, "CM_GSEA_Reactome_mPAP.rds"))
+p1 <- dotplot(GSEA_Reactome, showCategory = 10, split=".sign", title = paste0("GSEA\nReactome Pathways", "\n mPAP-associated genes"), label_format = 40, font.size = 15) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+print(p1)
+```
+
+```{r GSEA_Reactome_emapplot, fig.height=8, fig.width=16}
+GSEA_Reactome@result <- classify_terms(GSEA_Reactome@result)
+
+activated_terms <- subset(GSEA_Reactome@result, sign == "activated")
+suppressed_terms <- subset(GSEA_Reactome@result, sign == "suppressed")
+
+GSEA_GO_activated <- GSEA_Reactome
+GSEA_GO_activated@result <- activated_terms
+GSEA_GO_activated <- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed <- GSEA_Reactome
+GSEA_GO_suppressed@result <- suppressed_terms
+GSEA_GO_suppressed <- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 <- emapplot(GSEA_GO_activated, showCategory = 100, node_label_size = 3.5, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_GO_suppressed, showCategory = 100, node_label_size = 3.5, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+```{r GSEA_Reactome_ridgeplot, fig.height=12, fig.width=12}
+p1 <- ridgeplot(GSEA_Reactome, showCategory = 30) + labs(x = "enrichment distribution")
+print(p1)
+```
+
+```{r GSEA_Reactome_barplot_top20, fig.width=8, fig.height=5}
+barplot.enrichResult(reorder_GO_by_NES(GSEA_Reactome), x='NES', showCategory = 100, label_format = 45) +  
+  ggtitle("Reactome Pathways Enrichment Analysis\nHigh mPAP-associated terms") + 
+  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+        axis.title.x  = element_text(size = 14)) + 
+  labs(x = "Normalized Enrichment Score")
+```
+
+
+```{r GO_similarity, fig.height=5, fig.width=7}
+gseaGO_up_terms <- dplyr::filter(GSEA_GO@result, NES > 0)
+table(gseaGO_up_terms$ONTOLOGY)
+gseaGO_up_terms <- gseaGO_up_terms$ID
+mat1 = GO_similarity(gseaGO_up_terms, ont = "BP")
+BP <- simplifyGO(mat1, column_title = "47 GO Biological Process terms")
+mat2 = GO_similarity(gseaGO_up_terms, ont = "MF")
+MF <- simplifyGO(mat2, column_title = "17 GO Molecular Function terms")
+mat3 = GO_similarity(gseaGO_up_terms, ont = "CC")
+CC <- simplifyGO(mat3, column_title = "19 GO Cellular Component terms")
+```
+
+```{r GSEA_Combined}
+GSEA_GO <- setReadable(GSEA_GO, OrgDb = org.Hs.eg.db)
+GSEA_KEGG <- setReadable(GSEA_KEGG, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+GSEA_Reactome <- setReadable(GSEA_Reactome, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+GSEA_GO_df <- GSEA_GO@result
+GSEA_KEGG_df <- GSEA_KEGG@result
+GSEA_Reactome_df <- GSEA_Reactome@result
+
+GSEA_KEGG_df$ONTOLOGY <- "KEGG"
+GSEA_Reactome_df$ONTOLOGY <- "Reactome"
+
+
+GSEA_Combined <- bind_rows(GSEA_GO_df, GSEA_KEGG_df, GSEA_Reactome_df)
+
+write.csv(GSEA_Combined, here::here(output_dir_data, "CM_GSEA_ALL.csv"))
+```
+
+```{r prepare CM GSEA export}
+CM_GSEA_GO_export <- GSEA_GO@result
+CM_GSEA_KEGG_export <- GSEA_KEGG@result
+```
+
+
+## Interesting genes
+
+```{r pseudocounts_mPAP}
+metadata_mPAP <- metadata[complete.cases(metadata[["mPAP_mmHg"]]),]
+
+pseudocounts_mPAP <- pseudocounts[, metadata_mPAP$Sample]
+pseudocounts_mPAP <- normLibSizes(pseudocounts_mPAP)
+
+counts_mPAP <- cpm(pseudocounts_mPAP, log = TRUE)
+```
+
+```{r heatmap_cols, fig.width=10, fig.height=10}
+heatmap_cols <- colorRampPalette(c("#004C8C", "white", "#A63A2A"))(101)
+
+scales::show_col(heatmap_cols)
+```
+
+```{r metadata_heatmap}
+metadata_heatmap <- metadata_mPAP %>% dplyr::select(Sample, mPAP_mmHg) %>% dplyr::arrange(mPAP_mmHg)
+```
+
+```{r ann_col}
+ann_col <- metadata_mPAP %>%                 
+  arrange(mPAP_mmHg) %>%                   
+  dplyr::select(mPAP_mmHg)                   
+
+ann_colors <- list(
+  mPAP_mmHg = colorRampPalette(c("grey80", "grey20"))(100)
+)
+```
+
+```{r autophagy_genes}
+keywords <- "autophag|ampk"
+filtered_terms <- GSEA_Combined %>%
+  filter(str_detect(Description, regex(keywords, ignore_case = TRUE)))
+
+autophagy_genes <- unique(unlist(strsplit(filtered_terms$core_enrichment, split = "/", fixed = TRUE)))
+autophagy_selected <- c("ULK1", "WIPI1", "MAP1LC3A", "ATG4D", "ATG2A", "ATG7", "ATG4B")
+```
+
+```{r Heatmap_autophagy, fig.width=8, fig.height=3}
+counts_heatmap <- counts_mPAP[autophagy_selected, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+title <- textGrob("Autophagy", gp = gpar(fontsize = 18, fontface = "bold"))
+
+heatmap <- pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,          
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 15,
+  gaps_col = c(0,0,0),
+  silent = TRUE
+  )
+
+grid.arrange(grobs = list(title, heatmap[[4]]), heights = c(1, 5, 1))
+```
+
+```{r transport_genes}
+keywords <- "endo|transp"
+filtered_terms <- GSEA_Combined %>%
+  filter(str_detect(Description, regex(keywords, ignore_case = TRUE)))
+
+transport_genes <- unique(unlist(strsplit(filtered_terms$core_enrichment, split = "/", fixed = TRUE)))
+transport_selected <- c("RAB11FIP3", "RAB35", "RAB7A", "RAB11FIP4", "RAB11FIP1", "RAB11B", "VPS37C", "VPS37B", "VPS45", "CHMP1A", "CHMP4B", "MVB12A", "DNM2", "CAV1", "EPS15L1", "EPN1", "EPN2")
+```
+
+```{r Heatmap_transport, fig.width=8, fig.height=5}
+counts_heatmap <- counts_mPAP[transport_selected, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+title <- textGrob("Vesicle trafficking", gp = gpar(fontsize = 18, fontface = "bold"))
+
+heatmap <- pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,          
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 15,
+  gaps_col = c(0,0,0),
+  silent = TRUE
+  )
+
+grid.arrange(grobs = list(title, heatmap[[4]]), heights = c(0.5, 5, 0.5))
+```
+
+```{r sarcomere_genes}
+keywords <- "muscle|cardi|actin|heart|fiber|fibril|I band|Z disc|sarcomere|cytoskelet|myosin"
+filtered_terms <- GSEA_Combined %>%
+  filter(str_detect(Description, regex(keywords, ignore_case = TRUE)))
+
+sarcomere_genes <- unique(unlist(strsplit(filtered_terms$core_enrichment, split = "/", fixed = TRUE)))
+sarcomere_selected <- c("ACTN1", "ACTN4", "FLNC", "MYL9", "MYH9", "MYH14", "MYO18B")
+```
+
+```{r Heatmap_sarcomere, fig.width=8, fig.height=3}
+counts_heatmap <- counts_mPAP[sarcomere_selected, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+title <- textGrob("Sarcomere and cytoskeleton remodeling", gp = gpar(fontsize = 18, fontface = "bold"))
+
+heatmap <- pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,          
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 15,
+  gaps_col = c(0,0,0),
+  silent = TRUE
+  )
+
+grid.arrange(grobs = list(title, heatmap[[4]]), heights = c(1, 5, 1))
+```
+
+```{r glucose_genes}
+keywords <- "glucose"
+filtered_terms <- GSEA_Combined %>%
+  filter(str_detect(Description, regex(keywords, ignore_case = TRUE)))
+
+glucose_genes <- unique(unlist(strsplit(filtered_terms$core_enrichment, split = "/", fixed = TRUE)))
+glucose_selected <- c("HK2", "GPT", "GPT2", "PDHA1", "H6PD", "ACACB")
+```
+
+```{r Heatmap_glucose, fig.width=8, fig.height=3}
+counts_heatmap <- counts_mPAP[glucose_selected, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+title <- textGrob("Glucose metabolism", gp = gpar(fontsize = 18, fontface = "bold"))
+
+heatmap <- pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,          
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 15,
+  gaps_col = c(0,0,0),
+  silent = TRUE
+  )
+
+grid.arrange(grobs = list(title, heatmap[[4]]), heights = c(1.5, 5, 1.5))
+```
+
+```{r adrenergic_genes}
+keywords <- "adrenergic"
+filtered_terms <- GSEA_Combined %>%
+  filter(str_detect(Description, regex(keywords, ignore_case = TRUE)))
+
+adrenergic_genes <- unique(unlist(strsplit(filtered_terms$core_enrichment, split = "/", fixed = TRUE)))
+adrenergic_selected <- c("CACNA1C", "CAMK2A", "CAMK2B", "ATP2A2", "ATP1B3", "ATP1A3", "KCNQ1", "KCNE1")
+```
+
+```{r Heatmap_adrenergic, fig.width=8, fig.height=3}
+counts_heatmap <- counts_mPAP[adrenergic_selected, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+title <- textGrob("Adrenergic signaling", gp = gpar(fontsize = 18, fontface = "bold"))
+
+heatmap <- pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,          
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 15,
+  gaps_col = c(0,0,0),
+  silent = TRUE
+  )
+
+grid.arrange(grobs = list(title, heatmap[[4]]), heights = c(1, 5, 0.5))
+```
+
+```{r all_genes}
+all_selected <- c(sarcomere_selected, autophagy_selected, adrenergic_selected, glucose_selected, transport_selected)
+length(sarcomere_selected)
+length(autophagy_selected)
+length(adrenergic_selected)
+length(glucose_selected)
+length(transport_selected)
+```
+
+```{r Heatmap_all, fig.width=8, fig.height=12}
+counts_heatmap <- counts_mPAP[all_selected, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,          
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 16,
+  fontsize_col = 12,
+  cellheight = 15,
+  cellwidth = 15,
+  gaps_col = c(0,0,0,0),
+  gaps_row = c(7,7,
+               14,14,
+               22,22,
+               28,28)
+  )
+```
+
+```{r lm_scores_mPAP, fig.width=9, fig.height=6}
+pathways <- list(
+  "Cytoskeleton and sarcomere remodeling" = sarcomere_genes,
+  "Autophagy" = autophagy_genes,
+  "Adrenergic signaling" = adrenergic_genes,
+  "Glucose metabolism" = glucose_genes,
+  "Vesicle transport" = transport_genes)
+
+plots <- list()
+gene_program_scores <- data.frame()
+gene_program_stats <- data.frame()
+
+for (pathway_name in names(pathways)) {
+  genes <- pathways[[pathway_name]]
+  gene_counts <- counts_mPAP[rownames(counts_mPAP) %in% genes, ]
+  z_scores <- t(scale(t(gene_counts)))
+  z_scores[is.nan(z_scores)] <- 0
+  wrapped_name <- str_wrap(pathway_name, width = 20)
+  gene_score <- colMeans(z_scores)
+  gene_score_df <- data.frame(Sample = colnames(z_scores), Score = gene_score, mPAP = metadata_mPAP$mPAP_mmHg)
+  lm_model <- lm(Score ~ mPAP, data = gene_score_df)
+
+  lm_summary <- summary(lm_model)
+  r_squared <- lm_summary$r.squared
+  p_value <- lm_summary$coefficients[2, 4]
+
+  gene_score_df$Program <- pathway_name
+  gene_program_scores <- rbind(gene_program_scores, gene_score_df)
+  gene_program_stats <- rbind(gene_program_stats, data.frame(Program = pathway_name, R_squared = r_squared, P_value = p_value))
+
+  plot <- ggplot(gene_score_df, aes(x = mPAP, y = Score)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = TRUE, color = "firebrick", size = 0.4) + 
+    theme_minimal() +
+    labs(
+      title = paste(wrapped_name, "\nR² =", round(r_squared, 3), "p =", round(p_value, 5)),
+      x = "mPAP (mmHg)", 
+      y = "Gene Set Score"
+    )
+  plots[[pathway_name]] <- plot
+}
+
+grid.arrange(grobs = plots, ncol = 3)
+```
+
+```{r lm_scores_mPAP_2, fig.width=15, fig.height=3}
+grid.arrange(grobs = plots, ncol = 5)
+```
+
+## Heatmaps
+
+```{r Heatmap_DEGs_mPAP, fig.width=8, fig.height=10}
+counts_heatmap <- counts_mPAP[arrange(signif[["mPAP_mmHg"]], logFC)$gene, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = FALSE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 0.2,
+  gaps_col = c(0,0,0)
+  )
+```
+
+```{r Heatmap_top_DEGs_mPAP, fig.width=10, fig.height=5}
+DEGs_mPAP_top_up <- ranked_genes %>% 
+  dplyr::arrange(desc(metric)) %>%
+  slice_head(n=10)
+DEGs_mPAP_top_down <- ranked_genes %>% 
+  dplyr::arrange(metric) %>%
+  slice_head(n=10)
+
+DEGs_mPAP_top <- dplyr::bind_rows(DEGs_mPAP_top_up, DEGs_mPAP_top_down)
+rm(DEGs_mPAP_top_up, DEGs_mPAP_top_down)
+
+counts_heatmap <- counts_mPAP[DEGs_mPAP_top$gene, ]
+counts_heatmap <- counts_heatmap[, metadata_heatmap$Sample, drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  counts_heatmap,
+  color = heatmap_cols,   
+  scale = "row",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE, 
+  show_rownames = TRUE,
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 10,
+  fontsize_row = 13,
+  fontsize_col = 10,
+  cellheight = 15,
+  gaps_col = c(0,0,0)
+  )
+```
+
+## Transcription factor inference analysis
+
+```{r net}
+net <- get_collectri(organism='human', split_complexes=FALSE)
+```
+
+```{r ranked_genes_TF}
+ranked_genes_TF <- ranked_genes %>%
+  dplyr::select(gene, logFC, metric, PValue) %>% 
+  remove_rownames() %>%
+  column_to_rownames(var = "gene") %>%
+  as.matrix()
+```
+
+```{r contrast_acts}
+contrast_acts <- run_ulm(mat=ranked_genes_TF[, 'metric', drop=FALSE], net=net, .source='source', .target='target', .mor='mor', minsize = 10)
+```
+
+```{r mPAP_TF_barplot, fig.height=6, fig.width=12}
+n_tfs <- 40
+
+f_contrast_acts <- contrast_acts %>%
+  mutate(rnk = NA)
+msk <- f_contrast_acts$score > 0
+f_contrast_acts[msk, 'rnk'] <- rank(-f_contrast_acts[msk, 'score'])
+f_contrast_acts[!msk, 'rnk'] <- rank(-abs(f_contrast_acts[!msk, 'score']))
+tfs <- f_contrast_acts %>%
+  arrange(rnk) %>%
+  head(n_tfs) %>%
+  pull(source)
+f_contrast_acts <- f_contrast_acts %>%
+  filter(source %in% tfs)
+
+ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) + 
+    geom_bar(aes(fill = score), stat = "identity") +
+    scale_fill_gradient2(low = "darkblue", high = "indianred", 
+        mid = "whitesmoke", midpoint = 0) + 
+    theme_minimal() +
+    theme(axis.title = element_text(face = "bold", size = 12),
+        axis.text.x = 
+            element_text(angle = 45, hjust = 1, size =10, face= "bold"),
+        axis.text.y = element_text(size =10, face= "bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+    xlab("TFs")
+```
+
+```{r FeaturePlot_TF, fig.width=24, fig.height=15}
+FeaturePlot(CM, features = f_contrast_acts$source, ncol = 8)
+```
+
+```{r contrast_acts_filtered}
+contrast_acts_filtered <- contrast_acts %>%
+  filter(source %in% filter(percent_stats, percentCells > 5)$gene)
+```
+
+```{r TF_cols}
+TF_cols <- rev(colorRampPalette(brewer.pal(5, "BrBG"))(101))
+```
+
+```{r TF_barplot_filtered, fig.height=5, fig.width=8}
+n_tfs <- 40
+f_contrast_acts <- contrast_acts_filtered %>%
+  mutate(rnk = NA) %>%
+  filter(p_value < 0.05)
+msk <- f_contrast_acts$score > 0
+f_contrast_acts[msk, 'rnk'] <- rank(-f_contrast_acts[msk, 'score'])
+f_contrast_acts[!msk, 'rnk'] <- rank(-abs(f_contrast_acts[!msk, 'score']))
+tfs <- f_contrast_acts %>%
+  arrange(rnk) %>%
+  head(n_tfs) %>%
+  pull(source)
+f_contrast_acts <- f_contrast_acts %>%
+  filter(source %in% tfs) 
+
+ggplot(f_contrast_acts, aes(x = reorder(source, score), y = score)) + 
+    geom_bar(aes(fill = score), stat = "identity") +
+    scale_fill_gradientn(colors = TF_cols) + 
+    theme_minimal() +
+    theme(axis.title = element_text(face = "bold", size = 18),
+        axis.text.x = 
+            element_text(angle = 45, hjust = 1, size =15, face= "plain", colour = "black"),
+        axis.text.y = element_text(size =15, face= "plain", colour = "black"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+    xlab("Transcription Factor")
+```
+
+```{r TF_MEF2A, fig.height=3, fig.width=5}
+tf <- 'MEF2A'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(logfc, -log10(p_value), colour = color)) +
+  geom_point(size = 1) +                
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(tf)
+```
+
+```{r TF_SRF, fig.height=3, fig.width=5}
+tf <- 'SRF'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(logfc, -log10(p_value), colour = color)) +
+  geom_point(size = 1) +                 
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(tf)
+```
+
+https://www.nature.com/articles/s41419-023-05665-8
+
+```{r TF_HIF1A, fig.height=3, fig.width=5}
+tf <- 'HIF1A'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(logfc, -log10(p_value), colour = color)) +
+  geom_point(size = 1) +              
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(tf)
+```
+
+```{r TF_SP1, fig.height=3, fig.width=5}
+tf <- 'SP1'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(logfc, -log10(p_value), colour = color)) +
+  geom_point(size = 1) +              
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(tf)
+```
+
+```{r TF_PPARG, fig.height=3, fig.width=5}
+tf <- 'PPARG'
+
+df <- net %>%
+  filter(source == tf) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df[,c('logfc', 't_value', 'p_value')] <- ranked_genes_TF[inter, ]
+df <- df %>%
+  mutate(color = if_else(mor > 0 & t_value > 0, '1', color)) %>%
+  mutate(color = if_else(mor > 0 & t_value < 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value > 0, '2', color)) %>%
+  mutate(color = if_else(mor < 0 & t_value < 0, '1', color))
+
+ggplot(df, aes(logfc, -log10(p_value), colour = color)) +
+  geom_point(size = 1) +               
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(tf)
+```
+
+```{r TF_heatmap_Sample, fig.width=8, fig.height=5}
+sample_acts <- run_ulm(mat=counts_mPAP, net=net, .source='source', .target='target',
+                  .mor='mor', minsize = 10)
+
+sample_acts_mat <- sample_acts %>%
+  pivot_wider(id_cols = 'condition', names_from = 'source',
+              values_from = 'score') %>%
+  column_to_rownames('condition') %>%
+  as.matrix()
+
+tfs <- arrange(f_contrast_acts, desc(score))$source
+sample_acts_mat <- sample_acts_mat[,tfs]
+
+sample_acts_mat <- scale(sample_acts_mat)
+sample_acts_mat <- t(sample_acts_mat)
+sample_acts_mat <- sample_acts_mat[, metadata_heatmap$Sample, drop = FALSE]
+
+my_breaks <- c(seq(-3, 0, length.out=ceiling(101/2) + 1),
+               seq(0.05, 3, length.out=floor(101/2)))
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  sample_acts_mat,
+  breaks = my_breaks,
+  color = TF_cols,   
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,          
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 16,
+  fontsize_col = 12,
+  cellheight = 15,
+  cellwidth = 15,
+  gaps_col = c(0,0,0,0),
+  gaps_row = c(11,11)
+  )
+```
+
+```{r TF_tfsulm, eval=FALSE}
+mat <- as.matrix(CM@assays$RNA@data)
+
+acts <- decoupleR::run_ulm(mat = mat, 
+                           net = net, 
+                           .source = 'source', 
+                           .target = 'target',
+                           .mor='mor', 
+                           minsize = 10)
+
+CM[['tfsulm']] <- acts %>%
+                    tidyr::pivot_wider(id_cols = 'source', 
+                                       names_from = 'condition',
+                                       values_from = 'score') %>%
+                    tibble::column_to_rownames('source') %>%
+                    Seurat::CreateAssayObject(.)
+
+DefaultAssay(object = CM) <- "tfsulm"
+
+CM <- Seurat::ScaleData(CM)
+CM@assays$tfsulm@data <- CM@assays$tfsulm@scale.data
+```
+
+```{r TF_Feat_MEF2A, fig.width=12, fig.height=4}
+p1 <- Seurat::DimPlot(CM, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.1) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(CM, features = c("MEF2A"), pt.size = 0.1) + 
+      ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = "white") +
+      ggplot2::ggtitle('MEF2A activity')
+
+DefaultAssay(object = CM) <- "RNA"
+p3 <- Seurat::FeaturePlot(CM, 
+                          features = c("MEF2A"), pt.size = 0.1) + 
+      ggplot2::ggtitle('MEF2A expression')
+
+Seurat::DefaultAssay(CM) <- "tfsulm"
+
+p <- p1 | p2 | p3
+p
+```
+
+```{r TF_heatmap_cluster_10, fig.width=4, fig.height=2.5}
+n_tfs <- 10
+
+contrast_acts_filtered <- contrast_acts %>%
+  filter(source %in% filter(percent_stats, percentCells > 5)$gene)
+
+df <- t(as.matrix(CM@assays$tfsulm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(CM)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+df <- df %>%
+  filter(source %in% filter(percent_stats, percentCells > 5)$gene)
+
+tfs <- df %>%
+       dplyr::group_by(source) %>%
+       dplyr::summarise(std = stats::sd(mean)) %>%
+       dplyr::arrange(-abs(std)) %>%
+       head(n_tfs) %>%
+       dplyr::pull(source)
+
+top_acts_mat <- df %>%
+                dplyr::filter(source %in% tfs) %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames('cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-2, 0, length.out = ceiling(101 / 2) + 1),
+               seq(0.05, 2, length.out = floor(101 / 2)))
+
+# Plot
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = TF_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+```{r TF_heatmap_cluster_20, fig.width=6, fig.height=2.5}
+n_tfs <- 20
+
+contrast_acts_filtered <- contrast_acts %>%
+  filter(source %in% filter(percent_stats, percentCells > 5)$gene)
+
+df <- t(as.matrix(CM@assays$tfsulm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(CM)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+df <- df %>%
+  filter(source %in% filter(percent_stats, percentCells > 5)$gene)
+
+tfs <- df %>%
+       dplyr::group_by(source) %>%
+       dplyr::summarise(std = stats::sd(mean)) %>%
+       dplyr::arrange(-abs(std)) %>%
+       head(n_tfs) %>%
+       dplyr::pull(source)
+
+top_acts_mat <- df %>%
+                dplyr::filter(source %in% tfs) %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames('cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-2, 0, length.out = ceiling(100 / 2) + 1),
+               seq(0.05, 2, length.out = floor(100 / 2)))
+
+# Plot
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = TF_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+
+```{r prepare CM TF export}
+CM_TF_activity_export <- contrast_acts_filtered
+```
+
+## Pathway activity inference
+
+```{r net_pathway}
+net_path <- get_progeny(organism = 'human', top = 100000)
+```
+
+```{r contrast_acts_pathway}
+contrast_acts <- run_ulm(mat=ranked_genes_TF[, 'metric', drop=FALSE], net=net_path, .source='source', .target='target', .mor='weight', minsize = 10)
+```
+
+```{r Pathway_cols}
+Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FFB233"))(101)
+```
+
+```{r Pathway_barplot, fig.height=5, fig.width=8}
+ggplot(contrast_acts, aes(x = reorder(source, score), y = score)) + 
+    geom_bar(aes(fill = score), stat = "identity") +
+    scale_fill_gradientn(colors = Pathway_cols) + 
+    theme_minimal() +
+    theme(axis.title = element_text(face = "bold", size = 18),
+        axis.text.x = 
+            element_text(angle = 45, hjust = 1, size =15, face= "plain", colour = "black"),
+        axis.text.y = element_text(size =15, face= "plain", colour = "black"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+    xlab("Pathway")
+```
+
+```{r prepare CM pathway export}
+CM_pathway_activity_export <- contrast_acts
+```
+
+
+```{r Pathway_TGFb, fig.height=3, fig.width=5}
+pathway <- 'TGFb'
+
+df <- net_path %>%
+  filter(source == pathway) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df['metric'] <- ranked_genes_TF[, 'metric', drop=FALSE][inter, ]
+df <- df %>%
+  mutate(color = if_else(weight > 0 & metric > 0, '1', color)) %>%
+  mutate(color = if_else(weight > 0 & metric < 0, '2', color)) %>%
+  mutate(color = if_else(weight < 0 & metric > 0, '2', color)) %>%
+  mutate(color = if_else(weight < 0 & metric < 0, '1', color))
+
+ggplot(df, aes(x = weight, y = metric, color = color)) +
+  geom_point(size = 1) +                
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(pathway)
+```
+
+```{r Pathway_Hypoxia, fig.height=3, fig.width=5}
+pathway <- 'Hypoxia'
+
+df <- net_path %>%
+  filter(source == pathway) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df['metric'] <- ranked_genes_TF[, 'metric', drop=FALSE][inter, ]
+df <- df %>%
+  mutate(color = if_else(weight > 0 & metric > 0, '1', color)) %>%
+  mutate(color = if_else(weight > 0 & metric < 0, '2', color)) %>%
+  mutate(color = if_else(weight < 0 & metric > 0, '2', color)) %>%
+  mutate(color = if_else(weight < 0 & metric < 0, '1', color))
+
+ggplot(df, aes(x = weight, y = metric, color = color)) +
+  geom_point(size = 1) +                
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(pathway)
+```
+
+```{r Pathway_Trail, fig.height=3, fig.width=5}
+pathway <- 'Trail'
+
+df <- net_path %>%
+  filter(source == pathway) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df['metric'] <- ranked_genes_TF[, 'metric', drop=FALSE][inter, ]
+df <- df %>%
+  mutate(color = if_else(weight > 0 & metric > 0, '1', color)) %>%
+  mutate(color = if_else(weight > 0 & metric < 0, '2', color)) %>%
+  mutate(color = if_else(weight < 0 & metric > 0, '2', color)) %>%
+  mutate(color = if_else(weight < 0 & metric < 0, '1', color))
+
+ggplot(df, aes(x = weight, y = metric, color = color)) +
+  geom_point(size = 1) +                
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(pathway)
+```
+
+```{r Pathway_JAK_STAT, fig.height=3, fig.width=5}
+pathway <- 'JAK-STAT'
+
+df <- net_path %>%
+  filter(source == pathway) %>%
+  arrange(target) %>%
+  mutate(ID = target, color = "3") %>%
+  column_to_rownames('target')
+
+inter <- sort(intersect(rownames(ranked_genes_TF),rownames(df)))
+df <- df[inter, ]
+df['metric'] <- ranked_genes_TF[, 'metric', drop=FALSE][inter, ]
+df <- df %>%
+  mutate(color = if_else(weight > 0 & metric > 0, '1', color)) %>%
+  mutate(color = if_else(weight > 0 & metric < 0, '2', color)) %>%
+  mutate(color = if_else(weight < 0 & metric > 0, '2', color)) %>%
+  mutate(color = if_else(weight < 0 & metric < 0, '1', color))
+
+ggplot(df, aes(x = weight, y = metric, color = color)) +
+  geom_point(size = 1) +                
+  scale_colour_manual(values = c("#A63A2A", "#004C8C", "white")) +
+  geom_label_repel(aes(label = ID), size = 2.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  ggtitle(pathway)
+```
+
+```{r Pathway_heatmap_Sample, fig.width=8, fig.height=5}
+sample_acts <- run_ulm(mat=counts_mPAP, net=net_path, .source='source', .target='target',
+                  .mor='weight', minsize = 5)
+
+sample_acts_mat <- sample_acts %>%
+  pivot_wider(id_cols = 'condition', names_from = 'source',
+              values_from = 'score') %>%
+  column_to_rownames('condition') %>%
+  as.matrix()
+
+sample_acts_mat <- scale(sample_acts_mat)
+sample_acts_mat <- t(sample_acts_mat)
+sample_acts_mat <- sample_acts_mat[, metadata_heatmap$Sample, drop = FALSE]
+
+my_breaks <- c(seq(-3, 0, length.out=ceiling(101/2) + 1),
+               seq(0.05, 3, length.out=floor(101/2)))
+
+ordered_sources <- contrast_acts %>%
+  arrange(desc(score)) %>%
+  pull(source)
+
+sample_acts_mat <- sample_acts_mat[ordered_sources, , drop = FALSE]
+
+pheatmap::pheatmap(
+  name = " ",
+  angle_col = "45",
+  sample_acts_mat,
+  breaks = my_breaks,
+  color = Pathway_cols,   
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = ann_col,
+  annotation_colors = ann_colors,
+  show_colnames = TRUE,          
+  annotation_legend = TRUE,          
+  border_color = NA,
+  fontsize = 16,
+  fontsize_row = 16,
+  fontsize_col = 12,
+  cellheight = 15,
+  cellwidth = 15,
+  gaps_col = c(0,0,0,0),
+  gaps_row = c(3,3)
+  )
+```
+
+```{r Pathway_pathwaysmlm, eval=FALSE}
+acts_pathway <- decoupleR::run_mlm(mat = mat, 
+                           net = net_path, 
+                           .source = 'source', 
+                           .target = 'target',
+                           .mor = 'weight', 
+                           minsize = 10)
+
+CM[['pathwaysmlm']] <- acts_pathway %>%
+                         tidyr::pivot_wider(id_cols = 'source', 
+                                            names_from = 'condition',
+                                            values_from = 'score') %>%
+                         tibble::column_to_rownames(var = 'source') %>%
+                         Seurat::CreateAssayObject(.)
+
+Seurat::DefaultAssay(object = CM) <- "pathwaysmlm"
+
+CM <- Seurat::ScaleData(CM)
+CM@assays$pathwaysmlm@data <- CM@assays$pathwaysmlm@scale.data
+```
+
+```{r Pathway_Feat_TGFb, fig.width=8, fig.height=4}
+p1 <- Seurat::DimPlot(CM, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.11) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(CM, features = c("TGFb"), 
+                      pt.size = 0.1) + 
+      ggplot2::scale_colour_gradientn(colors = Pathway_cols
+                                      ) +
+      ggplot2::ggtitle('TGFb activity')
+
+p <- p1 | p2
+p
+```
+
+```{r Pathway_heatmap_cluster, fig.width=6, fig.height=2.5}
+df_pathway <- t(as.matrix(CM@assays$pathwaysmlm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(CM)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+
+top_acts_mat <- df_pathway %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames(var = 'cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-1.25, 0, length.out = ceiling(101 / 2) + 1),
+               seq(0.05, 1.25, length.out = floor(101 / 2)))
+
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = Pathway_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 20,
+                   cellheight = 20,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+
+
+## mPAP-associated differential expression across all cell types
 
 Load DE results
 
@@ -733,57 +2656,40 @@ rm(gene_sets, m, p1, p2, combined_plots)
 ```
 
 
-## GSEA
 
-```{r reorder_GO_by_pvalue}
-reorder_GO_by_pvalue <- function(enrichGO_result) {
-  go_results <- enrichGO_result@result
-  go_results_sorted <- go_results[order(go_results$p.adjust), ]
-  enrichGO_result@result <- go_results_sorted
-  return(enrichGO_result)
-}
+
+
+## GSEA in non-myocyte cell types
+
+```{r cluster_names_nonCM}
+cluster_names_nonCM <- c("Fibroblasts", "Endothelial_cells", "Pericytes", "Macrophages", "T_lymphocytes", "Smooth_muscle_cells", "Neuronal_cells", "Endocardial_cells")
+cluster_names_2 <- c("Fibroblasts", "Endothelial cells", "Pericytes", "Macrophages", "T lymphocytes", "Smooth muscle cells", "Neuronal cells", "Endocardial cells")
 ```
 
-```{r classify_terms}
-classify_terms <- function(df) {
-  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
-  return(df)
-}
-```
-
-```{r cluster_names_2}
-cluster_names_2 <- c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Pericytes", "Macrophages", "T lymphocytes", "Smooth muscle cells", "Neuronal cells", "Endocardial cells")
-```
-
-
-```{r GSEA_all, eval=FALSE}
-ranked_genes <- list()
+```{r GSEA_all, eval=TRUE}
+ranked_genes_nonCM <- list()
 GSEA_all <- list()
-for (i in seq_along(cluster_names)) {
-  gene_counts <- rowSums(subset(DCM_RV_integrated, cell_type == cluster_names_2[i])@assays$RNA@counts > 0)
+for (i in seq_along(cluster_names_nonCM)) {
+  gene_counts <- rowSums(subset(DCM_RV, cell_type == cluster_names_2[i])@assays$RNA@counts > 0)
   universe_genes <- names(gene_counts[gene_counts >= 3])
-  write.csv(as.data.frame(universe_genes), here::here(output_dir_data, paste0(cluster_names[i], "_universe_genes.csv")), quote=F, row.names = F)
+  write.csv(as.data.frame(universe_genes), here::here(output_dir_data, paste0(cluster_names_nonCM[i], "_universe_genes.csv")), quote=F, row.names = F)
   universe_entrez <- bitr(universe_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
-  write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, paste0(cluster_names[i], "_universe_entrez.csv")), quote=F, row.names = F)
+  write.csv(as.data.frame(universe_entrez), here::here(output_dir_data, paste0(cluster_names_nonCM[i], "_universe_entrez.csv")), quote=F, row.names = F)
   rm(gene_counts)
-  
-  up_genes <- filter(signif[[i]], logFC > 0.5)$gene
-  up_genes <- bitr(up_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
-  down_genes <- filter(signif[[i]], logFC < -0.5)$gene
-  down_genes <- bitr(down_genes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")$ENTREZID
-  
-  ranked_genes[[i]] <- results[[i]]
-  names(ranked_genes)[i] <- cluster_names[i]
-  ranked_genes[[i]]$metric <- ranked_genes[[i]]$logFC*-log10(ranked_genes[[i]]$PValue)
-  entrezid <- bitr(ranked_genes[[i]]$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
-  ranked_genes[[i]] <- merge(ranked_genes[[i]], entrezid, by.x = "gene", by.y = "SYMBOL")
-  ranked_genes[[i]] <- ranked_genes[[i]][!duplicated(ranked_genes[[i]]$metric), ]
-  write.csv(ranked_genes[[i]], file = here::here(output_dir_data, paste0(cluster_names[i], "_ranked_genes.csv")), quote=F, row.names = F)
-  
-  genelist <- ranked_genes[[i]]$metric
-  names(genelist) <- ranked_genes[[i]]$ENTREZID
+
+
+  ranked_genes_nonCM[[i]] <- results[[cluster_names_nonCM[i]]]
+  names(ranked_genes_nonCM)[i] <- cluster_names_nonCM[i]
+  ranked_genes_nonCM[[i]]$metric <- ranked_genes_nonCM[[i]]$logFC*-log10(ranked_genes_nonCM[[i]]$PValue)
+  entrezid <- bitr(ranked_genes_nonCM[[i]]$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+  ranked_genes_nonCM[[i]] <- merge(ranked_genes_nonCM[[i]], entrezid, by.x = "gene", by.y = "SYMBOL")
+  ranked_genes_nonCM[[i]] <- ranked_genes_nonCM[[i]][!duplicated(ranked_genes_nonCM[[i]]$metric), ]
+  write.csv(ranked_genes_nonCM[[i]], file = here::here(output_dir_data, paste0(cluster_names_nonCM[i], "_ranked_genes.csv")), quote=F, row.names = F)
+
+  genelist <- ranked_genes_nonCM[[i]]$metric
+  names(genelist) <- ranked_genes_nonCM[[i]]$ENTREZID
   genelist <- genelist[order(genelist, decreasing = T)]
-  
+
   GSEA_all[i] <- gseGO(geneList = genelist,
                        OrgDb = org.Hs.eg.db,
                        ont = "ALL",
@@ -792,68 +2698,21 @@ for (i in seq_along(cluster_names)) {
                        minGSSize = 10,
                        eps = 0)
   GSEA_all[[i]] <- reorder_GO_by_pvalue(GSEA_all[[i]])
-  names(GSEA_all)[i] <- cluster_names[i]
-  saveRDS(GSEA_all[i], here::here(output_dir_data, paste0(cluster_names[i], "_GSEA_GO_mPAP.rds")))
+  names(GSEA_all)[i] <- cluster_names_nonCM[i]
+  saveRDS(GSEA_all[i], here::here(output_dir_data, paste0(cluster_names_nonCM[i], "_GSEA_GO_mPAP.rds")))
 }
 
-rm(universe_genes, universe_entrez, up_genes, down_genes, genelist)
+rm(universe_genes, universe_entrez, genelist)
 
-saveRDS(ranked_genes, here::here(output_dir_data, "ranked_genes_list.rds"))
-saveRDS(GSEA_all, here::here(output_dir_data, "GSEA_all_list.rds"))
+saveRDS(ranked_genes_nonCM, here::here(output_dir_data, "ranked_genes_nonCM_list.rds"))
+saveRDS(GSEA_all, here::here(output_dir_data, "GSEA_all_nonCM_list.rds"))
 ```
 
 ```{r load GSEA_all}
-GSEA_all <- readRDS(here::here(output_dir_data, "GSEA_all_list.rds"))
+GSEA_all <- readRDS(here::here(output_dir_data, "GSEA_all_nonCM_list.rds"))
 ```
 
-```{r GSEA_Cardiomyocytes, fig.height=8, fig.width=8}
-GSEA_simplified <- clusterProfiler::simplify(
-  GSEA_all[["Cardiomyocytes"]],
-  cutoff = 0.75,
-  by = "p.adjust",
-  select_fun = min,
-  measure = "Wang",
-  semData = NULL
-)
-
-GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
-
-dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Cardiomyocytes", "\nGO Enrichment Analysis", "\nmPAP-associated genes"), 
-        label_format = 35, font.size = 15) +
-  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
-        axis.text.y = element_text(face = "bold"),
-        strip.text = element_text(face = "bold", size = 18)) +
-  facet_grid(.~.sign)
-```
-
-```{r GSEA_Cardiomyocytes_emapplot, fig.height=10, fig.width=20}
-GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
-
-activated_terms <- subset(GSEA_simplified@result, sign == "activated")
-suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
-
-GSEA_activated <- GSEA_simplified
-GSEA_activated@result <- activated_terms
-GSEA_activated <- pairwise_termsim(GSEA_activated)
-
-GSEA_suppressed <- GSEA_simplified
-GSEA_suppressed@result <- suppressed_terms
-GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
-
-p1 <- emapplot(GSEA_activated, showCategory = 100, size_category = 0.7, min_edge = 0.15) +
-  ggtitle("Activated Terms") +
-  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
-
-p2 <- emapplot(GSEA_suppressed, showCategory = 100, size_category = 0.7, min_edge = 0.15) +
-  ggtitle("Suppressed Terms") +
-  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
-
-combined_plot <- p1 | p2
-print(combined_plot)
-rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
-```
-
-```{r GSEA_Fibroblasts, fig.height=8, fig.width=8}
+```{r GSEA_Fibroblasts, fig.height=8, fig.width=8, eval=FALSE}
 GSEA_simplified <- clusterProfiler::simplify(
   GSEA_all[["Fibroblasts"]],
   cutoff = 0.75,
@@ -873,7 +2732,7 @@ dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Fibrob
   facet_grid(.~.sign)
 ```
 
-```{r GSEA_Fibroblasts_emapplot, fig.height=10, fig.width=10}
+```{r GSEA_Fibroblasts_emapplot, fig.height=10, fig.width=10, eval=FALSE}
 GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
 
 activated_terms <- subset(GSEA_simplified@result, sign == "activated")
@@ -892,7 +2751,7 @@ p1 <- emapplot(GSEA_activated, showCategory = 100, size_category = 0.7, min_edge
 
 combined_plot <- p1 
 print(combined_plot)
-rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1)
 ```
 
 ```{r GSEA_Endothelial_cells, fig.height=8, fig.width=8}
@@ -1074,46 +2933,11 @@ rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_supp
 ```
 
 
+
 ## NES plot
 
-```{r default_labeller}
-default_labeller <- function(n) {
-    function(str){
-        str <- gsub("_", " ", str)
-        ep_str_wrap(str, n)
-    }
-}
-```
-
-```{r ep_str_wrap}
-ep_str_wrap <- function(string, width) {
-    x <- gregexpr(' ', string)
-    vapply(seq_along(x),
-           FUN = function(i) {
-               y <- x[[i]]
-               n <- nchar(string[i])
-               len <- (c(y,n) - c(0, y)) ## length + 1
-               idx <- len > width
-               j <- which(!idx)
-               if (length(j) && max(j) == length(len)) {
-                   j <- j[-length(j)]
-               }
-               if (length(j)) {
-                   idx[j] <- len[j] + len[j+1] > width
-               }
-               idx <- idx[-length(idx)] ## length - 1
-               start <- c(1, y[idx] + 1)
-               end <- c(y[idx] - 1, n)
-               words <- substring(string[i], start, end)
-               paste0(words, collapse="\n")
-           },
-           FUN.VALUE = character(1)
-    )
-}
-```
-
 ```{r, fig.height=12, fig.width=6}
-GSEA_all <- readRDS(here::here(output_dir_data, "GSEA_all_list.rds"))
+GSEA_all <- readRDS(here::here(output_dir_data, "GSEA_all_nonCM_list.rds"))
 
 cell_order <- c(
   "Fibroblasts", "Endothelial_cells", "Pericytes", "Macrophages",
@@ -1259,3 +3083,50 @@ if (nrow(df_gsea) == 0) {
 
 
 
+
+
+## Supplementary data export
+
+```{r Supplementary_data_export, eval=TRUE}
+mPAP_gene_annotations <- bind_rows(lapply(names(results), function(celltype) {
+  x <- results[[celltype]]
+  x$cell_type <- celltype
+  x
+}))
+
+CM_gene_programs <- bind_rows(lapply(names(pathways), function(program) {
+  data.frame(
+    Program = program,
+    gene = pathways[[program]]
+  )
+}))
+
+supp_data <- list(
+  mPAP_gene_annotations = mPAP_gene_annotations,
+  CM_GSEA_GO = CM_GSEA_GO_export,
+  CM_GSEA_KEGG = CM_GSEA_KEGG_export,
+  GSEA_Fibroblasts = GSEA_all[["Fibroblasts"]]@result,
+  GSEA_Endothelial_cells = GSEA_all[["Endothelial_cells"]]@result,
+  GSEA_Pericytes = GSEA_all[["Pericytes"]]@result,
+  GSEA_Macrophages = GSEA_all[["Macrophages"]]@result,
+  GSEA_T_lymphocytes = GSEA_all[["T_lymphocytes"]]@result,
+  GSEA_Smooth_muscle_cells = GSEA_all[["Smooth_muscle_cells"]]@result,
+  GSEA_Neuronal_cells = GSEA_all[["Neuronal_cells"]]@result,
+  GSEA_Endocardial_cells = GSEA_all[["Endocardial_cells"]]@result,
+  CM_gene_programs = CM_gene_programs,
+  CM_gene_program_scores = gene_program_scores,
+  CM_program_stats = gene_program_stats,
+  CM_TF_activity = CM_TF_activity_export,
+  CM_pathway_activity = CM_pathway_activity_export
+)
+
+supp_data_file <- here::here(output_dir_data, "DE_mPAP_all_cell_types_SuppData.xlsx")
+if (file.exists(supp_data_file)) file.remove(supp_data_file)
+
+writexl::write_xlsx(
+  supp_data,
+  path = supp_data_file
+)
+
+supp_data_file
+```
