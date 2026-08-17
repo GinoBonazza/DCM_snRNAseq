@@ -1,0 +1,674 @@
+---
+title: "Differential expression analysis in fibroblasts using fibrosis"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+knitr::opts_chunk$set(message = FALSE)
+
+knitr::opts_chunk$set(cache = FALSE)
+
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+# Get current file name to make folder
+current_file <- "DE_Fibrosis_fibroblasts"
+
+# Load libraries
+library(here)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(readr)
+library(readxl)
+library(knitr)
+library(patchwork)
+library(scales)
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+
+
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scDblFinder)
+library(scCustomize)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(Matrix.utils)
+library(scater)
+library(statmod)
+library(clustree)
+library(harmony)
+library(gprofiler2)
+library(AnnotationHub)
+library(ReactomePA)
+library(speckle)
+library(limma)
+library(reactable)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(edgeR)
+library(rtracklayer)
+library(EnhancedVolcano)
+library(ComplexHeatmap)
+library(cowplot)
+library(qs2)
+
+#Output paths
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"))
+
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)
+```
+
+
+## DE Fibrosis
+
+Load seurat object
+
+```{r read DCM_RV}
+DCM_RV <- qs_read(here::here("output", "Add_cell_states_remove_contamination", "DCM_RV_cell_states_RNA.qs2"), nthreads = 32)
+```
+
+```{r add fibrosis}
+Fibrosis_data <- read_excel(here::here("data", "Massons_quantification.xlsx"))
+colnames(Fibrosis_data)[3] <- "Fibrosis_percent"
+Fibrosis_data <- Fibrosis_data %>%
+  dplyr::filter(Sample %in% unique(DCM_RV$Sample))
+add_metadata <- left_join(DCM_RV[["Sample"]], dplyr::select(Fibrosis_data, c("Sample", "Fibrosis_percent")))
+row.names(add_metadata) <- row.names(DCM_RV[[]])
+DCM_RV <- AddMetaData(DCM_RV, metadata = add_metadata)
+rm(add_metadata)
+
+FB <- subset(DCM_RV, cell_type == "Fibroblasts")
+FB$cell_state <- factor(FB$cell_state, levels = c("FB1", "FB2", "FB3", "FB4", "FB5"))
+```
+
+```{r Speckle_all}
+metadata <- DCM_RV@meta.data %>%
+  dplyr::select(Sample, Group, Age_years, Fibrosis_percent) %>%
+  unique()
+metadata$Fibrosis_percent <- metadata$Fibrosis_percent*100
+metadata_DCM <- dplyr::filter(metadata, Group=="DCM")
+
+  
+# Initialize an empty data frame for storing differential abundance results
+differential_abundance <- data.frame()
+props <- getTransformedProps(DCM_RV$cell_type, DCM_RV$Sample, transform="logit")
+
+props$Counts <- props$Counts[, metadata_DCM$Sample, drop = FALSE]
+props$TransformedProps <- props$TransformedProps[, metadata_DCM$Sample, drop = FALSE]
+props$Proportions <- props$Proportions[, metadata_DCM$Sample, drop = FALSE]
+metadata_DCM <- metadata_DCM %>%
+  dplyr::slice(match(colnames(props$Proportions), Sample))
+
+stopifnot(all(metadata_DCM$Sample == colnames(props$Proportions)))
+
+design <- model.matrix(~ metadata_DCM[["Fibrosis_percent"]] + metadata_DCM[["Age_years"]])
+fit <- lmFit(props$TransformedProps, design)
+fit <- eBayes(fit, robust=TRUE)
+differential_abundance <- topTable(fit, n = Inf, coef = 2)
+differential_abundance$cell_state <- rownames(differential_abundance)
+
+rm(props, fit)
+
+write.csv(differential_abundance, file = here::here(output_dir_data, "Differential_Abundance_Fibrosis_all.csv"), quote=F, row.names = F)
+
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r Speckle_fb, fig.height=8, fig.width=12, dpi = 300}
+# Initialize an empty data frame for storing differential abundance results
+differential_abundance <- data.frame()
+props <- getTransformedProps(FB$cell_state, FB$Sample, transform="logit")
+
+props$Counts <- props$Counts[, metadata_DCM$Sample, drop = FALSE]
+props$TransformedProps <- props$TransformedProps[, metadata_DCM$Sample, drop = FALSE]
+props$Proportions <- props$Proportions[, metadata_DCM$Sample, drop = FALSE]
+metadata_DCM <- metadata_DCM %>%
+  dplyr::slice(match(colnames(props$Proportions), Sample))
+
+stopifnot(all(metadata_DCM$Sample == colnames(props$Proportions)))
+
+design <- model.matrix(~ metadata_DCM[["Fibrosis_percent"]] + metadata_DCM[["Age_years"]])
+fit <- lmFit(props$TransformedProps, design)
+fit <- eBayes(fit, robust=TRUE)
+differential_abundance <- topTable(fit, n = Inf, coef = 2)
+differential_abundance$cell_state <- rownames(differential_abundance)
+differential_abundance_fibrosis_fb <- differential_abundance
+
+metadata_DCM <- metadata_DCM %>%
+  dplyr::slice(match(colnames(props$Proportions), Sample))
+
+par(mfrow=c(2,3), mar = c(5, 5, 3, 1))
+
+x <- metadata_DCM$Fibrosis_percent
+age0 <- mean(metadata_DCM$Age_years, na.rm = TRUE)
+
+for(i in 1:5){
+
+  y <- props$Proportions[i, ]
+
+  plot(x, y,
+       main = rownames(props$Proportions)[i],
+       pch = 16, cex = 2,
+       ylab = "Proportions", xlab = "Fibrotic area (%)",
+       cex.lab = 2, cex.axis = 1.5, cex.main = 2.5)
+
+  xseq <- seq(min(x, na.rm=TRUE), max(x, na.rm=TRUE), length.out = 100)
+
+  # linear predictor on LOGIT scale (includes Age fixed to mean)
+  eta <- fit$coefficients[i, 1] +
+    fit$coefficients[i, 2] * xseq +
+    fit$coefficients[i, 3] * age0
+
+  # back-transform to proportion scale and draw
+  lines(xseq, plogis(eta), col = 4, lwd = 2)
+}
+
+write.csv(differential_abundance, file = here::here(output_dir_data, "Differential_Abundance_Fibrosis_fb.csv"), quote=F, row.names = F)
+
+reactable(differential_abundance, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)
+```
+
+```{r, fig.height=12, fig.width=8, dpi = 300}
+par(mfrow=c(3,2), mar = c(5, 5, 3, 1))
+
+x <- metadata_DCM$Fibrosis_percent
+age0 <- mean(metadata_DCM$Age_years, na.rm = TRUE)
+
+for(i in 1:5){
+
+  y <- props$Proportions[i, ]
+
+  plot(x, y,
+       main = rownames(props$Proportions)[i],
+       pch = 16, cex = 2,
+       ylab = "Proportions", xlab = "Fibrotic area (%)",
+       cex.lab = 2, cex.axis = 1.5, cex.main = 2.5)
+
+  xseq <- seq(min(x, na.rm=TRUE), max(x, na.rm=TRUE), length.out = 100)
+
+  # linear predictor on LOGIT scale (includes Age fixed to mean)
+  eta <- fit$coefficients[i, 1] +
+    fit$coefficients[i, 2] * xseq +
+    fit$coefficients[i, 3] * age0
+
+  # back-transform to proportion scale and draw
+  lines(xseq, plogis(eta), col = 4, lwd = 2)
+}
+```
+
+```{r DE_fibrosis, eval=TRUE}
+DefaultAssay(FB) <- "RNA"
+data <- subset(FB, Group == "DCM")  
+
+expr_matrix <- GetAssayData(object = data, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes <- rownames(dplyr::filter(percent_stats, percentCells > 1))
+data <- data[which(rownames(data) %in% keep_genes),]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+
+pseudocounts <- Seurat2PB(data, sample="Sample", cluster = "cell_type")
+colnames(pseudocounts) <- pseudocounts$samples$sample
+metadata_DCM <- metadata_DCM %>%
+  dplyr::filter(Sample %in% pseudocounts$samples$sample)
+pseudocounts <- pseudocounts[, match(metadata_DCM$Sample, pseudocounts$samples$sample)]
+stopifnot(all(metadata_DCM$Sample == pseudocounts$samples$sample))
+keep_samples <- pseudocounts$samples$lib.size > 5e4
+pseudocounts <- pseudocounts[, keep_samples]
+metadata_DCM <- metadata_DCM %>%
+  dplyr::slice(match(pseudocounts$samples$sample, Sample))
+stopifnot(all(metadata_DCM$Sample == pseudocounts$samples$sample))
+keep_genes <- filterByExpr(pseudocounts)
+pseudocounts <- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+
+pseudocounts <- normLibSizes(pseudocounts)
+design <- model.matrix(~ metadata_DCM[["Fibrosis_percent"]] + metadata_DCM[["Age_years"]])
+design[,2] <- rescale(design[,2])
+pseudocounts <- estimateDisp(pseudocounts, design, robust = TRUE)
+
+fit <- glmQLFit(pseudocounts, design, robust=TRUE)
+fit <- glmQLFTest(fit, coef = 2)
+
+results_DE_fibrosis <- topTags(fit, n = Inf)$table
+results_DE_fibrosis <- merge(results_DE_fibrosis, percent_stats[, c("gene", "percentCells")], by = "gene", all.x = FALSE)
+results_DE_fibrosis$up_down <- ifelse(
+  results_DE_fibrosis$logFC > 0 & results_DE_fibrosis$FDR < 0.05, "Increased",
+  ifelse(results_DE_fibrosis$logFC < 0 & results_DE_fibrosis$FDR < 0.05, "Decreased",
+         "Not significant"
+         )
+  )
+signif_DE_fibrosis <- results_DE_fibrosis %>%
+  dplyr::filter(FDR < 0.05) %>%
+  dplyr::arrange(FDR)
+
+results_DE_fibrosis_all <- results_DE_fibrosis
+```
+
+## GSEA
+
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r classify_terms}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+```
+
+```{r GSEA_all}
+results_DE_fibrosis$metric <- results_DE_fibrosis$logFC*-log10(results_DE_fibrosis$PValue)
+entrezid <- bitr(results_DE_fibrosis$gene, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
+results_DE_fibrosis <- merge(results_DE_fibrosis, entrezid, by.x = "gene", by.y = "SYMBOL")
+results_DE_fibrosis <- results_DE_fibrosis[!duplicated(results_DE_fibrosis$metric), ]
+
+genelist <- results_DE_fibrosis$metric
+names(genelist) <- results_DE_fibrosis$ENTREZID
+genelist <- genelist[order(genelist, decreasing = T)]
+  
+GSEA_fibrosis <- gseGO(geneList = genelist,
+                       OrgDb = org.Hs.eg.db,
+                       ont = "ALL",
+                       keyType = "ENTREZID",
+                       nPermSimple = 10000,
+                       minGSSize = 10,
+                       eps = 0)
+GSEA_fibrosis <- reorder_GO_by_pvalue(GSEA_fibrosis)
+
+saveRDS(GSEA_fibrosis, here::here(output_dir_data, "GSEA_GO_Fibrosis.rds"))
+```
+
+```{r GSEA_fibrosis, fig.height=8, fig.width=9, dpi = 300}
+GSEA_simplified <- clusterProfiler::simplify(
+  GSEA_fibrosis,
+  cutoff = 0.6,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+GSEA_simplified <- reorder_GO_by_pvalue(GSEA_simplified)
+
+dotplot(GSEA_simplified, showCategory = 8, split=".sign", title = paste0("Fibroblasts", "\nGO Enrichment Analysis", "\nFibrosis-associated genes"), 
+        label_format = 50, font.size = 12) +
+  theme(plot.title = element_text( face = "bold", size = 18, hjust = 0.5),
+        axis.text.y = element_text(face = "bold"),
+        strip.text = element_text(face = "bold", size = 18)) +
+  facet_grid(.~.sign)
+```
+
+```{r GSEA_fibrosis_emapplot, fig.height=10, fig.width=20, dpi = 300}
+GSEA_simplified@result <- classify_terms(GSEA_simplified@result)
+
+activated_terms <- subset(GSEA_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_simplified@result, sign == "suppressed")
+
+GSEA_activated <- GSEA_simplified
+GSEA_activated@result <- activated_terms
+GSEA_activated <- pairwise_termsim(GSEA_activated)
+
+GSEA_suppressed <- GSEA_simplified
+GSEA_suppressed@result <- suppressed_terms
+GSEA_suppressed <- pairwise_termsim(GSEA_suppressed)
+
+p1 <- emapplot(GSEA_activated, showCategory = 100, node_label_size = 2.5, min_edge = 0.15) +
+  ggtitle("Activated Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(GSEA_suppressed, showCategory = 100, node_label_size = 2.5, min_edge = 0.15) +
+  ggtitle("Suppressed Terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)
+```
+
+
+```{r, fig.height=6, fig.width=15, dpi = 300}
+top10_genes <- signif_DE_fibrosis %>%
+  dplyr::arrange(FDR) %>%
+  dplyr::slice_head(n = 10) %>%
+  dplyr::pull(gene)
+
+counts <- edgeR::cpm(pseudocounts, log = TRUE)  # genes x samples
+
+df_plot <- as.data.frame(t(counts[top10_genes, , drop = FALSE])) %>%
+  tibble::rownames_to_column("Sample") %>%
+  dplyr::mutate(
+    Fibrosis = metadata_DCM$Fibrosis_percent[match(Sample, metadata_DCM$Sample)]
+  ) %>%
+  tidyr::pivot_longer(
+    cols = dplyr::all_of(top10_genes),
+    names_to = "gene",
+    values_to = "expr"
+  )
+
+ggplot(df_plot, aes(x = Fibrosis, y = expr)) +
+  geom_point() +
+  facet_wrap(~ gene, scales = "free_y") +
+  theme_minimal() +
+  labs(
+    x = "Fibrosis (%)",
+    y = "Expression (logCPM)"
+  )
+```
+
+```{r, fig.height=4.8, fig.width=6.05, dpi = 300}
+# one cell type only
+top_n_pos <- 8
+top_n_neg <- 8
+padj_cutoff <- 0.05
+
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(stringr)
+library(scales)
+
+wrap_3lines <- function(x, width = 45) {
+  vapply(x, function(s) {
+    s <- str_squish(as.character(s))
+    if (nchar(s) <= width) return(s)
+
+    words <- str_split(s, "\\s+")[[1]]
+    if (length(words) <= 1) return(s)
+
+    # greedy fill into up to 3 lines
+    lines <- c("", "", "")
+    li <- 1
+    for (w in words) {
+      cand <- if (lines[li] == "") w else paste(lines[li], w)
+      if (nchar(cand) <= width) {
+        lines[li] <- cand
+      } else if (li < 3) {
+        li <- li + 1
+        lines[li] <- w
+      } else {
+        # already on line 3: truncate with ellipsis
+        lines[li] <- paste0(substr(lines[li], 1, max(1, width - 1)), "…")
+        break
+      }
+    }
+
+    # if line 3 still too long, truncate
+    if (nchar(lines[3]) > width) {
+      lines[3] <- paste0(substr(lines[3], 1, width - 1), "…")
+    }
+
+    paste(lines[lines != ""], collapse = "\n")
+  }, FUN.VALUE = character(1))
+}
+
+obj <- GSEA_fibrosis
+if (is.null(obj) || nrow(obj@result) == 0) {
+  message("GSEA_fibrosis is empty.")
+} else {
+
+  obj_simpl <- clusterProfiler::simplify(
+    obj,
+    cutoff = 0.6,
+    by = "p.adjust",
+    select_fun = min,
+    measure = "Wang",
+    semData = NULL
+  )
+
+  res <- obj_simpl@result %>%
+    as_tibble() %>%
+    filter(!is.na(NES), !is.na(p.adjust)) %>%
+    filter(p.adjust < padj_cutoff)
+
+  if (nrow(res) == 0) {
+    message("No significant terms (p.adjust < ", padj_cutoff, ") found.")
+  } else {
+
+    pos <- res %>%
+      filter(NES > 0) %>%
+      arrange(desc(NES)) %>%
+      slice_head(n = top_n_pos)
+
+    neg <- res %>%
+      filter(NES < 0) %>%
+      arrange(NES) %>%
+      slice_head(n = top_n_neg)
+
+    df_gsea <- bind_rows(pos, neg) %>%
+      mutate(
+        p_for_color = if ("pvalue" %in% colnames(.)) pvalue else p.adjust,
+        score = -log10(p_for_color) * sign(NES),
+        Description_wrapped = wrap_3lines(Description, width = 41)
+      )
+
+    # cap extremes so colors stay visible
+    L <- unname(quantile(abs(df_gsea$score), probs = 0.80, na.rm = TRUE))
+    if (!is.finite(L) || L == 0) L <- max(abs(df_gsea$score), na.rm = TRUE)
+
+    ggplot(df_gsea, aes(x = reorder(Description_wrapped, NES), y = NES, fill = score)) +
+      geom_col(width = 0.9) +
+      coord_flip() +
+      scale_fill_gradient2(
+        low = "#004C8C",
+        mid = "white",
+        high = "#A63A2A",
+        midpoint = 0,
+        limits = c(-L, L),
+        oob = scales::squish,
+        name = expression(-log[10](p) %*% sign(NES))
+      ) +
+      labs(x = NULL, y = "Normalized enrichment score (NES)") +
+      theme_bw(base_size = 10) +
+      theme(
+        text = element_text(color = "black"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black", size = 14),
+        axis.text.y = element_text(size = 10.2, color = "black", lineheight = 0.6),
+        plot.title = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom",
+      legend.direction = "horizontal",
+     legend.title = element_text(size = 9),
+     legend.text = element_text(size = 9)
+    ) + 
+    guides(fill = guide_colorbar(
+    barwidth  = unit(6, "cm"),
+    barheight = unit(0.3, "cm"),
+    title.position = "top",
+    title.hjust = 0.5
+  ))
+  }
+}
+```
+
+```{r, fig.height=8, fig.width=12, dpi = 300}
+metadata_mpap <- FB@meta.data %>%
+  dplyr::select(Sample, Group, Age_years, mPAP_mmHg) %>%
+  unique()
+
+metadata_DCM_mpap <- metadata_mpap %>%
+  dplyr::filter(
+    Group == "DCM",
+    !is.na(mPAP_mmHg),
+    mPAP_mmHg > 0,
+    !is.na(Age_years)
+  )
+
+# Differential abundance for fibroblast states vs mPAP
+props_mpap <- getTransformedProps(FB$cell_state, FB$Sample, transform = "logit")
+
+props_mpap$Counts <- props_mpap$Counts[, metadata_DCM_mpap$Sample, drop = FALSE]
+props_mpap$TransformedProps <- props_mpap$TransformedProps[, metadata_DCM_mpap$Sample, drop = FALSE]
+props_mpap$Proportions <- props_mpap$Proportions[, metadata_DCM_mpap$Sample, drop = FALSE]
+
+metadata_DCM_mpap <- metadata_DCM_mpap %>%
+  dplyr::slice(match(colnames(props_mpap$Proportions), Sample))
+
+stopifnot(all(metadata_DCM_mpap$Sample == colnames(props_mpap$Proportions)))
+
+design_mpap <- model.matrix(
+  ~ metadata_DCM_mpap[["mPAP_mmHg"]] + metadata_DCM_mpap[["Age_years"]]
+)
+
+fit_mpap <- limma::lmFit(props_mpap$TransformedProps, design_mpap)
+fit_mpap <- limma::eBayes(fit_mpap, robust = TRUE)
+
+differential_abundance_mpap_fb <- limma::topTable(fit_mpap, n = Inf, coef = 2)
+differential_abundance_mpap_fb$cell_state <- rownames(differential_abundance_mpap_fb)
+
+write.csv(
+  differential_abundance_mpap_fb,
+  file = here::here(output_dir_data, "Differential_Abundance_mPAP_fb.csv"),
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Plot mPAP vs fibroblast subset proportions
+n_states <- nrow(props_mpap$Proportions)
+
+par(mfrow = c(2, 3), mar = c(5, 5, 3, 1))
+
+x <- metadata_DCM_mpap$mPAP_mmHg
+age0 <- mean(metadata_DCM_mpap$Age_years, na.rm = TRUE)
+
+for (i in seq_len(n_states)) {
+
+  y <- props_mpap$Proportions[i, ]
+
+  plot(
+    x, y,
+    main = rownames(props_mpap$Proportions)[i],
+    pch = 16,
+    cex = 2,
+    ylab = "Proportion",
+    xlab = "mPAP (mmHg)",
+    cex.lab = 2,
+    cex.axis = 1.5,
+    cex.main = 2.2
+  )
+
+  xseq <- seq(min(x, na.rm = TRUE), max(x, na.rm = TRUE), length.out = 100)
+
+  # Linear predictor on logit scale, with age fixed to mean
+  eta <- fit_mpap$coefficients[i, 1] +
+    fit_mpap$coefficients[i, 2] * xseq +
+    fit_mpap$coefficients[i, 3] * age0
+
+  # Back-transform to proportion scale
+  lines(xseq, plogis(eta), col = 4, lwd = 2)
+}
+
+reactable(
+  differential_abundance_mpap_fb,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)
+
+rm(props_mpap, fit_mpap)
+```
+
+```{r, fig.height=4, fig.width=4, dpi = 300}
+mpap_fibrosis_df <- DCM_RV@meta.data %>%
+  dplyr::select(Sample, Group, Age_years, mPAP_mmHg, Fibrosis_percent) %>%
+  dplyr::distinct() %>%
+  dplyr::filter(
+    Group == "DCM",
+    !is.na(mPAP_mmHg),
+    mPAP_mmHg > 0,
+    !is.na(Fibrosis_percent)
+  ) %>%
+  dplyr::mutate(
+    Fibrosis_percent = Fibrosis_percent * 100
+  )
+
+cor_test_mpap_fibrosis <- cor.test(
+  mpap_fibrosis_df$mPAP_mmHg,
+  mpap_fibrosis_df$Fibrosis_percent,
+  method = "pearson"
+)
+
+r_val <- round(unname(cor_test_mpap_fibrosis$estimate), 2)
+p_val <- signif(cor_test_mpap_fibrosis$p.value, 2)
+
+ggplot(mpap_fibrosis_df, aes(x = mPAP_mmHg, y = Fibrosis_percent)) +
+  geom_point(size = 2.6, alpha = 0.9) +
+  geom_smooth(method = "lm", se = TRUE, linewidth = 0.6, color = "black") +
+  annotate(
+    "text",
+    x = Inf,
+    y = Inf,
+    label = paste0("r = ", r_val, "\np = ", p_val, "\nn = ", nrow(mpap_fibrosis_df)),
+    hjust = 1.15,
+    vjust = 1.2,
+    size = 4
+  ) +
+  labs(
+    x = "mPAP (mmHg)",
+    y = "Fibrotic area (%)"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(color = "black")
+  )
+```
+
+## Supplementary Data export
+
+```{r Supplementary_data_export, eval=TRUE}
+fibrosis_values_supp <- Fibrosis_data %>%
+  dplyr::select(Sample, Fibrosis_percent) %>%
+  dplyr::mutate(Fibrosis_percent = Fibrosis_percent * 100)
+
+writexl::write_xlsx(
+  list(
+    Fibrosis_values = fibrosis_values_supp,
+    FB_fibrosis_abundance = differential_abundance_fibrosis_fb,
+    Fibrosis_DE = results_DE_fibrosis_all,
+    Fibrosis_GSEA_GO = GSEA_fibrosis@result,
+    FB_mPAP_abundance = differential_abundance_mpap_fb
+  ),
+  here::here(output_dir_data, "Fibrosis_fibroblasts_SuppData.xlsx")
+)
+```
