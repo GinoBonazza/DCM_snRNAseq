@@ -1,0 +1,1048 @@
+---
+title: "Proteomics differential abundance analysis v4"
+author: "Gino Bonazza"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE,
+  dpi = 300,
+  fig.align = "center"
+)
+```
+
+# Overview
+
+This workflow tests associations between RV tissue protein abundance and
+continuous clinical parameters in the Olink Reveal and LC-MS/MS datasets.
+
+Only DCM patients retained after the proteomics quality-control workflow
+and measured by both proteomic platforms are included. Olink and LC-MS/MS are
+analysed separately using limma. Models are adjusted for age, with BCA protein
+concentration included as an additional covariate in the Olink models.
+
+The analysis produces the protein-count summary, RVIT and TAPSE volcano plots,
+and LC-MS/MS heatmaps for proteins significantly associated with TAPSE or RVIT.
+No PCA or enrichment analysis is performed.
+
+# Setup
+
+```{r libraries}
+library(here)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(patchwork)
+library(limma)
+library(scales)
+library(EnhancedVolcano)
+library(ComplexHeatmap)
+library(circlize)
+library(writexl)
+```
+
+```{r analysis choices}
+current_file <- "Proteomics_differential_abundance_v4"
+
+output_dir <- here::here(
+  "output",
+  current_file
+)
+
+figure_dir <- here::here(
+  "docs",
+  "figure",
+  paste0(current_file, ".Rmd")
+)
+
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+dir.create(
+  figure_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+proteomics_qc_file <- here::here(
+  "output",
+  "Proteomics_quality_control_v4",
+  "Proteomics_QC_complete_objects.rds"
+)
+
+parameters <- c(
+  "mPAP_mmHg",
+  "sPAP_mmHg",
+  "PVR_WU",
+  "PCW_mmHg",
+  "RVIT_mm",
+  "TAPSE_mm",
+  "LVEF_percent",
+  "LVEDD_mm"
+)
+
+ph_parameters <- c(
+  "mPAP_mmHg",
+  "sPAP_mmHg",
+  "PVR_WU",
+  "PCW_mmHg"
+)
+
+rv_parameters <- c(
+  "RVIT_mm",
+  "TAPSE_mm"
+)
+
+lv_parameters <- c(
+  "LVEF_percent",
+  "LVEDD_mm"
+)
+
+ordered_parameters <- c(
+  ph_parameters,
+  rv_parameters,
+  lv_parameters
+)
+
+pretty_parameter_names <- c(
+  mPAP_mmHg = "mPAP (mmHg)",
+  sPAP_mmHg = "sPAP (mmHg)",
+  PVR_WU = "PVR (WU)",
+  PCW_mmHg = "PCWP (mmHg)",
+  RVIT_mm = "RVIT (mm)",
+  TAPSE_mm = "TAPSE (mm)",
+  LVEF_percent = "LVEF (%)",
+  LVEDD_mm = "LVEDD (mm)"
+)
+
+fdr_cutoff <- 0.20
+ms_min_observed_fraction <- 0.70
+```
+
+# Helper functions
+
+```{r helper functions}
+pretty_var_names <- c(
+  mPAP_mmHg = "mPAP (mmHg)",
+  sPAP_mmHg = "sPAP (mmHg)",
+  PVR_WU = "PVR (WU)",
+  PCW_mmHg = "PCWP (mmHg)",
+  RVIT_mm = "RVIT (mm)",
+  TAPSE_mm = "TAPSE (mm)",
+  LVEF_percent = "LVEF (%)",
+  LVEDD_mm = "LVEDD (mm)"
+)
+
+ordered_params <- ordered_parameters
+
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+
+make_clinical_volcano <- function(res, param, pretty_var_names, p_cutoff = 0.2) {
+  keyvals <- rep("grey70", nrow(res))
+  names(keyvals) <- rep("Not significant", nrow(res))
+  keyvals[res$logFC > 0 & res$adj.P.Val < p_cutoff] <- "#A63A2A"
+  names(keyvals)[keyvals == "#A63A2A"] <- "Positive"
+  keyvals[res$logFC < 0 & res$adj.P.Val < p_cutoff] <- "#004C8C"
+  names(keyvals)[keyvals == "#004C8C"] <- "Negative"
+
+  EnhancedVolcano(
+    res,
+    lab = res$feature,
+    x = "logFC",
+    y = "adj.P.Val",
+    labSize = 0,
+    titleLabSize = 15,
+    subtitleLabSize = 12,
+    axisLabSize = 11,
+    captionLabSize = 9,
+    pointSize = 0.8,
+    FCcutoff = 0,
+    pCutoff = p_cutoff,
+    ylim = c(0, max(2.5, ceiling(max(-log10(res$adj.P.Val), na.rm = TRUE) + 0.5))),
+    colCustom = keyvals,
+    colAlpha = 1,
+    drawConnectors = FALSE,
+    subtitle = NULL,
+    title = paste0(pretty_var_names[[param]] %||% param, "\n", "n = ", unique(res$n_complete_samples)),
+    xlab = "Effect size (rescaled 0-1 predictor)",
+    ylab = "FDR"
+  ) + theme(legend.position = "none")
+}
+
+
+build_sig_heatmap <- function(res_tbl,
+                              expr_mat,
+                              meta_df,
+                              param,
+                              assay_label,
+                              sig_cutoff = 0.2,
+                              filter_detect_frac = NULL) {
+
+  meta_sub <- meta_df %>%
+    dplyr::select(
+      Sample,
+      all_of(param)
+    ) %>%
+    dplyr::distinct(
+      Sample,
+      .keep_all = TRUE
+    ) %>%
+    dplyr::filter(
+      Sample %in% colnames(expr_mat)
+    ) %>%
+    dplyr::filter(
+      !is.na(.data[[param]])
+    ) %>%
+    dplyr::arrange(
+      .data[[param]]
+    )
+
+  expr_sub <- expr_mat[
+    ,
+    meta_sub$Sample,
+    drop = FALSE
+  ]
+
+  if (!is.null(filter_detect_frac)) {
+    keep_rows <- rowMeans(
+      !is.na(expr_sub)
+    ) >= filter_detect_frac
+
+    expr_sub <- expr_sub[
+      keep_rows,
+      ,
+      drop = FALSE
+    ]
+  }
+
+  sig_tbl <- res_tbl %>%
+    dplyr::filter(
+      adj.P.Val < sig_cutoff
+    ) %>%
+    dplyr::filter(
+      feature %in% rownames(expr_sub)
+    ) %>%
+    dplyr::arrange(
+      dplyr::desc(logFC)
+    )
+
+  if (nrow(sig_tbl) == 0) {
+    message(
+      "No significant features for ",
+      assay_label,
+      " - ",
+      param
+    )
+    return(NULL)
+  }
+
+  mat <- expr_sub[
+    sig_tbl$feature,
+    meta_sub$Sample,
+    drop = FALSE
+  ]
+
+  mat_z <- t(
+    scale(
+      t(mat)
+    )
+  )
+
+  mat_z[is.nan(mat_z)] <- 0
+  mat_z[!is.finite(mat_z)] <- 0
+
+  row_split <- ifelse(
+    sig_tbl$logFC > 0,
+    paste0(
+      "Positive association with ",
+      pretty_var_names[[param]] %||% param
+    ),
+    paste0(
+      "Negative association with ",
+      pretty_var_names[[param]] %||% param
+    )
+  )
+
+  ann_df <- data.frame(
+    row.names = meta_sub$Sample
+  )
+
+  ann_df[[
+    pretty_var_names[[param]] %||% param
+  ]] <- meta_sub[[param]]
+
+  ann_col_list <- list()
+
+  ann_col_list[[
+    pretty_var_names[[param]] %||% param
+  ]] <- circlize::colorRamp2(
+    c(
+      min(
+        meta_sub[[param]],
+        na.rm = TRUE
+      ),
+      median(
+        meta_sub[[param]],
+        na.rm = TRUE
+      ),
+      max(
+        meta_sub[[param]],
+        na.rm = TRUE
+      )
+    ),
+    c(
+      "#DCEAF7",
+      "#6AAED6",
+      "#08306B"
+    )
+  )
+
+  ha <- ComplexHeatmap::HeatmapAnnotation(
+    df = ann_df,
+    col = ann_col_list,
+    annotation_name_gp = grid::gpar(
+      fontsize = 9
+    )
+  )
+
+  row_height_mm <- 2.5
+
+  heatmap_height <- grid::unit(
+    nrow(mat_z) *
+      row_height_mm,
+    "mm"
+  )
+
+  ComplexHeatmap::Heatmap(
+    mat_z,
+    name = "Z-score",
+    col = circlize::colorRamp2(
+      c(-2, 0, 2),
+      c("#2166AC", "white", "#B2182B")
+    ),
+    top_annotation = ha,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = row_split,
+    show_row_dend = FALSE,
+    show_column_dend = FALSE,
+    column_title = paste0(
+      assay_label,
+      " - significant features for ",
+      pretty_var_names[[param]] %||% param
+    ),
+    row_title = NULL,
+    column_names_rot = 45,
+    column_names_gp = grid::gpar(
+      fontsize = 8
+    ),
+    row_names_gp = grid::gpar(
+      fontsize = 7
+    ),
+    height = heatmap_height
+  )
+}
+```
+
+# Import filtered proteomics data
+
+```{r import QC object}
+if (
+  !file.exists(
+    proteomics_qc_file
+  )
+) {
+  stop(
+    "The filtered proteomics QC object was not found: ",
+    proteomics_qc_file
+  )
+}
+
+proteomics_qc <- readRDS(
+  proteomics_qc_file
+)
+
+filtered_proteomics <-
+  proteomics_qc$after_exclusion
+```
+
+```{r matched proteomics samples}
+olink_expr_all <-
+  filtered_proteomics$olink
+
+ms_expr_all <-
+  filtered_proteomics$ms
+
+dcm_samples <-
+  filtered_proteomics$clinical %>%
+  dplyr::filter(
+    Group == "DCM"
+  ) %>%
+  dplyr::pull(Sample) %>%
+  unique()
+
+matched_samples <- dcm_samples[
+  dcm_samples %in%
+    intersect(
+      colnames(
+        olink_expr_all
+      ),
+      colnames(
+        ms_expr_all
+      )
+    )
+]
+
+olink_expr <- olink_expr_all[
+  ,
+  matched_samples,
+  drop = FALSE
+]
+
+ms_expr <- ms_expr_all[
+  ,
+  matched_samples,
+  drop = FALSE
+]
+
+clinical_matched <-
+  filtered_proteomics$clinical %>%
+  dplyr::filter(
+    Sample %in%
+      matched_samples
+  ) %>%
+  dplyr::slice(
+    match(
+      matched_samples,
+      Sample
+    )
+  ) %>%
+  dplyr::distinct(
+    Sample,
+    .keep_all = TRUE
+  )
+
+olink_meta <-
+  clinical_matched %>%
+  dplyr::left_join(
+    filtered_proteomics$olink_metadata %>%
+      dplyr::select(
+        Sample,
+        Batch,
+        BCA_mg_ml
+      ) %>%
+      dplyr::distinct(
+        Sample,
+        .keep_all = TRUE
+      ),
+    by = "Sample"
+  )
+
+ms_meta <-
+  clinical_matched
+
+stopifnot(
+  identical(
+    colnames(olink_expr),
+    matched_samples
+  ),
+  identical(
+    colnames(ms_expr),
+    matched_samples
+  ),
+  identical(
+    olink_meta$Sample,
+    matched_samples
+  ),
+  identical(
+    ms_meta$Sample,
+    matched_samples
+  )
+)
+
+length(
+  matched_samples
+)
+
+matched_samples
+```
+
+# Differential abundance analysis
+
+## Olink
+
+```{r Olink differential abundance}
+covariates_olink <- c(
+  "Age_years",
+  "BCA_mg_ml"
+)
+
+olink_da_results <- list()
+olink_da_summary <- list()
+
+for (
+  param in parameters
+) {
+  vars_needed <- unique(
+    c(
+      param,
+      covariates_olink
+    )
+  )
+
+  meta_da <- olink_meta %>%
+    dplyr::select(
+      Sample,
+      all_of(
+        vars_needed
+      )
+    ) %>%
+    dplyr::distinct(
+      Sample,
+      .keep_all = TRUE
+    ) %>%
+    dplyr::filter(
+      Sample %in%
+        colnames(
+          olink_expr
+        )
+    ) %>%
+    dplyr::filter(
+      complete.cases(.)
+    ) %>%
+    dplyr::mutate(
+      dplyr::across(
+        all_of(
+          vars_needed
+        ),
+        scales::rescale
+      )
+    )
+
+  expr_da <- olink_expr[
+    ,
+    meta_da$Sample,
+    drop = FALSE
+  ]
+
+  design_df <- meta_da %>%
+    dplyr::select(
+      all_of(
+        c(
+          param,
+          covariates_olink
+        )
+      )
+    )
+
+  design <- model.matrix(
+    as.formula(
+      paste0(
+        "~ ",
+        paste(
+          colnames(
+            design_df
+          ),
+          collapse = " + "
+        )
+      )
+    ),
+    data = design_df
+  )
+
+  fit <- limma::lmFit(
+    expr_da,
+    design
+  )
+
+  fit <- limma::eBayes(
+    fit,
+    robust = TRUE
+  )
+
+  results <- limma::topTable(
+    fit,
+    coef = param,
+    number = Inf,
+    sort.by = "P"
+  ) %>%
+    tibble::rownames_to_column(
+      "feature"
+    ) %>%
+    dplyr::mutate(
+      parameter = param,
+      assay = "Olink",
+      n_complete_samples =
+        nrow(meta_da),
+      n_tested_proteins =
+        nrow(expr_da),
+      regulation =
+        dplyr::case_when(
+          adj.P.Val <
+            fdr_cutoff &
+            logFC > 0 ~
+            "Up",
+          adj.P.Val <
+            fdr_cutoff &
+            logFC < 0 ~
+            "Down",
+          TRUE ~ "NS"
+        )
+    )
+
+  olink_da_results[[
+    param
+  ]] <- results
+
+  olink_da_summary[[
+    param
+  ]] <- tibble::tibble(
+    assay = "Olink",
+    parameter = param,
+    direction = c(
+      "Up",
+      "Down"
+    ),
+    n_sig = c(
+      sum(
+        results$adj.P.Val <
+          fdr_cutoff &
+          results$logFC > 0,
+        na.rm = TRUE
+      ),
+      sum(
+        results$adj.P.Val <
+          fdr_cutoff &
+          results$logFC < 0,
+        na.rm = TRUE
+      )
+    ),
+    n_complete_samples =
+      nrow(meta_da),
+    n_tested_proteins =
+      nrow(expr_da)
+  )
+}
+
+olink_da_all <- dplyr::bind_rows(
+  olink_da_results
+)
+
+olink_da_summary_df <-
+  dplyr::bind_rows(
+    olink_da_summary
+  )
+```
+
+## LC-MS/MS
+
+```{r LCMS differential abundance}
+covariates_ms <- c(
+  "Age_years"
+)
+
+ms_da_results <- list()
+ms_da_summary <- list()
+
+for (
+  param in parameters
+) {
+  vars_needed <- unique(
+    c(
+      param,
+      covariates_ms
+    )
+  )
+
+  meta_da <- ms_meta %>%
+    dplyr::select(
+      Sample,
+      all_of(
+        vars_needed
+      )
+    ) %>%
+    dplyr::distinct(
+      Sample,
+      .keep_all = TRUE
+    ) %>%
+    dplyr::filter(
+      Sample %in%
+        colnames(
+          ms_expr
+        )
+    ) %>%
+    dplyr::filter(
+      complete.cases(.)
+    ) %>%
+    dplyr::mutate(
+      dplyr::across(
+        all_of(
+          vars_needed
+        ),
+        scales::rescale
+      )
+    )
+
+  expr_da_initial <- ms_expr[
+    ,
+    meta_da$Sample,
+    drop = FALSE
+  ]
+
+  keep_proteins <- rowMeans(
+    is.finite(
+      expr_da_initial
+    )
+  ) >=
+    ms_min_observed_fraction
+
+  expr_da <- expr_da_initial[
+    keep_proteins,
+    ,
+    drop = FALSE
+  ]
+
+  design_df <- meta_da %>%
+    dplyr::select(
+      all_of(
+        c(
+          param,
+          covariates_ms
+        )
+      )
+    )
+
+  design <- model.matrix(
+    as.formula(
+      paste0(
+        "~ ",
+        paste(
+          colnames(
+            design_df
+          ),
+          collapse = " + "
+        )
+      )
+    ),
+    data = design_df
+  )
+
+  fit <- limma::lmFit(
+    expr_da,
+    design,
+    na.action =
+      na.exclude
+  )
+
+  fit <- limma::eBayes(
+    fit,
+    trend = TRUE,
+    robust = TRUE
+  )
+
+  results <- limma::topTable(
+    fit,
+    coef = param,
+    number = Inf,
+    sort.by = "P"
+  ) %>%
+    tibble::rownames_to_column(
+      "feature"
+    ) %>%
+    dplyr::mutate(
+      parameter = param,
+      assay = "LC-MS/MS",
+      n_complete_samples =
+        nrow(meta_da),
+      n_tested_proteins =
+        nrow(expr_da),
+      regulation =
+        dplyr::case_when(
+          adj.P.Val <
+            fdr_cutoff &
+            logFC > 0 ~
+            "Up",
+          adj.P.Val <
+            fdr_cutoff &
+            logFC < 0 ~
+            "Down",
+          TRUE ~ "NS"
+        )
+    )
+
+  ms_da_results[[
+    param
+  ]] <- results
+
+  ms_da_summary[[
+    param
+  ]] <- tibble::tibble(
+    assay = "LC-MS/MS",
+    parameter = param,
+    direction = c(
+      "Up",
+      "Down"
+    ),
+    n_sig = c(
+      sum(
+        results$adj.P.Val <
+          fdr_cutoff &
+          results$logFC > 0,
+        na.rm = TRUE
+      ),
+      sum(
+        results$adj.P.Val <
+          fdr_cutoff &
+          results$logFC < 0,
+        na.rm = TRUE
+      )
+    ),
+    n_complete_samples =
+      nrow(meta_da),
+    n_tested_proteins =
+      nrow(expr_da)
+  )
+}
+
+ms_da_all <- dplyr::bind_rows(
+  ms_da_results
+)
+
+ms_da_summary_df <-
+  dplyr::bind_rows(
+    ms_da_summary
+  )
+```
+
+# Number of significant proteins
+
+```{r differential abundance summary, fig.width=3, fig.height=5, dpi=300}
+deg_summary <- bind_rows(olink_da_summary_df, ms_da_summary_df) %>%
+  dplyr::mutate(
+    assay = dplyr::recode(
+      assay,
+      "LC-MS/MS" = "MS",
+      "Mass spec" = "MS"
+    ),
+    parameter = factor(parameter, levels = ordered_params),
+    parameter_label = factor(
+      pretty_var_names[as.character(parameter)],
+      levels = pretty_var_names[ordered_params]
+    ),
+    assay = factor(assay, levels = c("Olink", "MS")),
+    direction = factor(direction, levels = c("Up", "Down"))
+  )
+
+ggplot(deg_summary, aes(x = assay, y = parameter_label, fill = n_sig)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(aes(label = n_sig), size = 4) +
+  scale_fill_gradient(low = "grey95", high = "#A63A2A") +
+  facet_wrap(~ direction, ncol = 2) +
+  labs(
+    x = NULL,
+    y = NULL,
+    fill = "n proteins"
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    axis.line = element_blank(),
+    panel.border = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    axis.text.x = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    legend.position = "bottom",
+    legend.direction = "horizontal"
+  ) +
+  guides(
+    fill = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = grid::unit(4.5, "cm"),
+      barheight = grid::unit(0.4, "cm")
+    )
+  )
+```
+
+# RVIT volcano plots
+
+```{r RVIT volcano plots, fig.width=6, fig.height=4, dpi=300}
+p_RVIT_olink <- make_clinical_volcano(
+  res = olink_da_results[["RVIT_mm"]],
+  param = "RVIT_mm",
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle("Olink - RVIT")
+
+p_RVIT_ms <- make_clinical_volcano(
+  res = ms_da_results[["RVIT_mm"]],
+  param = "RVIT_mm",
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle("MS - RVIT")
+
+p_RVIT_olink + p_RVIT_ms
+```
+
+# TAPSE volcano plots
+
+```{r TAPSE volcano plots, fig.width=6, fig.height=4, dpi=300}
+p_TAPSE_olink <- make_clinical_volcano(
+  res = olink_da_results[["TAPSE_mm"]],
+  param = "TAPSE_mm",
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle("Olink - TAPSE")
+
+p_TAPSE_ms <- make_clinical_volcano(
+  res = ms_da_results[["TAPSE_mm"]],
+  param = "TAPSE_mm",
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle("MS - TAPSE")
+
+p_TAPSE_olink + p_TAPSE_ms
+```
+
+# LC-MS/MS TAPSE heatmap
+
+```{r TAPSE heatmap, fig.width=9, fig.height=6.5, dpi=300}
+ms_TAPSE_heat <- build_sig_heatmap(
+  res_tbl = ms_da_results[["TAPSE_mm"]],
+  expr_mat = ms_expr,
+  meta_df = ms_meta,
+  param = "TAPSE_mm",
+  assay_label = "MS",
+  sig_cutoff = 0.2,
+  filter_detect_frac = 0.70
+)
+
+if (!is.null(ms_TAPSE_heat)) {
+  ComplexHeatmap::draw(
+    ms_TAPSE_heat,
+    heatmap_legend_side = "right",
+    annotation_legend_side = "right",
+    padding = grid::unit(c(2, 8, 2, 2), "mm")
+  )
+}
+```
+
+# LC-MS/MS RVIT heatmap
+
+```{r RVIT heatmap, fig.width=9, fig.height=9, dpi=300}
+ms_RVIT_heat <- build_sig_heatmap(
+  res_tbl = ms_da_results[["RVIT_mm"]],
+  expr_mat = ms_expr,
+  meta_df = ms_meta,
+  param = "RVIT_mm",
+  assay_label = "MS",
+  sig_cutoff = 0.2,
+  filter_detect_frac = 0.70
+)
+
+if (!is.null(ms_RVIT_heat)) {
+  ComplexHeatmap::draw(
+    ms_RVIT_heat,
+    heatmap_legend_side = "right",
+    annotation_legend_side = "right",
+    padding = grid::unit(c(2, 8, 2, 2), "mm")
+  )
+}
+```
+
+# Supplementary Data export
+
+```{r Supplementary_data_export, eval=TRUE}
+matched_sample_table <- clinical_matched %>%
+  dplyr::select(
+    Sample,
+    Age_years,
+    mPAP_mmHg,
+    sPAP_mmHg,
+    PVR_WU,
+    PCW_mmHg,
+    RVIT_mm,
+    TAPSE_mm,
+    LVEF_percent,
+    LVEDD_mm
+  ) %>%
+  dplyr::left_join(
+    olink_meta %>%
+      dplyr::select(
+        Sample,
+        BCA_mg_ml
+      ),
+    by = "Sample"
+  )
+
+olink_TAPSE_sig <- olink_da_results[[
+  "TAPSE_mm"
+]] %>%
+  dplyr::filter(
+    adj.P.Val <
+      fdr_cutoff
+  )
+
+olink_RVIT_sig <- olink_da_results[[
+  "RVIT_mm"
+]] %>%
+  dplyr::filter(
+    adj.P.Val <
+      fdr_cutoff
+  )
+
+lcms_TAPSE_sig <- ms_da_results[[
+  "TAPSE_mm"
+]] %>%
+  dplyr::filter(
+    adj.P.Val <
+      fdr_cutoff
+  )
+
+lcms_RVIT_sig <- ms_da_results[[
+  "RVIT_mm"
+]] %>%
+  dplyr::filter(
+    adj.P.Val <
+      fdr_cutoff
+  )
+
+writexl::write_xlsx(
+  list(
+    Matched_samples =
+      matched_sample_table,
+    DA_summary =
+      dplyr::bind_rows(
+        olink_da_summary_df,
+        ms_da_summary_df
+      ),
+    Olink_all_results =
+      olink_da_all,
+    LCMS_all_results =
+      ms_da_all,
+    Olink_TAPSE_sig =
+      olink_TAPSE_sig,
+    Olink_RVIT_sig =
+      olink_RVIT_sig,
+    LCMS_TAPSE_sig =
+      lcms_TAPSE_sig,
+    LCMS_RVIT_sig =
+      lcms_RVIT_sig
+  ),
+  file.path(
+    output_dir,
+    "Proteomics_differential_abundance_v4_SuppData.xlsx"
+  )
+)
+```
