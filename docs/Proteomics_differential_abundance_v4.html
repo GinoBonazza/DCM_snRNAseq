@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Gino Bonazza" />
+
+
+<title>Proteomics differential abundance analysis v4</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Variance_partitioning.html">Variance partitioning</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="Fibrosis_hypertrophy.html">Fibrosis and hypertrophy</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="Proteomics_OLINK_MS.html">Olink and MS proteomics</a>
+    </li>
+    <li>
+      <a href="Proteomics_PCA_cell_State_composition.html">PCA proteomics and cell state composition</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Proteomics differential abundance analysis
+v4</h1>
+<h4 class="author">Gino Bonazza</h4>
+<h4 class="date">18 August, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-08-18
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreec13c374ad88910be5426364f25c61f244c77a9e2targetblankc13c374a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/c13c374ad88910be5426364f25c61f244c77a9e2" target="_blank">c13c374</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreec13c374ad88910be5426364f25c61f244c77a9e2targetblankc13c374a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/c13c374ad88910be5426364f25c61f244c77a9e2" target="_blank">c13c374</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    output/CellChat/
+    Ignored:    output/Cell_cell_communication_Macrophages/
+    Ignored:    output/Chaffin_2022/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/Koenig_2022/
+    Ignored:    output/Matrifibrocytes/
+    Ignored:    output/Matrifibrocytes_disease_vs_HC_adj_subsets/
+    Ignored:    output/SSc_PAH/
+
+Untracked files:
+    Untracked:  .Rprofile
+    Untracked:  Chaffin_wilcox.csv
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  Koenig_wilcox.csv
+    Untracked:  analysis/Amrute_2024_fibroblast_integration.Rmd
+    Untracked:  analysis/Amrute_2024_fibroblast_pseudobulk.Rmd
+    Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Check_IMC_panel.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DE_Group_all_cell_types.Rmd
+    Untracked:  analysis/EC_capillary_angiogenic_boxplot_stats.csv
+    Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
+    Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
+    Untracked:  analysis/Genes_Luxembourg.Rmd
+    Untracked:  analysis/HC_DEGs_clustering.Rmd
+    Untracked:  analysis/Koenig_2022.Rmd
+    Untracked:  analysis/Mass_Spec_RV_dysf.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_2.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_3.Rmd
+    Untracked:  analysis/Matrifibrocytes.Rmd
+    Untracked:  analysis/Matrifibrocytes_2.Rmd
+    Untracked:  analysis/Matrifibrocytes_3.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj_subsets.Rmd
+    Untracked:  analysis/Matrifibrocytes_high_score_populations_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_integration.Rmd
+    Untracked:  analysis/Olink_RV_dysf.Rmd
+    Untracked:  analysis/Olink_SSc_PAH.Rmd
+    Untracked:  analysis/Olink_SSc_PAH_draft.Rmd
+    Untracked:  analysis/Olink_proteomics_2.Rmd
+    Untracked:  analysis/Proteomics_OLINK_MS.Rmd
+    Untracked:  analysis/Proteomics_combined.Rmd
+    Untracked:  analysis/Proteomics_combined_2.Rmd
+    Untracked:  analysis/Pseudobulk_all.csv
+    Untracked:  analysis/Pseudobulk_all_2.csv
+    Untracked:  analysis/Pseudobulk_byCellType_facetGrid.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col_proportional.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.filtered.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox_2.csv
+    Untracked:  analysis/QC_integration_annotation_HC.Rmd
+    Untracked:  analysis/Reichart_ncRNA.Rmd
+    Untracked:  analysis/Reichart_wilcox.csv
+    Untracked:  analysis/Selection_genes_histology.Rmd
+    Untracked:  analysis/TAPSE_sPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/TF_activity_program_score_correlations_by_sample.csv
+    Untracked:  analysis/TF_activity_program_scores_by_sample_cell_state.csv
+    Untracked:  analysis/TOM/
+    Untracked:  analysis/UntitledR.R
+    Untracked:  analysis/ec_Reichart_logCPM.csv
+    Untracked:  analysis/mPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  analysis/prot_test.Rmd
+    Untracked:  analysis/test_1.Rmd
+    Untracked:  analysis/test_fb_prot.Rmd
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/Endothelial_cells_cubclustering_removed.Rmd
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/Removed_chunks.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/DCM_Clinical_data_83.xlsx
+    Untracked:  data/HMEC_RNAseq/
+    Untracked:  data/Heart_datasets/
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec/
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK/
+    Untracked:  data/OLINK_LVAD/
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Add_cell_states_remove_contamination/
+    Untracked:  output/Amrute_2024_fibroblast_integration/
+    Untracked:  output/Amrute_2024_fibroblast_pseudobulk/
+    Untracked:  output/Amrute_2024_matrifibrocyte_markers/
+    Untracked:  output/Biomarkers_selection/
+    Untracked:  output/CM_lncRNAs/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Cell_cell_communication/
+    Untracked:  output/Cell_cell_communication_LV/
+    Untracked:  output/Cell_cell_communication_LV2/
+    Untracked:  output/Cell_cycle/
+    Untracked:  output/Check_IMC_panel/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_Fibrosis_all_cell_types/
+    Untracked:  output/DE_Fibrosis_fibroblasts/
+    Untracked:  output/DE_Group_all_cell_types/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Dysferlin/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart_manuscript/
+    Untracked:  output/Endothelial_cells_SGLT2_I/
+    Untracked:  output/Endothelial_cells_published_datasets/
+    Untracked:  output/Endothelial_cells_subclustering/
+    Untracked:  output/Fibroblasts_DA_DE_26/
+    Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/Figures_manuscript/
+    Untracked:  output/Genes_Luxembourg/
+    Untracked:  output/Genes_Luxembourg_2/
+    Untracked:  output/HC_DEGs_clustering/
+    Untracked:  output/HMEC/
+    Untracked:  output/HMEC_second_run/
+    Untracked:  output/HMEC_second_run_manuscript/
+    Untracked:  output/LVAD_OLINK/
+    Untracked:  output/LV_Klaudia/
+    Untracked:  output/LV_datasets_DCM_vs_HC/
+    Untracked:  output/Lymphocytes_subclustering/
+    Untracked:  output/MOFA_integrative_analysis/
+    Untracked:  output/MOFA_integrative_analysis_v2/
+    Untracked:  output/MOFA_integrative_analysis_v3/
+    Untracked:  output/MS_proteomics/
+    Untracked:  output/Macrophages_subclustering/
+    Untracked:  output/Mass_Spec_RV_dysf/
+    Untracked:  output/Mass_Spec_proteomics/
+    Untracked:  output/Mass_Spec_proteomics_2/
+    Untracked:  output/Mass_Spec_proteomics_3/
+    Untracked:  output/Matrifibrocytes_1/
+    Untracked:  output/Matrifibrocytes_2/
+    Untracked:  output/Matrifibrocytes_2_adjusted/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_high_score_populations_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_integration/
+    Untracked:  output/Matrifibrocytes_subclusters_disease_vs_HC_adj/
+    Untracked:  output/Mural_cells_subclustering/
+    Untracked:  output/Olink_RV_dysf/
+    Untracked:  output/Olink_SSc_PAH/
+    Untracked:  output/Olink_SSc_PAH_draft/
+    Untracked:  output/Olink_proteomics/
+    Untracked:  output/Olink_proteomics_2/
+    Untracked:  output/Proteomics_FB_state_PCA/
+    Untracked:  output/Proteomics_PCA_cell_state_composition/
+    Untracked:  output/Proteomics_combined/
+    Untracked:  output/Proteomics_combined_2/
+    Untracked:  output/Proteomics_combined_3/
+    Untracked:  output/Proteomics_combined_4/
+    Untracked:  output/Proteomics_combined_final/
+    Untracked:  output/Proteomics_combined_final_males_only/
+    Untracked:  output/Proteomics_combined_final_males_only_no_PK259/
+    Untracked:  output/Proteomics_combined_final_males_only_no_batch2/
+    Untracked:  output/Proteomics_differential_abundance/
+    Untracked:  output/Proteomics_differential_abundance_v2/
+    Untracked:  output/Proteomics_differential_abundance_v3/
+    Untracked:  output/Proteomics_matched_PCA_multicell_states_v2/
+    Untracked:  output/Proteomics_quality_control/
+    Untracked:  output/Proteomics_quality_control_v2/
+    Untracked:  output/Proteomics_quality_control_v3/
+    Untracked:  output/Proteomics_quality_control_v4/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_HC/
+    Untracked:  output/Reichart2022_ventricle_specificity_noncoding/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/Selection_genes_histology/
+    Untracked:  output/TAPSE_sPAP_concordance_3datasets/
+    Untracked:  output/TAPSE_sPAP_proteomics_snrna/
+    Untracked:  output/UntitledR.R
+    Untracked:  output/Variance_partitioning/
+    Untracked:  output/mPAP_concordance_3datasets/
+    Untracked:  redsfewfref.R
+    Untracked:  reference_sources/
+    Untracked:  renv.lock
+    Untracked:  renv/
+    Untracked:  wflow_publish.log
+
+Unstaged changes:
+    Modified:   analysis/Amrute_2024_matrifibrocyte_markers.Rmd
+    Modified:   analysis/CM_lncRNAs.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cell_cycle.Rmd
+    Modified:   analysis/Comparison_LV.Rmd
+    Modified:   analysis/DE_Fibrosis_all_cell_types.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+    Modified:   analysis/Endothelial_cells_Koenig_Reichart_manuscript.Rmd
+    Modified:   analysis/Endothelial_cells_published_datasets.rmd
+    Modified:   analysis/Figures_manuscript.Rmd
+    Modified:   analysis/HMEC.Rmd
+    Modified:   analysis/HMEC_second_run_manuscript.Rmd
+    Modified:   analysis/LV_Klaudia.Rmd
+    Modified:   analysis/Olink_proteomics.Rmd
+    Modified:   analysis/Proteomics_PCA_cell_state_composition.Rmd
+    Modified:   analysis/Proteomics_combined_final.Rmd
+    Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
+    Modified:   analysis/SSc_PAH.Rmd
+    Modified:   analysis/_site.yml
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/Proteomics_differential_abundance_v4.Rmd</code>) and
+HTML (<code>docs/Proteomics_differential_abundance_v4.html</code>)
+files. If you’ve configured a remote Git repository (see
+<code>?wflow_git_remote</code>), click on the hyperlinks in the table
+below to view the files as they were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/c13c374ad88910be5426364f25c61f244c77a9e2/analysis/Proteomics_differential_abundance_v4.Rmd" target="_blank">c13c374</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-08-17
+</td>
+<td>
+wflow_publish(c("analysis/Proteomics_quality_control_v4.Rmd",
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="overview" class="section level1">
+<h1>Overview</h1>
+<p>This workflow tests associations between RV tissue protein abundance
+and continuous clinical parameters in the Olink Reveal and LC-MS/MS
+datasets.</p>
+<p>Only DCM patients retained after the proteomics quality-control
+workflow and measured by both proteomic platforms are included. Olink
+and LC-MS/MS are analysed separately using limma. Models are adjusted
+for age, with BCA protein concentration included as an additional
+covariate in the Olink models.</p>
+<p>The analysis produces the protein-count summary, RVIT and TAPSE
+volcano plots, and LC-MS/MS heatmaps for proteins significantly
+associated with TAPSE or RVIT. No PCA or enrichment analysis is
+performed.</p>
+</div>
+<div id="setup" class="section level1">
+<h1>Setup</h1>
+<pre class="r"><code>library(here)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(patchwork)
+library(limma)
+library(scales)
+library(EnhancedVolcano)
+library(ComplexHeatmap)
+library(circlize)
+library(writexl)</code></pre>
+<pre class="r"><code>current_file &lt;- &quot;Proteomics_differential_abundance_v4&quot;
+
+output_dir &lt;- here::here(
+  &quot;output&quot;,
+  current_file
+)
+
+figure_dir &lt;- here::here(
+  &quot;docs&quot;,
+  &quot;figure&quot;,
+  paste0(current_file, &quot;.Rmd&quot;)
+)
+
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+dir.create(
+  figure_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+proteomics_qc_file &lt;- here::here(
+  &quot;output&quot;,
+  &quot;Proteomics_quality_control_v4&quot;,
+  &quot;Proteomics_QC_complete_objects.rds&quot;
+)
+
+parameters &lt;- c(
+  &quot;mPAP_mmHg&quot;,
+  &quot;sPAP_mmHg&quot;,
+  &quot;PVR_WU&quot;,
+  &quot;PCW_mmHg&quot;,
+  &quot;RVIT_mm&quot;,
+  &quot;TAPSE_mm&quot;,
+  &quot;LVEF_percent&quot;,
+  &quot;LVEDD_mm&quot;
+)
+
+ph_parameters &lt;- c(
+  &quot;mPAP_mmHg&quot;,
+  &quot;sPAP_mmHg&quot;,
+  &quot;PVR_WU&quot;,
+  &quot;PCW_mmHg&quot;
+)
+
+rv_parameters &lt;- c(
+  &quot;RVIT_mm&quot;,
+  &quot;TAPSE_mm&quot;
+)
+
+lv_parameters &lt;- c(
+  &quot;LVEF_percent&quot;,
+  &quot;LVEDD_mm&quot;
+)
+
+ordered_parameters &lt;- c(
+  ph_parameters,
+  rv_parameters,
+  lv_parameters
+)
+
+pretty_parameter_names &lt;- c(
+  mPAP_mmHg = &quot;mPAP (mmHg)&quot;,
+  sPAP_mmHg = &quot;sPAP (mmHg)&quot;,
+  PVR_WU = &quot;PVR (WU)&quot;,
+  PCW_mmHg = &quot;PCWP (mmHg)&quot;,
+  RVIT_mm = &quot;RVIT (mm)&quot;,
+  TAPSE_mm = &quot;TAPSE (mm)&quot;,
+  LVEF_percent = &quot;LVEF (%)&quot;,
+  LVEDD_mm = &quot;LVEDD (mm)&quot;
+)
+
+fdr_cutoff &lt;- 0.20
+ms_min_observed_fraction &lt;- 0.70</code></pre>
+</div>
+<div id="helper-functions" class="section level1">
+<h1>Helper functions</h1>
+<pre class="r"><code>pretty_var_names &lt;- c(
+  mPAP_mmHg = &quot;mPAP (mmHg)&quot;,
+  sPAP_mmHg = &quot;sPAP (mmHg)&quot;,
+  PVR_WU = &quot;PVR (WU)&quot;,
+  PCW_mmHg = &quot;PCWP (mmHg)&quot;,
+  RVIT_mm = &quot;RVIT (mm)&quot;,
+  TAPSE_mm = &quot;TAPSE (mm)&quot;,
+  LVEF_percent = &quot;LVEF (%)&quot;,
+  LVEDD_mm = &quot;LVEDD (mm)&quot;
+)
+
+ordered_params &lt;- ordered_parameters
+
+`%||%` &lt;- function(x, y) if (is.null(x)) y else x
+
+
+make_clinical_volcano &lt;- function(res, param, pretty_var_names, p_cutoff = 0.2) {
+  keyvals &lt;- rep(&quot;grey70&quot;, nrow(res))
+  names(keyvals) &lt;- rep(&quot;Not significant&quot;, nrow(res))
+  keyvals[res$logFC &gt; 0 &amp; res$adj.P.Val &lt; p_cutoff] &lt;- &quot;#A63A2A&quot;
+  names(keyvals)[keyvals == &quot;#A63A2A&quot;] &lt;- &quot;Positive&quot;
+  keyvals[res$logFC &lt; 0 &amp; res$adj.P.Val &lt; p_cutoff] &lt;- &quot;#004C8C&quot;
+  names(keyvals)[keyvals == &quot;#004C8C&quot;] &lt;- &quot;Negative&quot;
+
+  EnhancedVolcano(
+    res,
+    lab = res$feature,
+    x = &quot;logFC&quot;,
+    y = &quot;adj.P.Val&quot;,
+    labSize = 0,
+    titleLabSize = 15,
+    subtitleLabSize = 12,
+    axisLabSize = 11,
+    captionLabSize = 9,
+    pointSize = 0.8,
+    FCcutoff = 0,
+    pCutoff = p_cutoff,
+    ylim = c(0, max(2.5, ceiling(max(-log10(res$adj.P.Val), na.rm = TRUE) + 0.5))),
+    colCustom = keyvals,
+    colAlpha = 1,
+    drawConnectors = FALSE,
+    subtitle = NULL,
+    title = paste0(pretty_var_names[[param]] %||% param, &quot;\n&quot;, &quot;n = &quot;, unique(res$n_complete_samples)),
+    xlab = &quot;Effect size (rescaled 0-1 predictor)&quot;,
+    ylab = &quot;FDR&quot;
+  ) + theme(legend.position = &quot;none&quot;)
+}
+
+
+build_sig_heatmap &lt;- function(res_tbl,
+                              expr_mat,
+                              meta_df,
+                              param,
+                              assay_label,
+                              sig_cutoff = 0.2,
+                              filter_detect_frac = NULL) {
+
+  meta_sub &lt;- meta_df %&gt;%
+    dplyr::select(
+      Sample,
+      all_of(param)
+    ) %&gt;%
+    dplyr::distinct(
+      Sample,
+      .keep_all = TRUE
+    ) %&gt;%
+    dplyr::filter(
+      Sample %in% colnames(expr_mat)
+    ) %&gt;%
+    dplyr::filter(
+      !is.na(.data[[param]])
+    ) %&gt;%
+    dplyr::arrange(
+      .data[[param]]
+    )
+
+  expr_sub &lt;- expr_mat[
+    ,
+    meta_sub$Sample,
+    drop = FALSE
+  ]
+
+  if (!is.null(filter_detect_frac)) {
+    keep_rows &lt;- rowMeans(
+      !is.na(expr_sub)
+    ) &gt;= filter_detect_frac
+
+    expr_sub &lt;- expr_sub[
+      keep_rows,
+      ,
+      drop = FALSE
+    ]
+  }
+
+  sig_tbl &lt;- res_tbl %&gt;%
+    dplyr::filter(
+      adj.P.Val &lt; sig_cutoff
+    ) %&gt;%
+    dplyr::filter(
+      feature %in% rownames(expr_sub)
+    ) %&gt;%
+    dplyr::arrange(
+      dplyr::desc(logFC)
+    )
+
+  if (nrow(sig_tbl) == 0) {
+    message(
+      &quot;No significant features for &quot;,
+      assay_label,
+      &quot; - &quot;,
+      param
+    )
+    return(NULL)
+  }
+
+  mat &lt;- expr_sub[
+    sig_tbl$feature,
+    meta_sub$Sample,
+    drop = FALSE
+  ]
+
+  mat_z &lt;- t(
+    scale(
+      t(mat)
+    )
+  )
+
+  mat_z[is.nan(mat_z)] &lt;- 0
+  mat_z[!is.finite(mat_z)] &lt;- 0
+
+  row_split &lt;- ifelse(
+    sig_tbl$logFC &gt; 0,
+    paste0(
+      &quot;Positive association with &quot;,
+      pretty_var_names[[param]] %||% param
+    ),
+    paste0(
+      &quot;Negative association with &quot;,
+      pretty_var_names[[param]] %||% param
+    )
+  )
+
+  ann_df &lt;- data.frame(
+    row.names = meta_sub$Sample
+  )
+
+  ann_df[[
+    pretty_var_names[[param]] %||% param
+  ]] &lt;- meta_sub[[param]]
+
+  ann_col_list &lt;- list()
+
+  ann_col_list[[
+    pretty_var_names[[param]] %||% param
+  ]] &lt;- circlize::colorRamp2(
+    c(
+      min(
+        meta_sub[[param]],
+        na.rm = TRUE
+      ),
+      median(
+        meta_sub[[param]],
+        na.rm = TRUE
+      ),
+      max(
+        meta_sub[[param]],
+        na.rm = TRUE
+      )
+    ),
+    c(
+      &quot;#DCEAF7&quot;,
+      &quot;#6AAED6&quot;,
+      &quot;#08306B&quot;
+    )
+  )
+
+  ha &lt;- ComplexHeatmap::HeatmapAnnotation(
+    df = ann_df,
+    col = ann_col_list,
+    annotation_name_gp = grid::gpar(
+      fontsize = 9
+    )
+  )
+
+  row_height_mm &lt;- 2.5
+
+  heatmap_height &lt;- grid::unit(
+    nrow(mat_z) *
+      row_height_mm,
+    &quot;mm&quot;
+  )
+
+  ComplexHeatmap::Heatmap(
+    mat_z,
+    name = &quot;Z-score&quot;,
+    col = circlize::colorRamp2(
+      c(-2, 0, 2),
+      c(&quot;#2166AC&quot;, &quot;white&quot;, &quot;#B2182B&quot;)
+    ),
+    top_annotation = ha,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = row_split,
+    show_row_dend = FALSE,
+    show_column_dend = FALSE,
+    column_title = paste0(
+      assay_label,
+      &quot; - significant features for &quot;,
+      pretty_var_names[[param]] %||% param
+    ),
+    row_title = NULL,
+    column_names_rot = 45,
+    column_names_gp = grid::gpar(
+      fontsize = 8
+    ),
+    row_names_gp = grid::gpar(
+      fontsize = 7
+    ),
+    height = heatmap_height
+  )
+}</code></pre>
+</div>
+<div id="import-filtered-proteomics-data" class="section level1">
+<h1>Import filtered proteomics data</h1>
+<pre class="r"><code>if (
+  !file.exists(
+    proteomics_qc_file
+  )
+) {
+  stop(
+    &quot;The filtered proteomics QC object was not found: &quot;,
+    proteomics_qc_file
+  )
+}
+
+proteomics_qc &lt;- readRDS(
+  proteomics_qc_file
+)
+
+filtered_proteomics &lt;-
+  proteomics_qc$after_exclusion</code></pre>
+<pre class="r"><code>olink_expr_all &lt;-
+  filtered_proteomics$olink
+
+ms_expr_all &lt;-
+  filtered_proteomics$ms
+
+dcm_samples &lt;-
+  filtered_proteomics$clinical %&gt;%
+  dplyr::filter(
+    Group == &quot;DCM&quot;
+  ) %&gt;%
+  dplyr::pull(Sample) %&gt;%
+  unique()
+
+matched_samples &lt;- dcm_samples[
+  dcm_samples %in%
+    intersect(
+      colnames(
+        olink_expr_all
+      ),
+      colnames(
+        ms_expr_all
+      )
+    )
+]
+
+olink_expr &lt;- olink_expr_all[
+  ,
+  matched_samples,
+  drop = FALSE
+]
+
+ms_expr &lt;- ms_expr_all[
+  ,
+  matched_samples,
+  drop = FALSE
+]
+
+clinical_matched &lt;-
+  filtered_proteomics$clinical %&gt;%
+  dplyr::filter(
+    Sample %in%
+      matched_samples
+  ) %&gt;%
+  dplyr::slice(
+    match(
+      matched_samples,
+      Sample
+    )
+  ) %&gt;%
+  dplyr::distinct(
+    Sample,
+    .keep_all = TRUE
+  )
+
+olink_meta &lt;-
+  clinical_matched %&gt;%
+  dplyr::left_join(
+    filtered_proteomics$olink_metadata %&gt;%
+      dplyr::select(
+        Sample,
+        Batch,
+        BCA_mg_ml
+      ) %&gt;%
+      dplyr::distinct(
+        Sample,
+        .keep_all = TRUE
+      ),
+    by = &quot;Sample&quot;
+  )
+
+ms_meta &lt;-
+  clinical_matched
+
+stopifnot(
+  identical(
+    colnames(olink_expr),
+    matched_samples
+  ),
+  identical(
+    colnames(ms_expr),
+    matched_samples
+  ),
+  identical(
+    olink_meta$Sample,
+    matched_samples
+  ),
+  identical(
+    ms_meta$Sample,
+    matched_samples
+  )
+)
+
+length(
+  matched_samples
+)</code></pre>
+<pre><code>[1] 44</code></pre>
+<pre class="r"><code>matched_samples</code></pre>
+<pre><code> [1] &quot;P17&quot;   &quot;P19&quot;   &quot;P25&quot;   &quot;P29&quot;   &quot;P3&quot;    &quot;P30&quot;   &quot;P32&quot;   &quot;P5&quot;    &quot;P8&quot;   
+[10] &quot;PK105&quot; &quot;PK107&quot; &quot;PK111&quot; &quot;PK117&quot; &quot;PK139&quot; &quot;PK143&quot; &quot;PK153&quot; &quot;PK163&quot; &quot;PK179&quot;
+[19] &quot;PK211&quot; &quot;PK213&quot; &quot;PK221&quot; &quot;PK229&quot; &quot;PK245&quot; &quot;PK259&quot; &quot;PK323&quot; &quot;PK337&quot; &quot;PK357&quot;
+[28] &quot;PK369&quot; &quot;PK375&quot; &quot;PK385&quot; &quot;PK401&quot; &quot;PK403&quot; &quot;PK415&quot; &quot;PK437&quot; &quot;PK439&quot; &quot;PK441&quot;
+[37] &quot;PK461&quot; &quot;PK463&quot; &quot;PK73&quot;  &quot;PK77&quot;  &quot;PK79&quot;  &quot;PK87&quot;  &quot;PK89&quot;  &quot;PK93&quot; </code></pre>
+</div>
+<div id="differential-abundance-analysis" class="section level1">
+<h1>Differential abundance analysis</h1>
+<div id="olink" class="section level2">
+<h2>Olink</h2>
+<pre class="r"><code>covariates_olink &lt;- c(
+  &quot;Age_years&quot;,
+  &quot;BCA_mg_ml&quot;
+)
+
+olink_da_results &lt;- list()
+olink_da_summary &lt;- list()
+
+for (
+  param in parameters
+) {
+  vars_needed &lt;- unique(
+    c(
+      param,
+      covariates_olink
+    )
+  )
+
+  meta_da &lt;- olink_meta %&gt;%
+    dplyr::select(
+      Sample,
+      all_of(
+        vars_needed
+      )
+    ) %&gt;%
+    dplyr::distinct(
+      Sample,
+      .keep_all = TRUE
+    ) %&gt;%
+    dplyr::filter(
+      Sample %in%
+        colnames(
+          olink_expr
+        )
+    ) %&gt;%
+    dplyr::filter(
+      complete.cases(.)
+    ) %&gt;%
+    dplyr::mutate(
+      dplyr::across(
+        all_of(
+          vars_needed
+        ),
+        scales::rescale
+      )
+    )
+
+  expr_da &lt;- olink_expr[
+    ,
+    meta_da$Sample,
+    drop = FALSE
+  ]
+
+  design_df &lt;- meta_da %&gt;%
+    dplyr::select(
+      all_of(
+        c(
+          param,
+          covariates_olink
+        )
+      )
+    )
+
+  design &lt;- model.matrix(
+    as.formula(
+      paste0(
+        &quot;~ &quot;,
+        paste(
+          colnames(
+            design_df
+          ),
+          collapse = &quot; + &quot;
+        )
+      )
+    ),
+    data = design_df
+  )
+
+  fit &lt;- limma::lmFit(
+    expr_da,
+    design
+  )
+
+  fit &lt;- limma::eBayes(
+    fit,
+    robust = TRUE
+  )
+
+  results &lt;- limma::topTable(
+    fit,
+    coef = param,
+    number = Inf,
+    sort.by = &quot;P&quot;
+  ) %&gt;%
+    tibble::rownames_to_column(
+      &quot;feature&quot;
+    ) %&gt;%
+    dplyr::mutate(
+      parameter = param,
+      assay = &quot;Olink&quot;,
+      n_complete_samples =
+        nrow(meta_da),
+      n_tested_proteins =
+        nrow(expr_da),
+      regulation =
+        dplyr::case_when(
+          adj.P.Val &lt;
+            fdr_cutoff &amp;
+            logFC &gt; 0 ~
+            &quot;Up&quot;,
+          adj.P.Val &lt;
+            fdr_cutoff &amp;
+            logFC &lt; 0 ~
+            &quot;Down&quot;,
+          TRUE ~ &quot;NS&quot;
+        )
+    )
+
+  olink_da_results[[
+    param
+  ]] &lt;- results
+
+  olink_da_summary[[
+    param
+  ]] &lt;- tibble::tibble(
+    assay = &quot;Olink&quot;,
+    parameter = param,
+    direction = c(
+      &quot;Up&quot;,
+      &quot;Down&quot;
+    ),
+    n_sig = c(
+      sum(
+        results$adj.P.Val &lt;
+          fdr_cutoff &amp;
+          results$logFC &gt; 0,
+        na.rm = TRUE
+      ),
+      sum(
+        results$adj.P.Val &lt;
+          fdr_cutoff &amp;
+          results$logFC &lt; 0,
+        na.rm = TRUE
+      )
+    ),
+    n_complete_samples =
+      nrow(meta_da),
+    n_tested_proteins =
+      nrow(expr_da)
+  )
+}
+
+olink_da_all &lt;- dplyr::bind_rows(
+  olink_da_results
+)
+
+olink_da_summary_df &lt;-
+  dplyr::bind_rows(
+    olink_da_summary
+  )</code></pre>
+</div>
+<div id="lc-msms" class="section level2">
+<h2>LC-MS/MS</h2>
+<pre class="r"><code>covariates_ms &lt;- c(
+  &quot;Age_years&quot;
+)
+
+ms_da_results &lt;- list()
+ms_da_summary &lt;- list()
+
+for (
+  param in parameters
+) {
+  vars_needed &lt;- unique(
+    c(
+      param,
+      covariates_ms
+    )
+  )
+
+  meta_da &lt;- ms_meta %&gt;%
+    dplyr::select(
+      Sample,
+      all_of(
+        vars_needed
+      )
+    ) %&gt;%
+    dplyr::distinct(
+      Sample,
+      .keep_all = TRUE
+    ) %&gt;%
+    dplyr::filter(
+      Sample %in%
+        colnames(
+          ms_expr
+        )
+    ) %&gt;%
+    dplyr::filter(
+      complete.cases(.)
+    ) %&gt;%
+    dplyr::mutate(
+      dplyr::across(
+        all_of(
+          vars_needed
+        ),
+        scales::rescale
+      )
+    )
+
+  expr_da_initial &lt;- ms_expr[
+    ,
+    meta_da$Sample,
+    drop = FALSE
+  ]
+
+  keep_proteins &lt;- rowMeans(
+    is.finite(
+      expr_da_initial
+    )
+  ) &gt;=
+    ms_min_observed_fraction
+
+  expr_da &lt;- expr_da_initial[
+    keep_proteins,
+    ,
+    drop = FALSE
+  ]
+
+  design_df &lt;- meta_da %&gt;%
+    dplyr::select(
+      all_of(
+        c(
+          param,
+          covariates_ms
+        )
+      )
+    )
+
+  design &lt;- model.matrix(
+    as.formula(
+      paste0(
+        &quot;~ &quot;,
+        paste(
+          colnames(
+            design_df
+          ),
+          collapse = &quot; + &quot;
+        )
+      )
+    ),
+    data = design_df
+  )
+
+  fit &lt;- limma::lmFit(
+    expr_da,
+    design,
+    na.action =
+      na.exclude
+  )
+
+  fit &lt;- limma::eBayes(
+    fit,
+    trend = TRUE,
+    robust = TRUE
+  )
+
+  results &lt;- limma::topTable(
+    fit,
+    coef = param,
+    number = Inf,
+    sort.by = &quot;P&quot;
+  ) %&gt;%
+    tibble::rownames_to_column(
+      &quot;feature&quot;
+    ) %&gt;%
+    dplyr::mutate(
+      parameter = param,
+      assay = &quot;LC-MS/MS&quot;,
+      n_complete_samples =
+        nrow(meta_da),
+      n_tested_proteins =
+        nrow(expr_da),
+      regulation =
+        dplyr::case_when(
+          adj.P.Val &lt;
+            fdr_cutoff &amp;
+            logFC &gt; 0 ~
+            &quot;Up&quot;,
+          adj.P.Val &lt;
+            fdr_cutoff &amp;
+            logFC &lt; 0 ~
+            &quot;Down&quot;,
+          TRUE ~ &quot;NS&quot;
+        )
+    )
+
+  ms_da_results[[
+    param
+  ]] &lt;- results
+
+  ms_da_summary[[
+    param
+  ]] &lt;- tibble::tibble(
+    assay = &quot;LC-MS/MS&quot;,
+    parameter = param,
+    direction = c(
+      &quot;Up&quot;,
+      &quot;Down&quot;
+    ),
+    n_sig = c(
+      sum(
+        results$adj.P.Val &lt;
+          fdr_cutoff &amp;
+          results$logFC &gt; 0,
+        na.rm = TRUE
+      ),
+      sum(
+        results$adj.P.Val &lt;
+          fdr_cutoff &amp;
+          results$logFC &lt; 0,
+        na.rm = TRUE
+      )
+    ),
+    n_complete_samples =
+      nrow(meta_da),
+    n_tested_proteins =
+      nrow(expr_da)
+  )
+}
+
+ms_da_all &lt;- dplyr::bind_rows(
+  ms_da_results
+)
+
+ms_da_summary_df &lt;-
+  dplyr::bind_rows(
+    ms_da_summary
+  )</code></pre>
+</div>
+</div>
+<div id="number-of-significant-proteins" class="section level1">
+<h1>Number of significant proteins</h1>
+<pre class="r"><code>deg_summary &lt;- bind_rows(olink_da_summary_df, ms_da_summary_df) %&gt;%
+  dplyr::mutate(
+    assay = dplyr::recode(
+      assay,
+      &quot;LC-MS/MS&quot; = &quot;MS&quot;,
+      &quot;Mass spec&quot; = &quot;MS&quot;
+    ),
+    parameter = factor(parameter, levels = ordered_params),
+    parameter_label = factor(
+      pretty_var_names[as.character(parameter)],
+      levels = pretty_var_names[ordered_params]
+    ),
+    assay = factor(assay, levels = c(&quot;Olink&quot;, &quot;MS&quot;)),
+    direction = factor(direction, levels = c(&quot;Up&quot;, &quot;Down&quot;))
+  )
+
+ggplot(deg_summary, aes(x = assay, y = parameter_label, fill = n_sig)) +
+  geom_tile(color = &quot;white&quot;, linewidth = 0.8) +
+  geom_text(aes(label = n_sig), size = 4) +
+  scale_fill_gradient(low = &quot;grey95&quot;, high = &quot;#A63A2A&quot;) +
+  facet_wrap(~ direction, ncol = 2) +
+  labs(
+    x = NULL,
+    y = NULL,
+    fill = &quot;n proteins&quot;
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    axis.line = element_blank(),
+    panel.border = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_text(face = &quot;bold&quot;),
+    axis.text.x = element_text(face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    legend.position = &quot;bottom&quot;,
+    legend.direction = &quot;horizontal&quot;
+  ) +
+  guides(
+    fill = guide_colorbar(
+      title.position = &quot;top&quot;,
+      title.hjust = 0.5,
+      barwidth = grid::unit(4.5, &quot;cm&quot;),
+      barheight = grid::unit(0.4, &quot;cm&quot;)
+    )
+  )</code></pre>
+<p><img src="figure/Proteomics_differential_abundance_v4.Rmd/differential%20abundance%20summary-1.png" width="900" style="display: block; margin: auto;" /></p>
+</div>
+<div id="rvit-volcano-plots" class="section level1">
+<h1>RVIT volcano plots</h1>
+<pre class="r"><code>p_RVIT_olink &lt;- make_clinical_volcano(
+  res = olink_da_results[[&quot;RVIT_mm&quot;]],
+  param = &quot;RVIT_mm&quot;,
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle(&quot;Olink - RVIT&quot;)
+
+p_RVIT_ms &lt;- make_clinical_volcano(
+  res = ms_da_results[[&quot;RVIT_mm&quot;]],
+  param = &quot;RVIT_mm&quot;,
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle(&quot;MS - RVIT&quot;)
+
+p_RVIT_olink + p_RVIT_ms</code></pre>
+<p><img src="figure/Proteomics_differential_abundance_v4.Rmd/RVIT%20volcano%20plots-1.png" width="1800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="tapse-volcano-plots" class="section level1">
+<h1>TAPSE volcano plots</h1>
+<pre class="r"><code>p_TAPSE_olink &lt;- make_clinical_volcano(
+  res = olink_da_results[[&quot;TAPSE_mm&quot;]],
+  param = &quot;TAPSE_mm&quot;,
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle(&quot;Olink - TAPSE&quot;)
+
+p_TAPSE_ms &lt;- make_clinical_volcano(
+  res = ms_da_results[[&quot;TAPSE_mm&quot;]],
+  param = &quot;TAPSE_mm&quot;,
+  pretty_var_names = pretty_var_names,
+  p_cutoff = 0.2
+) + ggtitle(&quot;MS - TAPSE&quot;)
+
+p_TAPSE_olink + p_TAPSE_ms</code></pre>
+<p><img src="figure/Proteomics_differential_abundance_v4.Rmd/TAPSE%20volcano%20plots-1.png" width="1800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="lc-msms-tapse-heatmap" class="section level1">
+<h1>LC-MS/MS TAPSE heatmap</h1>
+<pre class="r"><code>ms_TAPSE_heat &lt;- build_sig_heatmap(
+  res_tbl = ms_da_results[[&quot;TAPSE_mm&quot;]],
+  expr_mat = ms_expr,
+  meta_df = ms_meta,
+  param = &quot;TAPSE_mm&quot;,
+  assay_label = &quot;MS&quot;,
+  sig_cutoff = 0.2,
+  filter_detect_frac = 0.70
+)
+
+if (!is.null(ms_TAPSE_heat)) {
+  ComplexHeatmap::draw(
+    ms_TAPSE_heat,
+    heatmap_legend_side = &quot;right&quot;,
+    annotation_legend_side = &quot;right&quot;,
+    padding = grid::unit(c(2, 8, 2, 2), &quot;mm&quot;)
+  )
+}</code></pre>
+<p><img src="figure/Proteomics_differential_abundance_v4.Rmd/TAPSE%20heatmap-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="lc-msms-rvit-heatmap" class="section level1">
+<h1>LC-MS/MS RVIT heatmap</h1>
+<pre class="r"><code>ms_RVIT_heat &lt;- build_sig_heatmap(
+  res_tbl = ms_da_results[[&quot;RVIT_mm&quot;]],
+  expr_mat = ms_expr,
+  meta_df = ms_meta,
+  param = &quot;RVIT_mm&quot;,
+  assay_label = &quot;MS&quot;,
+  sig_cutoff = 0.2,
+  filter_detect_frac = 0.70
+)
+
+if (!is.null(ms_RVIT_heat)) {
+  ComplexHeatmap::draw(
+    ms_RVIT_heat,
+    heatmap_legend_side = &quot;right&quot;,
+    annotation_legend_side = &quot;right&quot;,
+    padding = grid::unit(c(2, 8, 2, 2), &quot;mm&quot;)
+  )
+}</code></pre>
+<p><img src="figure/Proteomics_differential_abundance_v4.Rmd/RVIT%20heatmap-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="supplementary-data-export" class="section level1">
+<h1>Supplementary Data export</h1>
+<pre class="r"><code>matched_sample_table &lt;- clinical_matched %&gt;%
+  dplyr::select(
+    Sample,
+    Age_years,
+    mPAP_mmHg,
+    sPAP_mmHg,
+    PVR_WU,
+    PCW_mmHg,
+    RVIT_mm,
+    TAPSE_mm,
+    LVEF_percent,
+    LVEDD_mm
+  ) %&gt;%
+  dplyr::left_join(
+    olink_meta %&gt;%
+      dplyr::select(
+        Sample,
+        BCA_mg_ml
+      ),
+    by = &quot;Sample&quot;
+  )
+
+olink_TAPSE_sig &lt;- olink_da_results[[
+  &quot;TAPSE_mm&quot;
+]] %&gt;%
+  dplyr::filter(
+    adj.P.Val &lt;
+      fdr_cutoff
+  )
+
+olink_RVIT_sig &lt;- olink_da_results[[
+  &quot;RVIT_mm&quot;
+]] %&gt;%
+  dplyr::filter(
+    adj.P.Val &lt;
+      fdr_cutoff
+  )
+
+lcms_TAPSE_sig &lt;- ms_da_results[[
+  &quot;TAPSE_mm&quot;
+]] %&gt;%
+  dplyr::filter(
+    adj.P.Val &lt;
+      fdr_cutoff
+  )
+
+lcms_RVIT_sig &lt;- ms_da_results[[
+  &quot;RVIT_mm&quot;
+]] %&gt;%
+  dplyr::filter(
+    adj.P.Val &lt;
+      fdr_cutoff
+  )
+
+writexl::write_xlsx(
+  list(
+    Matched_samples =
+      matched_sample_table,
+    DA_summary =
+      dplyr::bind_rows(
+        olink_da_summary_df,
+        ms_da_summary_df
+      ),
+    Olink_all_results =
+      olink_da_all,
+    LCMS_all_results =
+      ms_da_all,
+    Olink_TAPSE_sig =
+      olink_TAPSE_sig,
+    Olink_RVIT_sig =
+      olink_RVIT_sig,
+    LCMS_TAPSE_sig =
+      lcms_TAPSE_sig,
+    LCMS_RVIT_sig =
+      lcms_RVIT_sig
+  ),
+  file.path(
+    output_dir,
+    &quot;Proteomics_differential_abundance_v4_SuppData.xlsx&quot;
+  )
+)</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats     graphics  grDevices datasets  utils     methods  
+[8] base     
+
+other attached packages:
+ [1] writexl_2.0.0          circlize_0.4.16        ComplexHeatmap_2.26.0 
+ [4] EnhancedVolcano_1.29.1 ggrepel_0.9.6          scales_1.4.0          
+ [7] limma_3.66.0           patchwork_1.3.2        ggplot2_4.0.1         
+[10] tibble_3.3.0           tidyr_1.3.2            dplyr_1.2.1           
+[13] here_1.0.2            
+
+loaded via a namespace (and not attached):
+ [1] shape_1.4.6.1       gtable_0.3.6        rjson_0.2.23       
+ [4] xfun_0.56           bslib_0.9.0         GlobalOptions_0.1.3
+ [7] Cairo_1.7-0         vctrs_0.7.3         tools_4.5.2        
+[10] generics_0.1.4      stats4_4.5.2        parallel_4.5.2     
+[13] cluster_2.1.8.3     pkgconfig_2.0.3     RColorBrewer_1.1-3 
+[16] S4Vectors_0.48.0    S7_0.2.1            lifecycle_1.0.5    
+[19] compiler_4.5.2      farver_2.1.2        stringr_1.6.0      
+[22] git2r_0.36.2        statmod_1.5.1       codetools_0.2-20   
+[25] clue_0.3-66         httpuv_1.6.16       htmltools_0.5.9    
+[28] sass_0.4.10         yaml_2.3.11         later_1.4.4        
+[31] pillar_1.11.1       crayon_1.5.3        jquerylib_0.1.4    
+[34] whisker_0.4.1       cachem_1.1.0        iterators_1.0.14   
+[37] foreach_1.5.2       tidyselect_1.2.1    digest_0.6.39      
+[40] stringi_1.8.7       purrr_1.2.0         labeling_0.4.3     
+[43] rprojroot_2.1.1     fastmap_1.2.0       colorspace_2.1-2   
+[46] cli_3.6.6           magrittr_2.0.4      withr_3.0.2        
+[49] promises_1.5.0      rmarkdown_2.30      matrixStats_1.5.0  
+[52] otel_0.2.0          workflowr_1.7.2     png_0.1-8          
+[55] GetoptLong_1.1.0    evaluate_1.0.5      knitr_1.50         
+[58] IRanges_2.44.0      doParallel_1.0.17   rlang_1.2.0        
+[61] Rcpp_1.1.0          glue_1.8.0          BiocManager_1.30.27
+[64] renv_1.1.5          BiocGenerics_0.56.0 rstudioapi_0.17.1  
+[67] jsonlite_2.0.0      R6_2.6.1            fs_2.1.0           </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
