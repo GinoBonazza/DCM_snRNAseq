@@ -1,0 +1,9657 @@
+---
+title: "Proteomics integration and matched multi-omics analysis with MOFA v3"
+author: "Gino Bonazza"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE,
+  dpi = 300,
+  fig.align = "center"
+)
+```
+
+# Overview
+
+This workflow fits two independent MOFA models.
+
+1. **Integrated proteomics model:** Olink Reveal and LC-MS/MS are integrated in patients measured by both platforms. Factors are tested against continuous clinical parameters and between compensated and decompensated RV states. Factor 1 is interpreted by Gene Ontology gene set enrichment analysis of the complete ranked weights.
+
+2. **Matched three-view model:** pseudobulk snRNA-seq, Olink and LC-MS/MS are integrated in patients measured in all three modalities. The analysis distinguishes modality-specific from shared molecular variation. Factors are tested against RV state, continuous clinical parameters and histological fibrosis. Factor 2 is interpreted separately in the transcriptomic and proteomic layers by Gene Ontology gene set enrichment analysis.
+
+Proteomic matrices and retained male DCM samples are imported from the preceding proteomics quality-control workflow. BCA concentration is removed from the Olink view before model fitting. MOFA training is unsupervised; RV state and clinical variables are used only in downstream association models. Age and sample storage time are included as covariates.
+
+RV states are defined as:
+
+- **Not overloaded:** mPAP <= 20 mmHg;
+- **Compensated:** mPAP > 20 mmHg and TAPSE/sPAP > 0.32;
+- **Decompensated:** mPAP > 20 mmHg and TAPSE/sPAP <= 0.32.
+
+Patients with missing mPAP receive `NA` for `RV_group`. Patients with mPAP > 20 mmHg and missing TAPSE/sPAP also receive `NA`.
+
+# Setup
+
+```{r libraries}
+library(here)
+library(qs2)
+library(Seurat)
+library(SeuratObject)
+library(Matrix)
+library(edgeR)
+library(DESeq2)
+library(SummarizedExperiment)
+library(readxl)
+library(MOFA2)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(purrr)
+library(stringr)
+library(matrixStats)
+library(limma)
+library(ggplot2)
+library(patchwork)
+library(emmeans)
+library(broom)
+library(reactable)
+library(clusterProfiler)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(GO.db)
+
+```
+
+```{r analysis choices}
+current_file <- "MOFA_integrative_analysis_v3"
+
+base_output_dir <- here::here("output", current_file)
+preprocessing_output_dir <- file.path(base_output_dir, "preprocessed_views")
+proteomics_output_dir <- file.path(base_output_dir, "proteomics_model")
+matched_output_dir <- file.path(base_output_dir, "matched_three_view_model")
+
+base_figure_dir <- here::here(
+  "docs",
+  "figure",
+  paste0(current_file, ".Rmd")
+)
+proteomics_figure_dir <- file.path(base_figure_dir, "proteomics_model")
+matched_figure_dir <- file.path(base_figure_dir, "matched_three_view_model")
+
+dir.create(preprocessing_output_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(proteomics_output_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(matched_output_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(proteomics_figure_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(matched_figure_dir, recursive = TRUE, showWarnings = FALSE)
+
+clinical_file <- here::here("data", "DCM_Clinical_data_83.xlsx")
+seurat_file <- here::here(
+  "output",
+  "Add_cell_states_remove_contamination",
+  "DCM_RV_cell_states_RNA.qs2"
+)
+proteomics_qc_file <- here::here(
+  "output",
+  "Proteomics_quality_control_v3",
+  "Proteomics_QC_complete_objects.rds"
+)
+
+mPAP_overload_cutoff <- 20
+coupling_cutoff <- 0.32
+
+group_colors <- c(
+  "Not overloaded" = "#BDBDBD",
+  "Compensated" = "#E38C82",
+  "Decompensated" = "#9E3434"
+)
+
+rna_min_nuclei_fraction <- 0.01
+min_rna_library_size <- 5e4
+n_rna_features <- 2000
+exclude_mitochondrial_and_ribosomal_genes <- TRUE
+
+min_ms_observed_fraction <- 0.50
+n_qs_threads <- 16
+
+candidate_factors <- 5:15
+tuning_seeds <- c(20260715, 20260716, 20260717)
+last_factor_r2_cutoff <- 2
+n_consecutive_low_models <- 3
+
+tuning_maxiter <- 5000
+final_maxiter <- 10000
+mofa_convergence_mode <- "medium"
+mofa_freq_elbo <- 5
+
+factor_fdr_cutoff <- 0.05
+exploratory_factor_fdr <- 0.10
+n_top_weights <- 30
+n_factors_for_plots <- 3
+
+clinical_parameters <- c(
+  "mPAP_mmHg",
+  "sPAP_mmHg",
+  "PCW_mmHg",
+  "PVR_WU",
+  "TAPSE_mm",
+  "RVIT_mm",
+  "LVEF_percent",
+  "LVEDD_mm",
+  "TAPSE_sPAP"
+)
+
+pretty_parameter_names <- c(
+  mPAP_mmHg = "mPAP (mmHg)",
+  sPAP_mmHg = "sPAP (mmHg)",
+  PCW_mmHg = "PCWP (mmHg)",
+  PVR_WU = "PVR (WU)",
+  TAPSE_mm = "TAPSE (mm)",
+  RVIT_mm = "RVIT (mm)",
+  LVEF_percent = "LVEF (%)",
+  LVEDD_mm = "LVEDD (mm)",
+  TAPSE_sPAP = "TAPSE/sPAP"
+)
+
+proteomics_gsea_factor_table <- tibble::tribble(
+  ~Factor,   ~orientation, ~interpretation,
+  "Factor1", 1,            "Factor1"
+)
+
+rv_group_comparison_levels <- c(
+  "Compensated",
+  "Decompensated"
+)
+
+format_fdr_label <- function(x) {
+  dplyr::case_when(
+    is.na(x) ~ "FDR = NA",
+    x < 0.001 ~ "FDR < 0.001",
+    TRUE ~ sprintf("FDR = %.3f", x)
+  )
+}
+
+matched_shared_r2_cutoff <- 1
+
+processed_proteomics_file <- file.path(
+  preprocessing_output_dir,
+  "processed_Olink_and_LCMS_views.rds"
+)
+processed_rna_file <- file.path(
+  preprocessing_output_dir,
+  "processed_RNA_pseudobulk_view.rds"
+)
+
+proteomics_input_file <- file.path(
+  proteomics_output_dir,
+  "MOFA_proteomics_input.rds"
+)
+proteomics_tuning_summary_file <- file.path(
+  proteomics_output_dir,
+  "MOFA_proteomics_factor_tuning_all_runs.csv"
+)
+proteomics_best_tuning_summary_file <- file.path(
+  proteomics_output_dir,
+  "MOFA_proteomics_factor_tuning_best_seed_per_K.csv"
+)
+proteomics_selected_settings_file <- file.path(
+  proteomics_output_dir,
+  "MOFA_proteomics_selected_model_settings.csv"
+)
+proteomics_final_model_file <- file.path(
+  proteomics_output_dir,
+  "RV_DCM_proteomics_MOFA_model.hdf5"
+)
+proteomics_final_model_rds <- file.path(
+  proteomics_output_dir,
+  "RV_DCM_proteomics_MOFA_model_with_metadata.rds"
+)
+
+matched_input_file <- file.path(
+  matched_output_dir,
+  "MOFA_matched_three_view_input.rds"
+)
+matched_tuning_summary_file <- file.path(
+  matched_output_dir,
+  "MOFA_matched_factor_tuning_all_runs.csv"
+)
+matched_best_tuning_summary_file <- file.path(
+  matched_output_dir,
+  "MOFA_matched_factor_tuning_best_seed_per_K.csv"
+)
+matched_selected_settings_file <- file.path(
+  matched_output_dir,
+  "MOFA_matched_selected_model_settings.csv"
+)
+matched_final_model_file <- file.path(
+  matched_output_dir,
+  "RV_DCM_matched_three_view_MOFA_model.hdf5"
+)
+matched_final_model_rds <- file.path(
+  matched_output_dir,
+  "RV_DCM_matched_three_view_MOFA_model_with_metadata.rds"
+)
+```
+
+```{r additional factor and fibrosis analysis choices}
+fibrosis_file <- here::here(
+  "data",
+  "Massons_quantification.xlsx"
+)
+
+n_top_factor_loadings_each_direction <- 20
+
+enrichment_simplify_cutoff <- 0.70
+enrichment_simplify_padj_cutoff <- 0.10
+enrichment_simplify_max_terms <- 300
+gsea_min_ranked_genes <- 20
+
+matched_gsea_factor_table <-
+  tibble::tribble(
+    ~Factor,   ~orientation, ~interpretation,
+    "Factor2", 1,            "Factor2"
+  )
+```
+
+```{r mofa factor helper functions}
+mofa_view_colors <- c(
+  "RNA" = "#33A02C",
+  "OLINK" = "#E38C82",
+  "MS" = "#2166AC"
+)
+
+
+standardise_mofa_view_name <- function(view) {
+  dplyr::case_when(
+    view == "RNA_pseudobulk" ~ "RNA",
+    view == "Olink" ~ "OLINK",
+    view == "LCMS" ~ "MS",
+    TRUE ~ as.character(view)
+  )
+}
+
+
+clean_mofa_feature_name <- function(
+    feature
+) {
+  stringr::str_remove(
+    as.character(feature),
+    "_(RNA_pseudobulk|RNA|Olink|OLINK|LCMS|MS)$"
+  )
+}
+
+
+format_p_value <- function(
+    p_value,
+    prefix = "P"
+) {
+  dplyr::case_when(
+    is.na(p_value) ~
+      paste0(prefix, " = NA"),
+    p_value < 0.001 ~
+      paste0(prefix, " < 0.001"),
+    TRUE ~
+      sprintf(
+        "%s = %.3f",
+        prefix,
+        p_value
+      )
+  )
+}
+
+
+prepare_top_factor_loadings <- function(
+    weight_table,
+    factor_name = "Factor1",
+    n_each_direction = 20
+) {
+  factor_weights <- weight_table %>%
+    dplyr::filter(
+      Factor == factor_name,
+      is.finite(Weight)
+    ) %>%
+    dplyr::mutate(
+      Modality =
+        standardise_mofa_view_name(
+          View
+        ),
+      Feature_clean =
+        clean_mofa_feature_name(
+          Feature
+        ),
+      Feature_label = paste(
+        Modality,
+        Feature_clean,
+        sep = "_"
+      )
+    )
+
+  positive_weights <- factor_weights %>%
+    dplyr::filter(
+      Weight > 0
+    ) %>%
+    dplyr::slice_max(
+      order_by = Weight,
+      n = n_each_direction,
+      with_ties = FALSE
+    )
+
+  negative_weights <- factor_weights %>%
+    dplyr::filter(
+      Weight < 0
+    ) %>%
+    dplyr::slice_min(
+      order_by = Weight,
+      n = n_each_direction,
+      with_ties = FALSE
+    )
+
+  dplyr::bind_rows(
+    negative_weights,
+    positive_weights
+  ) %>%
+    dplyr::arrange(
+      Weight
+    ) %>%
+    dplyr::mutate(
+      Feature_label = factor(
+        Feature_label,
+        levels = unique(
+          Feature_label
+        )
+      )
+    )
+}
+
+
+plot_top_factor_loadings <- function(
+    loading_data,
+    title_text
+) {
+  ggplot(
+    loading_data,
+    aes(
+      x = Weight,
+      y = Feature_label
+    )
+  ) +
+    geom_vline(
+      xintercept = 0,
+      linewidth = 0.35,
+      color = "grey40"
+    ) +
+    geom_segment(
+      aes(
+        x = 0,
+        xend = Weight,
+        yend = Feature_label
+      ),
+      linewidth = 0.65,
+      color = "grey65"
+    ) +
+    geom_point(
+      aes(
+        fill = Modality
+      ),
+      shape = 21,
+      size = 3,
+      color = "black",
+      stroke = 0.3
+    ) +
+    scale_fill_manual(
+      values = mofa_view_colors,
+      drop = FALSE
+    ) +
+    labs(
+      title = title_text,
+      x = "MOFA feature weight",
+      y = NULL,
+      fill = "Modality"
+    ) +
+    theme_classic() +
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        face = "bold"
+      ),
+      legend.position = "bottom"
+    )
+}
+
+
+scale_mofa_weights_within_view <- function(
+    weight_table,
+    factor_table
+) {
+  weight_table %>%
+    dplyr::filter(
+      Factor %in%
+        factor_table$Factor,
+      is.finite(Weight)
+    ) %>%
+    dplyr::mutate(
+      Feature_original =
+        as.character(Feature),
+      Feature =
+        clean_mofa_feature_name(
+          Feature
+        )
+    ) %>%
+    dplyr::inner_join(
+      factor_table,
+      by = "Factor"
+    ) %>%
+    dplyr::group_by(
+      Factor,
+      View
+    ) %>%
+    dplyr::mutate(
+      Oriented_weight =
+        Weight * orientation,
+      maximum_absolute_weight =
+        max(
+          abs(Oriented_weight),
+          na.rm = TRUE
+        ),
+      Scaled_weight =
+        dplyr::if_else(
+          maximum_absolute_weight > 0,
+          Oriented_weight /
+            maximum_absolute_weight,
+          0
+        ),
+      Absolute_scaled_weight =
+        abs(Scaled_weight)
+    ) %>%
+    dplyr::ungroup()
+}
+
+
+prepare_mofa_ranked_gene_list <- function(
+    weight_table,
+    factor_name,
+    orientation
+) {
+  ranked_symbols <-
+    scale_mofa_weights_within_view(
+      weight_table =
+        weight_table,
+      factor_table =
+        tibble::tibble(
+          Factor = factor_name,
+          orientation = orientation,
+          interpretation =
+            factor_name
+        )
+    ) %>%
+    dplyr::group_by(
+      Factor,
+      Feature
+    ) %>%
+    dplyr::summarise(
+      Ranked_weight =
+        mean(
+          Scaled_weight,
+          na.rm = TRUE
+        ),
+      .groups = "drop"
+    ) %>%
+    dplyr::filter(
+      is.finite(
+        Ranked_weight
+      ),
+      Ranked_weight != 0
+    )
+
+  symbol_to_entrez <- bitr(
+    ranked_symbols$Feature,
+    fromType = "SYMBOL",
+    toType = "ENTREZID",
+    OrgDb = org.Hs.eg.db
+  ) %>%
+    dplyr::distinct(
+      SYMBOL,
+      ENTREZID
+    ) %>%
+    dplyr::mutate(
+      ENTREZID =
+        as.character(
+          ENTREZID
+        )
+    )
+
+  ranked_entrez <-
+    ranked_symbols %>%
+    dplyr::inner_join(
+      symbol_to_entrez,
+      by = c(
+        "Feature" =
+          "SYMBOL"
+      )
+    ) %>%
+    dplyr::group_by(
+      ENTREZID
+    ) %>%
+    dplyr::slice_max(
+      order_by =
+        abs(Ranked_weight),
+      n = 1,
+      with_ties = FALSE
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::arrange(
+      dplyr::desc(
+        Ranked_weight
+      )
+    )
+
+  gene_list <-
+    ranked_entrez$Ranked_weight
+
+  names(gene_list) <-
+    ranked_entrez$ENTREZID
+
+  sort(
+    gene_list,
+    decreasing = TRUE
+  )
+}
+
+
+prefix_go_descriptions <- function(
+    enrichment_result
+) {
+  if (
+    is.null(enrichment_result) ||
+    nrow(
+      enrichment_result@result
+    ) == 0L ||
+    !"ONTOLOGY" %in%
+      colnames(
+        enrichment_result@result
+      )
+  ) {
+    return(enrichment_result)
+  }
+
+  already_prefixed <-
+    stringr::str_detect(
+      enrichment_result@result$
+        Description,
+      "^\\[(BP|CC|MF)\\] "
+    )
+
+  enrichment_result@result$
+    Description[
+      !already_prefixed
+    ] <- paste0(
+      "[",
+      enrichment_result@result$
+        ONTOLOGY[
+          !already_prefixed
+        ],
+      "] ",
+      enrichment_result@result$
+        Description[
+          !already_prefixed
+        ]
+    )
+
+  enrichment_result
+}
+
+
+run_mofa_gsea <- function(
+    weight_table,
+    factor_table
+) {
+  gsea_objects <- list()
+  ranked_lists <- list()
+
+  for (
+    factor_index in
+    seq_len(
+      nrow(factor_table)
+    )
+  ) {
+    factor_name <-
+      factor_table$Factor[
+        factor_index
+      ]
+
+    orientation <-
+      factor_table$orientation[
+        factor_index
+      ]
+
+    gene_list <-
+      prepare_mofa_ranked_gene_list(
+        weight_table =
+          weight_table,
+        factor_name =
+          factor_name,
+        orientation =
+          orientation
+      )
+
+    ranked_lists[[
+      factor_name
+    ]] <- gene_list
+
+    if (
+      length(gene_list) <
+        gsea_min_ranked_genes
+    ) {
+      next
+    }
+
+    go_result <- tryCatch(
+      gseGO(
+        geneList = gene_list,
+        ont = "ALL",
+        OrgDb = org.Hs.eg.db,
+        keyType = "ENTREZID",
+        exponent = 1,
+        minGSSize = 5,
+        maxGSSize = 500,
+        eps = 1e-10,
+        pvalueCutoff = 1,
+        pAdjustMethod = "BH",
+        verbose = FALSE,
+        seed = TRUE,
+        by = "fgsea"
+      ),
+      error = function(e) {
+        warning(
+          "GO GSEA failed for ",
+          factor_name,
+          ": ",
+          conditionMessage(e)
+        )
+        NULL
+      }
+    )
+
+    go_result <-
+      prefix_go_descriptions(
+        go_result
+      )
+
+    gsea_objects[[
+      paste(
+        factor_name,
+        "GO_ALL",
+        sep = "__"
+      )
+    ]] <- go_result
+  }
+
+  list(
+    results =
+      extract_gsea_results(
+        gsea_objects
+      ),
+    objects =
+      gsea_objects,
+    ranked_lists =
+      ranked_lists
+  )
+}
+
+
+extract_gsea_results <- function(
+    object_list
+) {
+  output <- tibble::tibble()
+
+  for (
+    object_name in
+    names(object_list)
+  ) {
+    current_object <-
+      object_list[[
+        object_name
+      ]]
+
+    if (
+      is.null(current_object) ||
+      nrow(
+        as.data.frame(
+          current_object
+        )
+      ) == 0L
+    ) {
+      next
+    }
+
+    name_parts <-
+      strsplit(
+        object_name,
+        "__",
+        fixed = TRUE
+      )[[1]]
+
+    current_table <-
+      as.data.frame(
+        current_object
+      ) %>%
+      tibble::as_tibble() %>%
+      dplyr::mutate(
+        Factor =
+          name_parts[1],
+        Direction =
+          dplyr::if_else(
+            NES >= 0,
+            "Positive",
+            "Negative"
+          ),
+        database =
+          name_parts[2]
+      )
+
+    output <-
+      dplyr::bind_rows(
+        output,
+        current_table
+      )
+  }
+
+  output
+}
+
+
+subset_enrichment_object <- function(
+    enrichment_result,
+    selected_ids
+) {
+  reduced_result <-
+    enrichment_result
+
+  reduced_result@result <-
+    enrichment_result@result[
+      enrichment_result@result$ID %in%
+        selected_ids,
+      ,
+      drop = FALSE
+    ]
+
+  if (
+    "geneSets" %in%
+      methods::slotNames(
+        reduced_result
+      )
+  ) {
+    reduced_result@geneSets <-
+      enrichment_result@geneSets[
+        intersect(
+          selected_ids,
+          names(
+            enrichment_result@geneSets
+          )
+        )
+      ]
+  }
+
+  reduced_result
+}
+
+
+simplify_go_all_result <- function(
+    enrichment_result,
+    cutoff =
+      enrichment_simplify_cutoff
+) {
+  if (
+    is.null(enrichment_result) ||
+    nrow(
+      enrichment_result@result
+    ) < 2L
+  ) {
+    return(enrichment_result)
+  }
+
+  result_table <-
+    as.data.frame(
+      enrichment_result
+    ) %>%
+    dplyr::filter(
+      is.finite(p.adjust)
+    ) %>%
+    dplyr::arrange(
+      p.adjust
+    )
+
+  selected_table <-
+    result_table %>%
+    dplyr::filter(
+      p.adjust <
+        enrichment_simplify_padj_cutoff
+    )
+
+  if (nrow(selected_table) < 2L) {
+    selected_table <-
+      result_table %>%
+      dplyr::slice_head(
+        n = min(
+          enrichment_simplify_max_terms,
+          nrow(result_table)
+        )
+      )
+  }
+
+  if (
+    nrow(selected_table) >
+      enrichment_simplify_max_terms
+  ) {
+    selected_table <-
+      selected_table %>%
+      dplyr::slice_head(
+        n =
+          enrichment_simplify_max_terms
+      )
+  }
+
+  selected_object <-
+    subset_enrichment_object(
+      enrichment_result =
+        enrichment_result,
+      selected_ids =
+        selected_table$ID
+    )
+
+  selected_result_table <-
+    selected_object@result
+
+  if (
+    !"ONTOLOGY" %in%
+      colnames(
+        selected_result_table
+      )
+  ) {
+    return(
+      tryCatch(
+        clusterProfiler::simplify(
+          selected_object,
+          cutoff = cutoff,
+          by = "p.adjust",
+          select_fun = min,
+          measure = "Wang"
+        ),
+        error = function(e) {
+          warning(
+            "GO simplification failed: ",
+            conditionMessage(e)
+          )
+          selected_object
+        }
+      )
+    )
+  }
+
+  ontology_parts <- list()
+
+  for (
+    current_ontology in
+    c(
+      "BP",
+      "CC",
+      "MF"
+    )
+  ) {
+    current_ids <-
+      selected_result_table$ID[
+        selected_result_table$
+          ONTOLOGY ==
+          current_ontology
+      ]
+
+    if (length(current_ids) == 0L) {
+      next
+    }
+
+    current_object <-
+      subset_enrichment_object(
+        enrichment_result =
+          selected_object,
+        selected_ids =
+          current_ids
+      )
+
+    if (
+      "ontology" %in%
+        methods::slotNames(
+          current_object
+        )
+    ) {
+      current_object@ontology <-
+        current_ontology
+    }
+
+    if (
+      "setType" %in%
+        methods::slotNames(
+          current_object
+        )
+    ) {
+      current_object@setType <-
+        current_ontology
+    }
+
+    ontology_parts[[
+      current_ontology
+    ]] <- tryCatch(
+      clusterProfiler::simplify(
+        current_object,
+        cutoff = cutoff,
+        by = "p.adjust",
+        select_fun = min,
+        measure = "Wang"
+      ),
+      error = function(e) {
+        warning(
+          "GO simplification failed for ",
+          current_ontology,
+          ": ",
+          conditionMessage(e)
+        )
+        current_object
+      }
+    )
+  }
+
+  if (length(ontology_parts) == 0L) {
+    return(selected_object)
+  }
+
+  combined_object <-
+    selected_object
+
+  combined_object@result <-
+    do.call(
+      rbind,
+      lapply(
+        ontology_parts,
+        function(x) {
+          x@result
+        }
+      )
+    )
+
+  if (
+    "geneSets" %in%
+      methods::slotNames(
+        combined_object
+      )
+  ) {
+    combined_object@geneSets <-
+      unlist(
+        lapply(
+          ontology_parts,
+          function(x) {
+            x@geneSets
+          }
+        ),
+        recursive = FALSE
+      )
+  }
+
+  if (
+    "ontology" %in%
+      methods::slotNames(
+        combined_object
+      )
+  ) {
+    combined_object@ontology <-
+      "ALL"
+  }
+
+  if (
+    "setType" %in%
+      methods::slotNames(
+        combined_object
+      )
+  ) {
+    combined_object@setType <-
+      "ALL"
+  }
+
+  combined_object
+}
+
+
+simplify_enrichment_objects <- function(
+    object_list
+) {
+  lapply(
+    names(object_list),
+    function(object_name) {
+      current_object <-
+        object_list[[
+          object_name
+        ]]
+
+      if (
+        stringr::str_ends(
+          object_name,
+          "GO_ALL"
+        )
+      ) {
+        simplify_go_all_result(
+          current_object,
+          cutoff =
+            enrichment_simplify_cutoff
+        )
+      } else {
+        current_object
+      }
+    }
+  ) %>%
+    stats::setNames(
+      names(object_list)
+    )
+}
+
+
+fit_factor_fibrosis_models <- function(
+    factor_scores,
+    factor_names
+) {
+  required_columns <- c(
+    "Factor",
+    "Factor_value",
+    "Fibrosis_percent",
+    "Age_years",
+    "Sample_age_days"
+  )
+
+  missing_columns <- setdiff(
+    required_columns,
+    colnames(factor_scores)
+  )
+
+  if (length(missing_columns) > 0L) {
+    stop(
+      "Missing fibrosis-analysis columns: ",
+      paste(
+        missing_columns,
+        collapse = ", "
+      )
+    )
+  }
+
+  results <- tibble::tibble()
+
+  for (
+    factor_name in
+    factor_names
+  ) {
+    factor_data <-
+      factor_scores %>%
+      dplyr::filter(
+        Factor == factor_name
+      ) %>%
+      dplyr::select(
+        Factor_value,
+        Fibrosis_percent,
+        Age_years,
+        Sample_age_days
+      ) %>%
+      tidyr::drop_na()
+
+    if (
+      nrow(factor_data) < 6L ||
+      stats::sd(
+        factor_data$Fibrosis_percent
+      ) == 0
+    ) {
+      next
+    }
+
+    factor_data <- factor_data %>%
+      dplyr::mutate(
+        fibrosis_scaled =
+          as.numeric(
+            scale(
+              Fibrosis_percent
+            )
+          ),
+        age_scaled =
+          as.numeric(
+            scale(Age_years)
+          ),
+        storage_scaled =
+          as.numeric(
+            scale(
+              Sample_age_days
+            )
+          )
+      )
+
+    fibrosis_fit <- lm(
+      Factor_value ~
+        fibrosis_scaled +
+        age_scaled +
+        storage_scaled,
+      data = factor_data
+    )
+
+    fibrosis_coefficient <-
+      broom::tidy(
+        fibrosis_fit,
+        conf.int = TRUE
+      ) %>%
+      dplyr::filter(
+        term ==
+          "fibrosis_scaled"
+      )
+
+    results <- dplyr::bind_rows(
+      results,
+      tibble::tibble(
+        Factor = factor_name,
+        n = nrow(factor_data),
+        beta =
+          fibrosis_coefficient$
+            estimate,
+        standard_error =
+          fibrosis_coefficient$
+            std.error,
+        confidence_interval_low =
+          fibrosis_coefficient$
+            conf.low,
+        confidence_interval_high =
+          fibrosis_coefficient$
+            conf.high,
+        t_statistic =
+          fibrosis_coefficient$
+            statistic,
+        p_value =
+          fibrosis_coefficient$
+            p.value,
+        model_R2 =
+          summary(
+            fibrosis_fit
+          )$r.squared,
+        adjusted_model_R2 =
+          summary(
+            fibrosis_fit
+          )$adj.r.squared
+      )
+    )
+  }
+
+  results %>%
+    dplyr::mutate(
+      FDR = p.adjust(
+        p_value,
+        method = "BH"
+      )
+    ) %>%
+    dplyr::arrange(FDR)
+}
+
+
+plot_factor_fibrosis_associations <- function(
+    fibrosis_results,
+    factor_names,
+    title_text
+) {
+  plot_data <- fibrosis_results %>%
+    dplyr::mutate(
+      Factor = factor(
+        Factor,
+        levels = rev(
+          factor_names
+        )
+      ),
+      label =
+        format_fdr_label(FDR)
+    )
+
+  ggplot(
+    plot_data,
+    aes(
+      x = beta,
+      y = Factor
+    )
+  ) +
+    geom_vline(
+      xintercept = 0,
+      linetype = 2,
+      color = "grey50"
+    ) +
+    geom_segment(
+      aes(
+        x =
+          confidence_interval_low,
+        xend =
+          confidence_interval_high,
+        yend = Factor
+      ),
+      linewidth = 0.7,
+      color = "grey35"
+    ) +
+    geom_point(
+      aes(
+        fill = beta
+      ),
+      shape = 21,
+      size = 4,
+      color = "black",
+      stroke = 0.35
+    ) +
+    geom_text(
+      aes(
+        x = Inf,
+        label = label
+      ),
+      hjust = 1.05,
+      size = 3.1
+    ) +
+    scale_fill_gradient2(
+      low = "#2166AC",
+      mid = "white",
+      high = "#B2182B",
+      midpoint = 0
+    ) +
+    scale_x_continuous(
+      expand = expansion(
+        mult = c(
+          0.08,
+          0.35
+        )
+      )
+    ) +
+    labs(
+      title = title_text,
+      x =
+        "Adjusted coefficient per 1 SD increase\nin histological fibrosis",
+      y = NULL,
+      fill = "Coefficient"
+    ) +
+    theme_classic() +
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        face = "bold"
+      )
+    )
+}
+
+
+```
+
+```{r load filtered proteomics QC object}
+if (!file.exists(proteomics_qc_file)) {
+  stop(
+    "The filtered proteomics QC object was not found: ",
+    proteomics_qc_file
+  )
+}
+
+proteomics_qc <- readRDS(
+  proteomics_qc_file
+)
+
+filtered_proteomics <-
+  proteomics_qc$after_exclusion
+
+retained_dcm_samples <-
+  filtered_proteomics$clinical %>%
+  dplyr::filter(
+    Group == "DCM"
+  ) %>%
+  dplyr::pull(Sample) %>%
+  unique()
+```
+
+```{r histological fibrosis data}
+fibrosis_data <- readxl::read_excel(
+  fibrosis_file
+) %>%
+  dplyr::select(
+    -dplyr::matches(
+      "^Unnamed"
+    )
+  )
+
+if (
+  !"Fibrosis_percent" %in%
+    colnames(fibrosis_data)
+) {
+  colnames(fibrosis_data)[3L] <-
+    "Fibrosis_percent"
+}
+
+fibrosis_data <- fibrosis_data %>%
+  dplyr::mutate(
+    Sample =
+      as.character(Sample),
+    Fibrosis_percent =
+      as.numeric(
+        Fibrosis_percent
+      )
+  ) %>%
+  dplyr::filter(
+    Group == "DCM"
+  ) %>%
+  dplyr::distinct(
+    Sample,
+    .keep_all = TRUE
+  )
+
+write.csv(
+  fibrosis_data,
+  file.path(
+    base_output_dir,
+    "histological_fibrosis_data.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+
+# Clinical metadata and RV states
+
+```{r clinical metadata}
+clin_all <- readxl::read_excel(clinical_file) %>%
+  dplyr::select(-dplyr::matches("^Unnamed")) %>%
+  dplyr::mutate(
+    Sample = as.character(Sample),
+    Collection_date = as.Date(Collection_date),
+    Used_date = as.Date(Used_date),
+    Sample_age_days = as.numeric(Sample_age_days),
+    Age_years = as.numeric(Age_years),
+    LVEF_percent = as.numeric(LVEF_percent),
+    LVID_mm = as.numeric(LVID_mm),
+    LVEDD_mm = as.numeric(LVEDD_mm),
+    RVOT_mm = as.numeric(RVOT_mm),
+    TAPSE_mm = as.numeric(TAPSE_mm),
+    RVIT_mm = as.numeric(RVIT_mm),
+    RAA_cm2 = as.numeric(RAA_cm2),
+    RVS_cm.s = as.numeric(RVS_cm.s),
+    RVSP_mmHg = as.numeric(RVSP_mmHg),
+    sPAP_mmHg = as.numeric(sPAP_mmHg),
+    mPAP_mmHg = as.numeric(mPAP_mmHg),
+    PCW_mmHg = as.numeric(PCW_mmHg),
+    PVR_WU = as.numeric(PVR_WU),
+    TPG_mmHg = as.numeric(TPG_mmHg),
+    CO_l.min = as.numeric(CO_l.min),
+    TAPSE_sPAP = TAPSE_mm / sPAP_mmHg
+  ) %>%
+  dplyr::filter(
+    Group == "DCM",
+    Sample %in% retained_dcm_samples,
+    toupper(
+      trimws(
+        as.character(Sex)
+      )
+    ) != "F"
+  ) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE) %>%
+  dplyr::mutate(
+    RV_group = dplyr::case_when(
+      is.na(mPAP_mmHg) ~ NA_character_,
+      mPAP_mmHg <= mPAP_overload_cutoff ~
+        "Not overloaded",
+      mPAP_mmHg > mPAP_overload_cutoff &
+        is.na(TAPSE_sPAP) ~
+        NA_character_,
+      mPAP_mmHg > mPAP_overload_cutoff &
+        TAPSE_sPAP > coupling_cutoff ~
+        "Compensated",
+      mPAP_mmHg > mPAP_overload_cutoff &
+        TAPSE_sPAP <= coupling_cutoff ~
+        "Decompensated",
+      TRUE ~ NA_character_
+    ),
+    RV_group = factor(
+      RV_group,
+      levels = c(
+        "Not overloaded",
+        "Compensated",
+        "Decompensated"
+      )
+    ),
+    Sex = factor(Sex),
+    Etiology = factor(Etiology)
+  )
+
+clin_all %>%
+  dplyr::count(RV_group, .drop = FALSE)
+```
+
+```{r clinical group overview, fig.height=3, fig.width=5}
+clinical_group_plot_data <- clin_all %>%
+  dplyr::filter(
+    RV_group %in%
+      rv_group_comparison_levels
+  ) %>%
+  dplyr::mutate(
+    RV_group = factor(
+      as.character(RV_group),
+      levels = rv_group_comparison_levels
+    )
+  )
+
+p_group_mpap <- clinical_group_plot_data %>%
+  dplyr::filter(
+    !is.na(mPAP_mmHg)
+  ) %>%
+  ggplot(
+    aes(
+      x = RV_group,
+      y = mPAP_mmHg,
+      fill = RV_group
+    )
+  ) +
+  geom_boxplot(
+    outlier.shape = NA,
+    width = 0.55,
+    color = "grey20"
+  ) +
+  geom_jitter(
+    width = 0.10,
+    height = 0,
+    size = 2.2,
+    shape = 21,
+    color = "black",
+    stroke = 0.25
+  ) +
+  scale_fill_manual(
+    values = group_colors[
+      rv_group_comparison_levels
+    ],
+    drop = FALSE
+  ) +
+  labs(
+    x = NULL,
+    y = "mPAP (mmHg)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(
+      angle = 20,
+      hjust = 1
+    )
+  )
+
+p_group_coupling <- clinical_group_plot_data %>%
+  dplyr::filter(
+    !is.na(TAPSE_sPAP)
+  ) %>%
+  ggplot(
+    aes(
+      x = RV_group,
+      y = TAPSE_sPAP,
+      fill = RV_group
+    )
+  ) +
+  geom_hline(
+    yintercept = coupling_cutoff,
+    linetype = 2
+  ) +
+  geom_boxplot(
+    outlier.shape = NA,
+    width = 0.55,
+    color = "grey20"
+  ) +
+  geom_jitter(
+    width = 0.10,
+    height = 0,
+    size = 2.2,
+    shape = 21,
+    color = "black",
+    stroke = 0.25
+  ) +
+  scale_fill_manual(
+    values = group_colors[
+      rv_group_comparison_levels
+    ],
+    drop = FALSE
+  ) +
+  labs(
+    x = NULL,
+    y = "TAPSE/sPAP"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(
+      angle = 20,
+      hjust = 1
+    )
+  )
+
+p_group_mpap | p_group_coupling
+```
+
+# Preprocess Olink proteomics
+
+The sample-filtered Olink matrix is imported from the proteomics quality-control workflow. All usable Olink proteins are retained. BCA concentration is regressed from the Olink abundance matrix before either MOFA model is fitted.
+
+```{r read olink data}
+olink_expr <-
+  filtered_proteomics$olink
+
+olink_sample_meta <-
+  filtered_proteomics$olink_metadata %>%
+  dplyr::mutate(
+    Sample = as.character(Sample),
+    BCA_mg_ml = as.numeric(BCA_mg_ml),
+    Batch = factor(Batch)
+  ) %>%
+  dplyr::distinct(
+    Sample,
+    .keep_all = TRUE
+  )
+
+olink_samples <- clin_all$Sample[
+  clin_all$Sample %in%
+    colnames(olink_expr)
+]
+
+olink_expr <- olink_expr[
+  ,
+  olink_samples,
+  drop = FALSE
+]
+
+olink_meta <- clin_all %>%
+  dplyr::inner_join(
+    olink_sample_meta %>%
+      dplyr::select(
+        Sample,
+        Batch,
+        BCA_mg_ml
+      ),
+    by = "Sample"
+  ) %>%
+  dplyr::filter(
+    Sample %in% colnames(olink_expr),
+    !is.na(BCA_mg_ml)
+  ) %>%
+  dplyr::slice(
+    match(
+      colnames(olink_expr),
+      Sample
+    )
+  ) %>%
+  dplyr::distinct(
+    Sample,
+    .keep_all = TRUE
+  )
+
+olink_expr <- olink_expr[
+  ,
+  olink_meta$Sample,
+  drop = FALSE
+]
+
+olink_observed <- matrixStats::rowSums2(
+  is.finite(olink_expr)
+)
+
+olink_variance_original <- matrixStats::rowVars(
+  olink_expr,
+  na.rm = TRUE
+)
+
+keep_olink_features <-
+  olink_observed >= 2 &
+  is.finite(olink_variance_original) &
+  olink_variance_original > 0
+
+olink_expr <- olink_expr[
+  keep_olink_features,
+  ,
+  drop = FALSE
+]
+
+dim(olink_expr)
+```
+
+```{r regress bca from olink}
+bca_covariate <- matrix(
+  as.numeric(
+    scale(olink_meta$BCA_mg_ml)
+  ),
+  ncol = 1,
+  dimnames = list(
+    olink_meta$Sample,
+    "BCA_scaled"
+  )
+)
+
+olink_mofa <- limma::removeBatchEffect(
+  olink_expr,
+  covariates = bca_covariate
+)
+
+olink_variance_corrected <- matrixStats::rowVars(
+  olink_mofa,
+  na.rm = TRUE
+)
+
+keep_corrected_olink_features <-
+  is.finite(olink_variance_corrected) &
+  olink_variance_corrected > 0
+
+olink_mofa <- olink_mofa[
+  keep_corrected_olink_features,
+  ,
+  drop = FALSE
+]
+
+olink_feature_table <- tibble::tibble(
+  feature = rownames(olink_expr),
+  variance_before_BCA_correction =
+    matrixStats::rowVars(
+      olink_expr,
+      na.rm = TRUE
+    ),
+  variance_after_BCA_correction =
+    olink_variance_corrected,
+  selected_for_MOFA =
+    rownames(olink_expr) %in%
+      rownames(olink_mofa)
+)
+
+bca_correlations_before <- apply(
+  olink_expr,
+  1,
+  stats::cor,
+  y = olink_meta$BCA_mg_ml,
+  use = "pairwise.complete.obs"
+)
+
+bca_correlations_after <- apply(
+  olink_mofa,
+  1,
+  stats::cor,
+  y = olink_meta$BCA_mg_ml,
+  use = "pairwise.complete.obs"
+)
+
+olink_bca_correction_diagnostic <-
+  tibble::tibble(
+    feature = names(
+      bca_correlations_before
+    ),
+    correlation_before =
+      as.numeric(
+        bca_correlations_before
+      ),
+    correlation_after =
+      as.numeric(
+        bca_correlations_after[
+          names(
+            bca_correlations_before
+          )
+        ]
+      )
+  )
+
+write.csv(
+  olink_feature_table,
+  file.path(
+    preprocessing_output_dir,
+    "Olink_feature_selection_all_proteins.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  olink_bca_correction_diagnostic,
+  file.path(
+    preprocessing_output_dir,
+    "Olink_BCA_correction_diagnostic.csv"
+  ),
+  row.names = FALSE
+)
+
+dim(olink_mofa)
+```
+
+```{r Olink BCA correction diagnostic, fig.height=4, fig.width=4}
+olink_bca_correction_plot_data <-
+  olink_bca_correction_diagnostic %>%
+  tidyr::pivot_longer(
+    cols = c(
+      correlation_before,
+      correlation_after
+    ),
+    names_to = "stage",
+    values_to = "correlation"
+  ) %>%
+  dplyr::filter(
+    is.finite(correlation)
+  ) %>%
+  dplyr::mutate(
+    stage = factor(
+      stage,
+      levels = c(
+        "correlation_before",
+        "correlation_after"
+      ),
+      labels = c(
+        "Before correction",
+        "After correction"
+      )
+    ),
+    absolute_correlation =
+      abs(correlation)
+  )
+
+ggplot(
+  olink_bca_correction_plot_data,
+  aes(
+    x = stage,
+    y = absolute_correlation,
+    fill = stage
+  )
+) +
+  geom_boxplot(
+    width = 0.55,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.12,
+    height = 0,
+    size = 0.6,
+    alpha = 0.18
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Before correction" = "#F2A7A3",
+      "After correction" = "#63C5C9"
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Absolute protein-wise correlation\nwith BCA concentration"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none"
+  )
+```
+
+
+# Preprocess LC-MS/MS proteomics
+
+The sample-filtered and log2-transformed LC-MS/MS matrix is imported from the proteomics quality-control workflow. Proteins observed in at least half of the retained samples are used for MOFA.
+
+```{r read mass spectrometry}
+ms_expr <-
+  filtered_proteomics$ms
+
+ms_samples <- clin_all$Sample[
+  clin_all$Sample %in%
+    colnames(ms_expr)
+]
+
+ms_expr <- ms_expr[
+  ,
+  ms_samples,
+  drop = FALSE
+]
+
+ms_observed_fraction <- matrixStats::rowMeans2(
+  is.finite(ms_expr)
+)
+
+ms_variance <- matrixStats::rowVars(
+  ms_expr,
+  na.rm = TRUE
+)
+
+keep_ms_features <-
+  ms_observed_fraction >=
+    min_ms_observed_fraction &
+  is.finite(ms_variance) &
+  ms_variance > 0
+
+ms_mofa <- ms_expr[
+  keep_ms_features,
+  ,
+  drop = FALSE
+]
+
+ms_feature_table <- tibble::tibble(
+  feature = rownames(ms_expr),
+  observed_fraction = ms_observed_fraction,
+  variance = ms_variance,
+  selected_for_MOFA = keep_ms_features
+) %>%
+  dplyr::arrange(
+    dplyr::desc(variance)
+  )
+
+write.csv(
+  ms_feature_table,
+  file.path(
+    preprocessing_output_dir,
+    "MS_feature_selection.csv"
+  ),
+  row.names = FALSE
+)
+
+dim(ms_mofa)
+```
+
+```{r save processed proteomics views}
+saveRDS(
+  list(
+    Olink = olink_mofa,
+    LCMS = ms_mofa,
+    Olink_original = olink_expr,
+    Olink_metadata = olink_meta,
+    Olink_BCA_diagnostic =
+      olink_bca_correction_diagnostic,
+    QC_source_file =
+      proteomics_qc_file
+  ),
+  processed_proteomics_file
+)
+```
+
+# Model 1: integrated Olink and LC-MS/MS proteomics
+
+Only patients measured by both proteomic platforms are used. This avoids using platform availability to define factors and makes every proteomics factor directly estimable from both assays.
+
+## Assemble the proteomics-only MOFA input
+
+```{r assemble proteomics input}
+proteomics_samples <- clin_all$Sample[
+  clin_all$Sample %in%
+    intersect(
+      colnames(olink_mofa),
+      colnames(ms_mofa)
+    )
+]
+
+proteomics_data <- list(
+  Olink = olink_mofa[
+    ,
+    proteomics_samples,
+    drop = FALSE
+  ],
+  LCMS = ms_mofa[
+    ,
+    proteomics_samples,
+    drop = FALSE
+  ]
+)
+
+lapply(
+  proteomics_data,
+  dim
+)
+```
+
+```{r proteomics sample overview}
+proteomics_sample_overview <- tibble::tibble(
+  Sample = proteomics_samples,
+  Olink = TRUE,
+  LCMS = TRUE
+) %>%
+  dplyr::left_join(
+    clin_all %>%
+      dplyr::select(
+        Sample,
+        RV_group,
+        mPAP_mmHg,
+        TAPSE_mm,
+        RVIT_mm,
+        TAPSE_sPAP
+      ),
+    by = "Sample"
+  )
+
+write.csv(
+  proteomics_sample_overview,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_samples.csv"
+  ),
+  row.names = FALSE
+)
+
+proteomics_sample_overview %>%
+  dplyr::count(
+    RV_group,
+    .drop = FALSE
+  )
+```
+
+```{r save proteomics input checkpoint}
+saveRDS(
+  proteomics_data,
+  proteomics_input_file
+)
+```
+
+## Checkpoint: load the proteomics input
+
+The saved proteomics input provides a restart point after preprocessing.
+
+```{r load proteomics input checkpoint}
+proteomics_data <- readRDS(
+  proteomics_input_file
+)
+
+lapply(
+  proteomics_data,
+  dim
+)
+```
+
+## Create the untrained proteomics model
+
+```{r create proteomics mofa object}
+proteomics_untrained <- MOFA2::create_mofa(
+  proteomics_data
+)
+
+proteomics_untrained
+```
+
+```{r proteomics input overview, fig.height=4.5, fig.width=8}
+MOFA2::plot_data_overview(
+  proteomics_untrained
+)
+```
+
+## Tune the number of proteomics factors
+
+Three seeds are fitted for every candidate number of factors. Each complete execution refits all tuning models and overwrites the corresponding tuning files.
+
+```{r tune proteomics factor number, message=FALSE, warning=FALSE, results='hide'}
+proteomics_tuning_results <-
+  tibble::tibble()
+
+for (n_factors in candidate_factors) {
+  for (tuning_seed in tuning_seeds) {
+    tuning_model_file <- file.path(
+      proteomics_output_dir,
+      paste0(
+        "MOFA_proteomics_tuning_K",
+        sprintf("%02d", n_factors),
+        "_seed",
+        tuning_seed,
+        ".hdf5"
+      )
+    )
+
+    if (file.exists(tuning_model_file)) {
+      unlink(tuning_model_file)
+    }
+
+    message(
+      "Starting proteomics model: K = ",
+      n_factors,
+      ", seed = ",
+      tuning_seed
+    )
+
+    tuning_object <- MOFA2::create_mofa(
+      proteomics_data
+    )
+
+    tuning_data_options <-
+      MOFA2::get_default_data_options(
+        tuning_object
+      )
+
+    tuning_data_options$scale_views <- TRUE
+
+    tuning_model_options <-
+      MOFA2::get_default_model_options(
+        tuning_object
+      )
+
+    tuning_model_options$num_factors <-
+      n_factors
+
+    tuning_model_options$likelihoods[] <-
+      "gaussian"
+
+    tuning_training_options <-
+      MOFA2::get_default_training_options(
+        tuning_object
+      )
+
+    tuning_training_options$maxiter <-
+      tuning_maxiter
+
+    tuning_training_options$convergence_mode <-
+      mofa_convergence_mode
+
+    tuning_training_options$freqELBO <-
+      mofa_freq_elbo
+
+    tuning_training_options$drop_factor_threshold <-
+      -1
+
+    tuning_training_options$seed <-
+      tuning_seed
+
+    tuning_training_options$verbose <-
+      FALSE
+
+    tuning_object <- MOFA2::prepare_mofa(
+      object = tuning_object,
+      data_options = tuning_data_options,
+      model_options = tuning_model_options,
+      training_options =
+        tuning_training_options
+    )
+
+    MOFA2::run_mofa(
+      tuning_object,
+      outfile = tuning_model_file,
+      use_basilisk = TRUE
+    )
+
+    rm(tuning_object)
+    gc()
+
+    tuning_model <- MOFA2::load_model(
+      tuning_model_file,
+      sort_factors = TRUE,
+      remove_inactive_factors = FALSE
+    )
+
+    tuning_r2 <-
+      MOFA2::get_variance_explained(
+        tuning_model
+      )$r2_per_factor[[1]]
+
+    weakest_factor <-
+      tail(
+        rownames(tuning_r2),
+        1
+      )
+
+    weakest_factor_r2 <-
+      tuning_r2[
+        weakest_factor,
+        ,
+        drop = TRUE
+      ]
+
+    new_tuning_result <- tibble::tibble(
+      n_factors = n_factors,
+      seed = tuning_seed,
+      final_ELBO =
+        MOFA2::get_elbo(tuning_model),
+      weakest_factor = weakest_factor,
+      weakest_factor_total_R2 =
+        sum(
+          weakest_factor_r2,
+          na.rm = TRUE
+        ),
+      weakest_factor_Olink_R2 =
+        unname(
+          weakest_factor_r2["Olink"]
+        ),
+      weakest_factor_LCMS_R2 =
+        unname(
+          weakest_factor_r2["LCMS"]
+        ),
+      n_factors_total_R2_at_least_cutoff =
+        sum(
+          rowSums(
+            tuning_r2,
+            na.rm = TRUE
+          ) >= last_factor_r2_cutoff
+        ),
+      model_file = tuning_model_file
+    )
+
+    proteomics_tuning_results <-
+      dplyr::bind_rows(
+        proteomics_tuning_results,
+        new_tuning_result
+      ) %>%
+      dplyr::arrange(
+        n_factors,
+        seed
+      )
+
+    write.csv(
+      proteomics_tuning_results,
+      proteomics_tuning_summary_file,
+      row.names = FALSE
+    )
+
+    message(
+      "Finished proteomics model: K = ",
+      n_factors,
+      ", seed = ",
+      tuning_seed
+    )
+
+    rm(tuning_model)
+    gc()
+  }
+}
+
+proteomics_tuning_results
+```
+
+## Select the proteomics factor number
+
+```{r select proteomics best tuning run per K}
+proteomics_best_tuning_runs <-
+  proteomics_tuning_results %>%
+  dplyr::group_by(n_factors) %>%
+  dplyr::slice_max(
+    order_by = final_ELBO,
+    n = 1,
+    with_ties = FALSE
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(n_factors)
+
+write.csv(
+  proteomics_best_tuning_runs,
+  proteomics_best_tuning_summary_file,
+  row.names = FALSE
+)
+
+proteomics_low_weakest_factor <-
+  proteomics_best_tuning_runs$
+    weakest_factor_total_R2 <
+  last_factor_r2_cutoff
+
+proteomics_low_runs <- vapply(
+  seq_along(
+    proteomics_low_weakest_factor
+  ),
+  function(i) {
+    end_i <-
+      i +
+      n_consecutive_low_models -
+      1
+
+    end_i <=
+      length(
+        proteomics_low_weakest_factor
+      ) &&
+      all(
+        proteomics_low_weakest_factor[
+          i:end_i
+        ]
+      )
+  },
+  logical(1)
+)
+
+proteomics_first_low_run <-
+  which(proteomics_low_runs)[1]
+
+if (
+  length(proteomics_first_low_run) == 1 &&
+  !is.na(proteomics_first_low_run)
+) {
+  proteomics_selected_n_factors <- max(
+    proteomics_best_tuning_runs$
+      n_factors[
+        proteomics_first_low_run
+      ] - 1,
+    min(candidate_factors)
+  )
+
+  proteomics_factor_plateau_reached <-
+    TRUE
+} else {
+  proteomics_selected_n_factors <-
+    max(candidate_factors)
+
+  proteomics_factor_plateau_reached <-
+    FALSE
+
+  warning(
+    paste0(
+      "No sequence of ",
+      n_consecutive_low_models,
+      " consecutive proteomics models with weakest-factor variance below ",
+      last_factor_r2_cutoff,
+      "% was observed. The maximum tested factor number was selected."
+    )
+  )
+}
+
+proteomics_selected_seed <-
+  proteomics_best_tuning_runs %>%
+  dplyr::filter(
+    n_factors ==
+      proteomics_selected_n_factors
+  ) %>%
+  dplyr::pull(seed)
+
+proteomics_selected_model_settings <-
+  tibble::tibble(
+    selected_n_factors =
+      proteomics_selected_n_factors,
+    selected_seed =
+      proteomics_selected_seed,
+    factor_plateau_reached =
+      proteomics_factor_plateau_reached,
+    weakest_factor_R2_cutoff =
+      last_factor_r2_cutoff,
+    consecutive_low_models_required =
+      n_consecutive_low_models,
+    tuning_maxiter = tuning_maxiter,
+    final_maxiter = final_maxiter,
+    convergence_mode =
+      mofa_convergence_mode
+  )
+
+write.csv(
+  proteomics_selected_model_settings,
+  proteomics_selected_settings_file,
+  row.names = FALSE
+)
+
+proteomics_selected_model_settings
+```
+
+```{r proteomics factor tuning plot, fig.height=3.3, fig.width=4.4}
+ggplot() +
+  geom_line(
+    data = proteomics_tuning_results,
+    aes(
+      x = n_factors,
+      y = weakest_factor_total_R2,
+      group = factor(seed)
+    ),
+    color = "grey70"
+  ) +
+  geom_point(
+    data = proteomics_tuning_results,
+    aes(
+      x = n_factors,
+      y = weakest_factor_total_R2
+    ),
+    color = "grey60",
+    size = 1.8
+  ) +
+  geom_line(
+    data = proteomics_best_tuning_runs,
+    aes(
+      x = n_factors,
+      y = weakest_factor_total_R2
+    ),
+    linewidth = 0.8
+  ) +
+  geom_point(
+    data = proteomics_best_tuning_runs,
+    aes(
+      x = n_factors,
+      y = weakest_factor_total_R2
+    ),
+    size = 2.7
+  ) +
+  geom_hline(
+    yintercept =
+      last_factor_r2_cutoff,
+    linetype = 2
+  ) +
+  geom_vline(
+    xintercept =
+      proteomics_selected_n_factors,
+    linetype = 3
+  ) +
+  scale_x_continuous(
+    breaks = candidate_factors
+  ) +
+  labs(
+    x = "Number of factors in fitted model",
+    y = "Variance explained by weakest factor (%)"
+  ) +
+  theme_classic()
+```
+
+## Train the final proteomics model
+
+```{r train final proteomics mofa model, message=FALSE, warning=FALSE, results='hide'}
+proteomics_data <- readRDS(
+  proteomics_input_file
+)
+
+if (file.exists(proteomics_final_model_file)) {
+  unlink(proteomics_final_model_file)
+}
+
+proteomics_object <-
+  MOFA2::create_mofa(
+    proteomics_data
+  )
+
+proteomics_data_options <-
+  MOFA2::get_default_data_options(
+    proteomics_object
+  )
+
+proteomics_data_options$scale_views <-
+  TRUE
+
+proteomics_model_options <-
+  MOFA2::get_default_model_options(
+    proteomics_object
+  )
+
+proteomics_model_options$num_factors <-
+  proteomics_selected_n_factors
+
+proteomics_model_options$likelihoods[] <-
+  "gaussian"
+
+proteomics_training_options <-
+  MOFA2::get_default_training_options(
+    proteomics_object
+  )
+
+proteomics_training_options$maxiter <-
+  final_maxiter
+
+proteomics_training_options$convergence_mode <-
+  mofa_convergence_mode
+
+proteomics_training_options$freqELBO <-
+  mofa_freq_elbo
+
+proteomics_training_options$drop_factor_threshold <-
+  -1
+
+proteomics_training_options$seed <-
+  proteomics_selected_seed
+
+proteomics_training_options$verbose <-
+  FALSE
+
+proteomics_object <- MOFA2::prepare_mofa(
+  object = proteomics_object,
+  data_options =
+    proteomics_data_options,
+  model_options =
+    proteomics_model_options,
+  training_options =
+    proteomics_training_options
+)
+
+MOFA2::run_mofa(
+  proteomics_object,
+  outfile =
+    proteomics_final_model_file,
+  use_basilisk = TRUE
+)
+
+rm(proteomics_object)
+gc()
+```
+
+## Load the proteomics model and attach metadata
+
+```{r load proteomics model and attach metadata}
+proteomics_model <- MOFA2::load_model(
+  proteomics_final_model_file,
+  sort_factors = TRUE,
+  remove_inactive_factors = FALSE
+)
+
+proteomics_model_samples <-
+  MOFA2::samples_names(
+    proteomics_model
+  )[[1]]
+
+proteomics_model_metadata <-
+  clin_all %>%
+  dplyr::left_join(
+    olink_sample_meta %>%
+      dplyr::select(
+        Sample,
+        Batch,
+        BCA_mg_ml
+      ),
+    by = "Sample"
+  ) %>%
+  dplyr::filter(
+    Sample %in%
+      proteomics_model_samples
+  ) %>%
+  dplyr::slice(
+    match(
+      proteomics_model_samples,
+      Sample
+    )
+  ) %>%
+  dplyr::rename(
+    sample = Sample
+  )
+
+samples_metadata(proteomics_model) <-
+  as.data.frame(
+    proteomics_model_metadata
+  )
+
+saveRDS(
+  proteomics_model,
+  proteomics_final_model_rds
+)
+
+write.csv(
+  proteomics_model_metadata,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_sample_metadata.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+## Checkpoint: reload the final proteomics model
+
+The saved final proteomics model provides a restart point for downstream analyses.
+
+```{r reload final proteomics model checkpoint}
+proteomics_model <- readRDS(
+  proteomics_final_model_rds
+)
+
+proteomics_model_metadata <-
+  samples_metadata(
+    proteomics_model
+  )
+
+proteomics_selected_model_settings <-
+  read.csv(
+    proteomics_selected_settings_file,
+    stringsAsFactors = FALSE
+  )
+
+proteomics_tuning_results <-
+  read.csv(
+    proteomics_tuning_summary_file,
+    stringsAsFactors = FALSE
+  )
+
+proteomics_best_tuning_runs <-
+  read.csv(
+    proteomics_best_tuning_summary_file,
+    stringsAsFactors = FALSE
+  )
+```
+
+# Proteomics model overview
+
+```{r proteomics trained model overview, fig.height=4.5, fig.width=8}
+MOFA2::plot_data_overview(
+  proteomics_model
+)
+```
+
+```{r proteomics variance explained, fig.height=3.2, fig.width=3.6}
+proteomics_r2_heatmap_matrix <-
+  MOFA2::get_variance_explained(
+    proteomics_model
+  )$r2_per_factor[[1]]
+
+proteomics_r2_heatmap_data <-
+  as.data.frame(
+    proteomics_r2_heatmap_matrix
+  ) %>%
+  tibble::rownames_to_column(
+    "Factor"
+  ) %>%
+  tidyr::pivot_longer(
+    cols = -Factor,
+    names_to = "View",
+    values_to = "R2"
+  ) %>%
+  dplyr::mutate(
+    Factor = factor(
+      Factor,
+      levels = rownames(
+        proteomics_r2_heatmap_matrix
+      )
+    ),
+    View = factor(
+      View,
+      levels = colnames(
+        proteomics_r2_heatmap_matrix
+      )
+    ),
+    text_color = dplyr::if_else(
+      R2 >=
+        0.55 *
+        max(
+          R2,
+          na.rm = TRUE
+        ),
+      "white",
+      "black"
+    )
+  )
+
+ggplot(
+  proteomics_r2_heatmap_data,
+  aes(
+    x = View,
+    y = Factor,
+    fill = R2
+  )
+) +
+  geom_tile(
+    color = "grey40",
+    linewidth = 0.3
+  ) +
+  geom_text(
+    aes(
+      label = sprintf(
+        "%.1f%%",
+        R2
+      ),
+      color = text_color
+    ),
+    size = 3.2
+  ) +
+  scale_color_identity() +
+  scale_fill_gradient(
+    low = "white",
+    high = "navy"
+  ) +
+  labs(
+    title =
+      "",
+    x = NULL,
+    y = NULL,
+    fill = "Variance\nexplained (%)"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold"
+    ),
+  axis.text.x = element_text(
+    size = 11
+  ),
+  axis.text.y = element_text(
+    size = 11
+  )
+  )
+```
+
+```{r proteomics total variance explained, fig.height=4.5, fig.width=7}
+MOFA2::plot_variance_explained(
+  proteomics_model,
+  x = "view",
+  y = "factor",
+  plot_total = TRUE
+)[[2]]
+```
+
+```{r proteomics factor correlations, fig.height=4, fig.width=5}
+MOFA2::plot_factor_cor(
+  proteomics_model
+) +
+  labs(
+    title = "Proteomics factor correlations"
+  ) +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold"
+    )
+  )
+```
+
+```{r extract proteomics variance explained}
+proteomics_variance_explained <-
+  MOFA2::get_variance_explained(
+    proteomics_model
+  )
+
+proteomics_r2_total <-
+  proteomics_variance_explained$
+    r2_total[[1]]
+
+proteomics_r2_per_factor <-
+  proteomics_variance_explained$
+    r2_per_factor[[1]]
+
+proteomics_r2_total_table <-
+  tibble::enframe(
+    proteomics_r2_total,
+    name = "View",
+    value = "Total_R2"
+  )
+
+proteomics_r2_per_factor_table <-
+  as.data.frame(
+    proteomics_r2_per_factor
+  ) %>%
+  tibble::rownames_to_column(
+    "Factor"
+  ) %>%
+  tidyr::pivot_longer(
+    cols = -Factor,
+    names_to = "View",
+    values_to = "R2"
+  )
+
+write.csv(
+  proteomics_r2_total_table,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_total_variance_explained.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  proteomics_r2_per_factor_table,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_variance_explained_per_factor.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+# Extract proteomics factor scores and weights
+
+```{r extract proteomics factors and weights}
+proteomics_factor_scores <-
+  MOFA2::get_factors(
+    proteomics_model,
+    as.data.frame = TRUE
+  ) %>%
+  dplyr::rename(
+    Sample = sample,
+    Factor = factor,
+    Factor_value = value
+  ) %>%
+  dplyr::left_join(
+    as.data.frame(
+      proteomics_model_metadata
+    ) %>%
+      dplyr::rename(
+        Sample = sample
+      ),
+    by = "Sample"
+  )
+
+proteomics_factor_scores_wide <-
+  proteomics_factor_scores %>%
+  dplyr::select(
+    Sample,
+    Factor,
+    Factor_value
+  ) %>%
+  tidyr::pivot_wider(
+    names_from = Factor,
+    values_from = Factor_value
+  )
+
+proteomics_factor_weights <-
+  MOFA2::get_weights(
+    proteomics_model,
+    as.data.frame = TRUE
+  ) %>%
+  dplyr::rename(
+    View = view,
+    Feature = feature,
+    Factor = factor,
+    Weight = value
+  )
+
+write.csv(
+  proteomics_factor_scores,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_factor_scores_long.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  proteomics_factor_scores_wide,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_factor_scores_wide.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  proteomics_factor_weights,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_feature_weights_all.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+```{r proteomics factor1 top loadings, fig.height=7, fig.width=5}
+proteomics_factor1_top_loadings <-
+  prepare_top_factor_loadings(
+    weight_table =
+      proteomics_factor_weights,
+    factor_name = "Factor1",
+    n_each_direction =
+      n_top_factor_loadings_each_direction
+  )
+
+write.csv(
+  proteomics_factor1_top_loadings,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_Factor1_top_loadings.csv"
+  ),
+  row.names = FALSE
+)
+
+proteomics_factor1_loading_plot <-
+  plot_top_factor_loadings(
+    loading_data =
+      proteomics_factor1_top_loadings,
+    title_text =
+      "Factor 1 top loadings"
+  )
+
+proteomics_factor1_loading_plot
+
+```
+
+# Proteomics factors in compensated and decompensated RV states
+
+```{r proteomics group association models}
+proteomics_factor_names <-
+  MOFA2::factors_names(
+    proteomics_model
+  )
+
+proteomics_group_global_results <-
+  tibble::tibble()
+
+proteomics_group_pairwise_results <-
+  tibble::tibble()
+
+for (
+  factor_name in
+  proteomics_factor_names
+) {
+  factor_data <-
+    proteomics_factor_scores %>%
+    dplyr::filter(
+      Factor == factor_name,
+      RV_group %in%
+        rv_group_comparison_levels
+    ) %>%
+    dplyr::select(
+      Sample,
+      Factor_value,
+      RV_group,
+      Age_years,
+      Sample_age_days
+    ) %>%
+    tidyr::drop_na() %>%
+    dplyr::mutate(
+      RV_group = factor(
+        as.character(RV_group),
+        levels =
+          rv_group_comparison_levels
+      )
+    ) %>%
+    droplevels()
+
+  if (
+    nlevels(factor_data$RV_group) < 2L
+  ) {
+    next
+  }
+
+  group_counts <-
+    table(
+      factor_data$RV_group
+    )
+
+  group_fit <- lm(
+    Factor_value ~
+      RV_group +
+      scale(Age_years) +
+      scale(Sample_age_days),
+    data = factor_data
+  )
+
+  group_test <- drop1(
+    group_fit,
+    test = "F"
+  )
+
+  proteomics_group_global_results <-
+    dplyr::bind_rows(
+      proteomics_group_global_results,
+      tibble::tibble(
+        Factor = factor_name,
+        comparison =
+          "Compensated versus Decompensated",
+        n = nrow(factor_data),
+        n_compensated =
+          unname(
+            group_counts["Compensated"]
+          ),
+        n_decompensated =
+          unname(
+            group_counts["Decompensated"]
+          ),
+        F_statistic =
+          group_test[
+            "RV_group",
+            "F value"
+          ],
+        p_value =
+          group_test[
+            "RV_group",
+            "Pr(>F)"
+          ],
+        model_R2 =
+          summary(group_fit)$r.squared,
+        adjusted_model_R2 =
+          summary(group_fit)$adj.r.squared
+      )
+    )
+
+  factor_emmeans <- emmeans::emmeans(
+    group_fit,
+    ~ RV_group
+  )
+
+  factor_contrasts <-
+    emmeans::contrast(
+      factor_emmeans,
+      method = list(
+        "Decompensated - Compensated" =
+          c(-1, 1)
+      ),
+      adjust = "none"
+    ) %>%
+    summary(
+      infer = c(TRUE, TRUE)
+    ) %>%
+    as.data.frame() %>%
+    dplyr::mutate(
+      Factor = factor_name,
+      n = nrow(factor_data),
+      n_compensated =
+        unname(
+          group_counts["Compensated"]
+        ),
+      n_decompensated =
+        unname(
+          group_counts["Decompensated"]
+        )
+    ) %>%
+    dplyr::select(
+      Factor,
+      contrast,
+      estimate,
+      SE,
+      df,
+      lower.CL,
+      upper.CL,
+      t.ratio,
+      p.value,
+      n,
+      n_compensated,
+      n_decompensated
+    )
+
+  proteomics_group_pairwise_results <-
+    dplyr::bind_rows(
+      proteomics_group_pairwise_results,
+      factor_contrasts
+    )
+}
+
+proteomics_group_global_results <-
+  proteomics_group_global_results %>%
+  dplyr::mutate(
+    FDR = p.adjust(
+      p_value,
+      method = "BH"
+    )
+  ) %>%
+  dplyr::arrange(FDR)
+
+proteomics_group_pairwise_results <-
+  proteomics_group_pairwise_results %>%
+  dplyr::mutate(
+    FDR = p.adjust(
+      p.value,
+      method = "BH"
+    )
+  ) %>%
+  dplyr::arrange(FDR)
+
+write.csv(
+  proteomics_group_global_results,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_factors_compensated_vs_decompensated_global.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  proteomics_group_pairwise_results,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_factors_compensated_vs_decompensated.csv"
+  ),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  proteomics_group_pairwise_results,
+  searchable = TRUE,
+  filterable = TRUE,
+  defaultPageSize = 15
+)
+```
+
+```{r proteomics group comparison results table}
+proteomics_group_pairwise_results %>%
+  dplyr::select(
+    Factor,
+    contrast,
+    estimate,
+    SE,
+    lower.CL,
+    upper.CL,
+    t.ratio,
+    p.value,
+    FDR,
+    n,
+    n_compensated,
+    n_decompensated
+  ) %>%
+  dplyr::arrange(FDR) %>%
+  reactable::reactable(
+    searchable = TRUE,
+    filterable = TRUE,
+    defaultPageSize = 15
+  )
+```
+
+```{r proteomics factors by rv group, fig.height=5, fig.width=7}
+proteomics_group_plot_data <-
+  proteomics_factor_scores %>%
+  dplyr::filter(
+    RV_group %in%
+      rv_group_comparison_levels
+  ) %>%
+  dplyr::mutate(
+    RV_group = factor(
+      as.character(RV_group),
+      levels =
+        rv_group_comparison_levels
+    ),
+    Factor = factor(
+      Factor,
+      levels =
+        proteomics_factor_names
+    )
+  )
+
+proteomics_group_fdr_labels <-
+  proteomics_group_pairwise_results %>%
+  dplyr::mutate(
+    Factor = factor(
+      Factor,
+      levels =
+        proteomics_factor_names
+    ),
+    label =
+      format_fdr_label(FDR)
+  )
+
+ggplot(
+  proteomics_group_plot_data,
+  aes(
+    x = RV_group,
+    y = Factor_value,
+    fill = RV_group
+  )
+) +
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.30,
+    color = NA
+  ) +
+  geom_boxplot(
+    width = 0.18,
+    outlier.shape = NA,
+    color = "grey20"
+  ) +
+  geom_jitter(
+    width = 0.10,
+    height = 0,
+    size = 1.8,
+    shape = 21,
+    color = "black",
+    stroke = 0.25
+  ) +
+  geom_text(
+    data =
+      proteomics_group_fdr_labels,
+    aes(
+      x = 1.5,
+      y = Inf,
+      label = label
+    ),
+    inherit.aes = FALSE,
+    vjust = 1.25,
+    size = 3.2
+  ) +
+  scale_fill_manual(
+    values = group_colors[
+      rv_group_comparison_levels
+    ],
+    drop = FALSE
+  ) +
+  scale_y_continuous(
+    expand = expansion(
+      mult = c(0.05, 0.16)
+    )
+  ) +
+  facet_wrap(
+    ~ Factor,
+    scales = "free_y",
+    ncol = 4
+  ) +
+  labs(
+    x = NULL,
+    y = "Factor score"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1
+    ),
+    strip.text =
+      element_text(face = "bold")
+  )
+```
+
+```{r proteomics Factor1 compensated versus decompensated, fig.height=2.5, fig.width=2.5}
+proteomics_factor1_group_plot_data <-
+  proteomics_factor_scores %>%
+  dplyr::filter(
+    Factor == "Factor1",
+    RV_group %in%
+      rv_group_comparison_levels
+  ) %>%
+  dplyr::mutate(
+    RV_group = factor(
+      as.character(RV_group),
+      levels =
+        rv_group_comparison_levels
+    )
+  )
+
+proteomics_factor1_group_p_value <-
+  proteomics_group_pairwise_results %>%
+  dplyr::filter(
+    Factor == "Factor1"
+  ) %>%
+  dplyr::pull(
+    p.value
+  )
+
+proteomics_factor1_group_label <-
+  format_p_value(
+    dplyr::first(
+      proteomics_factor1_group_p_value
+    )
+  )
+
+proteomics_factor1_group_plot <-
+  ggplot(
+    proteomics_factor1_group_plot_data,
+    aes(
+      x = RV_group,
+      y = Factor_value,
+      fill = RV_group
+    )
+  ) +
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.30,
+    color = NA
+  ) +
+  geom_boxplot(
+    width = 0.18,
+    outlier.shape = NA,
+    color = "grey20"
+  ) +
+  geom_jitter(
+    width = 0.10,
+    height = 0,
+    size = 2,
+    shape = 21,
+    color = "black",
+    stroke = 0.25
+  ) +
+  annotate(
+    "text",
+    x = 1.5,
+    y = Inf,
+    label =
+      proteomics_factor1_group_label,
+    vjust = 1.2,
+    size = 3.5
+  ) +
+  scale_fill_manual(
+    values = group_colors[
+      rv_group_comparison_levels
+    ],
+    drop = FALSE
+  ) +
+  scale_y_continuous(
+    expand = expansion(
+      mult = c(
+        0.05,
+        0.16
+      )
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Factor 1 score"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1
+    )
+  )
+
+proteomics_factor1_group_plot
+
+```
+
+
+# Proteomics factor associations with continuous clinical parameters
+
+Each parameter is tested in a separate model:
+
+`factor score ~ scaled clinical parameter + scaled age + scaled sample storage time`
+
+```{r proteomics continuous clinical association models}
+proteomics_continuous_results <-
+  tibble::tibble()
+
+for (
+  factor_name in
+  proteomics_factor_names
+) {
+  for (
+    clinical_parameter in
+    clinical_parameters
+  ) {
+    factor_data <-
+      proteomics_factor_scores %>%
+      dplyr::filter(
+        Factor == factor_name
+      ) %>%
+      dplyr::select(
+        Sample,
+        Factor_value,
+        Age_years,
+        Sample_age_days,
+        dplyr::all_of(
+          clinical_parameter
+        )
+      ) %>%
+      tidyr::drop_na()
+
+    factor_data <- factor_data %>%
+      dplyr::mutate(
+        clinical_scaled =
+          as.numeric(
+            scale(
+              .data[[clinical_parameter]]
+            )
+          ),
+        age_scaled =
+          as.numeric(
+            scale(Age_years)
+          ),
+        storage_scaled =
+          as.numeric(
+            scale(
+              Sample_age_days
+            )
+          )
+      )
+
+    continuous_fit <- lm(
+      Factor_value ~
+        clinical_scaled +
+        age_scaled +
+        storage_scaled,
+      data = factor_data
+    )
+
+    clinical_coefficient <-
+      broom::tidy(
+        continuous_fit,
+        conf.int = TRUE
+      ) %>%
+      dplyr::filter(
+        term ==
+          "clinical_scaled"
+      )
+
+    proteomics_continuous_results <-
+      dplyr::bind_rows(
+        proteomics_continuous_results,
+        tibble::tibble(
+          Factor = factor_name,
+          parameter =
+            clinical_parameter,
+          n = nrow(factor_data),
+          beta =
+            clinical_coefficient$
+              estimate,
+          standard_error =
+            clinical_coefficient$
+              std.error,
+          confidence_interval_low =
+            clinical_coefficient$
+              conf.low,
+          confidence_interval_high =
+            clinical_coefficient$
+              conf.high,
+          t_statistic =
+            clinical_coefficient$
+              statistic,
+          p_value =
+            clinical_coefficient$
+              p.value,
+          model_R2 =
+            summary(
+              continuous_fit
+            )$r.squared,
+          adjusted_model_R2 =
+            summary(
+              continuous_fit
+            )$adj.r.squared
+        )
+      )
+  }
+}
+
+proteomics_continuous_results <-
+  proteomics_continuous_results %>%
+  dplyr::group_by(parameter) %>%
+  dplyr::mutate(
+    FDR_within_parameter =
+      p.adjust(
+        p_value,
+        method = "BH"
+      )
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(
+    FDR_global =
+      p.adjust(
+        p_value,
+        method = "BH"
+      ),
+    parameter_label =
+      unname(
+        pretty_parameter_names[
+          parameter
+        ]
+      )
+  ) %>%
+  dplyr::arrange(
+    FDR_global
+  )
+
+write.csv(
+  proteomics_continuous_results,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_factors_vs_continuous_clinical_parameters.csv"
+  ),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  proteomics_continuous_results,
+  searchable = TRUE,
+  filterable = TRUE
+)
+```
+
+```{r proteomics continuous association dotplot, fig.height=4, fig.width=6.5}
+proteomics_continuous_plot_data <-
+  proteomics_continuous_results %>%
+  dplyr::mutate(
+    parameter_label = factor(
+      parameter_label,
+      levels = unname(
+        pretty_parameter_names[
+          clinical_parameters
+        ]
+      )
+    ),
+    Factor = factor(
+      Factor,
+      levels = rev(
+        proteomics_factor_names
+      )
+    ),
+    dot_size = -log10(
+      pmax(
+        FDR_global,
+        .Machine$double.xmin
+      )
+    ),
+    outlined =
+      FDR_global <
+      exploratory_factor_fdr
+  )
+
+ggplot(
+  proteomics_continuous_plot_data,
+  aes(
+    x = parameter_label,
+    y = Factor,
+    size = dot_size,
+    fill = beta
+  )
+) +
+  geom_point(
+    shape = 21,
+    color = "grey60",
+    stroke = 0.3
+  ) +
+  geom_point(
+    data = dplyr::filter(
+      proteomics_continuous_plot_data,
+      outlined
+    ),
+    shape = 21,
+    fill = NA,
+    color = "black",
+    stroke = 1,
+    show.legend = FALSE
+  ) +
+  scale_size_continuous(
+    range = c(2.5, 8)
+  ) +
+  scale_fill_gradient2(
+    low = "#2166AC",
+    mid = "white",
+    high = "#B2182B",
+    midpoint = 0
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    size =
+      expression(
+        -log[10](FDR)
+      ),
+    fill =
+      "Coefficient\nper 1 SD"
+  ) +
+  theme_classic(
+  base_size = 14
+) +
+theme(
+  axis.text.x = element_text(
+    angle = 45,
+    hjust = 1,
+    size = 12
+  ),
+  axis.text.y = element_text(
+    size = 12
+  ),
+  legend.title = element_text(
+    size = 12
+  ),
+  legend.text = element_text(
+    size = 11
+  )
+)
+  
+```
+
+```{r proteomics strongest clinical scatter plots, fig.height=3, fig.width=9}
+proteomics_strongest_associations <-
+  proteomics_continuous_results %>%
+  dplyr::filter(
+    FDR_global < 0.20
+  ) %>%
+  dplyr::arrange(
+    FDR_global
+  ) %>%
+  dplyr::slice_head(
+    n = 12
+  )
+
+proteomics_clinical_scatter_plots <-
+  list()
+
+for (
+  i in seq_len(
+    nrow(
+      proteomics_strongest_associations
+    )
+  )
+) {
+  factor_name <-
+    proteomics_strongest_associations$
+      Factor[i]
+
+  clinical_parameter <-
+    proteomics_strongest_associations$
+      parameter[i]
+
+  adjusted_beta <-
+    proteomics_strongest_associations$
+      beta[i]
+
+  global_fdr <-
+    proteomics_strongest_associations$
+      FDR_global[i]
+
+  association_label <-
+    paste0(
+      "\u03B2adj = ",
+      sprintf(
+        "%.2f",
+        adjusted_beta
+      ),
+      "\n",
+      dplyr::case_when(
+        global_fdr < 0.001 ~
+          "FDR < 0.001",
+        TRUE ~
+          paste0(
+            "FDR = ",
+            sprintf(
+              "%.3f",
+              global_fdr
+            )
+          )
+      )
+    )
+
+  plot_data <-
+    proteomics_factor_scores %>%
+    dplyr::filter(
+      Factor == factor_name,
+      !is.na(
+        .data[[clinical_parameter]]
+      )
+    )
+
+  proteomics_clinical_scatter_plots[[i]] <-
+    ggplot(
+      plot_data,
+      aes(
+        x =
+          .data[[clinical_parameter]],
+        y = Factor_value
+      )
+    ) +
+    geom_point(
+      size = 2
+    ) +
+    geom_smooth(
+      method = "lm",
+      se = TRUE
+    ) +
+    annotate(
+      geom = "text",
+      x = Inf,
+      y = Inf,
+      label =
+        association_label,
+      hjust = 1.08,
+      vjust = 1.15,
+      size = 3.5
+    ) +
+    labs(
+      title = factor_name,
+      x =
+        pretty_parameter_names[[clinical_parameter]],
+      y = "Factor score"
+    ) +
+    scale_x_continuous(
+      expand = expansion(
+        mult = c(
+          0.05,
+          0.08
+        )
+      )
+    ) +
+    scale_y_continuous(
+      expand = expansion(
+        mult = c(
+          0.05,
+          0.20
+        )
+      )
+    ) +
+    theme_classic(
+      base_size = 12
+    )
+}
+
+if (
+  length(
+    proteomics_clinical_scatter_plots
+  ) > 0
+) {
+  patchwork::wrap_plots(
+    proteomics_clinical_scatter_plots,
+    ncol = 3
+  )
+}
+```
+
+# Proteomics technical diagnostics
+
+BCA is tested as a post hoc diagnostic. Its linear effect was removed from the Olink input matrix, but not from LC-MS/MS; associations with LC-MS/MS-dominant factors can therefore remain.
+
+```{r proteomics technical diagnostic models}
+proteomics_technical_results <-
+  tibble::tibble()
+
+technical_variables <- c(
+  "BCA_mg_ml",
+  "Age_years",
+  "Sample_age_days"
+)
+
+for (
+  factor_name in
+  proteomics_factor_names
+) {
+  for (
+    technical_variable in
+    technical_variables
+  ) {
+    if (
+      technical_variable ==
+      "BCA_mg_ml"
+    ) {
+      technical_data <-
+        proteomics_factor_scores %>%
+        dplyr::filter(
+          Factor == factor_name
+        ) %>%
+        dplyr::select(
+          Factor_value,
+          BCA_mg_ml,
+          Age_years,
+          Sample_age_days
+        ) %>%
+        tidyr::drop_na() %>%
+        dplyr::mutate(
+          technical_scaled =
+            as.numeric(
+              scale(BCA_mg_ml)
+            ),
+          age_scaled =
+            as.numeric(
+              scale(Age_years)
+            ),
+          storage_scaled =
+            as.numeric(
+              scale(
+                Sample_age_days
+              )
+            )
+        )
+
+      technical_fit <- lm(
+        Factor_value ~
+          technical_scaled +
+          age_scaled +
+          storage_scaled,
+        data = technical_data
+      )
+    } else if (
+      technical_variable ==
+      "Age_years"
+    ) {
+      technical_data <-
+        proteomics_factor_scores %>%
+        dplyr::filter(
+          Factor == factor_name
+        ) %>%
+        dplyr::select(
+          Factor_value,
+          Age_years,
+          Sample_age_days
+        ) %>%
+        tidyr::drop_na() %>%
+        dplyr::mutate(
+          technical_scaled =
+            as.numeric(
+              scale(Age_years)
+            ),
+          storage_scaled =
+            as.numeric(
+              scale(
+                Sample_age_days
+              )
+            )
+        )
+
+      technical_fit <- lm(
+        Factor_value ~
+          technical_scaled +
+          storage_scaled,
+        data = technical_data
+      )
+    } else {
+      technical_data <-
+        proteomics_factor_scores %>%
+        dplyr::filter(
+          Factor == factor_name
+        ) %>%
+        dplyr::select(
+          Factor_value,
+          Sample_age_days,
+          Age_years
+        ) %>%
+        tidyr::drop_na() %>%
+        dplyr::mutate(
+          technical_scaled =
+            as.numeric(
+              scale(
+                Sample_age_days
+              )
+            ),
+          age_scaled =
+            as.numeric(
+              scale(Age_years)
+            )
+        )
+
+      technical_fit <- lm(
+        Factor_value ~
+          technical_scaled +
+          age_scaled,
+        data = technical_data
+      )
+    }
+
+    technical_coefficient <-
+      broom::tidy(
+        technical_fit,
+        conf.int = TRUE
+      ) %>%
+      dplyr::filter(
+        term ==
+          "technical_scaled"
+      )
+
+    proteomics_technical_results <-
+      dplyr::bind_rows(
+        proteomics_technical_results,
+        tibble::tibble(
+          Factor = factor_name,
+          technical_variable =
+            technical_variable,
+          n = nrow(technical_data),
+          beta =
+            technical_coefficient$
+              estimate,
+          standard_error =
+            technical_coefficient$
+              std.error,
+          confidence_interval_low =
+            technical_coefficient$
+              conf.low,
+          confidence_interval_high =
+            technical_coefficient$
+              conf.high,
+          p_value =
+            technical_coefficient$
+              p.value
+        )
+      )
+  }
+}
+
+proteomics_technical_results <-
+  proteomics_technical_results %>%
+  dplyr::group_by(
+    technical_variable
+  ) %>%
+  dplyr::mutate(
+    FDR = p.adjust(
+      p_value,
+      method = "BH"
+    )
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(FDR)
+
+write.csv(
+  proteomics_technical_results,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_factor_technical_diagnostics.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+```{r proteomics technical diagnostic dotplot, fig.height=5, fig.width=7}
+proteomics_technical_plot_data <-
+  proteomics_technical_results %>%
+  dplyr::mutate(
+    technical_variable = factor(
+      technical_variable,
+      levels = c(
+        "Age_years",
+        "BCA_mg_ml",
+        "Sample_age_days"
+      ),
+      labels = c(
+        "Age",
+        "BCA concentration",
+        "Sample storage time"
+      )
+    ),
+    Factor = factor(
+      Factor,
+      levels = rev(
+        proteomics_factor_names
+      )
+    ),
+    dot_size = -log10(
+      pmax(
+        FDR,
+        .Machine$double.xmin
+      )
+    ),
+    outlined =
+      FDR <
+      exploratory_factor_fdr
+  )
+
+ggplot(
+  proteomics_technical_plot_data,
+  aes(
+    x = technical_variable,
+    y = Factor,
+    size = dot_size,
+    fill = beta
+  )
+) +
+  geom_point(
+    shape = 21,
+    color = "grey60",
+    stroke = 0.3
+  ) +
+  geom_point(
+    data = dplyr::filter(
+      proteomics_technical_plot_data,
+      outlined
+    ),
+    shape = 21,
+    fill = NA,
+    color = "black",
+    stroke = 1,
+    show.legend = FALSE
+  ) +
+  scale_size_continuous(
+    range = c(2.5, 8)
+  ) +
+  scale_fill_gradient2(
+    low = "#2166AC",
+    mid = "white",
+    high = "#B2182B",
+    midpoint = 0
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    size =
+      expression(
+        -log[10](FDR)
+      ),
+    fill = "Coefficient"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1
+    )
+  )
+```
+
+# Proteomics factor summary
+
+```{r proteomics factor summary}
+proteomics_factor_total_r2 <-
+  proteomics_r2_per_factor_table %>%
+  dplyr::group_by(Factor) %>%
+  dplyr::summarise(
+    total_R2_across_views =
+      sum(R2, na.rm = TRUE),
+    maximum_view_R2 =
+      max(R2, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  dplyr::arrange(
+    dplyr::desc(
+      total_R2_across_views
+    )
+  )
+
+proteomics_factor_summary <-
+  proteomics_factor_total_r2 %>%
+  dplyr::left_join(
+    proteomics_group_global_results %>%
+      dplyr::select(
+        Factor,
+        RV_group_p = p_value,
+        RV_group_FDR = FDR
+      ),
+    by = "Factor"
+  ) %>%
+  dplyr::left_join(
+    proteomics_continuous_results %>%
+      dplyr::group_by(Factor) %>%
+      dplyr::slice_min(
+        FDR_global,
+        n = 1,
+        with_ties = FALSE
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(
+        Factor,
+        strongest_clinical_parameter =
+          parameter,
+        strongest_clinical_beta =
+          beta,
+        strongest_clinical_FDR =
+          FDR_global
+      ),
+    by = "Factor"
+  ) %>%
+  dplyr::arrange(
+    dplyr::desc(
+      total_R2_across_views
+    )
+  )
+
+write.csv(
+  proteomics_factor_summary,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_main_factor_summary.csv"
+  ),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  proteomics_factor_summary,
+  searchable = TRUE,
+  filterable = TRUE
+)
+```
+
+# Proteomics Factor 1 gene set enrichment analysis
+
+Factor 1 was analysed by Gene Ontology GSEA using the complete ranked weight vector. Olink and LC-MS/MS weights were scaled within each platform before aggregation.
+
+```{r proteomics Factor1 GSEA inputs}
+proteomics_factor_enrichment_table <-
+  proteomics_gsea_factor_table %>%
+  dplyr::filter(
+    Factor %in%
+      proteomics_factor_names
+  )
+
+proteomics_enrichment_weights <-
+  proteomics_factor_weights %>%
+  dplyr::filter(
+    View %in%
+      c(
+        "Olink",
+        "LCMS"
+      ),
+    Factor %in%
+      proteomics_factor_enrichment_table$
+        Factor
+  )
+```
+
+```{r proteomics Factor1 GO GSEA, message=TRUE, warning=TRUE}
+proteomics_factor1_gsea <-
+  run_mofa_gsea(
+    weight_table =
+      proteomics_enrichment_weights,
+    factor_table =
+      proteomics_factor_enrichment_table
+  )
+
+proteomics_factor1_gsea_simplified_objects <-
+  simplify_enrichment_objects(
+    proteomics_factor1_gsea$objects
+  )
+
+proteomics_factor1_gsea_results <-
+  proteomics_factor1_gsea$results
+
+proteomics_factor1_gsea_simplified_results <-
+  extract_gsea_results(
+    proteomics_factor1_gsea_simplified_objects
+  )
+
+write.csv(
+  proteomics_factor1_gsea_results,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_Factor1_GO_GSEA.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  proteomics_factor1_gsea_simplified_results,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_Factor1_GO_GSEA_simplified.csv"
+  ),
+  row.names = FALSE
+)
+
+saveRDS(
+  list(
+    GSEA =
+      proteomics_factor1_gsea$objects,
+    GSEA_simplified =
+      proteomics_factor1_gsea_simplified_objects,
+    ranked_lists =
+      proteomics_factor1_gsea$ranked_lists
+  ),
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_Factor1_GO_GSEA_objects.rds"
+  )
+)
+```
+
+```{r proteomics Factor1 simplified GO GSEA barplot, fig.height=4.8, fig.width=6.05, dpi=300}
+top_n_positive <- 8
+top_n_negative <- 8
+gsea_fdr_cutoff <- 0.05
+
+
+wrap_gsea_labels <- function(
+    x,
+    width = 41
+) {
+  vapply(
+    x,
+    function(label) {
+      label <-
+        stringr::str_squish(
+          as.character(label)
+        )
+
+      if (
+        nchar(label) <= width
+      ) {
+        return(label)
+      }
+
+      words <-
+        stringr::str_split(
+          label,
+          "\\s+"
+        )[[1]]
+
+      lines <- c(
+        "",
+        "",
+        ""
+      )
+
+      current_line <- 1L
+
+      for (
+        word in words
+      ) {
+        candidate <-
+          if (
+            lines[current_line] == ""
+          ) {
+            word
+          } else {
+            paste(
+              lines[current_line],
+              word
+            )
+          }
+
+        if (
+          nchar(candidate) <= width
+        ) {
+          lines[current_line] <-
+            candidate
+        } else if (
+          current_line < 3L
+        ) {
+          current_line <-
+            current_line + 1L
+
+          lines[current_line] <-
+            word
+        } else {
+          lines[current_line] <-
+            paste0(
+              substr(
+                lines[current_line],
+                1,
+                width - 1
+              ),
+              "…"
+            )
+
+          break
+        }
+      }
+
+      if (
+        nchar(lines[3]) > width
+      ) {
+        lines[3] <-
+          paste0(
+            substr(
+              lines[3],
+              1,
+              width - 1
+            ),
+            "…"
+          )
+      }
+
+      paste(
+        lines[
+          lines != ""
+        ],
+        collapse = "\n"
+      )
+    },
+    FUN.VALUE = character(1)
+  )
+}
+
+
+proteomics_factor1_go_gsea_simplified <-
+  proteomics_factor1_gsea_simplified_objects[[
+    "Factor1__GO_ALL"
+  ]]
+
+
+if (
+  is.null(
+    proteomics_factor1_go_gsea_simplified
+  ) ||
+  nrow(
+    as.data.frame(
+      proteomics_factor1_go_gsea_simplified
+    )
+  ) == 0L
+) {
+  message(
+    "The simplified Factor 1 GO GSEA result is empty."
+  )
+} else {
+  proteomics_factor1_go_gsea_results <-
+    as.data.frame(
+      proteomics_factor1_go_gsea_simplified
+    ) %>%
+    tibble::as_tibble() %>%
+    dplyr::filter(
+      !is.na(NES),
+      !is.na(p.adjust),
+      p.adjust <
+        gsea_fdr_cutoff
+    )
+
+  if (
+    nrow(
+      proteomics_factor1_go_gsea_results
+    ) == 0L
+  ) {
+    message(
+      "No significant terms with FDR < ",
+      gsea_fdr_cutoff,
+      "."
+    )
+  } else {
+    positive_terms <-
+      proteomics_factor1_go_gsea_results %>%
+      dplyr::filter(
+        NES > 0
+      ) %>%
+      dplyr::arrange(
+        dplyr::desc(NES)
+      ) %>%
+      dplyr::slice_head(
+        n = top_n_positive
+      )
+
+    negative_terms <-
+      proteomics_factor1_go_gsea_results %>%
+      dplyr::filter(
+        NES < 0
+      ) %>%
+      dplyr::arrange(NES) %>%
+      dplyr::slice_head(
+        n = top_n_negative
+      )
+
+    proteomics_factor1_go_gsea_plot_data <-
+      dplyr::bind_rows(
+        positive_terms,
+        negative_terms
+      ) %>%
+      dplyr::mutate(
+        Description_clean =
+          stringr::str_remove(
+            Description,
+            "^\\[(BP|CC|MF)\\]\\s*"
+          ),
+        p_for_colour =
+          dplyr::if_else(
+            "pvalue" %in%
+              colnames(
+                proteomics_factor1_go_gsea_results
+              ) &
+              is.finite(pvalue) &
+              pvalue > 0,
+            pvalue,
+            p.adjust
+          ),
+        colour_score =
+          -log10(
+            pmax(
+              p_for_colour,
+              .Machine$double.xmin
+            )
+          ) *
+          sign(NES),
+        Description_wrapped =
+          wrap_gsea_labels(
+            Description_clean,
+            width = 41
+          )
+      ) %>%
+      dplyr::arrange(NES) %>%
+      dplyr::mutate(
+        Description_wrapped =
+          factor(
+            Description_wrapped,
+            levels =
+              unique(
+                Description_wrapped
+              )
+          )
+      )
+
+    colour_limit <-
+      unname(
+        stats::quantile(
+          abs(
+            proteomics_factor1_go_gsea_plot_data$
+              colour_score
+          ),
+          probs = 0.80,
+          na.rm = TRUE
+        )
+      )
+
+    if (
+      !is.finite(colour_limit) ||
+      colour_limit == 0
+    ) {
+      colour_limit <-
+        max(
+          abs(
+            proteomics_factor1_go_gsea_plot_data$
+              colour_score
+          ),
+          na.rm = TRUE
+        )
+    }
+
+    proteomics_factor1_go_gsea_plot <-
+      ggplot(
+        proteomics_factor1_go_gsea_plot_data,
+        aes(
+          x =
+            Description_wrapped,
+          y = NES,
+          fill =
+            colour_score
+        )
+      ) +
+      geom_col(
+        width = 0.9
+      ) +
+      coord_flip() +
+      scale_fill_gradient2(
+        low = "#004C8C",
+        mid = "white",
+        high = "#A63A2A",
+        midpoint = 0,
+        limits = c(
+          -colour_limit,
+          colour_limit
+        ),
+        oob =
+          scales::squish,
+        name =
+          expression(
+            -log[10](p) %*% sign(NES)
+          )
+      ) +
+      labs(
+        title =
+          "Proteomics | GSEA | Gene Ontology",
+        x = NULL,
+        y =
+          "Normalized enrichment score (NES)"
+      ) +
+      theme_bw(
+        base_size = 10
+      ) +
+      theme(
+        text =
+          element_text(
+            color = "black"
+          ),
+        plot.title =
+          element_text(
+            hjust = 0.5,
+            face = "bold",
+            size = 11
+          ),
+        axis.text =
+          element_text(
+            color = "black"
+          ),
+        axis.title.x =
+          element_text(
+            color = "black",
+            size = 12
+          ),
+        axis.text.y =
+          element_text(
+            size = 10.2,
+            color = "black",
+            lineheight = 0.6
+          ),
+        panel.grid.minor =
+          element_blank(),
+        legend.position =
+          "bottom",
+        legend.direction =
+          "horizontal",
+        legend.title =
+          element_text(
+            size = 9
+          ),
+        legend.text =
+          element_text(
+            size = 9
+          )
+      ) +
+      guides(
+        fill =
+          guide_colorbar(
+            barwidth =
+              grid::unit(
+                6,
+                "cm"
+              ),
+            barheight =
+              grid::unit(
+                0.3,
+                "cm"
+              ),
+            title.position =
+              "top",
+            title.hjust = 0.5
+          )
+      )
+
+    proteomics_factor1_go_gsea_plot
+  }
+}
+```
+
+## Factor 1 core-enrichment features
+
+```{r proteomics Factor1 selected GSEA core genes}
+factor1_go_gsea <-
+  proteomics_factor1_gsea$
+    objects[[
+      "Factor1__GO_ALL"
+    ]]
+
+if (is.null(factor1_go_gsea)) {
+  stop(
+    "The Factor1 GO GSEA object was not found."
+  )
+}
+
+factor1_orientation <-
+  proteomics_gsea_factor_table %>%
+  dplyr::filter(
+    Factor == "Factor1"
+  ) %>%
+  dplyr::pull(
+    orientation
+  )
+
+if (
+  length(factor1_orientation) != 1L
+) {
+  factor1_orientation <- 1
+}
+
+factor1_go_gsea_table <-
+  as.data.frame(
+    factor1_go_gsea
+  ) %>%
+  tibble::as_tibble() %>%
+  dplyr::mutate(
+    Description_clean =
+      stringr::str_remove(
+        Description,
+        "^\\[(BP|CC|MF)\\]\\s*"
+      ),
+    Description_key =
+      stringr::str_to_lower(
+        Description_clean
+      )
+  )
+
+target_gsea_terms <-
+  factor1_go_gsea_table %>%
+  dplyr::filter(
+    Description_key %in%
+      c(
+        "immune response",
+        "oxidative phosphorylation"
+      )
+  ) %>%
+  dplyr::group_by(
+    Description_key
+  ) %>%
+  dplyr::slice_min(
+    order_by = p.adjust,
+    n = 1,
+    with_ties = FALSE
+  ) %>%
+  dplyr::ungroup()
+
+if (
+  nrow(target_gsea_terms) != 2L
+) {
+  stop(
+    "One or both selected GSEA terms were not found."
+  )
+}
+
+target_core_genes <-
+  purrr::map_dfr(
+    seq_len(
+      nrow(
+        target_gsea_terms
+      )
+    ),
+    function(term_index) {
+      core_entrez <-
+        stringr::str_split(
+          target_gsea_terms$
+            core_enrichment[
+              term_index
+            ],
+          pattern = "/"
+        )[[1]]
+
+      core_mapping <-
+        bitr(
+          core_entrez,
+          fromType = "ENTREZID",
+          toType = "SYMBOL",
+          OrgDb = org.Hs.eg.db
+        ) %>%
+        dplyr::distinct(
+          ENTREZID,
+          SYMBOL
+        )
+
+      core_mapping %>%
+        dplyr::transmute(
+          GSEA_term =
+            target_gsea_terms$
+              Description_clean[
+                term_index
+              ],
+          GO_ID =
+            target_gsea_terms$
+              ID[
+                term_index
+              ],
+          NES =
+            target_gsea_terms$
+              NES[
+                term_index
+              ],
+          GSEA_p_value =
+            target_gsea_terms$
+              pvalue[
+                term_index
+              ],
+          GSEA_FDR =
+            target_gsea_terms$
+              p.adjust[
+                term_index
+              ],
+          ENTREZID,
+          Feature = SYMBOL
+        )
+    }
+  )
+
+factor1_proteomics_weights <-
+  proteomics_factor_weights %>%
+  dplyr::filter(
+    Factor == "Factor1",
+    View %in%
+      c(
+        "Olink",
+        "LCMS"
+      ),
+    is.finite(Weight)
+  ) %>%
+  dplyr::mutate(
+    Feature =
+      clean_mofa_feature_name(
+        Feature
+      ),
+    Modality =
+      standardise_mofa_view_name(
+        View
+      ),
+    Oriented_weight =
+      Weight *
+      factor1_orientation
+  ) %>%
+  dplyr::group_by(
+    View
+  ) %>%
+  dplyr::mutate(
+    Scaled_weight =
+      Oriented_weight /
+      max(
+        abs(
+          Oriented_weight
+        ),
+        na.rm = TRUE
+      )
+  ) %>%
+  dplyr::ungroup()
+
+factor1_core_feature_table <-
+  target_core_genes %>%
+  dplyr::inner_join(
+    factor1_proteomics_weights,
+    by = "Feature"
+  ) %>%
+  dplyr::mutate(
+    Sign_consistent =
+      sign(
+        Scaled_weight
+      ) ==
+      sign(
+        NES
+      ),
+    Directional_score =
+      Scaled_weight *
+      sign(
+        NES
+      )
+  ) %>%
+  dplyr::arrange(
+    GSEA_term,
+    dplyr::desc(
+      Directional_score
+    )
+  )
+
+factor1_core_top5_per_view <-
+  factor1_core_feature_table %>%
+  dplyr::filter(
+    Sign_consistent
+  ) %>%
+  dplyr::group_by(
+    GSEA_term,
+    View
+  ) %>%
+  dplyr::slice_max(
+    order_by =
+      Directional_score,
+    n = 5,
+    with_ties = FALSE
+  ) %>%
+  dplyr::mutate(
+    Rank_within_term_and_view =
+      dplyr::row_number()
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(
+    GSEA_term,
+    View,
+    Rank_within_term_and_view
+  )
+
+write.csv(
+  factor1_core_feature_table,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_Factor1_selected_GSEA_all_core_features.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  factor1_core_top5_per_view,
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_Factor1_selected_GSEA_top5_per_view.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+```{r proteomics Factor1 selected GSEA heatmap, fig.height=6, fig.width=10}
+selected_gsea_heatmap_features <-
+  factor1_core_top5_per_view %>%
+  dplyr::mutate(
+    Pathway = dplyr::case_when(
+      stringr::str_to_lower(GSEA_term) ==
+        "immune response" ~
+        "Immune response",
+
+      stringr::str_to_lower(GSEA_term) ==
+        "oxidative phosphorylation" ~
+        "Oxidative phosphorylation",
+
+      TRUE ~ GSEA_term
+    ),
+
+    Pathway = factor(
+      Pathway,
+      levels = c(
+        "Immune response",
+        "Oxidative phosphorylation"
+      )
+    ),
+
+    View_order = factor(
+      View,
+      levels = c(
+        "Olink",
+        "LCMS"
+      )
+    )
+  ) %>%
+  dplyr::arrange(
+    Pathway,
+    View_order,
+    Rank_within_term_and_view
+  )
+
+
+
+proteomics_gsea_heatmap_sample_metadata <-
+  clin_all %>%
+  dplyr::filter(
+    Sample %in%
+      intersect(
+        colnames(
+          proteomics_data$Olink
+        ),
+        colnames(
+          proteomics_data$LCMS
+        )
+      )
+  ) %>%
+  dplyr::mutate(
+    RV_group = factor(
+      as.character(RV_group),
+      levels = c(
+        "Not overloaded",
+        "Compensated",
+        "Decompensated"
+      )
+    )
+  ) %>%
+  dplyr::arrange(
+    is.na(TAPSE_mm),
+    dplyr::desc(TAPSE_mm),
+    Sample
+  )
+
+
+proteomics_gsea_heatmap_sample_order <-
+  proteomics_gsea_heatmap_sample_metadata$
+    Sample
+
+
+extract_factor1_gsea_heatmap_matrix <- function(
+    feature_table,
+    data_views,
+    sample_order
+) {
+  extracted_rows <- vector(
+    mode = "list",
+    length = nrow(feature_table)
+  )
+
+  row_found <- logical(
+    nrow(feature_table)
+  )
+
+  resolved_features <- character(
+    nrow(feature_table)
+  )
+
+  for (
+    feature_index in
+    seq_len(nrow(feature_table))
+  ) {
+    current_view <-
+      as.character(
+        feature_table$View[
+          feature_index
+        ]
+      )
+
+    current_feature <-
+      as.character(
+        feature_table$Feature[
+          feature_index
+        ]
+      )
+
+    if (
+      !current_view %in%
+        names(data_views)
+    ) {
+      next
+    }
+
+    feature_candidates <- unique(
+      c(
+        current_feature,
+
+        paste0(
+          current_feature,
+          "_",
+          current_view
+        ),
+
+        paste0(
+          current_feature,
+          "_",
+          dplyr::case_when(
+            current_view == "Olink" ~
+              "OLINK",
+
+            current_view == "LCMS" ~
+              "MS",
+
+            TRUE ~
+              current_view
+          )
+        )
+      )
+    )
+
+    resolved_feature <-
+      feature_candidates[
+        feature_candidates %in%
+          rownames(
+            data_views[[
+              current_view
+            ]]
+          )
+      ][1]
+
+    if (
+      length(resolved_feature) == 0L ||
+      is.na(resolved_feature)
+    ) {
+      next
+    }
+
+    extracted_rows[[
+      feature_index
+    ]] <-
+      as.numeric(
+        data_views[[
+          current_view
+        ]][
+          resolved_feature,
+          sample_order,
+          drop = TRUE
+        ]
+      )
+
+    resolved_features[
+      feature_index
+    ] <- resolved_feature
+
+    row_found[
+      feature_index
+    ] <- TRUE
+  }
+
+  if (!any(row_found)) {
+    stop(
+      "None of the selected features were found in the proteomics matrices."
+    )
+  }
+
+  if (any(!row_found)) {
+    warning(
+      "The following selected features were not found and were omitted: ",
+      paste(
+        paste0(
+          feature_table$Feature[
+            !row_found
+          ],
+          " (",
+          feature_table$View[
+            !row_found
+          ],
+          ")"
+        ),
+        collapse = ", "
+      )
+    )
+  }
+
+  retained_feature_table <-
+    feature_table[
+      row_found,
+      ,
+      drop = FALSE
+    ] %>%
+    dplyr::mutate(
+      Resolved_feature =
+        resolved_features[
+          row_found
+        ],
+
+      Display_feature =
+        Feature,
+
+      Modality =
+        dplyr::case_when(
+          View == "Olink" ~
+            "OLINK",
+
+          View == "LCMS" ~
+            "MS",
+
+          TRUE ~
+            as.character(View)
+        ),
+
+      Internal_row_id =
+        make.unique(
+          paste(
+            Pathway,
+            View,
+            Feature,
+            sep = "__"
+          )
+        )
+    )
+
+  expression_matrix <-
+    do.call(
+      rbind,
+      extracted_rows[
+        row_found
+      ]
+    )
+
+  colnames(expression_matrix) <-
+    sample_order
+
+  rownames(expression_matrix) <-
+    retained_feature_table$
+      Internal_row_id
+
+  list(
+    matrix =
+      expression_matrix,
+
+    feature_table =
+      retained_feature_table
+  )
+}
+
+
+prepare_factor1_gsea_heatmap_z_scores <- function(
+    expression_matrix
+) {
+  imputed_matrix <-
+    expression_matrix
+
+  for (
+    row_index in
+    seq_len(nrow(imputed_matrix))
+  ) {
+    row_values <-
+      imputed_matrix[
+        row_index,
+        ,
+        drop = TRUE
+      ]
+
+    finite_values <-
+      row_values[
+        is.finite(row_values)
+      ]
+
+    if (
+      length(finite_values) == 0L
+    ) {
+      next
+    }
+
+    row_values[
+      !is.finite(row_values)
+    ] <-
+      stats::median(
+        finite_values
+      )
+
+    imputed_matrix[
+      row_index,
+    ] <- row_values
+  }
+
+  row_means <-
+    rowMeans(
+      imputed_matrix,
+      na.rm = TRUE
+    )
+
+  row_standard_deviations <-
+    apply(
+      imputed_matrix,
+      1,
+      stats::sd,
+      na.rm = TRUE
+    )
+
+  row_standard_deviations[
+    !is.finite(
+      row_standard_deviations
+    ) |
+      row_standard_deviations == 0
+  ] <- 1
+
+  z_score_matrix <-
+    sweep(
+      imputed_matrix,
+      1,
+      row_means,
+      "-"
+    )
+
+  z_score_matrix <-
+    sweep(
+      z_score_matrix,
+      1,
+      row_standard_deviations,
+      "/"
+    )
+
+  pmax(
+    pmin(
+      z_score_matrix,
+      2
+    ),
+    -2
+  )
+}
+
+
+make_grey_annotation_scale <- function(
+    values,
+    dark_at = c(
+      "low",
+      "high"
+    )
+) {
+  dark_at <-
+    match.arg(
+      dark_at
+    )
+
+  finite_values <-
+    values[
+      is.finite(values)
+    ]
+
+  value_range <-
+    if (
+      length(finite_values) == 0L
+    ) {
+      c(0, 1)
+    } else {
+      range(
+        finite_values,
+        na.rm = TRUE
+      )
+    }
+
+  if (
+    value_range[1] ==
+      value_range[2]
+  ) {
+    value_range <-
+      value_range +
+      c(
+        -0.5,
+        0.5
+      )
+  }
+
+  annotation_colours <-
+    if (
+      dark_at == "low"
+    ) {
+      c(
+        "grey10",
+        "grey95"
+      )
+    } else {
+      c(
+        "grey95",
+        "grey10"
+      )
+    }
+
+  circlize::colorRamp2(
+    value_range,
+    annotation_colours
+  )
+}
+
+
+selected_gsea_heatmap_data <-
+  extract_factor1_gsea_heatmap_matrix(
+    feature_table =
+      selected_gsea_heatmap_features,
+
+    data_views =
+      proteomics_data,
+
+    sample_order =
+      proteomics_gsea_heatmap_sample_order
+  )
+
+
+selected_gsea_heatmap_matrix <-
+  prepare_factor1_gsea_heatmap_z_scores(
+    selected_gsea_heatmap_data$
+      matrix
+  )
+
+
+selected_gsea_feature_metadata <-
+  selected_gsea_heatmap_data$
+    feature_table
+
+
+tapse_colour_function <-
+  make_grey_annotation_scale(
+    proteomics_gsea_heatmap_sample_metadata$
+      TAPSE_mm,
+
+    dark_at = "low"
+  )
+
+
+rvit_colour_function <-
+  make_grey_annotation_scale(
+    proteomics_gsea_heatmap_sample_metadata$
+      RVIT_mm,
+
+    dark_at = "high"
+  )
+
+
+tapse_spap_colour_function <-
+  make_grey_annotation_scale(
+    proteomics_gsea_heatmap_sample_metadata$
+      TAPSE_sPAP,
+
+    dark_at = "low"
+  )
+
+
+rv_group_colors <- c(
+  "Not overloaded" =
+    unname(
+      group_colors[
+        "Not overloaded"
+      ]
+    ),
+
+  "Compensated" =
+    unname(
+      group_colors[
+        "Compensated"
+      ]
+    ),
+
+  "Decompensated" =
+    unname(
+      group_colors[
+        "Decompensated"
+      ]
+    )
+)
+
+
+
+selected_gsea_top_annotation <-
+  ComplexHeatmap::HeatmapAnnotation(
+    `TAPSE (mm)` =
+      ComplexHeatmap::anno_simple(
+        proteomics_gsea_heatmap_sample_metadata$
+          TAPSE_mm,
+
+        col =
+          tapse_colour_function,
+
+        na_col =
+          "white",
+
+        height =
+          grid::unit(
+            4.5,
+            "mm"
+          )
+      ),
+
+    `RVIT (mm)` =
+      ComplexHeatmap::anno_simple(
+        proteomics_gsea_heatmap_sample_metadata$
+          RVIT_mm,
+
+        col =
+          rvit_colour_function,
+
+        na_col =
+          "white",
+
+        height =
+          grid::unit(
+            4.5,
+            "mm"
+          )
+      ),
+
+    `TAPSE/sPAP` =
+      ComplexHeatmap::anno_simple(
+        proteomics_gsea_heatmap_sample_metadata$
+          TAPSE_sPAP,
+
+        col =
+          tapse_spap_colour_function,
+
+        na_col =
+          "white",
+
+        height =
+          grid::unit(
+            4.5,
+            "mm"
+          )
+      ),
+
+    `RV state` =
+      ComplexHeatmap::anno_simple(
+        as.character(
+          proteomics_gsea_heatmap_sample_metadata$
+            RV_group
+        ),
+
+        col =
+          rv_group_colors,
+
+        na_col =
+          "white",
+
+        height =
+          grid::unit(
+            4.5,
+            "mm"
+          )
+      ),
+
+    annotation_name_gp =
+      grid::gpar(
+        fontsize = 11,
+        fontface = "bold",
+        col = "black"
+      ),
+
+    annotation_name_side =
+      "right",
+
+    gap =
+      grid::unit(
+        1,
+        "mm"
+      )
+  )
+
+
+pathway_colors <- c(
+  "Immune response" =
+    "#6A3D9A",
+
+  "Oxidative phosphorylation" =
+    "#238B45"
+)
+
+
+pathway_slice_order <-
+  unique(
+    as.character(
+      selected_gsea_feature_metadata$
+        Pathway
+    )
+  )
+
+
+pathway_display_labels <- c(
+  "Immune response" =
+    "Immune\nresponse",
+
+  "Oxidative phosphorylation" =
+    "Oxidative\nphosphorylation"
+)
+
+
+selected_gsea_left_annotation <-
+  ComplexHeatmap::rowAnnotation(
+    Pathway =
+      ComplexHeatmap::anno_block(
+        gp =
+          grid::gpar(
+            fill =
+              unname(
+                pathway_colors[
+                  pathway_slice_order
+                ]
+              ),
+
+            col = NA
+          ),
+
+        labels =
+          unname(
+            pathway_display_labels[
+              pathway_slice_order
+            ]
+          ),
+
+        labels_gp =
+          grid::gpar(
+            fontsize = 9,
+            fontface = "bold",
+            col = "white",
+            lineheight = 0.9
+          ),
+
+        labels_rot = 90,
+
+        width =
+          grid::unit(
+            8,
+            "mm"
+          )
+      ),
+
+    show_annotation_name =
+      FALSE
+  )
+
+
+modality_colors <- c(
+  "RNA" =
+    "#009E73",
+
+  "OLINK" =
+    "#E69F00",
+
+  "MS" =
+    "#7B61A8"
+)
+
+
+selected_gsea_feature_metadata <-
+  selected_gsea_feature_metadata %>%
+  dplyr::mutate(
+    Modality = factor(
+      Modality,
+      levels = c(
+        "RNA",
+        "OLINK",
+        "MS"
+      )
+    )
+  )
+
+
+selected_gsea_right_annotation <-
+  ComplexHeatmap::rowAnnotation(
+    Modality =
+      selected_gsea_feature_metadata$
+        Modality,
+
+    col = list(
+      Modality =
+        modality_colors
+    ),
+
+    show_legend =
+      FALSE,
+
+    annotation_name_gp =
+      grid::gpar(
+        fontsize = 10,
+        fontface = "bold",
+        col = "black"
+      ),
+
+    simple_anno_size =
+      grid::unit(
+        4.5,
+        "mm"
+      )
+  )
+
+
+heatmap_colour_function <-
+  circlize::colorRamp2(
+    c(
+      -2,
+      0,
+      2
+    ),
+    c(
+      "#2166AC",
+      "white",
+      "#B2182B"
+    )
+  )
+
+
+selected_gsea_heatmap <-
+  ComplexHeatmap::Heatmap(
+    selected_gsea_heatmap_matrix,
+
+    name =
+      "Row Z-score",
+
+    col =
+      heatmap_colour_function,
+
+    na_col =
+      "grey90",
+
+    show_heatmap_legend =
+      FALSE,
+
+    cluster_rows =
+      FALSE,
+
+    cluster_columns =
+      FALSE,
+
+    row_split =
+      selected_gsea_feature_metadata$
+        Pathway,
+
+    row_gap =
+      grid::unit(
+        2,
+        "mm"
+      ),
+
+    cluster_row_slices =
+      FALSE,
+
+    top_annotation =
+      selected_gsea_top_annotation,
+
+    left_annotation =
+      selected_gsea_left_annotation,
+
+    right_annotation =
+      selected_gsea_right_annotation,
+
+    row_labels =
+      selected_gsea_feature_metadata$
+        Display_feature,
+
+    row_names_side =
+      "left",
+
+    row_names_gp =
+      grid::gpar(
+        fontsize = 10,
+        col = "black"
+      ),
+
+    column_names_rot =
+      45,
+
+    column_names_gp =
+      grid::gpar(
+        fontsize = 7,
+        col = "black"
+      ),
+
+    show_row_dend =
+      FALSE,
+
+    show_column_dend =
+      FALSE,
+
+    row_title =
+      NULL,
+
+    column_title =
+      NULL,
+
+    border =
+      TRUE,
+
+    height =
+      grid::unit(
+        nrow(
+          selected_gsea_heatmap_matrix
+        ) * 4,
+        "mm"
+      )
+  )
+
+
+
+row_z_score_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "Row Z-score",
+
+    col_fun =
+      heatmap_colour_function,
+
+    at = c(
+      -2,
+      0,
+      2
+    )
+  )
+
+
+modality_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "Modality",
+
+    at = c(
+      "RNA",
+      "OLINK",
+      "MS"
+    ),
+
+    legend_gp =
+      grid::gpar(
+        fill =
+          unname(
+            modality_colors[
+              c(
+                "RNA",
+                "OLINK",
+                "MS"
+              )
+            ]
+          )
+      )
+  )
+
+
+rv_state_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "RV state",
+
+    at =
+      names(
+        rv_group_colors
+      ),
+
+    legend_gp =
+      grid::gpar(
+        fill =
+          unname(
+            rv_group_colors
+          )
+      )
+  )
+
+
+legend_column_1 <-
+  ComplexHeatmap::packLegend(
+    row_z_score_legend,
+    modality_legend,
+    rv_state_legend,
+
+    direction =
+      "vertical",
+
+    gap =
+      grid::unit(
+        4,
+        "mm"
+      )
+  )
+
+
+
+tapse_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "TAPSE (mm)",
+
+    col_fun =
+      tapse_colour_function
+  )
+
+
+rvit_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "RVIT (mm)",
+
+    col_fun =
+      rvit_colour_function
+  )
+
+
+tapse_spap_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "TAPSE/sPAP",
+
+    col_fun =
+      tapse_spap_colour_function
+  )
+
+
+legend_column_2 <-
+  ComplexHeatmap::packLegend(
+    tapse_legend,
+    rvit_legend,
+    tapse_spap_legend,
+
+    direction =
+      "vertical",
+
+    gap =
+      grid::unit(
+        4,
+        "mm"
+      )
+  )
+
+
+selected_gsea_combined_legends <-
+  ComplexHeatmap::packLegend(
+    legend_column_1,
+    legend_column_2,
+
+    direction =
+      "horizontal",
+
+    gap =
+      grid::unit(
+        8,
+        "mm"
+      )
+  )
+
+
+ComplexHeatmap::draw(
+  selected_gsea_heatmap,
+
+  heatmap_legend_side =
+    "right",
+
+  annotation_legend_side =
+    "right",
+
+  heatmap_legend_list =
+    list(
+      selected_gsea_combined_legends
+    ),
+
+  merge_legends =
+    FALSE
+)
+
+
+
+
+write.csv(
+  selected_gsea_feature_metadata,
+
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_Factor1_selected_GSEA_top5_per_view_heatmap_features.csv"
+  ),
+
+  row.names = FALSE
+)
+
+
+write.csv(
+  proteomics_gsea_heatmap_sample_metadata,
+
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_Factor1_selected_GSEA_top5_per_view_heatmap_sample_order.csv"
+  ),
+
+  row.names = FALSE
+)
+```
+
+# Save the complete proteomics analysis
+
+```{r save complete proteomics analysis}
+saveRDS(
+  list(
+    model =
+      proteomics_model,
+    model_file =
+      proteomics_final_model_file,
+    input_file =
+      proteomics_input_file,
+    metadata =
+      proteomics_model_metadata,
+    selected_model_settings =
+      proteomics_selected_model_settings,
+    factor_tuning_results =
+      proteomics_tuning_results,
+    best_tuning_runs =
+      proteomics_best_tuning_runs,
+    factor_scores =
+      proteomics_factor_scores,
+    factor_weights =
+      proteomics_factor_weights,
+    factor1_top_loadings =
+      proteomics_factor1_top_loadings,
+    variance_explained =
+      proteomics_r2_per_factor_table,
+    group_results =
+      proteomics_group_global_results,
+    group_pairwise_results =
+      proteomics_group_pairwise_results,
+    continuous_results =
+      proteomics_continuous_results,
+    technical_results =
+      proteomics_technical_results,
+    factor_summary =
+      proteomics_factor_summary,
+    factor1_gsea = list(
+      results =
+        proteomics_factor1_gsea_results,
+      simplified_results =
+        proteomics_factor1_gsea_simplified_results,
+      objects =
+        proteomics_factor1_gsea$objects,
+      simplified_objects =
+        proteomics_factor1_gsea_simplified_objects,
+      ranked_lists =
+        proteomics_factor1_gsea$ranked_lists,
+      core_features =
+        factor1_core_feature_table,
+      selected_heatmap_features =
+        factor1_core_top5_per_view
+    )
+  ),
+  file.path(
+    proteomics_output_dir,
+    "MOFA_proteomics_complete_analysis_objects.rds"
+  )
+)
+```
+
+# Preprocess pseudobulk snRNA-seq
+
+The RNA view is needed only for the matched three-view model. Genes are retained when detected in at least 1% of nuclei from the DCM samples, pseudobulk counts are aggregated per patient, DESeq2 VST is applied, and the 2,000 most variable transformed genes are selected.
+
+## Read the Seurat object
+
+```{r read snrna object}
+DCM_RV <- qs2::qs_read(
+  seurat_file,
+  nthreads = n_qs_threads
+)
+
+DefaultAssay(DCM_RV) <- "RNA"
+DCM_RV$pseudobulk <- "Pseudobulk"
+```
+
+## Filter genes using DCM nuclei
+
+```{r rna nucleus level gene filtering}
+dcm_cells <- colnames(DCM_RV)[
+  DCM_RV$Sample %in%
+    clin_all$Sample
+]
+
+rna_counts <- SeuratObject::LayerData(
+  DCM_RV,
+  assay = "RNA",
+  layer = "counts"
+)[
+  ,
+  dcm_cells,
+  drop = FALSE
+]
+
+n_rna_nuclei <- ncol(rna_counts)
+
+minimum_nuclei <- ceiling(
+  rna_min_nuclei_fraction *
+    n_rna_nuclei
+)
+
+rna_nuclei_detected <-
+  Matrix::rowSums(
+    rna_counts > 0
+  )
+
+rna_detection_table <-
+  tibble::tibble(
+    feature = rownames(rna_counts),
+    n_nuclei_detected =
+      as.numeric(
+        rna_nuclei_detected
+      ),
+    fraction_nuclei_detected =
+      as.numeric(
+        rna_nuclei_detected
+      ) /
+      n_rna_nuclei,
+    passes_1_percent_filter =
+      n_nuclei_detected >=
+      minimum_nuclei
+  )
+
+if (
+  exclude_mitochondrial_and_ribosomal_genes
+) {
+  rna_detection_table <-
+    rna_detection_table %>%
+    dplyr::mutate(
+      mitochondrial_or_ribosomal =
+        grepl(
+          "^MT-|^RP[SL]",
+          feature
+        ),
+      retained_before_VST =
+        passes_1_percent_filter &
+        !mitochondrial_or_ribosomal
+    )
+} else {
+  rna_detection_table <-
+    rna_detection_table %>%
+    dplyr::mutate(
+      mitochondrial_or_ribosomal =
+        FALSE,
+      retained_before_VST =
+        passes_1_percent_filter
+    )
+}
+
+rna_genes_for_pseudobulk <-
+  rna_detection_table %>%
+  dplyr::filter(
+    retained_before_VST
+  ) %>%
+  dplyr::pull(feature)
+
+write.csv(
+  rna_detection_table,
+  file.path(
+    preprocessing_output_dir,
+    "RNA_nucleus_detection_filter.csv"
+  ),
+  row.names = FALSE
+)
+
+c(
+  nuclei = n_rna_nuclei,
+  minimum_nuclei = minimum_nuclei,
+  retained_genes =
+    length(
+      rna_genes_for_pseudobulk
+    )
+)
+```
+
+## Generate sample-level pseudobulk counts
+
+```{r create rna pseudobulk}
+rna_pb <- edgeR::Seurat2PB(
+  DCM_RV,
+  sample = "Sample",
+  cluster = "pseudobulk"
+)
+
+colnames(rna_pb) <-
+  rna_pb$samples$sample
+
+rna_samples <- intersect(
+  clin_all$Sample,
+  colnames(rna_pb)
+)
+
+rna_pb <- rna_pb[
+  ,
+  rna_samples,
+  keep.lib.sizes = FALSE
+]
+
+keep_rna_samples <-
+  rna_pb$samples$lib.size >
+  min_rna_library_size
+
+rna_pb <- rna_pb[
+  ,
+  keep_rna_samples,
+  keep.lib.sizes = FALSE
+]
+
+rna_genes_for_pseudobulk <-
+  intersect(
+    rna_genes_for_pseudobulk,
+    rownames(rna_pb)
+  )
+
+rna_pb <- rna_pb[
+  rna_genes_for_pseudobulk,
+  ,
+  keep.lib.sizes = FALSE
+]
+
+rm(rna_counts)
+gc()
+
+dim(rna_pb)
+```
+
+## Apply VST and select 2,000 variable genes
+
+```{r vst transform rna pseudobulk}
+rna_count_matrix <-
+  as.matrix(
+    rna_pb$counts
+  )
+
+storage.mode(
+  rna_count_matrix
+) <- "integer"
+
+rna_coldata <- data.frame(
+  Sample =
+    colnames(
+      rna_count_matrix
+    ),
+  row.names =
+    colnames(
+      rna_count_matrix
+    )
+)
+
+rna_dds <-
+  DESeq2::DESeqDataSetFromMatrix(
+    countData =
+      rna_count_matrix,
+    colData =
+      rna_coldata,
+    design = ~ 1
+  )
+
+rna_vst_object <-
+  DESeq2::vst(
+    rna_dds,
+    blind = TRUE
+  )
+
+rna_vst_matrix <-
+  SummarizedExperiment::assay(
+    rna_vst_object
+  )
+
+rna_variance <-
+  matrixStats::rowVars(
+    rna_vst_matrix
+  )
+
+keep_finite_rna_variance <-
+  is.finite(rna_variance) &
+  rna_variance > 0
+
+rna_vst_matrix <-
+  rna_vst_matrix[
+    keep_finite_rna_variance,
+    ,
+    drop = FALSE
+  ]
+
+rna_variance <-
+  rna_variance[
+    keep_finite_rna_variance
+  ]
+
+rna_feature_order <- order(
+  rna_variance,
+  decreasing = TRUE
+)
+
+rna_feature_order <- head(
+  rna_feature_order,
+  min(
+    n_rna_features,
+    length(
+      rna_feature_order
+    )
+  )
+)
+
+rna_mofa <-
+  rna_vst_matrix[
+    rna_feature_order,
+    ,
+    drop = FALSE
+  ]
+
+rna_feature_table <-
+  tibble::tibble(
+    feature =
+      rownames(
+        rna_vst_matrix
+      ),
+    VST_variance =
+      as.numeric(
+        rna_variance
+      ),
+    selected_for_MOFA =
+      rownames(
+        rna_vst_matrix
+      ) %in%
+      rownames(rna_mofa)
+  ) %>%
+  dplyr::arrange(
+    dplyr::desc(
+      VST_variance
+    )
+  )
+
+write.csv(
+  rna_feature_table,
+  file.path(
+    preprocessing_output_dir,
+    "RNA_VST_feature_selection.csv"
+  ),
+  row.names = FALSE
+)
+
+saveRDS(
+  list(
+    RNA_pseudobulk = rna_mofa,
+    RNA_VST_all_filtered_genes =
+      rna_vst_matrix,
+    feature_table =
+      rna_feature_table
+  ),
+  processed_rna_file
+)
+
+dim(rna_mofa)
+```
+
+# Model 2: matched RNA, Olink and LC-MS/MS
+
+Only patients measured in all three modalities are included. This model is used to evaluate whether major factors are shared between transcriptomic and proteomic layers.
+
+## Assemble the matched three-view input
+
+```{r assemble matched three view input}
+matched_samples <- Reduce(
+  intersect,
+  list(
+    colnames(rna_mofa),
+    colnames(olink_mofa),
+    colnames(ms_mofa)
+  )
+)
+
+matched_samples <- clin_all$Sample[
+  clin_all$Sample %in%
+    matched_samples
+]
+
+matched_data <- list(
+  RNA_pseudobulk = rna_mofa[
+    ,
+    matched_samples,
+    drop = FALSE
+  ],
+  Olink = olink_mofa[
+    ,
+    matched_samples,
+    drop = FALSE
+  ],
+  LCMS = ms_mofa[
+    ,
+    matched_samples,
+    drop = FALSE
+  ]
+)
+
+length(matched_samples)
+
+lapply(
+  matched_data,
+  dim
+)
+```
+
+```{r matched sample overview}
+matched_sample_overview <-
+  tibble::tibble(
+    Sample = matched_samples,
+    RNA_pseudobulk = TRUE,
+    Olink = TRUE,
+    LCMS = TRUE
+  ) %>%
+  dplyr::left_join(
+    clin_all %>%
+      dplyr::select(
+        Sample,
+        RV_group,
+        mPAP_mmHg,
+        TAPSE_mm,
+        RVIT_mm,
+        TAPSE_sPAP
+      ),
+    by = "Sample"
+  )
+
+write.csv(
+  matched_sample_overview,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_three_view_samples.csv"
+  ),
+  row.names = FALSE
+)
+
+matched_sample_overview %>%
+  dplyr::count(
+    RV_group,
+    .drop = FALSE
+  )
+```
+
+```{r save matched input checkpoint}
+saveRDS(
+  matched_data,
+  matched_input_file
+)
+```
+
+## Checkpoint: load the matched input
+
+```{r load matched input checkpoint}
+matched_data <- readRDS(
+  matched_input_file
+)
+
+lapply(
+  matched_data,
+  dim
+)
+```
+
+## Create the untrained matched model
+
+```{r create matched mofa object}
+matched_untrained <-
+  MOFA2::create_mofa(
+    matched_data
+  )
+
+matched_untrained
+```
+
+```{r matched input overview, fig.height=4.5, fig.width=8}
+MOFA2::plot_data_overview(
+  matched_untrained
+)
+```
+
+## Tune the number of matched-model factors
+
+```{r tune matched factor number, message=FALSE, warning=FALSE, results='hide'}
+matched_tuning_results <-
+  tibble::tibble()
+
+for (n_factors in candidate_factors) {
+  for (tuning_seed in tuning_seeds) {
+    tuning_model_file <- file.path(
+      matched_output_dir,
+      paste0(
+        "MOFA_matched_tuning_K",
+        sprintf("%02d", n_factors),
+        "_seed",
+        tuning_seed,
+        ".hdf5"
+      )
+    )
+
+    if (file.exists(tuning_model_file)) {
+      unlink(tuning_model_file)
+    }
+
+    message(
+      "Starting matched model: K = ",
+      n_factors,
+      ", seed = ",
+      tuning_seed
+    )
+
+    tuning_object <- MOFA2::create_mofa(
+      matched_data
+    )
+
+    tuning_data_options <-
+      MOFA2::get_default_data_options(
+        tuning_object
+      )
+
+    tuning_data_options$scale_views <- TRUE
+
+    tuning_model_options <-
+      MOFA2::get_default_model_options(
+        tuning_object
+      )
+
+    tuning_model_options$num_factors <-
+      n_factors
+
+    tuning_model_options$likelihoods[] <-
+      "gaussian"
+
+    tuning_training_options <-
+      MOFA2::get_default_training_options(
+        tuning_object
+      )
+
+    tuning_training_options$maxiter <-
+      tuning_maxiter
+
+    tuning_training_options$convergence_mode <-
+      mofa_convergence_mode
+
+    tuning_training_options$freqELBO <-
+      mofa_freq_elbo
+
+    tuning_training_options$drop_factor_threshold <-
+      -1
+
+    tuning_training_options$seed <-
+      tuning_seed
+
+    tuning_training_options$verbose <-
+      FALSE
+
+    tuning_object <- MOFA2::prepare_mofa(
+      object = tuning_object,
+      data_options =
+        tuning_data_options,
+      model_options =
+        tuning_model_options,
+      training_options =
+        tuning_training_options
+    )
+
+    MOFA2::run_mofa(
+      tuning_object,
+      outfile = tuning_model_file,
+      use_basilisk = TRUE
+    )
+
+    rm(tuning_object)
+    gc()
+
+    tuning_model <- MOFA2::load_model(
+      tuning_model_file,
+      sort_factors = TRUE,
+      remove_inactive_factors = FALSE
+    )
+
+    tuning_r2 <-
+      MOFA2::get_variance_explained(
+        tuning_model
+      )$r2_per_factor[[1]]
+
+    weakest_factor <-
+      tail(
+        rownames(tuning_r2),
+        1
+      )
+
+    weakest_factor_r2 <-
+      tuning_r2[
+        weakest_factor,
+        ,
+        drop = TRUE
+      ]
+
+    new_tuning_result <- tibble::tibble(
+      n_factors = n_factors,
+      seed = tuning_seed,
+      final_ELBO =
+        MOFA2::get_elbo(tuning_model),
+      weakest_factor = weakest_factor,
+      weakest_factor_total_R2 =
+        sum(
+          weakest_factor_r2,
+          na.rm = TRUE
+        ),
+      weakest_factor_RNA_R2 =
+        unname(
+          weakest_factor_r2[
+            "RNA_pseudobulk"
+          ]
+        ),
+      weakest_factor_Olink_R2 =
+        unname(
+          weakest_factor_r2[
+            "Olink"
+          ]
+        ),
+      weakest_factor_LCMS_R2 =
+        unname(
+          weakest_factor_r2[
+            "LCMS"
+          ]
+        ),
+      n_factors_total_R2_at_least_cutoff =
+        sum(
+          rowSums(
+            tuning_r2,
+            na.rm = TRUE
+          ) >= last_factor_r2_cutoff
+        ),
+      model_file = tuning_model_file
+    )
+
+    matched_tuning_results <-
+      dplyr::bind_rows(
+        matched_tuning_results,
+        new_tuning_result
+      ) %>%
+      dplyr::arrange(
+        n_factors,
+        seed
+      )
+
+    write.csv(
+      matched_tuning_results,
+      matched_tuning_summary_file,
+      row.names = FALSE
+    )
+
+    message(
+      "Finished matched model: K = ",
+      n_factors,
+      ", seed = ",
+      tuning_seed
+    )
+
+    rm(tuning_model)
+    gc()
+  }
+}
+
+matched_tuning_results
+```
+
+## Select the matched-model factor number
+
+```{r select matched best tuning run per K}
+matched_best_tuning_runs <-
+  matched_tuning_results %>%
+  dplyr::group_by(n_factors) %>%
+  dplyr::slice_max(
+    order_by = final_ELBO,
+    n = 1,
+    with_ties = FALSE
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(n_factors)
+
+write.csv(
+  matched_best_tuning_runs,
+  matched_best_tuning_summary_file,
+  row.names = FALSE
+)
+
+matched_low_weakest_factor <-
+  matched_best_tuning_runs$
+    weakest_factor_total_R2 <
+  last_factor_r2_cutoff
+
+matched_low_runs <- vapply(
+  seq_along(
+    matched_low_weakest_factor
+  ),
+  function(i) {
+    end_i <-
+      i +
+      n_consecutive_low_models -
+      1
+
+    end_i <=
+      length(
+        matched_low_weakest_factor
+      ) &&
+      all(
+        matched_low_weakest_factor[
+          i:end_i
+        ]
+      )
+  },
+  logical(1)
+)
+
+matched_first_low_run <-
+  which(matched_low_runs)[1]
+
+if (
+  length(matched_first_low_run) == 1 &&
+  !is.na(matched_first_low_run)
+) {
+  matched_selected_n_factors <- max(
+    matched_best_tuning_runs$
+      n_factors[
+        matched_first_low_run
+      ] - 1,
+    min(candidate_factors)
+  )
+
+  matched_factor_plateau_reached <-
+    TRUE
+} else {
+  matched_selected_n_factors <-
+    max(candidate_factors)
+
+  matched_factor_plateau_reached <-
+    FALSE
+
+  warning(
+    paste0(
+      "No sequence of ",
+      n_consecutive_low_models,
+      " consecutive matched models with weakest-factor variance below ",
+      last_factor_r2_cutoff,
+      "% was observed. The maximum tested factor number was selected."
+    )
+  )
+}
+
+matched_selected_seed <-
+  matched_best_tuning_runs %>%
+  dplyr::filter(
+    n_factors ==
+      matched_selected_n_factors
+  ) %>%
+  dplyr::pull(seed)
+
+matched_selected_model_settings <-
+  tibble::tibble(
+    selected_n_factors =
+      matched_selected_n_factors,
+    selected_seed =
+      matched_selected_seed,
+    factor_plateau_reached =
+      matched_factor_plateau_reached,
+    weakest_factor_R2_cutoff =
+      last_factor_r2_cutoff,
+    consecutive_low_models_required =
+      n_consecutive_low_models,
+    tuning_maxiter = tuning_maxiter,
+    final_maxiter = final_maxiter,
+    convergence_mode =
+      mofa_convergence_mode
+  )
+
+write.csv(
+  matched_selected_model_settings,
+  matched_selected_settings_file,
+  row.names = FALSE
+)
+
+matched_selected_model_settings
+```
+
+```{r matched factor tuning plot, fig.height=3.3, fig.width=4.4}
+ggplot() +
+  geom_line(
+    data = matched_tuning_results,
+    aes(
+      x = n_factors,
+      y = weakest_factor_total_R2,
+      group = factor(seed)
+    ),
+    color = "grey70"
+  ) +
+  geom_point(
+    data = matched_tuning_results,
+    aes(
+      x = n_factors,
+      y = weakest_factor_total_R2
+    ),
+    color = "grey60",
+    size = 1.8
+  ) +
+  geom_line(
+    data = matched_best_tuning_runs,
+    aes(
+      x = n_factors,
+      y = weakest_factor_total_R2
+    ),
+    linewidth = 0.8
+  ) +
+  geom_point(
+    data = matched_best_tuning_runs,
+    aes(
+      x = n_factors,
+      y = weakest_factor_total_R2
+    ),
+    size = 2.7
+  ) +
+  geom_hline(
+    yintercept =
+      last_factor_r2_cutoff,
+    linetype = 2
+  ) +
+  geom_vline(
+    xintercept =
+      matched_selected_n_factors,
+    linetype = 3
+  ) +
+  scale_x_continuous(
+    breaks = candidate_factors
+  ) +
+  labs(
+    x = "Number of factors in fitted model",
+    y = "Variance explained by weakest factor (%)"
+  ) +
+  theme_classic()
+```
+
+## Train the final matched three-view model
+
+```{r train final matched mofa model, message=FALSE, warning=FALSE, results='hide'}
+matched_data <- readRDS(
+  matched_input_file
+)
+
+if (file.exists(matched_final_model_file)) {
+  unlink(matched_final_model_file)
+}
+
+matched_object <-
+  MOFA2::create_mofa(
+    matched_data
+  )
+
+matched_data_options <-
+  MOFA2::get_default_data_options(
+    matched_object
+  )
+
+matched_data_options$scale_views <-
+  TRUE
+
+matched_model_options <-
+  MOFA2::get_default_model_options(
+    matched_object
+  )
+
+matched_model_options$num_factors <-
+  matched_selected_n_factors
+
+matched_model_options$likelihoods[] <-
+  "gaussian"
+
+matched_training_options <-
+  MOFA2::get_default_training_options(
+    matched_object
+  )
+
+matched_training_options$maxiter <-
+  final_maxiter
+
+matched_training_options$convergence_mode <-
+  mofa_convergence_mode
+
+matched_training_options$freqELBO <-
+  mofa_freq_elbo
+
+matched_training_options$drop_factor_threshold <-
+  -1
+
+matched_training_options$seed <-
+  matched_selected_seed
+
+matched_training_options$verbose <-
+  FALSE
+
+matched_object <- MOFA2::prepare_mofa(
+  object = matched_object,
+  data_options =
+    matched_data_options,
+  model_options =
+    matched_model_options,
+  training_options =
+    matched_training_options
+)
+
+MOFA2::run_mofa(
+  matched_object,
+  outfile =
+    matched_final_model_file,
+  use_basilisk = TRUE
+)
+
+rm(matched_object)
+gc()
+```
+
+## Load the matched model and attach metadata
+
+```{r load matched model and attach metadata}
+matched_model <- MOFA2::load_model(
+  matched_final_model_file,
+  sort_factors = TRUE,
+  remove_inactive_factors = FALSE
+)
+
+matched_model_samples <-
+  MOFA2::samples_names(
+    matched_model
+  )[[1]]
+
+matched_model_metadata <-
+  clin_all %>%
+  dplyr::left_join(
+    olink_sample_meta %>%
+      dplyr::select(
+        Sample,
+        Batch,
+        BCA_mg_ml
+      ),
+    by = "Sample"
+  ) %>%
+  dplyr::filter(
+    Sample %in%
+      matched_model_samples
+  ) %>%
+  dplyr::slice(
+    match(
+      matched_model_samples,
+      Sample
+    )
+  ) %>%
+  dplyr::rename(
+    sample = Sample
+  )
+
+samples_metadata(matched_model) <-
+  as.data.frame(
+    matched_model_metadata
+  )
+
+saveRDS(
+  matched_model,
+  matched_final_model_rds
+)
+
+write.csv(
+  matched_model_metadata,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_sample_metadata.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+## Checkpoint: reload the final matched model
+
+```{r reload final matched model checkpoint}
+matched_model <- readRDS(
+  matched_final_model_rds
+)
+
+matched_model_metadata <-
+  samples_metadata(
+    matched_model
+  )
+
+matched_selected_model_settings <-
+  read.csv(
+    matched_selected_settings_file,
+    stringsAsFactors = FALSE
+  )
+
+matched_tuning_results <-
+  read.csv(
+    matched_tuning_summary_file,
+    stringsAsFactors = FALSE
+  )
+
+matched_best_tuning_runs <-
+  read.csv(
+    matched_best_tuning_summary_file,
+    stringsAsFactors = FALSE
+  )
+```
+
+# Matched-model variance decomposition
+
+```{r matched trained model overview, fig.height=4.5, fig.width=8}
+MOFA2::plot_data_overview(
+  matched_model
+)
+```
+
+```{r matched variance explained, fig.height=2.6, fig.width=5}
+matched_r2_heatmap_matrix <-
+  MOFA2::get_variance_explained(
+    matched_model
+  )$r2_per_factor[[1]]
+
+matched_r2_heatmap_data <-
+  as.data.frame(
+    matched_r2_heatmap_matrix
+  ) %>%
+  tibble::rownames_to_column(
+    "Factor"
+  ) %>%
+  tidyr::pivot_longer(
+    cols = -Factor,
+    names_to = "View",
+    values_to = "R2"
+  ) %>%
+  dplyr::mutate(
+    Factor = factor(
+      Factor,
+      levels = rownames(
+        matched_r2_heatmap_matrix
+      )
+    ),
+    View = factor(
+      View,
+      levels = colnames(
+        matched_r2_heatmap_matrix
+      )
+    ),
+    text_color = dplyr::if_else(
+      R2 >=
+        0.55 *
+        max(
+          R2,
+          na.rm = TRUE
+        ),
+      "white",
+      "black"
+    )
+  )
+
+ggplot(
+  matched_r2_heatmap_data,
+  aes(
+    x = View,
+    y = Factor,
+    fill = R2
+  )
+) +
+  geom_tile(
+    color = "grey40",
+    linewidth = 0.3
+  ) +
+  geom_text(
+    aes(
+      label = sprintf(
+        "%.1f%%",
+        R2
+      ),
+      color = text_color
+    ),
+    size = 3.2
+  ) +
+  scale_color_identity() +
+  scale_fill_gradient(
+    low = "white",
+    high = "navy"
+  ) +
+  labs(
+    title =
+      "",
+    x = NULL,
+    y = NULL,
+    fill = "Variance\nexplained (%)"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold"
+    ),
+  axis.text.x = element_text(
+    size = 11
+  ),
+  axis.text.y = element_text(
+    size = 11
+  )
+  )
+```
+
+```{r matched factor correlations, fig.height=3.5, fig.width=4}
+MOFA2::plot_factor_cor(
+  matched_model
+) +
+  labs(
+    title =
+      "Matched multi-omics factor correlations"
+  ) +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold"
+    )
+  )
+```
+
+```{r extract matched variance explained}
+matched_variance_explained <-
+  MOFA2::get_variance_explained(
+    matched_model
+  )
+
+matched_r2_total <-
+  matched_variance_explained$
+    r2_total[[1]]
+
+matched_r2_per_factor <-
+  matched_variance_explained$
+    r2_per_factor[[1]]
+
+matched_r2_total_table <-
+  tibble::enframe(
+    matched_r2_total,
+    name = "View",
+    value = "Total_R2"
+  )
+
+matched_r2_per_factor_table <-
+  as.data.frame(
+    matched_r2_per_factor
+  ) %>%
+  tibble::rownames_to_column(
+    "Factor"
+  ) %>%
+  tidyr::pivot_longer(
+    cols = -Factor,
+    names_to = "View",
+    values_to = "R2"
+  )
+
+write.csv(
+  matched_r2_total_table,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_total_variance_explained.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  matched_r2_per_factor_table,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_variance_explained_per_factor.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+## Quantify RNA-specific, proteomics-specific and shared factors
+
+```{r matched factor layer structure}
+matched_factor_layer_table <-
+  matched_r2_per_factor_table %>%
+  tidyr::pivot_wider(
+    names_from = View,
+    values_from = R2,
+    values_fill = 0
+  ) %>%
+  dplyr::mutate(
+    Proteomics_R2 =
+      Olink + LCMS,
+    Total_R2 =
+      RNA_pseudobulk +
+      Proteomics_R2,
+    RNA_fraction =
+      dplyr::if_else(
+        Total_R2 > 0,
+        RNA_pseudobulk /
+          Total_R2,
+        NA_real_
+      ),
+    Proteomics_fraction =
+      dplyr::if_else(
+        Total_R2 > 0,
+        Proteomics_R2 /
+          Total_R2,
+        NA_real_
+      ),
+    Meaningful_RNA_and_proteomics =
+      RNA_pseudobulk >=
+        matched_shared_r2_cutoff &
+      Proteomics_R2 >=
+        matched_shared_r2_cutoff
+  ) %>%
+  dplyr::arrange(
+    dplyr::desc(Total_R2)
+  )
+
+write.csv(
+  matched_factor_layer_table,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_factor_layer_structure.csv"
+  ),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  matched_factor_layer_table,
+  searchable = TRUE,
+  filterable = TRUE
+)
+```
+
+```{r matched modality contribution heatmap, fig.height=7, fig.width=8}
+matched_factor_order <-
+  matched_factor_layer_table$
+    Factor
+
+matched_r2_plot_data <-
+  matched_r2_per_factor_table %>%
+  dplyr::mutate(
+    Factor = factor(
+      Factor,
+      levels = rev(
+        matched_factor_order
+      )
+    ),
+    View = factor(
+      View,
+      levels = c(
+        "RNA_pseudobulk",
+        "Olink",
+        "LCMS"
+      )
+    ),
+    text_color = dplyr::if_else(
+      R2 >=
+        0.55 *
+        max(
+          R2,
+          na.rm = TRUE
+        ),
+      "white",
+      "black"
+    )
+  )
+
+ggplot(
+  matched_r2_plot_data,
+  aes(
+    x = View,
+    y = Factor,
+    fill = R2
+  )
+) +
+  geom_tile(
+    color = "grey40",
+    linewidth = 0.3
+  ) +
+  geom_text(
+    aes(
+      label = sprintf(
+        "%.1f%%",
+        R2
+      ),
+      color = text_color
+    ),
+    size = 3
+  ) +
+  scale_color_identity() +
+  scale_fill_gradient(
+    low = "white",
+    high = "navy"
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    fill = "Variance\nexplained (%)"
+  ) +
+  theme_classic()
+```
+
+```{r matched proportional modality contribution, fig.height=6, fig.width=9}
+matched_layer_fraction_data <-
+  matched_factor_layer_table %>%
+  dplyr::select(
+    Factor,
+    RNA_pseudobulk,
+    Olink,
+    LCMS
+  ) %>%
+  tidyr::pivot_longer(
+    cols = -Factor,
+    names_to = "View",
+    values_to = "R2"
+  ) %>%
+  dplyr::mutate(
+    Factor = factor(
+      Factor,
+      levels =
+        matched_factor_order
+    )
+  )
+
+ggplot(
+  matched_layer_fraction_data,
+  aes(
+    x = Factor,
+    y = R2,
+    fill = View
+  )
+) +
+  geom_col(
+    position = "fill"
+  ) +
+  scale_y_continuous(
+    labels = scales::percent
+  ) +
+  labs(
+    x = NULL,
+    y = "Fraction of factor variance",
+    fill = "View"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+```
+
+```{r matched rna versus proteomics variance, fig.height=6, fig.width=7}
+ggplot(
+  matched_factor_layer_table,
+  aes(
+    x = RNA_pseudobulk,
+    y = Proteomics_R2,
+    label = Factor
+  )
+) +
+  geom_vline(
+    xintercept =
+      matched_shared_r2_cutoff,
+    linetype = 2
+  ) +
+  geom_hline(
+    yintercept =
+      matched_shared_r2_cutoff,
+    linetype = 2
+  ) +
+  geom_point(
+    aes(
+      shape =
+        Meaningful_RNA_and_proteomics
+    ),
+    size = 3
+  ) +
+  geom_text(
+    nudge_y = 0.35,
+    size = 3
+  ) +
+  labs(
+    x = "RNA variance explained (%)",
+    y = "Olink + LC-MS/MS variance explained (%)",
+    shape = paste0(
+      "At least ",
+      matched_shared_r2_cutoff,
+      "% in both layers"
+    )
+  ) +
+  theme_classic()
+```
+
+# Extract matched-model factor scores and weights
+
+```{r extract matched factors and weights}
+matched_factor_scores <-
+  MOFA2::get_factors(
+    matched_model,
+    as.data.frame = TRUE
+  ) %>%
+  dplyr::rename(
+    Sample = sample,
+    Factor = factor,
+    Factor_value = value
+  ) %>%
+  dplyr::left_join(
+    as.data.frame(
+      matched_model_metadata
+    ) %>%
+      dplyr::rename(
+        Sample = sample
+      ),
+    by = "Sample"
+  )
+
+matched_factor_scores_wide <-
+  matched_factor_scores %>%
+  dplyr::select(
+    Sample,
+    Factor,
+    Factor_value
+  ) %>%
+  tidyr::pivot_wider(
+    names_from = Factor,
+    values_from = Factor_value
+  )
+
+matched_factor_weights <-
+  MOFA2::get_weights(
+    matched_model,
+    as.data.frame = TRUE
+  ) %>%
+  dplyr::rename(
+    View = view,
+    Feature = feature,
+    Factor = factor,
+    Weight = value
+  )
+
+matched_factor_names <-
+  MOFA2::factors_names(
+    matched_model
+  )
+
+write.csv(
+  matched_factor_scores,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_factor_scores_long.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  matched_factor_scores_wide,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_factor_scores_wide.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  matched_factor_weights,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_feature_weights_all.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+```{r add fibrosis to matched factor scores}
+matched_factor_scores <-
+  matched_factor_scores %>%
+  dplyr::left_join(
+    fibrosis_data %>%
+      dplyr::select(
+        Sample,
+        Fibrosis_percent
+      ),
+    by = "Sample"
+  )
+```
+
+# Matched multi-omics Factor 1 and Factor 2 loadings
+
+```{r matched Factor1 top loadings, fig.height=7, fig.width=5}
+matched_factor1_top_loadings <-
+  prepare_top_factor_loadings(
+    weight_table =
+      matched_factor_weights,
+    factor_name = "Factor1",
+    n_each_direction =
+      n_top_factor_loadings_each_direction
+  )
+
+write.csv(
+  matched_factor1_top_loadings,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_Factor1_top_loadings.csv"
+  ),
+  row.names = FALSE
+)
+
+matched_factor1_loading_plot <-
+  plot_top_factor_loadings(
+    loading_data =
+      matched_factor1_top_loadings,
+    title_text =
+      "Multi-omics Factor 1 top loadings"
+  )
+
+print(
+  matched_factor1_loading_plot
+)
+
+```
+
+```{r matched Factor2 top loadings, fig.height=7, fig.width=5}
+matched_factor2_top_loadings <-
+  prepare_top_factor_loadings(
+    weight_table =
+      matched_factor_weights,
+    factor_name = "Factor2",
+    n_each_direction =
+      n_top_factor_loadings_each_direction
+  )
+
+write.csv(
+  matched_factor2_top_loadings,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_Factor2_top_loadings.csv"
+  ),
+  row.names = FALSE
+)
+
+matched_factor2_loading_plot <-
+  plot_top_factor_loadings(
+    loading_data =
+      matched_factor2_top_loadings,
+    title_text =
+      "Multi-omics Factor 2 top loadings"
+  )
+
+print(
+  matched_factor2_loading_plot
+)
+
+```
+
+```{r matched group association models}
+matched_group_global_results <-
+  tibble::tibble()
+
+matched_group_pairwise_results <-
+  tibble::tibble()
+
+for (
+  factor_name in
+  matched_factor_names
+) {
+  factor_data <-
+    matched_factor_scores %>%
+    dplyr::filter(
+      Factor == factor_name,
+      RV_group %in%
+        rv_group_comparison_levels
+    ) %>%
+    dplyr::select(
+      Sample,
+      Factor_value,
+      RV_group,
+      Age_years,
+      Sample_age_days
+    ) %>%
+    tidyr::drop_na() %>%
+    dplyr::mutate(
+      RV_group = factor(
+        as.character(RV_group),
+        levels =
+          rv_group_comparison_levels
+      )
+    ) %>%
+    droplevels()
+
+  if (
+    nlevels(factor_data$RV_group) < 2L
+  ) {
+    next
+  }
+
+  group_counts <-
+    table(
+      factor_data$RV_group
+    )
+
+  group_fit <- lm(
+    Factor_value ~
+      RV_group +
+      scale(Age_years) +
+      scale(Sample_age_days),
+    data = factor_data
+  )
+
+  group_test <- drop1(
+    group_fit,
+    test = "F"
+  )
+
+  matched_group_global_results <-
+    dplyr::bind_rows(
+      matched_group_global_results,
+      tibble::tibble(
+        Factor = factor_name,
+        comparison =
+          "Compensated versus Decompensated",
+        n = nrow(factor_data),
+        n_compensated =
+          unname(
+            group_counts["Compensated"]
+          ),
+        n_decompensated =
+          unname(
+            group_counts["Decompensated"]
+          ),
+        F_statistic =
+          group_test[
+            "RV_group",
+            "F value"
+          ],
+        p_value =
+          group_test[
+            "RV_group",
+            "Pr(>F)"
+          ],
+        model_R2 =
+          summary(group_fit)$r.squared,
+        adjusted_model_R2 =
+          summary(group_fit)$adj.r.squared
+      )
+    )
+
+  factor_emmeans <- emmeans::emmeans(
+    group_fit,
+    ~ RV_group
+  )
+
+  factor_contrasts <-
+    emmeans::contrast(
+      factor_emmeans,
+      method = list(
+        "Decompensated - Compensated" =
+          c(-1, 1)
+      ),
+      adjust = "none"
+    ) %>%
+    summary(
+      infer = c(TRUE, TRUE)
+    ) %>%
+    as.data.frame() %>%
+    dplyr::mutate(
+      Factor = factor_name,
+      n = nrow(factor_data),
+      n_compensated =
+        unname(
+          group_counts["Compensated"]
+        ),
+      n_decompensated =
+        unname(
+          group_counts["Decompensated"]
+        )
+    ) %>%
+    dplyr::select(
+      Factor,
+      contrast,
+      estimate,
+      SE,
+      df,
+      lower.CL,
+      upper.CL,
+      t.ratio,
+      p.value,
+      n,
+      n_compensated,
+      n_decompensated
+    )
+
+  matched_group_pairwise_results <-
+    dplyr::bind_rows(
+      matched_group_pairwise_results,
+      factor_contrasts
+    )
+}
+
+matched_group_global_results <-
+  matched_group_global_results %>%
+  dplyr::mutate(
+    FDR = p.adjust(
+      p_value,
+      method = "BH"
+    )
+  ) %>%
+  dplyr::arrange(FDR)
+
+matched_group_pairwise_results <-
+  matched_group_pairwise_results %>%
+  dplyr::mutate(
+    FDR = p.adjust(
+      p.value,
+      method = "BH"
+    )
+  ) %>%
+  dplyr::arrange(FDR)
+
+write.csv(
+  matched_group_global_results,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_factors_compensated_vs_decompensated_global.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  matched_group_pairwise_results,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_factors_compensated_vs_decompensated.csv"
+  ),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  matched_group_pairwise_results,
+  searchable = TRUE,
+  filterable = TRUE,
+  defaultPageSize = 15
+)
+```
+
+```{r matched factors by rv group, fig.height=3.5, fig.width=7}
+matched_group_plot_data <-
+  matched_factor_scores %>%
+  dplyr::filter(
+    RV_group %in%
+      rv_group_comparison_levels
+  ) %>%
+  dplyr::mutate(
+    RV_group = factor(
+      as.character(RV_group),
+      levels =
+        rv_group_comparison_levels
+    ),
+    Factor = factor(
+      Factor,
+      levels =
+        matched_factor_names
+    )
+  )
+
+matched_group_fdr_labels <-
+  matched_group_pairwise_results %>%
+  dplyr::mutate(
+    Factor = factor(
+      Factor,
+      levels =
+        matched_factor_names
+    ),
+    label =
+      format_fdr_label(FDR)
+  )
+
+ggplot(
+  matched_group_plot_data,
+  aes(
+    x = RV_group,
+    y = Factor_value,
+    fill = RV_group
+  )
+) +
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.30,
+    color = NA
+  ) +
+  geom_boxplot(
+    width = 0.18,
+    outlier.shape = NA,
+    color = "grey20"
+  ) +
+  geom_jitter(
+    width = 0.10,
+    height = 0,
+    size = 1.8,
+    shape = 21,
+    color = "black",
+    stroke = 0.25
+  ) +
+  geom_text(
+    data =
+      matched_group_fdr_labels,
+    aes(
+      x = 1.5,
+      y = Inf,
+      label = label
+    ),
+    inherit.aes = FALSE,
+    vjust = 1.25,
+    size = 3.2
+  ) +
+  scale_fill_manual(
+    values = group_colors[
+      rv_group_comparison_levels
+    ],
+    drop = FALSE
+  ) +
+  scale_y_continuous(
+    expand = expansion(
+      mult = c(0.05, 0.16)
+    )
+  ) +
+  facet_wrap(
+    ~ Factor,
+    scales = "free_y",
+    ncol = 4
+  ) +
+  labs(
+    x = NULL,
+    y = "Factor score"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1
+    ),
+    strip.text =
+      element_text(face = "bold")
+  )
+```
+
+# Matched-model associations with continuous clinical parameters
+
+```{r matched continuous clinical association models}
+matched_continuous_results <-
+  tibble::tibble()
+
+for (
+  factor_name in
+  matched_factor_names
+) {
+  for (
+    clinical_parameter in
+    clinical_parameters
+  ) {
+    factor_data <-
+      matched_factor_scores %>%
+      dplyr::filter(
+        Factor == factor_name
+      ) %>%
+      dplyr::select(
+        Sample,
+        Factor_value,
+        Age_years,
+        Sample_age_days,
+        dplyr::all_of(
+          clinical_parameter
+        )
+      ) %>%
+      tidyr::drop_na()
+
+    factor_data <- factor_data %>%
+      dplyr::mutate(
+        clinical_scaled =
+          as.numeric(
+            scale(
+              .data[[clinical_parameter]]
+            )
+          ),
+        age_scaled =
+          as.numeric(
+            scale(Age_years)
+          ),
+        storage_scaled =
+          as.numeric(
+            scale(
+              Sample_age_days
+            )
+          )
+      )
+
+    continuous_fit <- lm(
+      Factor_value ~
+        clinical_scaled +
+        age_scaled +
+        storage_scaled,
+      data = factor_data
+    )
+
+    clinical_coefficient <-
+      broom::tidy(
+        continuous_fit,
+        conf.int = TRUE
+      ) %>%
+      dplyr::filter(
+        term ==
+          "clinical_scaled"
+      )
+
+    matched_continuous_results <-
+      dplyr::bind_rows(
+        matched_continuous_results,
+        tibble::tibble(
+          Factor = factor_name,
+          parameter =
+            clinical_parameter,
+          n = nrow(factor_data),
+          beta =
+            clinical_coefficient$
+              estimate,
+          standard_error =
+            clinical_coefficient$
+              std.error,
+          confidence_interval_low =
+            clinical_coefficient$
+              conf.low,
+          confidence_interval_high =
+            clinical_coefficient$
+              conf.high,
+          t_statistic =
+            clinical_coefficient$
+              statistic,
+          p_value =
+            clinical_coefficient$
+              p.value,
+          model_R2 =
+            summary(
+              continuous_fit
+            )$r.squared,
+          adjusted_model_R2 =
+            summary(
+              continuous_fit
+            )$adj.r.squared
+        )
+      )
+  }
+}
+
+matched_continuous_results <-
+  matched_continuous_results %>%
+  dplyr::group_by(parameter) %>%
+  dplyr::mutate(
+    FDR_within_parameter =
+      p.adjust(
+        p_value,
+        method = "BH"
+      )
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(
+    FDR_global =
+      p.adjust(
+        p_value,
+        method = "BH"
+      ),
+    parameter_label =
+      unname(
+        pretty_parameter_names[
+          parameter
+        ]
+      )
+  ) %>%
+  dplyr::arrange(
+    FDR_global
+  )
+
+write.csv(
+  matched_continuous_results,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_factors_vs_continuous_clinical_parameters.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+```{r matched continuous association dotplot, fig.height=3.5, fig.width=6.5}
+matched_continuous_plot_data <-
+  matched_continuous_results %>%
+  dplyr::mutate(
+    parameter_label = factor(
+      parameter_label,
+      levels = unname(
+        pretty_parameter_names[
+          clinical_parameters
+        ]
+      )
+    ),
+    Factor = factor(
+      Factor,
+      levels = rev(
+        matched_factor_names
+      )
+    ),
+    dot_size = -log10(
+      pmax(
+        FDR_global,
+        .Machine$double.xmin
+      )
+    ),
+    outlined =
+      FDR_global <
+      exploratory_factor_fdr
+  )
+
+ggplot(
+  matched_continuous_plot_data,
+  aes(
+    x = parameter_label,
+    y = Factor,
+    size = dot_size,
+    fill = beta
+  )
+) +
+  geom_point(
+    shape = 21,
+    color = "grey60",
+    stroke = 0.3
+  ) +
+  geom_point(
+    data = dplyr::filter(
+      matched_continuous_plot_data,
+      outlined
+    ),
+    shape = 21,
+    fill = NA,
+    color = "black",
+    stroke = 1,
+    show.legend = FALSE
+  ) +
+  scale_size_continuous(
+    range = c(2.5, 8)
+  ) +
+  scale_fill_gradient2(
+    low = "#2166AC",
+    mid = "white",
+    high = "#B2182B",
+    midpoint = 0
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    size =
+      expression(
+        -log[10](FDR)
+      ),
+    fill =
+      "Coefficient\nper 1 SD"
+  ) +
+  theme_classic(
+  base_size = 14
+) +
+theme(
+  axis.text.x = element_text(
+    angle = 45,
+    hjust = 1,
+    size = 12
+  ),
+  axis.text.y = element_text(
+    size = 12
+  ),
+  legend.title = element_text(
+    size = 12
+  ),
+  legend.text = element_text(
+    size = 11
+  ),
+    plot.margin = margin(
+    t = 30,
+    r = 8,
+    b = 5,
+    l = 5,
+    unit = "pt"
+  )
+)
+```
+
+```{r matched fibrosis association models}
+matched_fibrosis_results <-
+  fit_factor_fibrosis_models(
+    factor_scores =
+      matched_factor_scores,
+    factor_names =
+      matched_factor_names
+  )
+
+write.csv(
+  matched_fibrosis_results,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_factors_vs_histological_fibrosis.csv"
+  ),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  matched_fibrosis_results,
+  searchable = TRUE,
+  filterable = TRUE
+)
+```
+
+```{r matched fibrosis association plot, fig.height=3, fig.width=5}
+matched_fibrosis_plot <-
+  plot_factor_fibrosis_associations(
+    fibrosis_results =
+      matched_fibrosis_results,
+    factor_names =
+      matched_factor_names,
+    title_text =
+      "Multi-omics factors and histological fibrosis"
+  )+
+  theme(
+    axis.text.y = element_text(
+      size = 12
+    )
+  )
+
+matched_fibrosis_plot
+
+```
+
+```{r matched Factor2 fibrosis correlation, fig.height=2.5, fig.width=2.7}
+matched_factor2_fibrosis_data <-
+  matched_factor_scores %>%
+  dplyr::filter(
+    Factor == "Factor2",
+    is.finite(
+      Fibrosis_percent
+    ),
+    is.finite(
+      Factor_value
+    )
+  )
+
+matched_factor2_fibrosis_correlation <-
+  stats::cor.test(
+    matched_factor2_fibrosis_data$
+      Fibrosis_percent,
+    matched_factor2_fibrosis_data$
+      Factor_value,
+    method = "spearman",
+    exact = FALSE
+  )
+
+matched_factor2_fibrosis_label <-
+  paste0(
+    "Spearman \u03c1 = ",
+    sprintf(
+      "%.2f",
+      unname(
+        matched_factor2_fibrosis_correlation$
+          estimate
+      )
+    ),
+    "\n",
+    format_p_value(
+      matched_factor2_fibrosis_correlation$
+        p.value
+    )
+  )
+
+matched_factor2_fibrosis_plot <-
+  ggplot(
+    matched_factor2_fibrosis_data,
+    aes(
+      x = Fibrosis_percent,
+      y = Factor_value
+    )
+  ) +
+  geom_point(
+    size = 2.4
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    linewidth = 0.8
+  ) +
+  annotate(
+  "text",
+  x = 0.12,
+  y = 4.3,
+  label = matched_factor2_fibrosis_label,
+  hjust = 0,
+  vjust = 1,
+  size = 3.5
+) +
+  labs(
+    x = "Fibrotic area (%)",
+    y = "Factor 2 score"
+  ) +
+  theme_classic()
+
+matched_factor2_fibrosis_plot
+
+write.csv(
+  matched_factor2_fibrosis_data,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_Factor2_histological_fibrosis_scatter_data.csv"
+  ),
+  row.names = FALSE
+)
+
+```
+
+# Matched Factor 2 fibrosis-associated features
+
+```{r matched Factor2 fibrosis custom heatmap, fig.height=9, fig.width=10}
+clean_matched_feature_name <- function(
+    feature
+) {
+  stringr::str_remove(
+    as.character(feature),
+    "_(RNA_pseudobulk|Olink|OLINK|LCMS|RNA|MS)$"
+  )
+}
+
+
+factor2_fibrosis_beta <-
+  matched_fibrosis_results %>%
+  dplyr::filter(
+    Factor == "Factor2"
+  ) %>%
+  dplyr::pull(
+    beta
+  )
+
+
+if (
+  length(factor2_fibrosis_beta) != 1L ||
+  !is.finite(factor2_fibrosis_beta)
+) {
+  stop(
+    "A valid fibrosis coefficient for Factor2 was not found."
+  )
+}
+
+
+factor2_fibrosis_orientation <-
+  ifelse(
+    factor2_fibrosis_beta >= 0,
+    1,
+    -1
+  )
+
+
+matched_factor2_custom_sets <-
+  tibble::tribble(
+    ~Feature,   ~View,            ~Annotation,
+
+    "FOSB",     "RNA_pseudobulk", "AP-1 / immediate-early activation",
+    "FOS",      "RNA_pseudobulk", "AP-1 / immediate-early activation",
+    "JUNB",     "RNA_pseudobulk", "AP-1 / immediate-early activation",
+    "FOSL1",    "RNA_pseudobulk", "AP-1 / immediate-early activation",
+    "EGR3",     "RNA_pseudobulk", "AP-1 / immediate-early activation",
+    "MYC",      "RNA_pseudobulk", "AP-1 / immediate-early activation",
+
+    "SERPINE1", "RNA_pseudobulk", "Profibrotic matricellular / TGF-beta-associated",
+    "TNC",      "RNA_pseudobulk", "Profibrotic matricellular / TGF-beta-associated",
+    "CCN2",     "RNA_pseudobulk", "Profibrotic matricellular / TGF-beta-associated",
+    "ADAMTS1",  "RNA_pseudobulk", "Profibrotic matricellular / TGF-beta-associated",
+    "LTBP3",    "Olink",          "Profibrotic matricellular / TGF-beta-associated",
+    "ITGA11",   "Olink",          "Profibrotic matricellular / TGF-beta-associated",
+
+    "VCAN",     "RNA_pseudobulk", "ECM organization and adhesion",
+    "MATN3",    "Olink",          "ECM organization and adhesion",
+    "LUM",      "LCMS",           "ECM organization and adhesion",
+    "PRELP",    "LCMS",           "ECM organization and adhesion",
+    "FBLN1",    "LCMS",           "ECM organization and adhesion",
+    "ITGB1",    "LCMS",           "ECM organization and adhesion",
+    "CD151",    "LCMS",           "ECM organization and adhesion",
+
+    "VIM",      "RNA_pseudobulk", "Myofibroblast / contractile cytoskeleton",
+    "TAGLN",    "RNA_pseudobulk", "Myofibroblast / contractile cytoskeleton",
+    "TPM4",     "RNA_pseudobulk", "Myofibroblast / contractile cytoskeleton",
+    "FLNA",     "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "TAGLN",    "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "CNN1",     "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "S100A4",   "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "PLS3",     "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "TAGLN2",   "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "ACTN1",    "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "MYL6",     "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "VCL",      "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "MYH9",     "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "ACTR3",    "LCMS",           "Myofibroblast / contractile cytoskeleton",
+    "PARVA",    "LCMS",           "Myofibroblast / contractile cytoskeleton"
+  ) %>%
+  dplyr::mutate(
+    Annotation = factor(
+      Annotation,
+      levels = c(
+        "AP-1 / immediate-early activation",
+        "Profibrotic matricellular / TGF-beta-associated",
+        "ECM organization and adhesion",
+        "Myofibroblast / contractile cytoskeleton"
+      )
+    )
+  )
+
+
+matched_factor2_weights_clean <-
+  matched_factor_weights %>%
+  dplyr::filter(
+    Factor == "Factor2",
+    View %in% c(
+      "RNA_pseudobulk",
+      "Olink",
+      "LCMS"
+    ),
+    is.finite(Weight)
+  ) %>%
+  dplyr::mutate(
+    Feature_clean =
+      clean_matched_feature_name(
+        Feature
+      ),
+
+    Fibrosis_oriented_weight =
+      Weight *
+      factor2_fibrosis_orientation
+  )
+
+
+matched_factor2_heatmap_features <-
+  matched_factor2_custom_sets %>%
+  dplyr::mutate(
+    Feature_clean =
+      Feature
+  ) %>%
+  dplyr::left_join(
+    matched_factor2_weights_clean %>%
+      dplyr::select(
+        Feature_actual =
+          Feature,
+
+        Feature_clean,
+        View,
+        Weight,
+        Fibrosis_oriented_weight
+      ),
+
+    by = c(
+      "Feature_clean",
+      "View"
+    )
+  )
+
+
+missing_heatmap_features <-
+  matched_factor2_heatmap_features %>%
+  dplyr::filter(
+    is.na(Weight)
+  )
+
+
+if (
+  nrow(
+    missing_heatmap_features
+  ) > 0L
+) {
+  warning(
+    "The following selected features were not found in the current Factor2 weight table: ",
+    paste(
+      paste0(
+        missing_heatmap_features$
+          Feature,
+        " (",
+        missing_heatmap_features$
+          View,
+        ")"
+      ),
+      collapse = ", "
+    )
+  )
+}
+
+
+matched_factor2_heatmap_features <-
+  matched_factor2_heatmap_features %>%
+  dplyr::filter(
+    !is.na(Weight)
+  ) %>%
+  dplyr::mutate(
+    Modality =
+      dplyr::case_when(
+        View == "RNA_pseudobulk" ~
+          "RNA",
+
+        View == "Olink" ~
+          "OLINK",
+
+        View == "LCMS" ~
+          "MS",
+
+        TRUE ~
+          View
+      ),
+
+    Modality = factor(
+      Modality,
+      levels = c(
+        "RNA",
+        "OLINK",
+        "MS"
+      )
+    )
+  ) %>%
+  dplyr::arrange(
+    Annotation,
+    dplyr::desc(
+      Fibrosis_oriented_weight
+    )
+  )
+
+
+matched_sample_intersection <-
+  Reduce(
+    intersect,
+    lapply(
+      matched_data[
+        c(
+          "RNA_pseudobulk",
+          "Olink",
+          "LCMS"
+        )
+      ],
+      colnames
+    )
+  )
+
+
+matched_fibrosis_sample_metadata <-
+  fibrosis_data %>%
+  dplyr::transmute(
+    Sample =
+      as.character(
+        Sample
+      ),
+
+    Fibrotic_area_percent =
+      as.numeric(
+        Fibrosis_percent
+      )
+  ) %>%
+  dplyr::filter(
+    Sample %in%
+      matched_sample_intersection,
+
+    is.finite(
+      Fibrotic_area_percent
+    )
+  ) %>%
+  dplyr::arrange(
+    Fibrotic_area_percent,
+    Sample
+  )
+
+
+matched_fibrosis_sample_order <-
+  matched_fibrosis_sample_metadata$
+    Sample
+
+
+extract_matched_factor2_heatmap_matrix <- function(
+    feature_table,
+    data_views,
+    sample_order
+) {
+  extracted_rows <- vector(
+    mode = "list",
+    length = nrow(
+      feature_table
+    )
+  )
+
+  row_found <- logical(
+    nrow(
+      feature_table
+    )
+  )
+
+  resolved_features <- character(
+    nrow(
+      feature_table
+    )
+  )
+
+  for (
+    feature_index in
+    seq_len(
+      nrow(
+        feature_table
+      )
+    )
+  ) {
+    current_view <-
+      as.character(
+        feature_table$View[
+          feature_index
+        ]
+      )
+
+    current_feature <-
+      as.character(
+        feature_table$Feature_actual[
+          feature_index
+        ]
+      )
+
+    if (
+      !current_view %in%
+        names(
+          data_views
+        )
+    ) {
+      next
+    }
+
+    feature_candidates <- unique(
+      c(
+        current_feature,
+
+        as.character(
+          feature_table$Feature[
+            feature_index
+          ]
+        ),
+
+        paste0(
+          as.character(
+            feature_table$Feature[
+              feature_index
+            ]
+          ),
+          "_",
+          current_view
+        ),
+
+        paste0(
+          as.character(
+            feature_table$Feature[
+              feature_index
+            ]
+          ),
+          "_",
+          dplyr::case_when(
+            current_view == "Olink" ~
+              "OLINK",
+
+            current_view == "LCMS" ~
+              "MS",
+
+            current_view == "RNA_pseudobulk" ~
+              "RNA_pseudobulk",
+
+            TRUE ~
+              current_view
+          )
+        )
+      )
+    )
+
+    resolved_feature <-
+      feature_candidates[
+        feature_candidates %in%
+          rownames(
+            data_views[[
+              current_view
+            ]]
+          )
+      ][1]
+
+    if (
+      length(
+        resolved_feature
+      ) == 0L ||
+      is.na(
+        resolved_feature
+      )
+    ) {
+      next
+    }
+
+    extracted_rows[[
+      feature_index
+    ]] <-
+      as.numeric(
+        data_views[[
+          current_view
+        ]][
+          resolved_feature,
+          sample_order,
+          drop = TRUE
+        ]
+      )
+
+    resolved_features[
+      feature_index
+    ] <-
+      resolved_feature
+
+    row_found[
+      feature_index
+    ] <-
+      TRUE
+  }
+
+
+  if (
+    !any(
+      row_found
+    )
+  ) {
+    stop(
+      "None of the selected matched-model features were found in matched_data."
+    )
+  }
+
+
+  if (
+    any(
+      !row_found
+    )
+  ) {
+    warning(
+      "The following selected features were not found and were omitted: ",
+      paste(
+        paste0(
+          feature_table$Feature[
+            !row_found
+          ],
+          " (",
+          feature_table$View[
+            !row_found
+          ],
+          ")"
+        ),
+        collapse = ", "
+      )
+    )
+  }
+
+
+  retained_feature_table <-
+    feature_table[
+      row_found,
+      ,
+      drop = FALSE
+    ] %>%
+    dplyr::mutate(
+      Resolved_feature =
+        resolved_features[
+          row_found
+        ],
+
+      Display_feature =
+        Feature,
+
+      Internal_row_id =
+        make.unique(
+          paste(
+            Annotation,
+            View,
+            Feature,
+            sep = "__"
+          )
+        )
+    )
+
+
+  expression_matrix <-
+    do.call(
+      rbind,
+      extracted_rows[
+        row_found
+      ]
+    )
+
+
+  colnames(
+    expression_matrix
+  ) <-
+    sample_order
+
+
+  rownames(
+    expression_matrix
+  ) <-
+    retained_feature_table$
+      Internal_row_id
+
+
+  list(
+    matrix =
+      expression_matrix,
+
+    feature_table =
+      retained_feature_table
+  )
+}
+
+
+prepare_matched_heatmap_z_scores <- function(
+    expression_matrix
+) {
+  imputed_matrix <-
+    expression_matrix
+
+
+  for (
+    row_index in
+    seq_len(
+      nrow(
+        imputed_matrix
+      )
+    )
+  ) {
+    row_values <-
+      imputed_matrix[
+        row_index,
+        ,
+        drop = TRUE
+      ]
+
+
+    finite_values <-
+      row_values[
+        is.finite(
+          row_values
+        )
+      ]
+
+
+    if (
+      length(
+        finite_values
+      ) == 0L
+    ) {
+      next
+    }
+
+
+    row_values[
+      !is.finite(
+        row_values
+      )
+    ] <-
+      stats::median(
+        finite_values
+      )
+
+
+    imputed_matrix[
+      row_index,
+    ] <-
+      row_values
+  }
+
+
+  row_means <-
+    rowMeans(
+      imputed_matrix,
+      na.rm = TRUE
+    )
+
+
+  row_standard_deviations <-
+    apply(
+      imputed_matrix,
+      1,
+      stats::sd,
+      na.rm = TRUE
+    )
+
+
+  row_standard_deviations[
+    !is.finite(
+      row_standard_deviations
+    ) |
+      row_standard_deviations == 0
+  ] <- 1
+
+
+  z_score_matrix <-
+    sweep(
+      imputed_matrix,
+      1,
+      row_means,
+      "-"
+    )
+
+
+  z_score_matrix <-
+    sweep(
+      z_score_matrix,
+      1,
+      row_standard_deviations,
+      "/"
+    )
+
+
+  pmax(
+    pmin(
+      z_score_matrix,
+      2
+    ),
+    -2
+  )
+}
+
+
+make_fibrosis_grey_scale <- function(
+    values
+) {
+  finite_values <-
+    values[
+      is.finite(
+        values
+      )
+    ]
+
+
+  value_range <-
+    if (
+      length(
+        finite_values
+      ) == 0L
+    ) {
+      c(
+        0,
+        1
+      )
+    } else {
+      range(
+        finite_values,
+        na.rm = TRUE
+      )
+    }
+
+
+  if (
+    value_range[1] ==
+      value_range[2]
+  ) {
+    value_range <-
+      value_range +
+      c(
+        -0.5,
+        0.5
+      )
+  }
+
+
+  circlize::colorRamp2(
+    value_range,
+    c(
+      "grey95",
+      "grey10"
+    )
+  )
+}
+
+
+matched_factor2_heatmap_data <-
+  extract_matched_factor2_heatmap_matrix(
+    feature_table =
+      matched_factor2_heatmap_features,
+
+    data_views =
+      matched_data,
+
+    sample_order =
+      matched_fibrosis_sample_order
+  )
+
+
+matched_factor2_heatmap_matrix <-
+  prepare_matched_heatmap_z_scores(
+    matched_factor2_heatmap_data$
+      matrix
+  )
+
+
+matched_factor2_feature_metadata <-
+  matched_factor2_heatmap_data$
+    feature_table
+
+
+fibrosis_colour_function <-
+  make_fibrosis_grey_scale(
+    matched_fibrosis_sample_metadata$
+      Fibrotic_area_percent
+  )
+
+
+matched_factor2_top_annotation <-
+  ComplexHeatmap::HeatmapAnnotation(
+    `Fibrotic area (%)` =
+      ComplexHeatmap::anno_simple(
+        matched_fibrosis_sample_metadata$
+          Fibrotic_area_percent,
+
+        col =
+          fibrosis_colour_function,
+
+        na_col =
+          "white",
+
+        height =
+          grid::unit(
+            4.5,
+            "mm"
+          )
+      ),
+
+    annotation_name_gp =
+      grid::gpar(
+        fontsize = 11,
+        fontface = "bold",
+        col = "black"
+      ),
+
+    annotation_name_side =
+      "right"
+  )
+
+
+set_colors <- c(
+  "AP-1 / immediate-early activation" =
+    "#6A3D9A",
+
+  "Profibrotic matricellular / TGF-beta-associated" =
+    "#B35806",
+
+  "ECM organization and adhesion" =
+    "#1B7837",
+
+  "Myofibroblast / contractile cytoskeleton" =
+    "#2166AC"
+)
+
+
+annotation_slice_order <-
+  unique(
+    as.character(
+      matched_factor2_feature_metadata$
+        Annotation
+    )
+  )
+
+
+annotation_display_labels <- c(
+  "AP-1 / immediate-early activation" =
+    "AP-1 /\nimmediate-early\nactivation",
+
+  "Profibrotic matricellular / TGF-beta-associated" =
+    "Profibrotic /\nTGF-beta-associated",
+
+  "ECM organization and adhesion" =
+    "ECM organization\nand adhesion",
+
+  "Myofibroblast / contractile cytoskeleton" =
+    "Myofibroblast /\ncontractile cytoskeleton"
+)
+
+
+matched_factor2_left_annotation <-
+  ComplexHeatmap::rowAnnotation(
+    Annotation =
+      ComplexHeatmap::anno_block(
+        gp =
+          grid::gpar(
+            fill =
+              unname(
+                set_colors[
+                  annotation_slice_order
+                ]
+              ),
+
+            col = NA
+          ),
+
+        labels =
+          unname(
+            annotation_display_labels[
+              annotation_slice_order
+            ]
+          ),
+
+        labels_gp =
+          grid::gpar(
+            fontsize = 8.5,
+            fontface = "bold",
+            col = "white",
+            lineheight = 0.85
+          ),
+
+        labels_rot =
+          90,
+
+        width =
+          grid::unit(
+            9,
+            "mm"
+          )
+      ),
+
+    show_annotation_name =
+      FALSE
+  )
+
+
+modality_colors <- c(
+  "RNA" =
+    "#009E73",
+
+  "OLINK" =
+    "#E69F00",
+
+  "MS" =
+    "#7B61A8"
+)
+
+
+matched_factor2_right_annotation <-
+  ComplexHeatmap::rowAnnotation(
+    Modality =
+      matched_factor2_feature_metadata$
+        Modality,
+
+    col = list(
+      Modality =
+        modality_colors
+    ),
+
+    show_legend =
+      FALSE,
+
+    annotation_name_gp =
+      grid::gpar(
+        fontsize = 10,
+        fontface = "bold",
+        col = "black"
+      ),
+
+    simple_anno_size =
+      grid::unit(
+        4.5,
+        "mm"
+      )
+  )
+
+
+heatmap_colour_function <-
+  circlize::colorRamp2(
+    c(
+      -2,
+      0,
+      2
+    ),
+    c(
+      "#2166AC",
+      "white",
+      "#B2182B"
+    )
+  )
+
+
+matched_factor2_custom_heatmap <-
+  ComplexHeatmap::Heatmap(
+    matched_factor2_heatmap_matrix,
+
+    name =
+      "Row Z-score",
+
+    col =
+      heatmap_colour_function,
+
+    na_col =
+      "grey90",
+
+    show_heatmap_legend =
+      FALSE,
+
+    cluster_rows =
+      FALSE,
+
+    cluster_columns =
+      FALSE,
+
+    row_split =
+      matched_factor2_feature_metadata$
+        Annotation,
+
+    row_gap =
+      grid::unit(
+        2,
+        "mm"
+      ),
+
+    cluster_row_slices =
+      FALSE,
+
+    top_annotation =
+      matched_factor2_top_annotation,
+
+    left_annotation =
+      matched_factor2_left_annotation,
+
+    right_annotation =
+      matched_factor2_right_annotation,
+
+    row_labels =
+      matched_factor2_feature_metadata$
+        Display_feature,
+
+    row_names_side =
+      "left",
+
+    row_names_gp =
+      grid::gpar(
+        fontsize = 9,
+        col = "black"
+      ),
+
+    column_names_rot =
+      45,
+
+    column_names_gp =
+      grid::gpar(
+        fontsize = 7,
+        col = "black"
+      ),
+
+    show_row_dend =
+      FALSE,
+
+    show_column_dend =
+      FALSE,
+
+    row_title =
+      NULL,
+
+    column_title =
+      NULL,
+
+    border =
+      TRUE,
+
+height =
+  grid::unit(
+    nrow(
+      matched_factor2_heatmap_matrix
+    ) * 6,
+    "mm"
+  )
+)
+
+
+row_z_score_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "Row Z-score",
+
+    col_fun =
+      heatmap_colour_function,
+
+    at = c(
+      -2,
+      0,
+      2
+    )
+  )
+
+
+modality_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "Modality",
+
+    at = c(
+      "RNA",
+      "OLINK",
+      "MS"
+    ),
+
+    legend_gp =
+      grid::gpar(
+        fill =
+          unname(
+            modality_colors[
+              c(
+                "RNA",
+                "OLINK",
+                "MS"
+              )
+            ]
+          )
+      )
+  )
+
+
+fibrosis_legend <-
+  ComplexHeatmap::Legend(
+    title =
+      "Fibrotic area (%)",
+
+    col_fun =
+      fibrosis_colour_function
+  )
+
+
+matched_factor2_combined_legends <-
+  ComplexHeatmap::packLegend(
+    row_z_score_legend,
+    modality_legend,
+    fibrosis_legend,
+
+    direction =
+      "vertical",
+
+    gap =
+      grid::unit(
+        5,
+        "mm"
+      )
+  )
+
+
+ComplexHeatmap::draw(
+  matched_factor2_custom_heatmap,
+
+  heatmap_legend_side =
+    "right",
+
+  annotation_legend_side =
+    "right",
+
+  heatmap_legend_list =
+    list(
+      matched_factor2_combined_legends
+    ),
+
+  merge_legends =
+    FALSE
+)
+
+
+
+
+write.csv(
+  matched_factor2_feature_metadata,
+
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_Factor2_custom_fibrosis_heatmap_features.csv"
+  ),
+
+  row.names = FALSE
+)
+
+
+write.csv(
+  matched_fibrosis_sample_metadata,
+
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_Factor2_custom_fibrosis_heatmap_sample_order.csv"
+  ),
+
+  row.names = FALSE
+)
+```
+
+# Matched-model factor summary
+
+```{r matched factor summary}
+matched_factor_summary <-
+  matched_factor_layer_table %>%
+  dplyr::left_join(
+    matched_group_global_results %>%
+      dplyr::select(
+        Factor,
+        RV_group_p = p_value,
+        RV_group_FDR = FDR
+      ),
+    by = "Factor"
+  ) %>%
+  dplyr::left_join(
+    matched_continuous_results %>%
+      dplyr::group_by(Factor) %>%
+      dplyr::slice_min(
+        FDR_global,
+        n = 1,
+        with_ties = FALSE
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(
+        Factor,
+        strongest_clinical_parameter =
+          parameter,
+        strongest_clinical_beta =
+          beta,
+        strongest_clinical_FDR =
+          FDR_global
+      ),
+    by = "Factor"
+  ) %>%
+  dplyr::arrange(
+    dplyr::desc(Total_R2)
+  )
+
+write.csv(
+  matched_factor_summary,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_main_factor_summary.csv"
+  ),
+  row.names = FALSE
+)
+ 
+reactable::reactable(
+  matched_factor_summary,
+  searchable = TRUE,
+  filterable = TRUE
+)
+```
+
+# Matched Factor 2 gene set enrichment analysis
+
+Factor 2 was analysed separately in the transcriptomic and proteomic layers. RNA pseudobulk weights were analysed directly, while Olink and LC-MS/MS weights were scaled within each platform before aggregation.
+
+```{r matched Factor2 GSEA inputs}
+matched_gsea_factor_table <-
+  matched_gsea_factor_table %>%
+  dplyr::filter(
+    Factor %in%
+      matched_factor_names
+  )
+
+matched_rna_weights_for_enrichment <-
+  matched_factor_weights %>%
+  dplyr::filter(
+    View == "RNA_pseudobulk",
+    Factor %in%
+      matched_gsea_factor_table$
+        Factor
+  )
+
+matched_proteomics_weights_for_enrichment <-
+  matched_factor_weights %>%
+  dplyr::filter(
+    View %in%
+      c(
+        "Olink",
+        "LCMS"
+      ),
+    Factor %in%
+      matched_gsea_factor_table$
+        Factor
+  )
+```
+
+```{r matched Factor2 RNA and proteomics GO GSEA, message=TRUE, warning=TRUE}
+matched_rna_gsea <-
+  run_mofa_gsea(
+    weight_table =
+      matched_rna_weights_for_enrichment,
+    factor_table =
+      matched_gsea_factor_table
+  )
+
+matched_proteomics_gsea <-
+  run_mofa_gsea(
+    weight_table =
+      matched_proteomics_weights_for_enrichment,
+    factor_table =
+      matched_gsea_factor_table
+  )
+
+matched_rna_gsea_simplified_objects <-
+  simplify_enrichment_objects(
+    matched_rna_gsea$objects
+  )
+
+matched_proteomics_gsea_simplified_objects <-
+  simplify_enrichment_objects(
+    matched_proteomics_gsea$objects
+  )
+
+matched_rna_gsea_results <-
+  matched_rna_gsea$results
+
+matched_proteomics_gsea_results <-
+  matched_proteomics_gsea$results
+
+matched_rna_gsea_simplified_results <-
+  extract_gsea_results(
+    matched_rna_gsea_simplified_objects
+  )
+
+matched_proteomics_gsea_simplified_results <-
+  extract_gsea_results(
+    matched_proteomics_gsea_simplified_objects
+  )
+
+write.csv(
+  matched_rna_gsea_results,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_RNA_Factor2_GO_GSEA.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  matched_rna_gsea_simplified_results,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_RNA_Factor2_GO_GSEA_simplified.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  matched_proteomics_gsea_results,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_proteomics_Factor2_GO_GSEA.csv"
+  ),
+  row.names = FALSE
+)
+
+write.csv(
+  matched_proteomics_gsea_simplified_results,
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_proteomics_Factor2_GO_GSEA_simplified.csv"
+  ),
+  row.names = FALSE
+)
+
+saveRDS(
+  list(
+    Transcriptomics = list(
+      GSEA =
+        matched_rna_gsea$objects,
+      GSEA_simplified =
+        matched_rna_gsea_simplified_objects,
+      ranked_lists =
+        matched_rna_gsea$ranked_lists
+    ),
+    Proteomics = list(
+      GSEA =
+        matched_proteomics_gsea$objects,
+      GSEA_simplified =
+        matched_proteomics_gsea_simplified_objects,
+      ranked_lists =
+        matched_proteomics_gsea$ranked_lists
+    )
+  ),
+  file.path(
+    matched_output_dir,
+    "MOFA_matched_Factor2_separate_RNA_proteomics_GO_GSEA_objects.rds"
+  )
+)
+```
+
+```{r matched Factor2 simplified GO GSEA plots, fig.height=4.8, fig.width=12.1, dpi=300}
+factor2_gsea_top_positive <- 8
+factor2_gsea_top_negative <- 8
+factor2_gsea_fdr_cutoff <- 0.05
+
+
+wrap_factor2_gsea_labels <- function(
+    x,
+    width = 41
+) {
+  vapply(
+    x,
+    function(label) {
+      label <-
+        stringr::str_squish(
+          as.character(label)
+        )
+
+      if (
+        nchar(label) <= width
+      ) {
+        return(label)
+      }
+
+      words <-
+        stringr::str_split(
+          label,
+          "\\s+"
+        )[[1]]
+
+      lines <- c(
+        "",
+        "",
+        ""
+      )
+
+      current_line <- 1L
+
+      for (
+        word in words
+      ) {
+        candidate <-
+          if (
+            lines[current_line] == ""
+          ) {
+            word
+          } else {
+            paste(
+              lines[current_line],
+              word
+            )
+          }
+
+        if (
+          nchar(candidate) <= width
+        ) {
+          lines[current_line] <-
+            candidate
+        } else if (
+          current_line < 3L
+        ) {
+          current_line <-
+            current_line + 1L
+
+          lines[current_line] <-
+            word
+        } else {
+          lines[current_line] <-
+            paste0(
+              substr(
+                lines[current_line],
+                1,
+                width - 1
+              ),
+              "…"
+            )
+
+          break
+        }
+      }
+
+      if (
+        nchar(lines[3]) > width
+      ) {
+        lines[3] <-
+          paste0(
+            substr(
+              lines[3],
+              1,
+              width - 1
+            ),
+            "…"
+          )
+      }
+
+      paste(
+        lines[
+          lines != ""
+        ],
+        collapse = "\n"
+      )
+    },
+    FUN.VALUE = character(1)
+  )
+}
+
+
+make_factor2_simplified_gsea_plot <- function(
+    gsea_object,
+    layer_label
+) {
+  if (
+    is.null(gsea_object) ||
+    nrow(
+      as.data.frame(
+        gsea_object
+      )
+    ) == 0L
+  ) {
+    return(
+      ggplot() +
+        annotate(
+          "text",
+          x = 1,
+          y = 1,
+          label =
+            "No GSEA results"
+        ) +
+        labs(
+          title =
+            paste0(
+              layer_label,
+              " | GSEA | Gene Ontology"
+            )
+        ) +
+        theme_void()
+    )
+  }
+
+  gsea_results <-
+    as.data.frame(
+      gsea_object
+    ) %>%
+    tibble::as_tibble() %>%
+    dplyr::filter(
+      is.finite(NES),
+      is.finite(p.adjust),
+      p.adjust <
+        factor2_gsea_fdr_cutoff
+    )
+
+  if (
+    nrow(gsea_results) == 0L
+  ) {
+    return(
+      ggplot() +
+        annotate(
+          "text",
+          x = 1,
+          y = 1,
+          label =
+            paste0(
+              "No terms with FDR < ",
+              factor2_gsea_fdr_cutoff
+            )
+        ) +
+        labs(
+          title =
+            paste0(
+              layer_label,
+              " | GSEA | Gene Ontology"
+            )
+        ) +
+        theme_void()
+    )
+  }
+
+  positive_terms <-
+    gsea_results %>%
+    dplyr::filter(
+      NES > 0
+    ) %>%
+    dplyr::arrange(
+      dplyr::desc(NES)
+    ) %>%
+    dplyr::slice_head(
+      n =
+        factor2_gsea_top_positive
+    )
+
+  negative_terms <-
+    gsea_results %>%
+    dplyr::filter(
+      NES < 0
+    ) %>%
+    dplyr::arrange(NES) %>%
+    dplyr::slice_head(
+      n =
+        factor2_gsea_top_negative
+    )
+
+  plot_data <-
+    dplyr::bind_rows(
+      positive_terms,
+      negative_terms
+    ) %>%
+    dplyr::mutate(
+      Description_clean =
+        stringr::str_remove(
+          Description,
+          "^\\[(BP|CC|MF)\\]\\s*"
+        )
+    )
+
+  if (
+    "pvalue" %in%
+      colnames(plot_data)
+  ) {
+    plot_data <-
+      plot_data %>%
+      dplyr::mutate(
+        p_for_colour =
+          dplyr::if_else(
+            is.finite(pvalue) &
+              pvalue > 0,
+            pvalue,
+            p.adjust
+          )
+      )
+  } else {
+    plot_data <-
+      plot_data %>%
+      dplyr::mutate(
+        p_for_colour =
+          p.adjust
+      )
+  }
+
+  plot_data <-
+    plot_data %>%
+    dplyr::mutate(
+      colour_score =
+        -log10(
+          pmax(
+            p_for_colour,
+            .Machine$double.xmin
+          )
+        ) *
+        sign(NES),
+
+      Description_wrapped =
+        wrap_factor2_gsea_labels(
+          Description_clean,
+          width = 41
+        )
+    ) %>%
+    dplyr::arrange(NES) %>%
+    dplyr::mutate(
+      Description_wrapped =
+        factor(
+          Description_wrapped,
+          levels =
+            unique(
+              Description_wrapped
+            )
+        )
+    )
+
+  colour_limit <-
+    unname(
+      stats::quantile(
+        abs(
+          plot_data$
+            colour_score
+        ),
+        probs = 0.80,
+        na.rm = TRUE
+      )
+    )
+
+  if (
+    length(colour_limit) != 1L ||
+    !is.finite(colour_limit) ||
+    colour_limit == 0
+  ) {
+    colour_limit <-
+      max(
+        abs(
+          plot_data$
+            colour_score
+        ),
+        na.rm = TRUE
+      )
+  }
+
+  ggplot(
+    plot_data,
+    aes(
+      x =
+        Description_wrapped,
+      y = NES,
+      fill =
+        colour_score
+    )
+  ) +
+    geom_col(
+      width = 0.9
+    ) +
+    coord_flip() +
+    scale_fill_gradient2(
+      low = "#004C8C",
+      mid = "white",
+      high = "#A63A2A",
+      midpoint = 0,
+      limits = c(
+        -colour_limit,
+        colour_limit
+      ),
+      oob =
+        scales::squish,
+      name =
+        expression(
+          -log[10](p) %*% sign(NES)
+        )
+    ) +
+    labs(
+      title =
+        paste0(
+          layer_label,
+          " | GSEA | Gene Ontology"
+        ),
+      x = NULL,
+      y =
+        "Normalized enrichment score (NES)"
+    ) +
+    theme_bw(
+      base_size = 10
+    ) +
+    theme(
+      text =
+        element_text(
+          color = "black"
+        ),
+
+      plot.title =
+        element_text(
+          hjust = 0.5,
+          face = "bold",
+          size = 11
+        ),
+
+      axis.text =
+        element_text(
+          color = "black"
+        ),
+
+      axis.title.x =
+        element_text(
+          color = "black",
+          size = 12
+        ),
+
+      axis.text.y =
+        element_text(
+          size = 9,
+          color = "black",
+          lineheight = 0.7
+        ),
+
+      panel.grid.minor =
+        element_blank(),
+
+      legend.position =
+        "bottom",
+
+      legend.direction =
+        "horizontal",
+
+      legend.title =
+        element_text(
+          size = 9
+        ),
+
+      legend.text =
+        element_text(
+          size = 9
+        )
+    ) +
+    guides(
+      fill =
+        guide_colorbar(
+          barwidth =
+            grid::unit(
+              6,
+              "cm"
+            ),
+
+          barheight =
+            grid::unit(
+              0.3,
+              "cm"
+            ),
+
+          title.position =
+            "top",
+
+          title.hjust =
+            0.5
+        )
+    )
+}
+
+
+matched_factor2_rna_go_gsea_simplified <-
+  matched_rna_gsea_simplified_objects[[
+    "Factor2__GO_ALL"
+  ]]
+
+
+matched_factor2_proteomics_go_gsea_simplified <-
+  matched_proteomics_gsea_simplified_objects[[
+    "Factor2__GO_ALL"
+  ]]
+
+
+matched_factor2_rna_gsea_plot <-
+  make_factor2_simplified_gsea_plot(
+    gsea_object =
+      matched_factor2_rna_go_gsea_simplified,
+
+    layer_label =
+      "Transcriptomics"
+  )
+
+
+matched_factor2_proteomics_gsea_plot <-
+  make_factor2_simplified_gsea_plot(
+    gsea_object =
+      matched_factor2_proteomics_go_gsea_simplified,
+
+    layer_label =
+      "Proteomics"
+  )
+
+
+matched_factor2_simplified_gsea_plot <-
+  matched_factor2_rna_gsea_plot |
+  matched_factor2_proteomics_gsea_plot
+
+
+print(
+  matched_factor2_simplified_gsea_plot
+)
+
+
+```
+
+# Supplementary Data export
+
+```{r Supplementary_data_export, eval=TRUE}
+mofa_suppdata <- list(
+  Histological_fibrosis =
+    fibrosis_data,
+
+  Proteomics_samples =
+    proteomics_sample_overview,
+
+  Prot_tuning_all =
+    proteomics_tuning_results,
+
+  Prot_selected_model =
+    proteomics_selected_model_settings,
+
+  Prot_variance_factor =
+    proteomics_r2_per_factor_table,
+
+  Prot_factor_scores =
+    proteomics_factor_scores,
+
+  Prot_feature_weights =
+    proteomics_factor_weights,
+
+  Prot_RV_group =
+    proteomics_group_pairwise_results,
+
+  Prot_clinical_assoc =
+    proteomics_continuous_results,
+
+  Prot_technical_assoc =
+    proteomics_technical_results,
+
+  Prot_F1_GSEA =
+    proteomics_factor1_gsea_results,
+
+  Matched_samples =
+    matched_sample_overview,
+
+  Matched_tuning_all =
+    matched_tuning_results,
+
+  Matched_selected_model =
+    matched_selected_model_settings,
+
+  Matched_variance_factor =
+    matched_r2_per_factor_table,
+
+  Matched_layer_structure =
+    matched_factor_layer_table,
+
+  Matched_factor_scores =
+    matched_factor_scores,
+
+  Matched_feature_weights =
+    matched_factor_weights,
+
+  Matched_RV_group =
+    matched_group_pairwise_results,
+
+  Matched_clinical_assoc =
+    matched_continuous_results,
+
+  Matched_fibrosis_assoc =
+    matched_fibrosis_results,
+
+  Matched_RNA_F2_GSEA =
+    matched_rna_gsea_results,
+
+  Matched_prot_F2_GSEA =
+    matched_proteomics_gsea_results
+)
+
+writexl::write_xlsx(
+  mofa_suppdata,
+  file.path(
+    base_output_dir,
+    "MOFA_v3_SuppData.xlsx"
+  )
+)
+```
