@@ -1,0 +1,3552 @@
+---
+title: "Proteomics quality control: Olink and LC-MS/MS v2"
+author: "Gino Bonazza"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE,
+  dpi = 300,
+  fig.align = "center"
+)
+```
+
+# Overview
+
+This workflow evaluates the quality of the Olink and LC-MS/MS proteomic
+datasets before and after sample exclusion. Healthy control samples are
+excluded from the initial analysis, which includes all DCM and ICM samples.
+
+P11, PK61 and PK63 are subsequently excluded because of poor proteomic data
+quality identified in the diagnostic plots. PK69 is excluded because duplicate
+sample identifiers prevent unambiguous patient assignment. ICM samples and
+female patients are excluded because the downstream analysis focuses on male DCM patients.
+
+Heatmaps include all usable proteins after removal of rows with insufficient
+observations or zero variance. Missing LC-MS/MS values are imputed only for
+visualisation. PCA is performed on proteins observed in at least 50% of
+samples and uses row-median imputation.
+
+# Setup
+
+```{r libraries}
+library(here)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(stringr)
+library(ggplot2)
+library(ggrepel)
+library(patchwork)
+library(limma)
+library(matrixStats)
+library(ComplexHeatmap)
+library(circlize)
+library(reactable)
+library(scales)
+```
+
+```{r analysis choices}
+current_file <- "Proteomics_quality_control_v2"
+
+output_dir <- here::here(
+  "output",
+  current_file
+)
+
+figure_dir <- here::here(
+  "docs",
+  "figure",
+  paste0(current_file, ".Rmd")
+)
+
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+dir.create(
+  figure_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+clinical_file <- here::here(
+  "data",
+  "DCM_Clinical_data_83.xlsx"
+)
+
+olink_sample_file <- here::here(
+  "data",
+  "OLINK",
+  "Samples_RV_Olink.xlsx"
+)
+
+olink_quant_file <- here::here(
+  "data",
+  "OLINK",
+  "quant.xls"
+)
+
+ms_file <- here::here(
+  "data",
+  "Mass_spec",
+  "20260319_MS_DIA_report_2uniquepeptides.csv"
+)
+
+ms_zero_is_missing <- TRUE
+pca_min_observed_fraction <- 0.50
+label_pca_samples <- TRUE
+
+heatmap_column_fontsize <- 7
+distribution_sample_fontsize <- 7
+```
+
+# Helper functions
+
+```{r helper functions}
+normalise_sample_id <- function(x) {
+  trimws(
+    as.character(x)
+  )
+}
+
+
+make_group_palette <- function(values) {
+  group_colours <- c(
+    DCM = "#A63A2A",
+    ICM = "#004C8C"
+  )
+
+  levels_present <- sort(
+    unique(
+      as.character(
+        values[
+          !is.na(values)
+        ]
+      )
+    )
+  )
+
+  unexpected_levels <- setdiff(
+    levels_present,
+    names(group_colours)
+  )
+
+  if (length(unexpected_levels) > 0L) {
+    stop(
+      "Unexpected Group label(s): ",
+      paste(
+        unexpected_levels,
+        collapse = ", "
+      )
+    )
+  }
+
+  group_colours[
+    levels_present
+  ]
+}
+
+
+safe_continuous_colour <- function(
+    values,
+    colours = c(
+      "grey90",
+      "grey60",
+      "grey20"
+    )
+) {
+  finite_values <- values[
+    is.finite(values)
+  ]
+
+  if (length(finite_values) == 0L) {
+    return(NULL)
+  }
+
+  breaks <- c(
+    min(finite_values),
+    stats::median(finite_values),
+    max(finite_values)
+  )
+
+  if (length(unique(breaks)) < 3L) {
+    spread <- max(
+      abs(breaks[1L]) * 0.01,
+      0.01
+    )
+
+    breaks <- c(
+      breaks[1L] - spread,
+      breaks[1L],
+      breaks[1L] + spread
+    )
+  }
+
+  circlize::colorRamp2(
+    breaks,
+    colours
+  )
+}
+
+
+impute_rows_median <- function(mat) {
+  output <- as.matrix(mat)
+
+  for (i in seq_len(nrow(output))) {
+    missing <- !is.finite(
+      output[i, ]
+    )
+
+    if (!any(missing)) {
+      next
+    }
+
+    observed <- output[
+      i,
+      !missing
+    ]
+
+    replacement <- if (
+      length(observed) > 0L
+    ) {
+      stats::median(
+        observed,
+        na.rm = TRUE
+      )
+    } else {
+      0
+    }
+
+    output[
+      i,
+      missing
+    ] <- replacement
+  }
+
+  output[
+    !is.finite(output)
+  ] <- 0
+
+  output
+}
+
+
+impute_rows_low_value <- function(mat) {
+  output <- as.matrix(mat)
+
+  global_floor <- suppressWarnings(
+    stats::quantile(
+      output,
+      probs = 0.01,
+      na.rm = TRUE
+    )
+  )
+
+  if (!is.finite(global_floor)) {
+    global_floor <- 0
+  }
+
+  for (i in seq_len(nrow(output))) {
+    missing <- !is.finite(
+      output[i, ]
+    )
+
+    if (!any(missing)) {
+      next
+    }
+
+    observed <- output[
+      i,
+      !missing
+    ]
+
+    replacement <- if (
+      length(observed) > 0L
+    ) {
+      minimum <- min(
+        observed,
+        na.rm = TRUE
+      )
+
+      spread <- stats::sd(
+        observed,
+        na.rm = TRUE
+      )
+
+      if (
+        !is.finite(spread) ||
+        spread == 0
+      ) {
+        spread <- 0.5
+      }
+
+      minimum - 0.5 * spread
+    } else {
+      global_floor
+    }
+
+    output[
+      i,
+      missing
+    ] <- replacement
+  }
+
+  output[
+    !is.finite(output)
+  ] <- global_floor
+
+  output
+}
+
+
+filter_usable_features <- function(
+    mat,
+    minimum_observed = 2L
+) {
+  mat <- as.matrix(mat)
+
+  observed <- matrixStats::rowSums2(
+    is.finite(mat)
+  )
+
+  variance <- matrixStats::rowVars(
+    mat,
+    na.rm = TRUE
+  )
+
+  keep <- observed >= minimum_observed &
+    is.finite(variance) &
+    variance > 0
+
+  mat[
+    keep,
+    ,
+    drop = FALSE
+  ]
+}
+
+
+prepare_pca <- function(
+    mat,
+    metadata,
+    assay_name,
+    minimum_observed_fraction =
+      pca_min_observed_fraction
+) {
+  mat <- as.matrix(mat)
+
+  observed_fraction <- matrixStats::rowMeans2(
+    is.finite(mat)
+  )
+
+  variance <- matrixStats::rowVars(
+    mat,
+    na.rm = TRUE
+  )
+
+  keep <- observed_fraction >=
+    minimum_observed_fraction &
+    is.finite(variance) &
+    variance > 0
+
+  pca_matrix <- mat[
+    keep,
+    ,
+    drop = FALSE
+  ]
+
+  if (nrow(pca_matrix) < 2L) {
+    stop(
+      assay_name,
+      ": fewer than two proteins are available for PCA."
+    )
+  }
+
+  pca_matrix <- impute_rows_median(
+    pca_matrix
+  )
+
+  pca <- stats::prcomp(
+    t(pca_matrix),
+    center = TRUE,
+    scale. = TRUE
+  )
+
+  variance_explained <-
+    pca$sdev^2 /
+    sum(pca$sdev^2) *
+    100
+
+  plot_data <- data.frame(
+    Sample = rownames(pca$x),
+    PC1 = pca$x[, 1L],
+    PC2 = pca$x[, 2L],
+    stringsAsFactors = FALSE
+  ) %>%
+    dplyr::left_join(
+      metadata,
+      by = "Sample"
+    )
+
+  list(
+    pca = pca,
+    variance_explained =
+      variance_explained,
+    plot_data = plot_data,
+    number_features =
+      nrow(pca_matrix),
+    assay_name = assay_name
+  )
+}
+
+
+plot_pca_group <- function(
+    pca_object,
+    title_suffix
+) {
+  plot_data <- pca_object$plot_data
+
+  group_colours <- make_group_palette(
+    plot_data$Group
+  )
+
+  output <- ggplot(
+    plot_data,
+    aes(
+      x = PC1,
+      y = PC2,
+      colour = Group
+    )
+  ) +
+    geom_hline(
+      yintercept = 0,
+      colour = "grey85",
+      linewidth = 0.3
+    ) +
+    geom_vline(
+      xintercept = 0,
+      colour = "grey85",
+      linewidth = 0.3
+    ) +
+    geom_point(
+      size = 3
+    ) +
+    scale_colour_manual(
+      values = group_colours,
+      na.value = "grey60"
+    ) +
+    labs(
+      title = paste(
+        pca_object$assay_name,
+        title_suffix,
+        sep = " — "
+      ),
+      subtitle = paste(
+        pca_object$number_features,
+        "proteins used"
+      ),
+      x = paste0(
+        "PC1 (",
+        round(
+          pca_object$
+            variance_explained[1L],
+          1
+        ),
+        "%)"
+      ),
+      y = paste0(
+        "PC2 (",
+        round(
+          pca_object$
+            variance_explained[2L],
+          1
+        ),
+        "%)"
+      ),
+      colour = "Group"
+    ) +
+    theme_classic()
+
+  if (isTRUE(label_pca_samples)) {
+    output <- output +
+      ggrepel::geom_text_repel(
+        aes(label = Sample),
+        size = 2.7,
+        max.overlaps = Inf,
+        box.padding = 0.25,
+        point.padding = 0.15,
+        segment.size = 0.25,
+        show.legend = FALSE
+      )
+  }
+
+  output
+}
+
+
+make_sample_annotation <- function(
+    metadata,
+    samples,
+    include_olink_technical = FALSE
+) {
+  ordered_metadata <- metadata %>%
+    dplyr::slice(
+      match(
+        samples,
+        Sample
+      )
+    )
+
+  annotation_data <- data.frame(
+    Group = factor(
+      ordered_metadata$Group
+    ),
+    row.names = samples,
+    check.names = FALSE
+  )
+
+  annotation_colours <- list(
+    Group = make_group_palette(
+      annotation_data$Group
+    )
+  )
+
+  if (
+    isTRUE(include_olink_technical) &&
+    "Batch" %in% colnames(ordered_metadata)
+  ) {
+    annotation_data$Batch <- factor(
+      ordered_metadata$Batch
+    )
+
+    batch_levels <- levels(
+      droplevels(
+        annotation_data$Batch
+      )
+    )
+
+    if (length(batch_levels) > 0L) {
+      batch_colours <- setNames(
+        scales::hue_pal(
+          h = c(30, 300),
+          c = 80,
+          l = 55
+        )(
+          length(batch_levels)
+        ),
+        batch_levels
+      )
+
+      annotation_colours$Batch <-
+        batch_colours
+    }
+  }
+
+  if (
+    isTRUE(include_olink_technical) &&
+    "BCA_mg_ml" %in% colnames(
+      ordered_metadata
+    )
+  ) {
+    bca <- as.numeric(
+      ordered_metadata$BCA_mg_ml
+    )
+
+    if (any(is.finite(bca))) {
+      annotation_data$BCA_mg_ml <- bca
+
+      annotation_colours$BCA_mg_ml <-
+        safe_continuous_colour(bca)
+    }
+  }
+
+  ComplexHeatmap::HeatmapAnnotation(
+    df = annotation_data,
+    col = annotation_colours,
+    na_col = "#E5E7EB"
+  )
+}
+
+
+draw_expression_heatmap <- function(
+    mat,
+    metadata,
+    assay_name,
+    title_suffix,
+    imputation = c(
+      "median",
+      "low"
+    ),
+    include_olink_technical = FALSE
+) {
+  imputation <- match.arg(
+    imputation
+  )
+
+  mat <- filter_usable_features(
+    mat
+  )
+
+  if (imputation == "median") {
+    visualisation_matrix <-
+      impute_rows_median(mat)
+  } else {
+    visualisation_matrix <-
+      impute_rows_low_value(mat)
+  }
+
+  z_matrix <- t(
+    scale(
+      t(
+        visualisation_matrix
+      )
+    )
+  )
+
+  z_matrix[
+    !is.finite(z_matrix)
+  ] <- 0
+
+  annotation <- make_sample_annotation(
+    metadata = metadata,
+    samples = colnames(z_matrix),
+    include_olink_technical =
+      include_olink_technical
+  )
+
+  heatmap <- ComplexHeatmap::Heatmap(
+    z_matrix,
+    name = "z-score",
+    top_annotation = annotation,
+    show_row_names = FALSE,
+    show_column_names = TRUE,
+    column_names_gp = grid::gpar(
+      fontsize = heatmap_column_fontsize
+    ),
+    cluster_rows = TRUE,
+    cluster_columns = TRUE,
+    use_raster = nrow(z_matrix) > 2000,
+    raster_quality = 2,
+    col = circlize::colorRamp2(
+      c(-2, 0, 2),
+      c(
+        "#2166AC",
+        "white",
+        "#B2182B"
+      )
+    ),
+    column_title = paste(
+      assay_name,
+      title_suffix,
+      paste0(
+        "(",
+        nrow(z_matrix),
+        " proteins; ",
+        ncol(z_matrix),
+        " samples)"
+      ),
+      sep = " — "
+    )
+  )
+
+  ComplexHeatmap::draw(
+    heatmap,
+    heatmap_legend_side = "right",
+    annotation_legend_side = "right"
+  )
+
+  invisible(heatmap)
+}
+
+
+matrix_to_long <- function(
+    mat,
+    metadata,
+    value_name
+) {
+  as.data.frame(mat) %>%
+    tibble::rownames_to_column(
+      "Protein"
+    ) %>%
+    tidyr::pivot_longer(
+      cols = -Protein,
+      names_to = "Sample",
+      values_to = value_name
+    ) %>%
+    dplyr::left_join(
+      metadata %>%
+        dplyr::select(
+          Sample,
+          Group
+        ),
+      by = "Sample"
+    )
+}
+
+
+plot_sample_boxplots <- function(
+    mat,
+    metadata,
+    assay_name,
+    title_suffix,
+    y_label
+) {
+  long_data <- matrix_to_long(
+    mat,
+    metadata,
+    value_name = "Abundance"
+  ) %>%
+    dplyr::filter(
+      is.finite(Abundance)
+    )
+
+  sample_order <- long_data %>%
+    dplyr::group_by(Sample) %>%
+    dplyr::summarise(
+      median_abundance =
+        stats::median(
+          Abundance,
+          na.rm = TRUE
+        ),
+      .groups = "drop"
+    ) %>%
+    dplyr::arrange(
+      median_abundance
+    ) %>%
+    dplyr::pull(Sample)
+
+  long_data$Sample <- factor(
+    long_data$Sample,
+    levels = sample_order
+  )
+
+  group_colours <- make_group_palette(
+    long_data$Group
+  )
+
+  ggplot(
+    long_data,
+    aes(
+      x = Sample,
+      y = Abundance,
+      fill = Group
+    )
+  ) +
+    geom_boxplot(
+      outlier.shape = NA,
+      width = 0.75,
+      linewidth = 0.25
+    ) +
+    scale_fill_manual(
+      values = group_colours,
+      na.value = "grey70"
+    ) +
+    labs(
+      title = paste(
+        assay_name,
+        title_suffix,
+        sep = " — "
+      ),
+      x = NULL,
+      y = y_label,
+      fill = "Group"
+    ) +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(
+        angle = 90,
+        hjust = 1,
+        vjust = 0.5,
+        size =
+          distribution_sample_fontsize
+      )
+    )
+}
+
+
+plot_sample_densities <- function(
+    mat,
+    metadata,
+    assay_name,
+    title_suffix,
+    x_label
+) {
+  long_data <- matrix_to_long(
+    mat,
+    metadata,
+    value_name = "Abundance"
+  ) %>%
+    dplyr::filter(
+      is.finite(Abundance)
+    )
+
+  group_colours <- make_group_palette(
+    long_data$Group
+  )
+
+  ggplot(
+    long_data,
+    aes(
+      x = Abundance,
+      group = Sample,
+      colour = Group
+    )
+  ) +
+    geom_density(
+      linewidth = 0.45,
+      alpha = 0.65
+    ) +
+    scale_colour_manual(
+      values = group_colours,
+      na.value = "grey65"
+    ) +
+    labs(
+      title = paste(
+        assay_name,
+        title_suffix,
+        sep = " — "
+      ),
+      x = x_label,
+      y = "Density",
+      colour = "Group"
+    ) +
+    theme_classic()
+}
+
+
+calculate_sample_metrics <- function(
+    mat,
+    metadata,
+    assay_name
+) {
+  mat <- as.matrix(mat)
+
+  metrics <- tibble::tibble(
+    Sample = colnames(mat),
+    number_detected =
+      matrixStats::colSums2(
+        is.finite(mat)
+      ),
+    missing_fraction =
+      matrixStats::colMeans2(
+        !is.finite(mat)
+      ),
+    median_abundance =
+      matrixStats::colMedians(
+        mat,
+        na.rm = TRUE
+      ),
+    mean_abundance =
+      matrixStats::colMeans2(
+        mat,
+        na.rm = TRUE
+      )
+  ) %>%
+    dplyr::left_join(
+      metadata %>%
+        dplyr::select(
+          Sample,
+          Group
+        ),
+      by = "Sample"
+    ) %>%
+    dplyr::mutate(
+      assay = assay_name
+    )
+
+  metrics
+}
+
+
+plot_detected_per_sample <- function(
+    metrics,
+    assay_name,
+    title_suffix
+) {
+  plot_data <- metrics %>%
+    dplyr::arrange(
+      number_detected
+    ) %>%
+    dplyr::mutate(
+      Sample = factor(
+        Sample,
+        levels = Sample
+      )
+    )
+
+  group_colours <- make_group_palette(
+    plot_data$Group
+  )
+
+  ggplot(
+    plot_data,
+    aes(
+      x = Sample,
+      y = number_detected,
+      fill = Group
+    )
+  ) +
+    geom_col() +
+    geom_hline(
+      yintercept = stats::median(
+        plot_data$number_detected,
+        na.rm = TRUE
+      ),
+      linetype = 2,
+      linewidth = 0.4
+    ) +
+    scale_fill_manual(
+      values = group_colours,
+      na.value = "grey70"
+    ) +
+    labs(
+      title = paste(
+        assay_name,
+        title_suffix,
+        sep = " — "
+      ),
+      subtitle =
+        "Dashed line: cohort median",
+      x = NULL,
+      y = "Number of detected proteins",
+      fill = "Group"
+    ) +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(
+        angle = 90,
+        hjust = 1,
+        vjust = 0.5,
+        size =
+          distribution_sample_fontsize
+      )
+    )
+}
+
+
+plot_missing_fraction <- function(
+    metrics,
+    assay_name,
+    title_suffix
+) {
+  plot_data <- metrics %>%
+    dplyr::arrange(
+      missing_fraction
+    ) %>%
+    dplyr::mutate(
+      Sample = factor(
+        Sample,
+        levels = Sample
+      )
+    )
+
+  group_colours <- make_group_palette(
+    plot_data$Group
+  )
+
+  ggplot(
+    plot_data,
+    aes(
+      x = Sample,
+      y = missing_fraction,
+      fill = Group
+    )
+  ) +
+    geom_col() +
+    scale_y_continuous(
+      labels = scales::percent
+    ) +
+    scale_fill_manual(
+      values = group_colours,
+      na.value = "grey70"
+    ) +
+    labs(
+      title = paste(
+        assay_name,
+        title_suffix,
+        sep = " — "
+      ),
+      x = NULL,
+      y = "Missing fraction",
+      fill = "Group"
+    ) +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(
+        angle = 90,
+        hjust = 1,
+        vjust = 0.5,
+        size =
+          distribution_sample_fontsize
+      )
+    )
+}
+
+
+plot_median_abundance <- function(
+    metrics,
+    assay_name,
+    title_suffix,
+    y_label
+) {
+  plot_data <- metrics %>%
+    dplyr::arrange(
+      median_abundance
+    ) %>%
+    dplyr::mutate(
+      Sample = factor(
+        Sample,
+        levels = Sample
+      )
+    )
+
+  group_colours <- make_group_palette(
+    plot_data$Group
+  )
+
+  ggplot(
+    plot_data,
+    aes(
+      x = Sample,
+      y = median_abundance,
+      fill = Group
+    )
+  ) +
+    geom_col() +
+    scale_fill_manual(
+      values = group_colours,
+      na.value = "grey70"
+    ) +
+    labs(
+      title = paste(
+        assay_name,
+        title_suffix,
+        sep = " — "
+      ),
+      x = NULL,
+      y = y_label,
+      fill = "Group"
+    ) +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(
+        angle = 90,
+        hjust = 1,
+        vjust = 0.5,
+        size =
+          distribution_sample_fontsize
+      )
+    )
+}
+
+
+plot_feature_missingness <- function(
+    mat,
+    assay_name,
+    title_suffix
+) {
+  missing_fraction <- matrixStats::rowMeans2(
+    !is.finite(mat)
+  )
+
+  plot_data <- tibble::tibble(
+    missing_fraction =
+      missing_fraction
+  )
+
+  ggplot(
+    plot_data,
+    aes(
+      x = missing_fraction
+    )
+  ) +
+    geom_histogram(
+      bins = 40,
+      colour = "white",
+      linewidth = 0.2
+    ) +
+    scale_x_continuous(
+      labels = scales::percent
+    ) +
+    labs(
+      title = paste(
+        assay_name,
+        title_suffix,
+        sep = " — "
+      ),
+      x = "Missing fraction per protein",
+      y = "Number of proteins"
+    ) +
+    theme_classic()
+}
+
+
+draw_sample_correlation_heatmap <- function(
+    mat,
+    metadata,
+    assay_name,
+    title_suffix,
+    include_olink_technical = FALSE
+) {
+  correlation <- stats::cor(
+    mat,
+    use = "pairwise.complete.obs",
+    method = "pearson"
+  )
+
+  annotation <- make_sample_annotation(
+    metadata = metadata,
+    samples = colnames(correlation),
+    include_olink_technical =
+      include_olink_technical
+  )
+
+  heatmap <- ComplexHeatmap::Heatmap(
+    correlation,
+    name = "Pearson r",
+    top_annotation = annotation,
+    show_row_names = TRUE,
+    show_column_names = TRUE,
+    row_names_gp = grid::gpar(
+      fontsize = heatmap_column_fontsize
+    ),
+    column_names_gp = grid::gpar(
+      fontsize = heatmap_column_fontsize
+    ),
+    col = circlize::colorRamp2(
+      c(
+        0,
+        0.9,
+        1
+      ),
+      c(
+        "#2166AC",
+        "white",
+        "#B2182B"
+      )
+    ),
+    column_title = paste(
+      assay_name,
+      title_suffix,
+      sep = " — "
+    )
+  )
+
+  ComplexHeatmap::draw(
+    heatmap,
+    heatmap_legend_side = "right",
+    annotation_legend_side = "right"
+  )
+
+  invisible(heatmap)
+}
+
+
+prepare_qc_set <- function(
+    excluded_samples,
+    label
+) {
+  clinical_use <- clinical_non_control %>%
+    dplyr::filter(
+      !Sample %in%
+        excluded_samples
+    )
+
+  olink_samples <- clinical_use$Sample[
+    clinical_use$Sample %in%
+      colnames(olink_expression_all)
+  ]
+
+  ms_samples <- clinical_use$Sample[
+    clinical_use$Sample %in%
+      colnames(ms_expression_log2_all)
+  ]
+
+  olink_matrix <- olink_expression_all[
+    ,
+    olink_samples,
+    drop = FALSE
+  ]
+
+  ms_matrix <- ms_expression_log2_all[
+    ,
+    ms_samples,
+    drop = FALSE
+  ]
+
+  olink_metadata <- clinical_use %>%
+    dplyr::left_join(
+      olink_sample_metadata %>%
+        dplyr::select(
+          Sample,
+          Batch,
+          BCA_mg_ml
+        ),
+      by = "Sample"
+    ) %>%
+    dplyr::filter(
+      Sample %in%
+        olink_samples
+    ) %>%
+    dplyr::slice(
+      match(
+        olink_samples,
+        Sample
+      )
+    )
+
+  ms_metadata <- clinical_use %>%
+    dplyr::filter(
+      Sample %in%
+        ms_samples
+    ) %>%
+    dplyr::slice(
+      match(
+        ms_samples,
+        Sample
+      )
+    )
+
+  availability <- clinical_use %>%
+    dplyr::transmute(
+      Sample,
+      Group,
+      has_Olink =
+        Sample %in%
+        colnames(
+          olink_expression_all
+        ),
+      has_LCMS =
+        Sample %in%
+        colnames(
+          ms_expression_log2_all
+        )
+    ) %>%
+    dplyr::mutate(
+      availability = dplyr::case_when(
+        has_Olink &
+          has_LCMS ~
+          "Both Olink and LC-MS/MS",
+        has_Olink &
+          !has_LCMS ~
+          "Olink only",
+        !has_Olink &
+          has_LCMS ~
+          "LC-MS/MS only",
+        TRUE ~ "Neither"
+      )
+    ) %>%
+    dplyr::arrange(
+      availability,
+      Group,
+      Sample
+    )
+
+  availability_summary <- availability %>%
+    dplyr::count(
+      availability,
+      name = "number_samples"
+    ) %>%
+    tidyr::complete(
+      availability = c(
+        "Both Olink and LC-MS/MS",
+        "Olink only",
+        "LC-MS/MS only",
+        "Neither"
+      ),
+      fill = list(
+        number_samples = 0L
+      )
+    ) %>%
+    dplyr::bind_rows(
+      tibble::tibble(
+        availability =
+          "Total non-control samples",
+        number_samples =
+          nrow(availability)
+      )
+    )
+
+  list(
+    label = label,
+    excluded_samples =
+      excluded_samples,
+    clinical = clinical_use,
+    olink = olink_matrix,
+    ms = ms_matrix,
+    olink_metadata =
+      olink_metadata,
+    ms_metadata =
+      ms_metadata,
+    availability =
+      availability,
+    availability_summary =
+      availability_summary
+  )
+}
+
+
+write_qc_tables <- function(
+    qc_object,
+    suffix
+) {
+  write.csv(
+    qc_object$availability,
+    file.path(
+      output_dir,
+      paste0(
+        "sample_availability_",
+        suffix,
+        ".csv"
+      )
+    ),
+    row.names = FALSE
+  )
+
+  write.csv(
+    qc_object$availability_summary,
+    file.path(
+      output_dir,
+      paste0(
+        "sample_availability_summary_",
+        suffix,
+        ".csv"
+      )
+    ),
+    row.names = FALSE
+  )
+
+  olink_metrics <- calculate_sample_metrics(
+    qc_object$olink,
+    qc_object$olink_metadata,
+    assay_name = "Olink"
+  )
+
+  ms_metrics <- calculate_sample_metrics(
+    qc_object$ms,
+    qc_object$ms_metadata,
+    assay_name = "LC-MS/MS"
+  )
+
+  write.csv(
+    olink_metrics,
+    file.path(
+      output_dir,
+      paste0(
+        "Olink_sample_metrics_",
+        suffix,
+        ".csv"
+      )
+    ),
+    row.names = FALSE
+  )
+
+  write.csv(
+    ms_metrics,
+    file.path(
+      output_dir,
+      paste0(
+        "LCMS_sample_metrics_",
+        suffix,
+        ".csv"
+      )
+    ),
+    row.names = FALSE
+  )
+
+  invisible(
+    list(
+      olink_metrics =
+        olink_metrics,
+      ms_metrics =
+        ms_metrics
+    )
+  )
+}
+```
+
+# Import clinical and proteomics data
+
+```{r import clinical metadata}
+clinical_all <- readxl::read_excel(
+  clinical_file
+) %>%
+  dplyr::select(
+    -dplyr::matches(
+      "^Unnamed"
+    ),
+    -dplyr::all_of(
+      paste0(
+        "Sample_",
+        "age_days"
+      )
+    )
+  ) %>%
+  dplyr::mutate(
+    Sample = normalise_sample_id(
+      Sample
+    ),
+    Group = trimws(
+      as.character(
+        Group
+      )
+    ),
+    Age_years = as.numeric(
+      Age_years
+    )
+  ) %>%
+  dplyr::filter(
+    !is.na(Sample),
+    nzchar(Sample)
+  ) %>%
+  dplyr::distinct(
+    Sample,
+    .keep_all = TRUE
+  )
+
+clinical_non_control <- clinical_all %>%
+  dplyr::filter(
+    Group != "HC"
+  ) %>%
+  dplyr::mutate(
+    Group = factor(
+      Group,
+      levels = c(
+        "DCM",
+        "ICM"
+      )
+    )
+  )
+
+clinical_all %>%
+  dplyr::count(
+    Group,
+    name = "number_samples"
+  )
+```
+
+```{r import Olink data}
+olink_sample_metadata <- readxl::read_excel(
+  olink_sample_file
+) %>%
+  dplyr::select(
+    -dplyr::matches(
+      "^Unnamed"
+    )
+  ) %>%
+  dplyr::mutate(
+    Sample = normalise_sample_id(
+      Sample
+    ),
+    BCA_mg_ml =
+      as.numeric(
+        BCA_mg_ml
+      ),
+    Batch = factor(
+      Batch
+    )
+  ) %>%
+  dplyr::distinct(
+    Sample,
+    .keep_all = TRUE
+  )
+
+olink_raw <- read.delim(
+  olink_quant_file,
+  sep = "\t",
+  check.names = FALSE
+)
+
+if (
+  !"SampleID" %in%
+    colnames(olink_raw)
+) {
+  stop(
+    "The Olink file does not contain a SampleID column."
+  )
+}
+
+olink_feature_ids <- sub(
+  "_.*",
+  "",
+  as.character(
+    olink_raw$SampleID
+  )
+)
+
+olink_expression_initial <- as.matrix(
+  olink_raw[
+    ,
+    setdiff(
+      colnames(olink_raw),
+      "SampleID"
+    ),
+    drop = FALSE
+  ]
+)
+
+storage.mode(
+  olink_expression_initial
+) <- "numeric"
+
+colnames(
+  olink_expression_initial
+) <- normalise_sample_id(
+  colnames(
+    olink_expression_initial
+  )
+)
+
+olink_expression_all <- limma::avereps(
+  olink_expression_initial,
+  ID = olink_feature_ids
+)
+
+olink_expression_all <-
+  filter_usable_features(
+    olink_expression_all
+  )
+
+dim(
+  olink_expression_all
+)
+```
+
+```{r import LCMS data}
+ms_raw <- read.csv(
+  ms_file,
+  check.names = FALSE
+)
+
+ms_annotation_columns <- c(
+  "Protein.Group",
+  "Protein.Names",
+  "Genes",
+  "First.Protein.Description",
+  "N.Sequences",
+  "N.Proteotypic.Sequences"
+)
+
+missing_ms_annotation_columns <- setdiff(
+  ms_annotation_columns,
+  colnames(ms_raw)
+)
+
+if (
+  length(
+    missing_ms_annotation_columns
+  ) > 0L
+) {
+  stop(
+    "Missing expected LC-MS/MS annotation columns: ",
+    paste(
+      missing_ms_annotation_columns,
+      collapse = ", "
+    )
+  )
+}
+
+ms_sample_columns <- setdiff(
+  colnames(ms_raw),
+  ms_annotation_columns
+)
+
+ms_qc_columns <- grep(
+  "^QC",
+  ms_sample_columns,
+  value = TRUE
+)
+
+ms_biological_columns <- setdiff(
+  ms_sample_columns,
+  ms_qc_columns
+)
+
+ms_gene <- sub(
+  ";.*$",
+  "",
+  as.character(
+    ms_raw$Genes
+  )
+)
+
+ms_gene <- trimws(
+  ms_gene
+)
+
+keep_ms_rows <- !is.na(ms_gene) &
+  nzchar(ms_gene)
+
+ms_expression_initial <- as.matrix(
+  ms_raw[
+    keep_ms_rows,
+    ms_biological_columns,
+    drop = FALSE
+  ]
+)
+
+storage.mode(
+  ms_expression_initial
+) <- "numeric"
+
+colnames(
+  ms_expression_initial
+) <- normalise_sample_id(
+  colnames(
+    ms_expression_initial
+  )
+)
+
+ms_gene <- ms_gene[
+  keep_ms_rows
+]
+
+ms_expression_collapsed <- limma::avereps(
+  ms_expression_initial,
+  ID = ms_gene
+)
+
+ms_expression_log2_all <- log2(
+  ms_expression_collapsed + 1
+)
+
+if (isTRUE(ms_zero_is_missing)) {
+  ms_expression_log2_all[
+    !is.finite(
+      ms_expression_collapsed
+    ) |
+      ms_expression_collapsed <= 0
+  ] <- NA_real_
+} else {
+  ms_expression_log2_all[
+    !is.finite(
+      ms_expression_log2_all
+    )
+  ] <- NA_real_
+}
+
+ms_expression_log2_all <-
+  filter_usable_features(
+    ms_expression_log2_all
+  )
+
+dim(
+  ms_expression_log2_all
+)
+```
+
+```{r identify unmatched raw samples}
+raw_sample_inventory <- dplyr::bind_rows(
+  tibble::tibble(
+    Sample =
+      colnames(
+        olink_expression_all
+      ),
+    assay = "Olink"
+  ),
+  tibble::tibble(
+    Sample =
+      colnames(
+        ms_expression_log2_all
+      ),
+    assay = "LC-MS/MS"
+  )
+) %>%
+  dplyr::distinct() %>%
+  dplyr::left_join(
+    clinical_all %>%
+      dplyr::select(
+        Sample,
+        Group
+      ),
+    by = "Sample"
+  ) %>%
+  dplyr::mutate(
+    present_in_clinical_metadata =
+      !is.na(Group),
+    is_control =
+      Group == "HC"
+  ) %>%
+  dplyr::arrange(
+    assay,
+    Sample
+  )
+
+write.csv(
+  raw_sample_inventory,
+  file.path(
+    output_dir,
+    "raw_proteomics_sample_inventory.csv"
+  ),
+  row.names = FALSE
+)
+
+raw_sample_inventory %>%
+  dplyr::filter(
+    !present_in_clinical_metadata |
+      is_control
+  ) %>%
+  reactable::reactable(
+    searchable = TRUE,
+    filterable = TRUE,
+    defaultPageSize = 15
+  )
+```
+
+# Part 1: QC before sample exclusion
+
+```{r prepare QC before exclusion}
+qc_before <- prepare_qc_set(
+  excluded_samples =
+    character(0),
+  label =
+    "Before exclusion"
+)
+
+metrics_before <- write_qc_tables(
+  qc_before,
+  suffix = "before_exclusion"
+)
+```
+
+## Sample availability before exclusion
+
+```{r availability summary before}
+qc_before$availability_summary %>%
+  reactable::reactable(
+    searchable = FALSE,
+    pagination = FALSE
+  )
+```
+
+```{r availability table before}
+qc_before$availability %>%
+  reactable::reactable(
+    searchable = TRUE,
+    filterable = TRUE,
+    defaultPageSize = 20
+  )
+```
+
+## Olink QC before exclusion
+
+### NPX distribution by sample
+
+```{r Olink boxplots before, fig.height=6.5, fig.width=15}
+plot_sample_boxplots(
+  mat = qc_before$olink,
+  metadata =
+    qc_before$olink_metadata,
+  assay_name = "Olink",
+  title_suffix =
+    "NPX distributions",
+  y_label = "NPX"
+)
+```
+
+```{r Olink densities before, fig.height=5.5, fig.width=9}
+plot_sample_densities(
+  mat = qc_before$olink,
+  metadata =
+    qc_before$olink_metadata,
+  assay_name = "Olink",
+  title_suffix =
+    "Sample density distributions",
+  x_label = "NPX"
+)
+```
+
+### Olink PCA
+
+```{r Olink PCA object before}
+olink_pca_before <- prepare_pca(
+  mat = qc_before$olink,
+  metadata =
+    qc_before$olink_metadata,
+  assay_name = "Olink"
+)
+```
+
+```{r Olink PCA before, fig.height=7, fig.width=10}
+plot_pca_group(
+  olink_pca_before,
+  title_suffix =
+    "PCA"
+)
+```
+
+### Olink sample correlation
+
+```{r Olink correlation before, fig.height=11, fig.width=12}
+draw_sample_correlation_heatmap(
+  mat = qc_before$olink,
+  metadata =
+    qc_before$olink_metadata,
+  assay_name = "Olink",
+  title_suffix =
+    "Sample correlations",
+  include_olink_technical = TRUE
+)
+```
+
+### Olink heatmap: all usable proteins and samples
+
+```{r Olink heatmap before, fig.height=12, fig.width=14}
+draw_expression_heatmap(
+  mat = qc_before$olink,
+  metadata =
+    qc_before$olink_metadata,
+  assay_name = "Olink",
+  title_suffix =
+    "All usable proteins",
+  imputation = "median",
+  include_olink_technical = TRUE
+)
+```
+
+## LC-MS/MS QC before exclusion
+
+### Number of proteins detected per sample
+
+```{r LCMS detected proteins before, fig.height=6.5, fig.width=15}
+plot_detected_per_sample(
+  metrics =
+    metrics_before$ms_metrics,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "Detected proteins"
+)
+```
+
+### LC-MS/MS abundance distributions
+
+```{r LCMS boxplots before, fig.height=6.5, fig.width=15}
+plot_sample_boxplots(
+  mat = qc_before$ms,
+  metadata =
+    qc_before$ms_metadata,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "Log2 abundance distributions",
+  y_label = "Log2 abundance"
+)
+```
+
+```{r LCMS densities before, fig.height=5.5, fig.width=9}
+plot_sample_densities(
+  mat = qc_before$ms,
+  metadata =
+    qc_before$ms_metadata,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "Sample density distributions",
+  x_label = "Log2 abundance"
+)
+```
+
+### Additional LC-MS/MS diagnostic plots
+
+```{r LCMS diagnostics before, fig.height=10, fig.width=15}
+(
+  plot_missing_fraction(
+    metrics =
+      metrics_before$ms_metrics,
+    assay_name = "LC-MS/MS",
+    title_suffix =
+      "Missingness"
+  ) |
+    plot_median_abundance(
+      metrics =
+        metrics_before$ms_metrics,
+      assay_name = "LC-MS/MS",
+      title_suffix =
+        "Median abundance",
+      y_label =
+        "Median log2 abundance"
+    )
+) /
+  plot_feature_missingness(
+    mat = qc_before$ms,
+    assay_name = "LC-MS/MS",
+    title_suffix =
+      "Protein missingness"
+  )
+```
+
+### LC-MS/MS PCA
+
+```{r LCMS PCA object before}
+ms_pca_before <- prepare_pca(
+  mat = qc_before$ms,
+  metadata =
+    qc_before$ms_metadata,
+  assay_name = "LC-MS/MS"
+)
+```
+
+```{r LCMS PCA before, fig.height=7, fig.width=10}
+plot_pca_group(
+  ms_pca_before,
+  title_suffix =
+    "PCA"
+)
+```
+
+### LC-MS/MS sample correlation
+
+```{r LCMS correlation before, fig.height=11, fig.width=12}
+draw_sample_correlation_heatmap(
+  mat = qc_before$ms,
+  metadata =
+    qc_before$ms_metadata,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "Sample correlations"
+)
+```
+
+### LC-MS/MS heatmap: all usable proteins and samples
+
+```{r LCMS heatmap before, fig.height=12, fig.width=14}
+draw_expression_heatmap(
+  mat = qc_before$ms,
+  metadata =
+    qc_before$ms_metadata,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "All usable proteins",
+  imputation = "low"
+)
+```
+
+# Sample exclusions
+
+```{r define sample exclusions}
+poor_quality_samples <- c(
+  "P11",
+  "PK61",
+  "PK63"
+)
+
+ambiguous_identity_samples <- "PK69"
+
+icm_samples <- clinical_non_control %>%
+  dplyr::filter(
+    Group == "ICM"
+  ) %>%
+  dplyr::pull(Sample)
+
+female_samples <- clinical_non_control %>%
+  dplyr::filter(
+    toupper(
+      trimws(
+        as.character(Sex)
+      )
+    ) == "F"
+  ) %>%
+  dplyr::pull(Sample) %>%
+  unique()
+
+if (length(female_samples) != 1L) {
+  warning(
+    "Expected one female patient, but found ",
+    length(female_samples),
+    "."
+  )
+}
+
+sample_exclusions <- dplyr::bind_rows(
+  tibble::tibble(
+    Sample = poor_quality_samples,
+    Exclusion_reason =
+      "Poor proteomic data quality"
+  ),
+  tibble::tibble(
+    Sample =
+      ambiguous_identity_samples,
+    Exclusion_reason =
+      "Ambiguous patient assignment due to duplicate sample identifier"
+  ),
+  tibble::tibble(
+    Sample = icm_samples,
+    Exclusion_reason =
+      "ICM excluded from the DCM-focused analysis"
+  ),
+  tibble::tibble(
+    Sample = female_samples,
+    Exclusion_reason =
+      "Female patient excluded from the male DCM analysis"
+  )
+) %>%
+  dplyr::group_by(Sample) %>%
+  dplyr::summarise(
+    Exclusion_reason = paste(
+      unique(Exclusion_reason),
+      collapse = "; "
+    ),
+    .groups = "drop"
+  ) %>%
+  dplyr::left_join(
+    qc_before$availability,
+    by = "Sample"
+  ) %>%
+  dplyr::arrange(
+    Exclusion_reason,
+    Sample
+  )
+
+samples_to_exclude <- unique(
+  sample_exclusions$Sample
+)
+
+write.csv(
+  sample_exclusions,
+  file.path(
+    output_dir,
+    "sample_exclusions.csv"
+  ),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  sample_exclusions,
+  searchable = TRUE,
+  filterable = TRUE,
+  pagination = FALSE
+)
+```
+
+# Part 2: QC after sample exclusion
+
+```{r prepare QC after exclusion}
+qc_after <- prepare_qc_set(
+  excluded_samples =
+    samples_to_exclude,
+  label =
+    "After manual exclusion"
+)
+
+metrics_after <- write_qc_tables(
+  qc_after,
+  suffix = "after_exclusion"
+)
+```
+
+## Sample availability after exclusion
+
+```{r availability summary after}
+qc_after$availability_summary %>%
+  reactable::reactable(
+    searchable = FALSE,
+    pagination = FALSE
+  )
+```
+
+```{r availability table after}
+qc_after$availability %>%
+  reactable::reactable(
+    searchable = TRUE,
+    filterable = TRUE,
+    defaultPageSize = 20
+  )
+```
+
+## Olink QC after exclusion
+
+### NPX distribution by sample
+
+```{r Olink boxplots after, fig.height=6.5, fig.width=15}
+plot_sample_boxplots(
+  mat = qc_after$olink,
+  metadata =
+    qc_after$olink_metadata,
+  assay_name = "Olink",
+  title_suffix =
+    "NPX distributions",
+  y_label = "NPX"
+)
+```
+
+```{r Olink densities after, fig.height=5.5, fig.width=9}
+plot_sample_densities(
+  mat = qc_after$olink,
+  metadata =
+    qc_after$olink_metadata,
+  assay_name = "Olink",
+  title_suffix =
+    "Sample density distributions",
+  x_label = "NPX"
+)
+```
+
+### Olink PCA
+
+```{r Olink PCA object after}
+olink_pca_after <- prepare_pca(
+  mat = qc_after$olink,
+  metadata =
+    qc_after$olink_metadata,
+  assay_name = "Olink"
+)
+```
+
+```{r Olink PCA after, fig.height=7, fig.width=10}
+plot_pca_group(
+  olink_pca_after,
+  title_suffix =
+    "PCA"
+)
+```
+
+### Olink sample correlation
+
+```{r Olink correlation after, fig.height=11, fig.width=12}
+draw_sample_correlation_heatmap(
+  mat = qc_after$olink,
+  metadata =
+    qc_after$olink_metadata,
+  assay_name = "Olink",
+  title_suffix =
+    "Sample correlations",
+  include_olink_technical = TRUE
+)
+```
+
+### Olink heatmap: all usable proteins and samples
+
+```{r Olink heatmap after, fig.height=12, fig.width=14}
+draw_expression_heatmap(
+  mat = qc_after$olink,
+  metadata =
+    qc_after$olink_metadata,
+  assay_name = "Olink",
+  title_suffix =
+    "All usable proteins",
+  imputation = "median",
+  include_olink_technical = TRUE
+)
+```
+
+## LC-MS/MS QC after exclusion
+
+### Number of proteins detected per sample
+
+```{r LCMS detected proteins after, fig.height=3.5, fig.width=7}
+plot_detected_per_sample(
+  metrics =
+    metrics_after$ms_metrics,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "Detected proteins"
+)
+```
+
+### LC-MS/MS abundance distributions
+
+```{r LCMS boxplots after, fig.height=6.5, fig.width=15}
+plot_sample_boxplots(
+  mat = qc_after$ms,
+  metadata =
+    qc_after$ms_metadata,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "Log2 abundance distributions",
+  y_label = "Log2 abundance"
+)
+```
+
+```{r LCMS densities after, fig.height=5.5, fig.width=9}
+plot_sample_densities(
+  mat = qc_after$ms,
+  metadata =
+    qc_after$ms_metadata,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "Sample density distributions",
+  x_label = "Log2 abundance"
+)
+```
+
+### Additional LC-MS/MS diagnostic plots
+
+```{r LCMS diagnostics after, fig.height=10, fig.width=15}
+(
+  plot_missing_fraction(
+    metrics =
+      metrics_after$ms_metrics,
+    assay_name = "LC-MS/MS",
+    title_suffix =
+      "Missingness"
+  ) |
+    plot_median_abundance(
+      metrics =
+        metrics_after$ms_metrics,
+      assay_name = "LC-MS/MS",
+      title_suffix =
+        "Median abundance",
+      y_label =
+        "Median log2 abundance"
+    )
+) /
+  plot_feature_missingness(
+    mat = qc_after$ms,
+    assay_name = "LC-MS/MS",
+    title_suffix =
+      "Protein missingness"
+  )
+```
+
+### LC-MS/MS PCA
+
+```{r LCMS PCA object after}
+ms_pca_after <- prepare_pca(
+  mat = qc_after$ms,
+  metadata =
+    qc_after$ms_metadata,
+  assay_name = "LC-MS/MS"
+)
+```
+
+```{r LCMS PCA after, fig.height=7, fig.width=10}
+plot_pca_group(
+  ms_pca_after,
+  title_suffix =
+    "PCA"
+)
+```
+
+### LC-MS/MS sample correlation
+
+```{r LCMS correlation after, fig.height=11, fig.width=12}
+draw_sample_correlation_heatmap(
+  mat = qc_after$ms,
+  metadata =
+    qc_after$ms_metadata,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "Sample correlations"
+)
+```
+
+### LC-MS/MS heatmap: all usable proteins and samples
+
+```{r LCMS heatmap after, fig.height=12, fig.width=14}
+draw_expression_heatmap(
+  mat = qc_after$ms,
+  metadata =
+    qc_after$ms_metadata,
+  assay_name = "LC-MS/MS",
+  title_suffix =
+    "All usable proteins",
+  imputation = "low"
+)
+```
+
+# Before-versus-after sample counts
+
+```{r compare before and after sample counts}
+availability_comparison <- dplyr::bind_rows(
+  qc_before$availability_summary %>%
+    dplyr::mutate(
+      QC_stage = "Before exclusion"
+    ),
+  qc_after$availability_summary %>%
+    dplyr::mutate(
+      QC_stage = "After exclusion"
+    )
+) %>%
+  dplyr::select(
+    QC_stage,
+    availability,
+    number_samples
+  )
+
+write.csv(
+  availability_comparison,
+  file.path(
+    output_dir,
+    "sample_availability_before_after_comparison.csv"
+  ),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  availability_comparison,
+  searchable = FALSE,
+  pagination = FALSE
+)
+```
+
+# Save QC objects
+
+```{r save QC objects}
+saveRDS(
+  list(
+    settings = list(
+      samples_to_exclude =
+        samples_to_exclude,
+      sample_exclusions =
+        sample_exclusions,
+      ms_zero_is_missing =
+        ms_zero_is_missing,
+      pca_min_observed_fraction =
+        pca_min_observed_fraction
+    ),
+    raw_sample_inventory =
+      raw_sample_inventory,
+    before_exclusion =
+      qc_before,
+    after_exclusion =
+      qc_after,
+    metrics_before =
+      metrics_before,
+    metrics_after =
+      metrics_after
+  ),
+  file.path(
+    output_dir,
+    "Proteomics_QC_complete_objects.rds"
+  )
+)
+```
+
+# Clinical correlation structure
+
+```{r additional quality control libraries}
+library(Hmisc)
+library(ggtext)
+library(variancePartition)
+```
+
+```{r additional quality control settings}
+additional_qc_figure_dir <- file.path(
+  figure_dir,
+  "additional_quality_control"
+)
+
+dir.create(
+  additional_qc_figure_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+clinical_variable_labels <- c(
+  Age_years = "Age",
+  mPAP_mmHg = "mPAP",
+  sPAP_mmHg = "sPAP",
+  PCW_mmHg = "PCWP",
+  PVR_WU = "PVR",
+  TAPSE_mm = "TAPSE",
+  RVIT_mm = "RVIT",
+  LVEF_percent = "LVEF",
+  LVEDD_mm = "LVEDD",
+  BCA_mg_ml = "BCA",
+  Residuals = "Unexplained"
+)
+
+protein_heatmap_colors <-
+  circlize::colorRamp2(
+    c(
+      -2,
+      0,
+      2
+    ),
+    c(
+      "#2166AC",
+      "white",
+      "#B2182B"
+    )
+  )
+```
+
+```{r clinical correlation matrix, fig.height=7.8, fig.width=8}
+clinical_correlation_variables <- c(
+  "mPAP_mmHg",
+  "sPAP_mmHg",
+  "PCW_mmHg",
+  "PVR_WU",
+  "TAPSE_mm",
+  "RVIT_mm",
+  "LVEF_percent",
+  "LVEDD_mm",
+  "Age_years"
+)
+
+final_proteomics_samples <-
+  union(
+    colnames(
+      qc_after$olink
+    ),
+    colnames(
+      qc_after$ms
+    )
+  )
+
+clinical_correlation_variables <-
+  intersect(
+    clinical_correlation_variables,
+    colnames(
+      qc_after$clinical
+    )
+  )
+
+clinical_correlation_data <-
+  qc_after$clinical %>%
+  dplyr::filter(
+    Sample %in%
+      final_proteomics_samples
+  ) %>%
+  dplyr::mutate(
+    dplyr::across(
+      dplyr::all_of(
+        clinical_correlation_variables
+      ),
+      as.numeric
+    )
+  ) %>%
+  dplyr::select(
+    dplyr::all_of(
+      clinical_correlation_variables
+    )
+  )
+
+clinical_correlation_variables <-
+  clinical_correlation_variables[
+    vapply(
+      clinical_correlation_data[
+        clinical_correlation_variables
+      ],
+      function(values) {
+        finite_values <-
+          values[
+            is.finite(values)
+          ]
+
+        length(finite_values) >= 3L &&
+          stats::sd(
+            finite_values
+          ) > 0
+      },
+      logical(1)
+    )
+  ]
+
+clinical_correlation_data <-
+  clinical_correlation_data %>%
+  dplyr::select(
+    dplyr::all_of(
+      clinical_correlation_variables
+    )
+  )
+
+clinical_correlation_result <-
+  Hmisc::rcorr(
+    as.matrix(
+      clinical_correlation_data
+    ),
+    type = "pearson"
+  )
+
+clinical_correlation_matrix <-
+  clinical_correlation_result$r[
+    clinical_correlation_variables,
+    clinical_correlation_variables,
+    drop = FALSE
+  ]
+
+clinical_correlation_p_matrix <-
+  clinical_correlation_result$P[
+    clinical_correlation_variables,
+    clinical_correlation_variables,
+    drop = FALSE
+  ]
+
+clinical_correlation_long <-
+  as.data.frame(
+    clinical_correlation_matrix
+  ) %>%
+  tibble::rownames_to_column(
+    "variable_y"
+  ) %>%
+  tidyr::pivot_longer(
+    cols = -variable_y,
+    names_to = "variable_x",
+    values_to = "correlation"
+  ) %>%
+  dplyr::left_join(
+    as.data.frame(
+      clinical_correlation_p_matrix
+    ) %>%
+      tibble::rownames_to_column(
+        "variable_y"
+      ) %>%
+      tidyr::pivot_longer(
+        cols = -variable_y,
+        names_to = "variable_x",
+        values_to = "p_value"
+      ),
+    by = c(
+      "variable_y",
+      "variable_x"
+    )
+  ) %>%
+  dplyr::mutate(
+    variable_x = factor(
+      variable_x,
+      levels =
+        clinical_correlation_variables,
+      labels =
+        unname(
+          clinical_variable_labels[
+            clinical_correlation_variables
+          ]
+        )
+    ),
+    variable_y = factor(
+      variable_y,
+      levels =
+        rev(
+          clinical_correlation_variables
+        ),
+      labels =
+        unname(
+          clinical_variable_labels[
+            rev(
+              clinical_correlation_variables
+            )
+          ]
+        )
+    ),
+    correlation_label =
+      dplyr::if_else(
+        is.finite(correlation),
+        sprintf(
+          "%.2f",
+          correlation
+        ),
+        ""
+      ),
+    p_label =
+      dplyr::case_when(
+        is.na(p_value) ~ "",
+        p_value < 0.001 ~
+          "P < 0.001",
+        TRUE ~
+          sprintf(
+            "P = %.3f",
+            p_value
+          )
+      ),
+    highlighted =
+      is.finite(correlation) &
+      is.finite(p_value) &
+      abs(correlation) > 0.40 &
+      p_value < 0.05,
+    combined_label =
+      dplyr::if_else(
+        highlighted,
+        paste0(
+          "<b>",
+          correlation_label,
+          "</b><br><b>",
+          p_label,
+          "</b>"
+        ),
+        paste0(
+          correlation_label,
+          "<br>",
+          p_label
+        )
+      )
+  )
+
+clinical_correlation_plot <-
+  ggplot(
+    clinical_correlation_long,
+    aes(
+      x = variable_x,
+      y = variable_y,
+      fill = correlation
+    )
+  ) +
+  geom_tile(
+    colour = "grey85",
+    linewidth = 0.4
+  ) +
+  geom_tile(
+    data =
+      dplyr::filter(
+        clinical_correlation_long,
+        highlighted
+      ),
+    fill = NA,
+    colour = "black",
+    linewidth = 0.8
+  ) +
+  ggtext::geom_richtext(
+    aes(
+      label =
+        combined_label
+    ),
+    fill = NA,
+    label.colour = NA,
+    size = 2.8,
+    lineheight = 0.9
+  ) +
+  scale_fill_gradient2(
+    low = "#2166AC",
+    mid = "white",
+    high = "#B2182B",
+    midpoint = 0,
+    limits = c(
+      -1,
+      1
+    ),
+    oob =
+      scales::squish,
+    name =
+      "Pearson r"
+  ) +
+  coord_fixed() +
+  labs(
+    x = NULL,
+    y = NULL
+  ) +
+  theme_classic(
+    base_size = 15
+  ) +
+  theme(
+    axis.text.x =
+      element_text(
+        angle = 45,
+        hjust = 1,
+        face = "bold",
+        colour = "black"
+      ),
+    axis.text.y =
+      element_text(
+        face = "bold",
+        colour = "black"
+      ),
+    axis.line =
+      element_blank()
+  )
+
+clinical_correlation_plot
+
+write.csv(
+  clinical_correlation_long,
+  file.path(
+    output_dir,
+    "clinical_correlations.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+# Variance partitioning
+
+The contribution of clinical and technical variables to protein abundance
+variation was estimated separately for the Olink and LC-MS/MS datasets.
+
+```{r variance partition helper functions}
+run_proteomics_variance_partition <- function(
+    expression_matrix,
+    metadata,
+    candidate_variables
+) {
+  variables <-
+    intersect(
+      candidate_variables,
+      colnames(metadata)
+    )
+
+  analysis_metadata <-
+    metadata %>%
+    dplyr::select(
+      Sample,
+      dplyr::all_of(
+        variables
+      )
+    ) %>%
+    dplyr::distinct(
+      Sample,
+      .keep_all = TRUE
+    ) %>%
+    dplyr::filter(
+      Sample %in%
+        colnames(
+          expression_matrix
+        )
+    ) %>%
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::all_of(
+          variables
+        ),
+        as.numeric
+      )
+    ) %>%
+    tidyr::drop_na()
+
+  variables <-
+    variables[
+      vapply(
+        analysis_metadata[
+          variables
+        ],
+        function(values) {
+          is.finite(
+            stats::sd(values)
+          ) &&
+            stats::sd(values) > 0
+        },
+        logical(1)
+      )
+    ]
+
+  analysis_metadata <-
+    analysis_metadata %>%
+    dplyr::select(
+      Sample,
+      dplyr::all_of(
+        variables
+      )
+    )
+
+  if (
+    length(variables) == 0L
+  ) {
+    stop(
+      "No usable variables were available for variance partitioning."
+    )
+  }
+
+  if (
+    nrow(analysis_metadata) <=
+      length(variables) + 2L
+  ) {
+    stop(
+      "Too few complete samples for the selected variance-partition model."
+    )
+  }
+
+  analysis_metadata <-
+    analysis_metadata %>%
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::all_of(
+          variables
+        ),
+        ~ as.numeric(
+          scale(.x)
+        )
+      )
+    )
+
+  analysis_matrix <-
+    expression_matrix[
+      ,
+      analysis_metadata$Sample,
+      drop = FALSE
+    ]
+
+  observed_values <-
+    matrixStats::rowSums2(
+      is.finite(
+        analysis_matrix
+      )
+    )
+
+  feature_variance <-
+    matrixStats::rowVars(
+      analysis_matrix,
+      na.rm = TRUE
+    )
+
+  usable_features <-
+    observed_values >= 3L &
+    is.finite(feature_variance) &
+    feature_variance > 0
+
+  analysis_matrix <-
+    analysis_matrix[
+      usable_features,
+      ,
+      drop = FALSE
+    ]
+
+  variance_formula <-
+    stats::reformulate(
+      variables
+    )
+
+  variance_partition <-
+    variancePartition::fitExtractVarPartModel(
+      analysis_matrix,
+      variance_formula,
+      analysis_metadata
+    )
+
+  colnames(
+    variance_partition
+  ) <-
+    gsub(
+      "`",
+      "",
+      colnames(
+        variance_partition
+      ),
+      fixed = TRUE
+    )
+
+  mean_variance <-
+    sort(
+      colMeans(
+        variance_partition,
+        na.rm = TRUE
+      ),
+      decreasing = TRUE
+    )
+
+  plot_data <-
+    tibble::tibble(
+      variable =
+        names(
+          mean_variance
+        ),
+      mean_fraction =
+        as.numeric(
+          mean_variance
+        )
+    ) %>%
+    dplyr::mutate(
+      variable_label =
+        dplyr::recode(
+          variable,
+          !!!clinical_variable_labels,
+          .default =
+            variable
+        ),
+      variable_label =
+        factor(
+          variable_label,
+          levels =
+            rev(
+              variable_label
+            )
+        )
+    )
+
+  list(
+    variance_partition =
+      variance_partition,
+    plot_data =
+      plot_data,
+    metadata =
+      analysis_metadata,
+    number_features =
+      nrow(
+        analysis_matrix
+      )
+  )
+}
+
+
+plot_proteomics_variance_partition <- function(
+    variance_result,
+    title_text
+) {
+  ggplot(
+    variance_result$plot_data,
+    aes(
+      x = variable_label,
+      y = mean_fraction
+    )
+  ) +
+    geom_col(
+      fill = "grey35",
+      width = 0.75
+    ) +
+    coord_flip() +
+    scale_y_continuous(
+      labels =
+        scales::percent_format(
+          accuracy = 1
+        ),
+      expand =
+        expansion(
+          mult = c(
+            0,
+            0.05
+          )
+        )
+    ) +
+    labs(
+      title =
+        title_text,
+      x = NULL,
+      y =
+        "Mean fraction of variance explained"
+    ) +
+    theme_classic(
+      base_size = 12
+    ) +
+    theme(
+      plot.title =
+        element_text(
+          face = "bold",
+          hjust = 0.5
+        ),
+      axis.text =
+        element_text(
+          colour = "black"
+        )
+    )
+}
+```
+
+```{r Olink variance partition, fig.height=3.5, fig.width=5.5}
+olink_variance_partition <-
+  run_proteomics_variance_partition(
+    expression_matrix =
+      qc_after$olink,
+    metadata =
+      qc_after$olink_metadata,
+    candidate_variables = c(
+      "Age_years",
+      "BCA_mg_ml",
+      "mPAP_mmHg",
+      "RVIT_mm",
+      "TAPSE_mm",
+      "LVEF_percent",
+      "LVEDD_mm"
+    )
+  )
+
+olink_variance_partition_plot <-
+  plot_proteomics_variance_partition(
+    variance_result =
+      olink_variance_partition,
+    title_text =
+      "Olink"
+  )
+
+olink_variance_partition_plot
+
+write.csv(
+  olink_variance_partition$
+    plot_data,
+  file.path(
+    output_dir,
+    "Olink_variance_partition.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+```{r LCMS variance partition, fig.height=3.5, fig.width=5.5}
+ms_variance_partition <-
+  run_proteomics_variance_partition(
+    expression_matrix =
+      qc_after$ms,
+    metadata =
+      qc_after$ms_metadata,
+    candidate_variables = c(
+      "Age_years",
+      "mPAP_mmHg",
+      "RVIT_mm",
+      "TAPSE_mm",
+      "LVEF_percent",
+      "LVEDD_mm"
+    )
+  )
+
+ms_variance_partition_plot <-
+  plot_proteomics_variance_partition(
+    variance_result =
+      ms_variance_partition,
+    title_text =
+      "LC-MS/MS"
+  )
+
+ms_variance_partition_plot
+
+write.csv(
+  ms_variance_partition$
+    plot_data,
+  file.path(
+    output_dir,
+    "LCMS_variance_partition.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+# LC-MS/MS missingness and abundance
+
+```{r LCMS missingness abundance, fig.height=3.5, fig.width=5.2}
+ms_missingness_abundance <-
+  tibble::tibble(
+    Protein =
+      rownames(
+        qc_after$ms
+      ),
+    Missing_fraction =
+      matrixStats::rowMeans2(
+        !is.finite(
+          qc_after$ms
+        )
+      ),
+    Median_log2_abundance =
+      matrixStats::rowMedians(
+        qc_after$ms,
+        na.rm = TRUE
+      )
+  ) %>%
+  dplyr::filter(
+    is.finite(
+      Missing_fraction
+    ),
+    is.finite(
+      Median_log2_abundance
+    )
+  )
+
+ms_missingness_abundance_plot <-
+  ggplot(
+    ms_missingness_abundance,
+    aes(
+      x =
+        Median_log2_abundance,
+      y =
+        Missing_fraction
+    )
+  ) +
+  geom_point(
+    size = 1.3,
+    alpha = 0.65
+  ) +
+  scale_y_continuous(
+    labels =
+      scales::percent_format(
+        accuracy = 1
+      ),
+    limits = c(
+      0,
+      1
+    )
+  ) +
+  labs(
+    x =
+      "Median log2 abundance",
+    y =
+      "Fraction of samples missing"
+  ) +
+  theme_classic(
+    base_size = 12
+  ) +
+  theme(
+    axis.text =
+      element_text(
+        colour = "black"
+      )
+  )
+
+ms_missingness_abundance_plot
+
+write.csv(
+  ms_missingness_abundance,
+  file.path(
+    output_dir,
+    "LCMS_missingness_abundance.csv"
+  ),
+  row.names = FALSE
+)
+```
+
+# Global abundance structure
+
+```{r LCMS all protein heatmap, fig.height=6, fig.width=8}
+ms_heatmap_matrix <-
+  filter_usable_features(
+    qc_after$ms
+  )
+
+ms_heatmap_matrix <-
+  impute_rows_low_value(
+    ms_heatmap_matrix
+  )
+
+ms_heatmap_z <-
+  t(
+    scale(
+      t(
+        ms_heatmap_matrix
+      )
+    )
+  )
+
+ms_heatmap_z[
+  !is.finite(
+    ms_heatmap_z
+  )
+] <- 0
+
+
+ms_heatmap_metadata <-
+  qc_after$clinical %>%
+  dplyr::select(
+    Sample,
+    Age_years,
+    Sex
+  ) %>%
+  dplyr::filter(
+    Sample %in%
+      colnames(
+        ms_heatmap_z
+      )
+  ) %>%
+  dplyr::slice(
+    match(
+      colnames(
+        ms_heatmap_z
+      ),
+      Sample
+    )
+  ) %>%
+  dplyr::mutate(
+    Age_years =
+      as.numeric(
+        Age_years
+      ),
+    Sex =
+      factor(
+        as.character(
+          Sex
+        )
+      )
+  )
+
+
+stopifnot(
+  all(
+    ms_heatmap_metadata$
+      Sample ==
+      colnames(
+        ms_heatmap_z
+      )
+  )
+)
+
+
+ms_age_color <-
+  safe_continuous_colour(
+    ms_heatmap_metadata$
+      Age_years,
+    colours = c(
+      "grey95",
+      "grey60",
+      "grey10"
+    )
+  )
+
+
+ms_sex_levels <-
+  levels(
+    droplevels(
+      ms_heatmap_metadata$
+        Sex
+    )
+  )
+
+
+ms_sex_colors <-
+  stats::setNames(
+    c(
+      "#009E73",
+      "#E69F00",
+      "#7B61A8",
+      "#56B4E9"
+    )[
+      seq_along(
+        ms_sex_levels
+      )
+    ],
+    ms_sex_levels
+  )
+
+
+ms_heatmap_annotation <-
+  ComplexHeatmap::HeatmapAnnotation(
+    Age =
+      ms_heatmap_metadata$
+        Age_years,
+    Sex =
+      ms_heatmap_metadata$
+        Sex,
+    col = list(
+      Age =
+        ms_age_color,
+      Sex =
+        ms_sex_colors
+    ),
+    na_col = "white",
+    annotation_name_gp =
+      grid::gpar(
+        fontsize = 10,
+        fontface = "bold",
+        col = "black"
+      )
+  )
+
+
+ms_all_protein_heatmap <-
+  ComplexHeatmap::Heatmap(
+    ms_heatmap_z,
+    name = "Z-score",
+    col =
+      protein_heatmap_colors,
+    top_annotation =
+      ms_heatmap_annotation,
+    show_row_names = FALSE,
+    show_column_names = TRUE,
+    column_names_gp =
+      grid::gpar(
+        fontsize = 7,
+        col = "black"
+      ),
+    cluster_rows = TRUE,
+    cluster_columns = TRUE,
+    use_raster =
+      nrow(
+        ms_heatmap_z
+      ) > 2000,
+    raster_quality = 2,
+    column_title =
+      "LC-MS/MS",
+    column_title_gp =
+      grid::gpar(
+        fontsize = 12,
+        fontface = "bold"
+      ),
+    heatmap_legend_param = list(
+      title = "Z-score",
+      at = c(
+        -2,
+        0,
+        2
+      )
+    )
+  )
+
+
+ComplexHeatmap::draw(
+  ms_all_protein_heatmap,
+  heatmap_legend_side = "right",
+  annotation_legend_side = "right"
+)
+
+
+
+```
+
+```{r Olink all protein heatmap, fig.height=6, fig.width=8.5}
+olink_heatmap_matrix <-
+  filter_usable_features(
+    qc_after$olink
+  )
+
+olink_heatmap_matrix <-
+  impute_rows_median(
+    olink_heatmap_matrix
+  )
+
+olink_heatmap_z <-
+  t(
+    scale(
+      t(
+        olink_heatmap_matrix
+      )
+    )
+  )
+
+olink_heatmap_z[
+  !is.finite(
+    olink_heatmap_z
+  )
+] <- 0
+
+
+olink_heatmap_metadata <-
+  qc_after$olink_metadata %>%
+  dplyr::select(
+    Sample,
+    Batch,
+    BCA_mg_ml
+  ) %>%
+  dplyr::left_join(
+    qc_after$clinical %>%
+      dplyr::select(
+        Sample,
+        Age_years,
+        Sex
+      ),
+    by = "Sample"
+  ) %>%
+  dplyr::filter(
+    Sample %in%
+      colnames(
+        olink_heatmap_z
+      )
+  ) %>%
+  dplyr::slice(
+    match(
+      colnames(
+        olink_heatmap_z
+      ),
+      Sample
+    )
+  ) %>%
+  dplyr::mutate(
+    Age_years =
+      as.numeric(
+        Age_years
+      ),
+    Sex =
+      factor(
+        as.character(
+          Sex
+        )
+      ),
+    Batch =
+      factor(
+        as.character(
+          Batch
+        )
+      ),
+    BCA_mg_ml =
+      as.numeric(
+        BCA_mg_ml
+      )
+  )
+
+
+stopifnot(
+  all(
+    olink_heatmap_metadata$
+      Sample ==
+      colnames(
+        olink_heatmap_z
+      )
+  )
+)
+
+
+olink_age_color <-
+  safe_continuous_colour(
+    olink_heatmap_metadata$
+      Age_years,
+    colours = c(
+      "grey95",
+      "grey60",
+      "grey10"
+    )
+  )
+
+
+olink_bca_color <-
+  safe_continuous_colour(
+    olink_heatmap_metadata$
+      BCA_mg_ml,
+    colours = c(
+      "grey95",
+      "grey60",
+      "grey10"
+    )
+  )
+
+
+olink_sex_levels <-
+  levels(
+    droplevels(
+      olink_heatmap_metadata$
+        Sex
+    )
+  )
+
+
+olink_sex_colors <-
+  stats::setNames(
+    c(
+      "#009E73",
+      "#E69F00",
+      "#7B61A8",
+      "#56B4E9"
+    )[
+      seq_along(
+        olink_sex_levels
+      )
+    ],
+    olink_sex_levels
+  )
+
+
+olink_batch_levels <-
+  levels(
+    droplevels(
+      olink_heatmap_metadata$
+        Batch
+    )
+  )
+
+
+olink_batch_colors <-
+  stats::setNames(
+    c(
+      "#56B4E9",
+      "#CC79A7",
+      "#009E73",
+      "#E69F00"
+    )[
+      seq_along(
+        olink_batch_levels
+      )
+    ],
+    olink_batch_levels
+  )
+
+
+olink_heatmap_annotation <-
+  ComplexHeatmap::HeatmapAnnotation(
+    Age =
+      olink_heatmap_metadata$
+        Age_years,
+    Sex =
+      olink_heatmap_metadata$
+        Sex,
+    Batch =
+      olink_heatmap_metadata$
+        Batch,
+    BCA =
+      olink_heatmap_metadata$
+        BCA_mg_ml,
+    col = list(
+      Age =
+        olink_age_color,
+      Sex =
+        olink_sex_colors,
+      Batch =
+        olink_batch_colors,
+      BCA =
+        olink_bca_color
+    ),
+    na_col = "white",
+    annotation_name_gp =
+      grid::gpar(
+        fontsize = 10,
+        fontface = "bold",
+        col = "black"
+      )
+  )
+
+
+olink_all_protein_heatmap <-
+  ComplexHeatmap::Heatmap(
+    olink_heatmap_z,
+    name = "Z-score",
+    col =
+      protein_heatmap_colors,
+    top_annotation =
+      olink_heatmap_annotation,
+    show_row_names = FALSE,
+    show_column_names = TRUE,
+    column_names_gp =
+      grid::gpar(
+        fontsize = 7,
+        col = "black"
+      ),
+    cluster_rows = TRUE,
+    cluster_columns = TRUE,
+    use_raster =
+      nrow(
+        olink_heatmap_z
+      ) > 2000,
+    raster_quality = 2,
+    column_title =
+      "Olink",
+    column_title_gp =
+      grid::gpar(
+        fontsize = 12,
+        fontface = "bold"
+      ),
+    heatmap_legend_param = list(
+      title = "Z-score",
+      at = c(
+        -2,
+        0,
+        2
+      )
+    )
+  )
+
+
+ComplexHeatmap::draw(
+  olink_all_protein_heatmap,
+  heatmap_legend_side = "right",
+  annotation_legend_side = "right"
+)
+
+
+```
+
+# Supplementary Data export
+
+```{r Supplementary_data_export, eval=TRUE}
+qc_suppdata <- list(
+  Sample_exclusions =
+    sample_exclusions,
+
+  Availability_comparison =
+    availability_comparison,
+
+  Availability_after =
+    qc_after$availability,
+
+  Olink_sample_metrics =
+    metrics_after$olink_metrics,
+
+  LCMS_sample_metrics =
+    metrics_after$ms_metrics,
+
+  Clinical_correlations =
+    clinical_correlation_long,
+
+  Olink_variance =
+    olink_variance_partition$plot_data,
+
+  LCMS_variance =
+    ms_variance_partition$plot_data,
+
+  LCMS_missingness =
+    ms_missingness_abundance
+)
+
+writexl::write_xlsx(
+  qc_suppdata,
+  file.path(
+    output_dir,
+    "Proteomics_quality_control_v2_SuppData.xlsx"
+  )
+)
+```
