@@ -3516,5 +3516,47 @@ ComplexHeatmap::draw(
   heatmap_legend_side = "right",
   annotation_legend_side = "right"
 )
+
+
 ```
 
+# Supplementary Data export
+
+```{r Supplementary_data_export, eval=TRUE}
+qc_suppdata <- list(
+  Sample_exclusions =
+    sample_exclusions,
+
+  Availability_comparison =
+    availability_comparison,
+
+  Availability_after =
+    qc_after$availability,
+
+  Olink_sample_metrics =
+    metrics_after$olink_metrics,
+
+  LCMS_sample_metrics =
+    metrics_after$ms_metrics,
+
+  Clinical_correlations =
+    clinical_correlation_long,
+
+  Olink_variance =
+    olink_variance_partition$plot_data,
+
+  LCMS_variance =
+    ms_variance_partition$plot_data,
+
+  LCMS_missingness =
+    ms_missingness_abundance
+)
+
+writexl::write_xlsx(
+  qc_suppdata,
+  file.path(
+    output_dir,
+    "Proteomics_quality_control_SuppData.xlsx"
+  )
+)
+```
