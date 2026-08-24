@@ -628,7 +628,7 @@ print(combined_plot)
 ```{r GSEA_GO_simplified, fig.height=8, fig.width=8}
 GSEA_GO_simplified <- clusterProfiler::simplify(
   GSEA_GO,
-  cutoff = 0.75,
+  cutoff = 0.7,
   by = "p.adjust",
   select_fun = min,
   measure = "Wang",
@@ -657,11 +657,11 @@ GSEA_GO_suppressed <- GSEA_GO_simplified
 GSEA_GO_suppressed@result <- suppressed_terms
 GSEA_GO_suppressed <- pairwise_termsim(GSEA_GO_suppressed)
 
-p1 <- emapplot(GSEA_GO_activated, showCategory = 100, node_label_size = 3.5, min_edge = 0.15) +
+p1 <- emapplot(GSEA_GO_activated, showCategory = 100, node_label_size = 3.5, min_edge = 0.12) +
   ggtitle("Activated Terms") +
   theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
 
-p2 <- emapplot(GSEA_GO_suppressed, showCategory = 100, node_label_size = 3.5, min_edge = 0.15) +
+p2 <- emapplot(GSEA_GO_suppressed, showCategory = 100, node_label_size = 3.5, min_edge = 0.12) +
   ggtitle("Suppressed Terms") +
   theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
 
@@ -669,8 +669,8 @@ combined_plot <- p1 | p2
 print(combined_plot)
 ```
 
-```{r GSEA_GO_simplified_emapplot_unlabeled, fig.height=8, fig.width=14}
-emapplot(GSEA_GO_activated, showCategory = 100, node_label_size = 0, min_edge = 0.15) +
+```{r GSEA_GO_simplified_emapplot_unlabeled, fig.height=8, fig.width=14, dpi=300}
+emapplot(GSEA_GO_activated, showCategory = 100, node_label_size = 0, min_edge = 0.12) +
   ggtitle("Gene Ontology Enrichment Analysis\nHigh mPAP-associated terms") + 
   theme(plot.title = element_text(face = "bold", size = 20, hjust = 0.5),
     legend.title = element_text(size = 16),
@@ -782,6 +782,39 @@ barplot.enrichResult(reorder_GO_by_NES(GSEA_GO_top20), x='NES', showCategory = 1
   labs(x = "Normalized Enrichment Score")
 ```
 
+```{r GSEA_GO_simplified_barplot_top20_up_down, fig.width=8, fig.height=5.3, dpi=300}
+
+top_up <- GSEA_GO_simplified@result %>%
+  dplyr::filter(NES > 0) %>%
+  dplyr::slice_max(order_by = NES, n = 20)
+
+top_down <- GSEA_GO_simplified@result %>%
+  dplyr::filter(NES < 0) %>%
+  dplyr::slice_min(order_by = NES, n = 20)
+
+top_terms <- dplyr::bind_rows(top_up, top_down)
+
+GSEA_GO_top40 <- GSEA_GO_simplified
+GSEA_GO_top40@result <- top_terms
+
+barplot.enrichResult(
+  reorder_GO_by_NES(GSEA_GO_top40),
+  x = 'NES',
+  showCategory = 100,
+  label_format = 45
+) +
+  scale_y_discrete(
+    labels = function(x) stringr::str_wrap(x, width = 50)
+  ) +
+  ggtitle("Gene Ontology Enrichment Analysis\nmPAP-associated terms") + 
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    axis.title.x = element_text(size = 14),
+    axis.text.y = element_text(lineheight = 0.7, size = 11)
+  ) + 
+  labs(x = "Normalized Enrichment Score")
+```
+
 ```{r GSEA_GO_simplified_treeplot, fig.height=12, fig.width=15}
 GSEA_GO_simplified <- pairwise_termsim(GSEA_GO_simplified)
 treeplot(GSEA_GO_simplified, showCategory = 100, nCluster = 9) +  ggtitle("Gene Ontology Enrichment Analysis\nHigh mPAP-associated terms") + 
@@ -832,7 +865,17 @@ combined_plot <- p1 | p2
 print(combined_plot)
 ```
 
-```{r GSEA_KEGG_emapplot_unlabeled, fig.height=8, fig.width=14}
+```{r GSEA_KEGG_emapplot_unlabeled, fig.height=8, fig.width=14, dpi = 300}
+emapplot(GSEA_KEGG_activated, showCategory = 100, node_label_size = 0, min_edge = 0.15) +
+  ggtitle("KEGG pathways Enrichment Analysis\nHigh mPAP-associated terms") + 
+  theme(plot.title = element_text(face = "bold", size = 20, hjust = 0.5),
+    legend.title = element_text(size = 16),
+    legend.text  = element_text(size = 14),
+    legend.key.size = unit(0.9, "cm")        
+  )
+```
+
+```{r GSEA_KEGG_emapplot_unlabeled_2, fig.height=4, fig.width=14, dpi = 300}
 emapplot(GSEA_KEGG_activated, showCategory = 100, node_label_size = 0, min_edge = 0.15) +
   ggtitle("KEGG pathways Enrichment Analysis\nHigh mPAP-associated terms") + 
   theme(plot.title = element_text(face = "bold", size = 20, hjust = 0.5),
@@ -851,6 +894,39 @@ print(p1)
 barplot.enrichResult(reorder_GO_by_NES(GSEA_KEGG), x="NES", showCategory = 100, label_format = 45) +  ggtitle("KEGG pathways Enrichment Analysis\nHigh mPAP-associated terms") + 
   theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
         axis.title.x  = element_text(size = 14)) + 
+  labs(x = "Normalized Enrichment Score")
+```
+
+```{r GSEA_KEGG_barplot_top20_up_down, fig.width=8, fig.height=5.3, dpi=300}
+
+top_up <- GSEA_KEGG@result %>%
+  dplyr::filter(NES > 0) %>%
+  dplyr::slice_max(order_by = NES, n = 20)
+
+top_down <- GSEA_KEGG@result %>%
+  dplyr::filter(NES < 0) %>%
+  dplyr::slice_min(order_by = NES, n = 20)
+
+top_terms <- dplyr::bind_rows(top_up, top_down)
+
+GSEA_KEGG_top40 <- GSEA_KEGG
+GSEA_KEGG_top40@result <- top_terms
+
+barplot.enrichResult(
+  reorder_GO_by_NES(GSEA_KEGG_top40),
+  x = "NES",
+  showCategory = 100,
+  label_format = 45
+) +
+  scale_y_discrete(
+    labels = function(x) stringr::str_wrap(x, width = 50)
+  ) +
+  ggtitle("KEGG Enrichment Analysis\nmPAP-associated terms") + 
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    axis.title.x = element_text(size = 14),
+    axis.text.y = element_text(lineheight = 0.7, size = 11)
+  ) + 
   labs(x = "Normalized Enrichment Score")
 ```
 
@@ -2497,66 +2573,143 @@ ggplot(n_de_genes_nc, aes(fill = effect, y = n, x = cell_type)) +
   labs(x = "Cell Type", y = "Number of Genes", fill = "Effect")
 ```
 
-```{r Barplot_gene_type_3, fig.height=4.5, fig.width=9}
-n_de_genes_u<- data.frame()
+```{r Barplot_gene_type_3, fig.height=4.5, fig.width=8.8, dpi=300}
+n_de_genes_u <- data.frame()
+
 for (i in seq_along(signif)) {
   cell_type <- names(signif)[i]
-  effect <- c("Increased - Unique", "Increased - Overlapping", "Decreased - Unique", "Decreased - Overlapping")
-  n <- c(nrow(dplyr::filter(signif[[i]], logFC > 0 & unique_overlapping == "Unique")),
-         nrow(dplyr::filter(signif[[i]], logFC > 0 & unique_overlapping == "Overlapping")),
-         nrow(dplyr::filter(signif[[i]], logFC < 0 & unique_overlapping == "Unique")),
-         nrow(dplyr::filter(signif[[i]], logFC < 0 & unique_overlapping == "Overlapping"))
-         )
+
+  effect <- c(
+    "Increased - Unique",
+    "Increased - Overlapping",
+    "Decreased - Unique",
+    "Decreased - Overlapping"
+  )
+
+  n <- c(
+    nrow(dplyr::filter(
+      signif[[i]],
+      logFC > 0 &
+        unique_overlapping == "Unique"
+    )),
+    nrow(dplyr::filter(
+      signif[[i]],
+      logFC > 0 &
+        unique_overlapping == "Overlapping"
+    )),
+    nrow(dplyr::filter(
+      signif[[i]],
+      logFC < 0 &
+        unique_overlapping == "Unique"
+    )),
+    nrow(dplyr::filter(
+      signif[[i]],
+      logFC < 0 &
+        unique_overlapping == "Overlapping"
+    ))
+  )
+
   de_tot <- nrow(signif[[i]])
-  n_de_genes_u <- rbind(n_de_genes_u, data.frame(cell_type,effect,n, de_tot))
+
+  n_de_genes_u <- rbind(
+    n_de_genes_u,
+    data.frame(
+      cell_type,
+      effect,
+      n,
+      de_tot
+    )
+  )
 }
 
 # Clean up cell type names
-n_de_genes_u$cell_type <- gsub("_", " ", n_de_genes_u$cell_type)
-n_de_genes_u$cell_type <- factor(n_de_genes_u$cell_type, levels = c("Cardiomyocytes",
-                                                                    "Fibroblasts",
-                                                                    "Endothelial cells",
-                                                                    "Pericytes",
-                                                                    "Smooth muscle cells",
-                                                                    "Macrophages",
-                                                                    "Neuronal cells",
-                                                                    "Lymphocytes",
-                                                                    "Endocardial cells"
-                                                                    ))
+n_de_genes_u$cell_type <- gsub(
+  "_",
+  " ",
+  n_de_genes_u$cell_type
+)
 
-# Set output file path
-output_file <- file.path(output_dir_data, "Barplot_protein_overlapping_poster.png")
+n_de_genes_u$cell_type <- factor(
+  n_de_genes_u$cell_type,
+  levels = c(
+    "Cardiomyocytes",
+    "Fibroblasts",
+    "Endothelial cells",
+    "Pericytes",
+    "Smooth muscle cells",
+    "Macrophages",
+    "T lymphocytes",
+    "Neuronal cells",
+    "Endocardial cells"
+  )
+)
 
-# Save plot to PNG
-png(output_file, width = 8.8, height = 4.5, units = "in", res = 300)
-
-# Plot
-ggplot(n_de_genes_u, aes(fill = effect, y = n, x = cell_type)) + 
-  geom_bar(position = "stack", stat = "identity") +
-  scale_fill_manual(values = c("Increased - Unique" = "#A63A2A", 
-                               "Decreased - Unique" = "#004C8C", 
-                               "Increased - Overlapping" = "#D6A0A0", 
-                               "Decreased - Overlapping" = "#A0C4FF"
-  )) +
+ggplot(
+  n_de_genes_u,
+  aes(
+    fill = effect,
+    y = n,
+    x = cell_type
+  )
+) +
+  geom_bar(
+    position = "stack",
+    stat = "identity"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Increased - Unique" = "#A63A2A",
+      "Decreased - Unique" = "#004C8C",
+      "Increased - Overlapping" = "#D6A0A0",
+      "Decreased - Overlapping" = "#A0C4FF"
+    )
+  ) +
   theme_bw() +
   theme(
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
     panel.background = element_blank(),
-    axis.text.x = element_text(angle = 30, hjust = 1, color = "black", size = 17),
-    axis.text.y = element_text(color = "black", size = 17),
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
-    text = element_text(size = 20),
-    legend.text = element_text(size = 20),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      color = "black",
+      size = 17
+    ),
+    axis.text.y = element_text(
+      color = "black",
+      size = 17
+    ),
+    axis.title.x = element_text(
+      size = 20
+    ),
+    axis.title.y = element_text(
+      size = 20
+    ),
+    text = element_text(
+      size = 20
+    ),
+    legend.text = element_text(
+      size = 20
+    ),
     legend.title = element_blank(),
-    legend.position = c(0.96, 0.9),
-    legend.justification = c("right", "top"),
-    legend.background = element_rect(fill = "white", color = "black")
+    legend.position = c(
+      0.96,
+      0.9
+    ),
+    legend.justification = c(
+      "right",
+      "top"
+    ),
+    legend.background = element_rect(
+      fill = "white",
+      color = "black"
+    )
   ) +
-  labs(x = "Cell Type", y = "Number of Genes", fill = "Effect")
-
-dev.off()
+  labs(
+    x = "Cell Type",
+    y = "Number of Genes",
+    fill = "Effect"
+  )
 ```
 
 ```{r Barplot_up_down_unique_overlapping, fig.height=4.5, fig.width=9}
@@ -2936,7 +3089,7 @@ rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_supp
 
 ## NES plot
 
-```{r, fig.height=12, fig.width=6}
+```{r, fig.height=11, fig.width=6, dpi = 300}
 GSEA_all <- readRDS(here::here(output_dir_data, "GSEA_all_nonCM_list.rds"))
 
 cell_order <- c(

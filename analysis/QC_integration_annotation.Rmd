@@ -795,3 +795,33 @@ rm(DCM_RV_RNA)
 saveRDS(DCM_RV, 
         here::here(output_dir_data, "DCM_RV.rds"))
 ```
+
+```{r Supplementary_data_export, eval=TRUE}
+cell_type_markers <- read.csv(
+  here::here(output_dir_data, "DCM_RV_Markers_all_cell_type.csv")
+)
+
+cell_counts <- as.data.frame.matrix(
+  table(DCM_RV$cell_type, DCM_RV$Sample)
+)
+
+cell_counts$Total <- rowSums(cell_counts)
+cell_counts["Total", ] <- colSums(cell_counts)
+
+cell_counts <- tibble::rownames_to_column(
+  cell_counts,
+  "Cell_type"
+)
+
+writexl::write_xlsx(
+  list(
+    Cell_type_markers = cell_type_markers,
+    Cell_counts = cell_counts
+  ),
+  here::here(
+    output_dir_data,
+    "QC_integration_annotation_SuppData.xlsx"
+  )
+)
+```
+
