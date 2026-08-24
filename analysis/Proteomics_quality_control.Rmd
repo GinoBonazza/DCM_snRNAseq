@@ -20,18 +20,11 @@ knitr::opts_chunk$set(
 # Overview
 
 This workflow evaluates the quality of the Olink and LC-MS/MS proteomic
-datasets before and after sample exclusion. Healthy control samples are
-excluded from the initial analysis, which includes all DCM and ICM samples.
+datasets before and after sample exclusion. Only DCM samples used in the study are retained
 
 P11, PK61 and PK63 are subsequently excluded because of poor proteomic data
 quality identified in the diagnostic plots. PK69 is excluded because duplicate
-sample identifiers prevent unambiguous patient assignment. ICM samples are
-excluded because the downstream analysis focuses on DCM.
-
-Heatmaps include all usable proteins after removal of rows with insufficient
-observations or zero variance. Missing LC-MS/MS values are imputed only for
-visualisation. PCA is performed on proteins observed in at least 50% of
-samples and uses row-median imputation.
+sample identifiers prevent unambiguous patient assignment. 
 
 # Setup
 
@@ -497,8 +490,7 @@ plot_pca_group <- function(
 make_sample_annotation <- function(
     metadata,
     samples,
-    include_olink_technical = FALSE,
-    include_sample_age = FALSE
+    include_olink_technical = FALSE
 ) {
   ordered_metadata <- metadata %>%
     dplyr::slice(
@@ -571,27 +563,6 @@ make_sample_annotation <- function(
     }
   }
 
-  if (
-    isTRUE(include_sample_age) &&
-    "Sample_age_days" %in%
-      colnames(ordered_metadata)
-  ) {
-    sample_age <- as.numeric(
-      ordered_metadata$Sample_age_days
-    )
-
-    if (any(is.finite(sample_age))) {
-      annotation_data$Sample_age_days <-
-        sample_age
-
-      annotation_colours$
-        Sample_age_days <-
-        safe_continuous_colour(
-          sample_age
-        )
-    }
-  }
-
   ComplexHeatmap::HeatmapAnnotation(
     df = annotation_data,
     col = annotation_colours,
@@ -609,8 +580,7 @@ draw_expression_heatmap <- function(
       "median",
       "low"
     ),
-    include_olink_technical = FALSE,
-    include_sample_age = FALSE
+    include_olink_technical = FALSE
 ) {
   imputation <- match.arg(
     imputation
@@ -644,9 +614,7 @@ draw_expression_heatmap <- function(
     metadata = metadata,
     samples = colnames(z_matrix),
     include_olink_technical =
-      include_olink_technical,
-    include_sample_age =
-      include_sample_age
+      include_olink_technical
   )
 
   heatmap <- ComplexHeatmap::Heatmap(
@@ -1121,8 +1089,7 @@ draw_sample_correlation_heatmap <- function(
     metadata,
     assay_name,
     title_suffix,
-    include_olink_technical = FALSE,
-    include_sample_age = FALSE
+    include_olink_technical = FALSE
 ) {
   correlation <- stats::cor(
     mat,
@@ -1134,9 +1101,7 @@ draw_sample_correlation_heatmap <- function(
     metadata = metadata,
     samples = colnames(correlation),
     include_olink_technical =
-      include_olink_technical,
-    include_sample_age =
-      include_sample_age
+      include_olink_technical
   )
 
   heatmap <- ComplexHeatmap::Heatmap(
@@ -1412,6 +1377,12 @@ clinical_all <- readxl::read_excel(
   dplyr::select(
     -dplyr::matches(
       "^Unnamed"
+    ),
+    -dplyr::all_of(
+      paste0(
+        "Sample_",
+        "age_days"
+      )
     )
   ) %>%
   dplyr::mutate(
@@ -1423,10 +1394,6 @@ clinical_all <- readxl::read_excel(
         Group
       )
     ),
-    Sample_age_days =
-      as.numeric(
-        Sample_age_days
-      ),
     Age_years = as.numeric(
       Age_years
     )
@@ -1937,8 +1904,7 @@ draw_sample_correlation_heatmap(
     qc_before$ms_metadata,
   assay_name = "LC-MS/MS",
   title_suffix =
-    "Sample correlations",
-  include_sample_age = TRUE
+    "Sample correlations"
 )
 ```
 
@@ -1952,8 +1918,7 @@ draw_expression_heatmap(
   assay_name = "LC-MS/MS",
   title_suffix =
     "All usable proteins",
-  imputation = "low",
-  include_sample_age = TRUE
+  imputation = "low"
 )
 ```
 
@@ -2238,8 +2203,7 @@ draw_sample_correlation_heatmap(
     qc_after$ms_metadata,
   assay_name = "LC-MS/MS",
   title_suffix =
-    "Sample correlations",
-  include_sample_age = TRUE
+    "Sample correlations"
 )
 ```
 
@@ -2253,8 +2217,7 @@ draw_expression_heatmap(
   assay_name = "LC-MS/MS",
   title_suffix =
     "All usable proteins",
-  imputation = "low",
-  include_sample_age = TRUE
+  imputation = "low"
 )
 ```
 
@@ -2348,7 +2311,6 @@ dir.create(
 
 clinical_variable_labels <- c(
   Age_years = "Age",
-  Sample_age_days = "Sample age",
   mPAP_mmHg = "mPAP",
   sPAP_mmHg = "sPAP",
   PCW_mmHg = "PCWP",
@@ -2386,8 +2348,7 @@ clinical_correlation_variables <- c(
   "RVIT_mm",
   "LVEF_percent",
   "LVEDD_mm",
-  "Age_years",
-  "Sample_age_days"
+  "Age_years"
 )
 
 final_proteomics_samples <-
@@ -2933,7 +2894,6 @@ olink_variance_partition <-
       qc_after$olink_metadata,
     candidate_variables = c(
       "Age_years",
-      "Sample_age_days",
       "BCA_mg_ml",
       "mPAP_mmHg",
       "RVIT_mm",
@@ -2973,7 +2933,6 @@ ms_variance_partition <-
       qc_after$ms_metadata,
     candidate_variables = c(
       "Age_years",
-      "Sample_age_days",
       "mPAP_mmHg",
       "RVIT_mm",
       "TAPSE_mm",

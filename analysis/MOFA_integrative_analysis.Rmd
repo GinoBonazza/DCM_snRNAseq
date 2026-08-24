@@ -25,7 +25,7 @@ This workflow fits two independent MOFA models.
 
 2. **Matched three-view model:** pseudobulk snRNA-seq, Olink and LC-MS/MS are integrated in patients measured in all three modalities. The analysis distinguishes modality-specific from shared molecular variation. Factors are tested against RV state, continuous clinical parameters and histological fibrosis. Factor 2 is interpreted separately in the transcriptomic and proteomic layers by Gene Ontology gene set enrichment analysis.
 
-Proteomic matrices and retained samples are imported from the preceding proteomics quality-control workflow. BCA concentration is removed from the Olink view before model fitting. MOFA training is unsupervised; RV state and clinical variables are used only in downstream association models. Age and sample storage time are included as covariates.
+Proteomic matrices and retained DCM samples are imported from the preceding proteomics quality-control workflow. BCA concentration is removed from the Olink view before model fitting. MOFA training is unsupervised; RV state and clinical variables are used only in downstream association models. Age is included as a covariate.
 
 RV states are defined as:
 
@@ -89,7 +89,6 @@ dir.create(matched_output_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(proteomics_figure_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(matched_figure_dir, recursive = TRUE, showWarnings = FALSE)
 
-clinical_file <- here::here("data", "DCM_Clinical_data_83.xlsx")
 seurat_file <- here::here(
   "output",
   "Add_cell_states_remove_contamination",
@@ -141,8 +140,7 @@ clinical_parameters <- c(
   "TAPSE_mm",
   "RVIT_mm",
   "LVEF_percent",
-  "LVEDD_mm",
-  "TAPSE_sPAP"
+  "LVEDD_mm"
 )
 
 pretty_parameter_names <- c(
@@ -153,8 +151,7 @@ pretty_parameter_names <- c(
   TAPSE_mm = "TAPSE (mm)",
   RVIT_mm = "RVIT (mm)",
   LVEF_percent = "LVEF (%)",
-  LVEDD_mm = "LVEDD (mm)",
-  TAPSE_sPAP = "TAPSE/sPAP"
+  LVEDD_mm = "LVEDD (mm)"
 )
 
 proteomics_gsea_factor_table <- tibble::tribble(
@@ -1064,8 +1061,7 @@ fit_factor_fibrosis_models <- function(
     "Factor",
     "Factor_value",
     "Fibrosis_percent",
-    "Age_years",
-    "Sample_age_days"
+    "Age_years"
   )
 
   missing_columns <- setdiff(
@@ -1097,8 +1093,7 @@ fit_factor_fibrosis_models <- function(
       dplyr::select(
         Factor_value,
         Fibrosis_percent,
-        Age_years,
-        Sample_age_days
+        Age_years
       ) %>%
       tidyr::drop_na()
 
@@ -1122,20 +1117,13 @@ fit_factor_fibrosis_models <- function(
         age_scaled =
           as.numeric(
             scale(Age_years)
-          ),
-        storage_scaled =
-          as.numeric(
-            scale(
-              Sample_age_days
-            )
           )
       )
 
     fibrosis_fit <- lm(
       Factor_value ~
         fibrosis_scaled +
-        age_scaled +
-        storage_scaled,
+        age_scaled,
       data = factor_data
     )
 
@@ -1182,6 +1170,10 @@ fit_factor_fibrosis_models <- function(
           )$adj.r.squared
       )
     )
+  }
+
+  if (nrow(results) == 0L) {
+    return(results)
   }
 
   results %>%
@@ -1358,13 +1350,13 @@ write.csv(
 # Clinical metadata and RV states
 
 ```{r clinical metadata}
-clin_all <- readxl::read_excel(clinical_file) %>%
-  dplyr::select(-dplyr::matches("^Unnamed")) %>%
+clin_all <- filtered_proteomics$clinical %>%
+  dplyr::filter(
+    Group == "DCM",
+    Sample %in% retained_dcm_samples
+  ) %>%
   dplyr::mutate(
     Sample = as.character(Sample),
-    Collection_date = as.Date(Collection_date),
-    Used_date = as.Date(Used_date),
-    Sample_age_days = as.numeric(Sample_age_days),
     Age_years = as.numeric(Age_years),
     LVEF_percent = as.numeric(LVEF_percent),
     LVID_mm = as.numeric(LVID_mm),
@@ -1382,10 +1374,6 @@ clin_all <- readxl::read_excel(clinical_file) %>%
     TPG_mmHg = as.numeric(TPG_mmHg),
     CO_l.min = as.numeric(CO_l.min),
     TAPSE_sPAP = TAPSE_mm / sPAP_mmHg
-  ) %>%
-  dplyr::filter(
-    Group == "DCM",
-    Sample %in% retained_dcm_samples
   ) %>%
   dplyr::distinct(Sample, .keep_all = TRUE) %>%
   dplyr::mutate(
@@ -1476,54 +1464,7 @@ p_group_mpap <- clinical_group_plot_data %>%
     )
   )
 
-p_group_coupling <- clinical_group_plot_data %>%
-  dplyr::filter(
-    !is.na(TAPSE_sPAP)
-  ) %>%
-  ggplot(
-    aes(
-      x = RV_group,
-      y = TAPSE_sPAP,
-      fill = RV_group
-    )
-  ) +
-  geom_hline(
-    yintercept = coupling_cutoff,
-    linetype = 2
-  ) +
-  geom_boxplot(
-    outlier.shape = NA,
-    width = 0.55,
-    color = "grey20"
-  ) +
-  geom_jitter(
-    width = 0.10,
-    height = 0,
-    size = 2.2,
-    shape = 21,
-    color = "black",
-    stroke = 0.25
-  ) +
-  scale_fill_manual(
-    values = group_colors[
-      rv_group_comparison_levels
-    ],
-    drop = FALSE
-  ) +
-  labs(
-    x = NULL,
-    y = "TAPSE/sPAP"
-  ) +
-  theme_classic() +
-  theme(
-    legend.position = "none",
-    axis.text.x = element_text(
-      angle = 20,
-      hjust = 1
-    )
-  )
-
-p_group_mpap | p_group_coupling
+p_group_mpap
 ```
 
 # Preprocess Olink proteomics
@@ -1903,8 +1844,7 @@ proteomics_sample_overview <- tibble::tibble(
         RV_group,
         mPAP_mmHg,
         TAPSE_mm,
-        RVIT_mm,
-        TAPSE_sPAP
+        RVIT_mm
       ),
     by = "Sample"
   )
@@ -2798,8 +2738,7 @@ for (
       Sample,
       Factor_value,
       RV_group,
-      Age_years,
-      Sample_age_days
+      Age_years
     ) %>%
     tidyr::drop_na() %>%
     dplyr::mutate(
@@ -2825,8 +2764,7 @@ for (
   group_fit <- lm(
     Factor_value ~
       RV_group +
-      scale(Age_years) +
-      scale(Sample_age_days),
+      scale(Age_years),
     data = factor_data
   )
 
@@ -3196,7 +3134,7 @@ proteomics_factor1_group_plot
 
 Each parameter is tested in a separate model:
 
-`factor score ~ scaled clinical parameter + scaled age + scaled sample storage time`
+`factor score ~ scaled clinical parameter + scaled age`
 
 ```{r proteomics continuous clinical association models}
 proteomics_continuous_results <-
@@ -3219,7 +3157,6 @@ for (
         Sample,
         Factor_value,
         Age_years,
-        Sample_age_days,
         dplyr::all_of(
           clinical_parameter
         )
@@ -3237,20 +3174,13 @@ for (
         age_scaled =
           as.numeric(
             scale(Age_years)
-          ),
-        storage_scaled =
-          as.numeric(
-            scale(
-              Sample_age_days
-            )
           )
       )
 
     continuous_fit <- lm(
       Factor_value ~
         clinical_scaled +
-        age_scaled +
-        storage_scaled,
+        age_scaled,
       data = factor_data
     )
 
@@ -3587,8 +3517,7 @@ proteomics_technical_results <-
 
 technical_variables <- c(
   "BCA_mg_ml",
-  "Age_years",
-  "Sample_age_days"
+  "Age_years"
 )
 
 for (
@@ -3611,86 +3540,13 @@ for (
         dplyr::select(
           Factor_value,
           BCA_mg_ml,
-          Age_years,
-          Sample_age_days
-        ) %>%
-        tidyr::drop_na() %>%
-        dplyr::mutate(
-          technical_scaled =
-            as.numeric(
-              scale(BCA_mg_ml)
-            ),
-          age_scaled =
-            as.numeric(
-              scale(Age_years)
-            ),
-          storage_scaled =
-            as.numeric(
-              scale(
-                Sample_age_days
-              )
-            )
-        )
-
-      technical_fit <- lm(
-        Factor_value ~
-          technical_scaled +
-          age_scaled +
-          storage_scaled,
-        data = technical_data
-      )
-    } else if (
-      technical_variable ==
-      "Age_years"
-    ) {
-      technical_data <-
-        proteomics_factor_scores %>%
-        dplyr::filter(
-          Factor == factor_name
-        ) %>%
-        dplyr::select(
-          Factor_value,
-          Age_years,
-          Sample_age_days
-        ) %>%
-        tidyr::drop_na() %>%
-        dplyr::mutate(
-          technical_scaled =
-            as.numeric(
-              scale(Age_years)
-            ),
-          storage_scaled =
-            as.numeric(
-              scale(
-                Sample_age_days
-              )
-            )
-        )
-
-      technical_fit <- lm(
-        Factor_value ~
-          technical_scaled +
-          storage_scaled,
-        data = technical_data
-      )
-    } else {
-      technical_data <-
-        proteomics_factor_scores %>%
-        dplyr::filter(
-          Factor == factor_name
-        ) %>%
-        dplyr::select(
-          Factor_value,
-          Sample_age_days,
           Age_years
         ) %>%
         tidyr::drop_na() %>%
         dplyr::mutate(
           technical_scaled =
             as.numeric(
-              scale(
-                Sample_age_days
-              )
+              scale(BCA_mg_ml)
             ),
           age_scaled =
             as.numeric(
@@ -3702,6 +3558,29 @@ for (
         Factor_value ~
           technical_scaled +
           age_scaled,
+        data = technical_data
+      )
+    } else {
+      technical_data <-
+        proteomics_factor_scores %>%
+        dplyr::filter(
+          Factor == factor_name
+        ) %>%
+        dplyr::select(
+          Factor_value,
+          Age_years
+        ) %>%
+        tidyr::drop_na() %>%
+        dplyr::mutate(
+          technical_scaled =
+            as.numeric(
+              scale(Age_years)
+            )
+        )
+
+      technical_fit <- lm(
+        Factor_value ~
+          technical_scaled,
         data = technical_data
       )
     }
@@ -3776,13 +3655,11 @@ proteomics_technical_plot_data <-
       technical_variable,
       levels = c(
         "Age_years",
-        "BCA_mg_ml",
-        "Sample_age_days"
+        "BCA_mg_ml"
       ),
       labels = c(
         "Age",
-        "BCA concentration",
-        "Sample storage time"
+        "BCA concentration"
       )
     ),
     Factor = factor(
@@ -5072,14 +4949,6 @@ rvit_colour_function <-
   )
 
 
-tapse_spap_colour_function <-
-  make_grey_annotation_scale(
-    proteomics_gsea_heatmap_sample_metadata$
-      TAPSE_sPAP,
-
-    dark_at = "low"
-  )
-
 
 rv_group_colors <- c(
   "Not overloaded" =
@@ -5144,23 +5013,6 @@ selected_gsea_top_annotation <-
           )
       ),
 
-    `TAPSE/sPAP` =
-      ComplexHeatmap::anno_simple(
-        proteomics_gsea_heatmap_sample_metadata$
-          TAPSE_sPAP,
-
-        col =
-          tapse_spap_colour_function,
-
-        na_col =
-          "white",
-
-        height =
-          grid::unit(
-            4.5,
-            "mm"
-          )
-      ),
 
     `RV state` =
       ComplexHeatmap::anno_simple(
@@ -5535,21 +5387,11 @@ rvit_legend <-
   )
 
 
-tapse_spap_legend <-
-  ComplexHeatmap::Legend(
-    title =
-      "TAPSE/sPAP",
-
-    col_fun =
-      tapse_spap_colour_function
-  )
-
 
 legend_column_2 <-
   ComplexHeatmap::packLegend(
     tapse_legend,
     rvit_legend,
-    tapse_spap_legend,
 
     direction =
       "vertical",
@@ -6043,8 +5885,7 @@ matched_sample_overview <-
         RV_group,
         mPAP_mmHg,
         TAPSE_mm,
-        RVIT_mm,
-        TAPSE_sPAP
+        RVIT_mm
       ),
     by = "Sample"
   )
@@ -7202,8 +7043,7 @@ for (
       Sample,
       Factor_value,
       RV_group,
-      Age_years,
-      Sample_age_days
+      Age_years
     ) %>%
     tidyr::drop_na() %>%
     dplyr::mutate(
@@ -7229,8 +7069,7 @@ for (
   group_fit <- lm(
     Factor_value ~
       RV_group +
-      scale(Age_years) +
-      scale(Sample_age_days),
+      scale(Age_years),
     data = factor_data
   )
 
@@ -7495,7 +7334,6 @@ for (
         Sample,
         Factor_value,
         Age_years,
-        Sample_age_days,
         dplyr::all_of(
           clinical_parameter
         )
@@ -7513,20 +7351,13 @@ for (
         age_scaled =
           as.numeric(
             scale(Age_years)
-          ),
-        storage_scaled =
-          as.numeric(
-            scale(
-              Sample_age_days
-            )
           )
       )
 
     continuous_fit <- lm(
       Factor_value ~
         clinical_scaled +
-        age_scaled +
-        storage_scaled,
+        age_scaled,
       data = factor_data
     )
 
@@ -7849,7 +7680,7 @@ write.csv(
 
 # Matched Factor 2 fibrosis-associated features
 
-```{r matched Factor2 fibrosis custom heatmap, fig.height=9, fig.width=10}
+```{r matched Factor2 fibrosis custom heatmap, fig.height=9, fig.width=6.5, dpi=300}
 clean_matched_feature_name <- function(
     feature
 ) {

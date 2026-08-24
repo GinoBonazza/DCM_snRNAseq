@@ -22,15 +22,10 @@ knitr::opts_chunk$set(
 This workflow tests associations between RV tissue protein abundance and
 continuous clinical parameters in the Olink Reveal and LC-MS/MS datasets.
 
-Only DCM patients retained after the proteomics quality-control workflow and
-measured by both proteomic platforms are included. Olink and LC-MS/MS are
-analysed separately using limma. Models are adjusted for age and sample storage
-time, with BCA protein concentration included as an additional covariate in the
-Olink models.
-
-The analysis produces the protein-count summary, RVIT and TAPSE volcano plots,
-and LC-MS/MS heatmaps for proteins significantly associated with TAPSE or RVIT.
-No PCA or enrichment analysis is performed.
+Only DCM patients retained after the proteomics quality-control workflow
+and measured by both proteomic platforms are included. Olink and LC-MS/MS are
+analysed separately using limma. Models are adjusted for age, with BCA protein
+concentration included as an additional covariate in the Olink models.
 
 # Setup
 
@@ -486,7 +481,6 @@ matched_samples
 ```{r Olink differential abundance}
 covariates_olink <- c(
   "Age_years",
-  "Sample_age_days",
   "BCA_mg_ml"
 )
 
@@ -651,8 +645,7 @@ olink_da_summary_df <-
 
 ```{r LCMS differential abundance}
 covariates_ms <- c(
-  "Age_years",
-  "Sample_age_days"
+  "Age_years"
 )
 
 ms_da_results <- list()
@@ -971,7 +964,6 @@ matched_sample_table <- clinical_matched %>%
   dplyr::select(
     Sample,
     Age_years,
-    Sample_age_days,
     mPAP_mmHg,
     sPAP_mmHg,
     PVR_WU,
