@@ -1,0 +1,2870 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>lncRNAs in sn/scRNA-seq dataset of human cardiac tissue</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.js"></script>
+<link href="site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.5/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.5/reactable.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Variance_partitioning.html">Variance partitioning</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP_all_cell_types.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="DE_Fibrosis_fibroblasts.html">Fibrosis and fibroblasts</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="Proteomics_quality_control.html">QC Olink and MS proteomics</a>
+    </li>
+    <li>
+      <a href="Proteomics_differential_abundance.html">Proteomics differential abundance</a>
+    </li>
+    <li>
+      <a href="MOFA_integrative_analysis.html">MOFA_integrative_analysis</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">lncRNAs in sn/scRNA-seq dataset of human
+cardiac tissue</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">30 September, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-09-30
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree834f008010913faef2c477598b3a607fe68317e0targetblank834f008a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/834f008010913faef2c477598b3a607fe68317e0" target="_blank">834f008</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree834f008010913faef2c477598b3a607fe68317e0targetblank834f008a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/834f008010913faef2c477598b3a607fe68317e0" target="_blank">834f008</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/figure/
+    Ignored:    output/CellChat/
+    Ignored:    output/Cell_cell_communication_Macrophages/
+    Ignored:    output/Chaffin_2022/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/Koenig_2022/
+    Ignored:    output/Matrifibrocytes/
+    Ignored:    output/Matrifibrocytes_disease_vs_HC_adj_subsets/
+    Ignored:    output/SSc_PAH/
+
+Untracked files:
+    Untracked:  .Rprofile
+    Untracked:  Chaffin_wilcox.csv
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  Koenig_wilcox.csv
+    Untracked:  analysis/Amrute_2024_fibroblast_integration.Rmd
+    Untracked:  analysis/Amrute_2024_fibroblast_pseudobulk.Rmd
+    Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Check_IMC_panel.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DE_Group_all_cell_types.Rmd
+    Untracked:  analysis/EC_capillary_angiogenic_boxplot_stats.csv
+    Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
+    Untracked:  analysis/Endothelial_integration_QC_figures.Rmd
+    Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
+    Untracked:  analysis/Genes_Luxembourg.Rmd
+    Untracked:  analysis/HC_DEGs_clustering.Rmd
+    Untracked:  analysis/Koenig_2022.Rmd
+    Untracked:  analysis/Mass_Spec_RV_dysf.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_2.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_3.Rmd
+    Untracked:  analysis/Matrifibrocytes.Rmd
+    Untracked:  analysis/Matrifibrocytes_2.Rmd
+    Untracked:  analysis/Matrifibrocytes_3.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj_subsets.Rmd
+    Untracked:  analysis/Matrifibrocytes_high_score_populations_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_integration.Rmd
+    Untracked:  analysis/Olink_RV_dysf.Rmd
+    Untracked:  analysis/Olink_SSc_PAH.Rmd
+    Untracked:  analysis/Olink_SSc_PAH_draft.Rmd
+    Untracked:  analysis/Olink_proteomics_2.Rmd
+    Untracked:  analysis/Proteomics_OLINK_MS.Rmd
+    Untracked:  analysis/Proteomics_combined.Rmd
+    Untracked:  analysis/Proteomics_combined_2.Rmd
+    Untracked:  analysis/Pseudobulk_all.csv
+    Untracked:  analysis/Pseudobulk_all_2.csv
+    Untracked:  analysis/Pseudobulk_byCellType_facetGrid.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col_proportional.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.filtered.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox_2.csv
+    Untracked:  analysis/QC_integration_annotation_HC.Rmd
+    Untracked:  analysis/Reichart_ncRNA.Rmd
+    Untracked:  analysis/Reichart_wilcox.csv
+    Untracked:  analysis/Selection_genes_histology.Rmd
+    Untracked:  analysis/TAPSE_sPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/TF_activity_program_score_correlations_by_sample.csv
+    Untracked:  analysis/TF_activity_program_scores_by_sample_cell_state.csv
+    Untracked:  analysis/TOM/
+    Untracked:  analysis/UntitledR.R
+    Untracked:  analysis/ec_Reichart_logCPM.csv
+    Untracked:  analysis/mPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  analysis/prot_test.Rmd
+    Untracked:  analysis/test_1.Rmd
+    Untracked:  analysis/test_fb_prot.Rmd
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/Endothelial_cells_cubclustering_removed.Rmd
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/Removed_chunks.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/DCM_Clinical_data_83.xlsx
+    Untracked:  data/HMEC_RNAseq/
+    Untracked:  data/Heart_datasets/
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec/
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK/
+    Untracked:  data/OLINK_LVAD/
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/Add_cell_states_remove_contamination/
+    Untracked:  output/Amrute_2024_fibroblast_integration/
+    Untracked:  output/Amrute_2024_fibroblast_pseudobulk/
+    Untracked:  output/Amrute_2024_matrifibrocyte_markers/
+    Untracked:  output/Biomarkers_selection/
+    Untracked:  output/CM_lncRNAs/
+    Untracked:  output/CM_lncRNAs_2/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Cell_cell_communication/
+    Untracked:  output/Cell_cell_communication_LV/
+    Untracked:  output/Cell_cell_communication_LV2/
+    Untracked:  output/Cell_cycle/
+    Untracked:  output/Check_IMC_panel/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_Fibrosis_all_cell_types/
+    Untracked:  output/DE_Fibrosis_fibroblasts/
+    Untracked:  output/DE_Group_all_cell_types/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Dysferlin/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart_manuscript/
+    Untracked:  output/Endothelial_cells_SGLT2_I/
+    Untracked:  output/Endothelial_cells_published_datasets/
+    Untracked:  output/Endothelial_cells_subclustering/
+    Untracked:  output/Fibroblasts_DA_DE_26/
+    Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/Figures_manuscript/
+    Untracked:  output/Genes_Luxembourg/
+    Untracked:  output/Genes_Luxembourg_2/
+    Untracked:  output/HC_DEGs_clustering/
+    Untracked:  output/HMEC/
+    Untracked:  output/HMEC_second_run/
+    Untracked:  output/HMEC_second_run_manuscript/
+    Untracked:  output/LVAD_OLINK/
+    Untracked:  output/LV_Klaudia/
+    Untracked:  output/LV_datasets_DCM_vs_HC/
+    Untracked:  output/Lymphocytes_subclustering/
+    Untracked:  output/MOFA_integrative_analysis/
+    Untracked:  output/MOFA_integrative_analysis_v2/
+    Untracked:  output/MOFA_integrative_analysis_v3/
+    Untracked:  output/MOFA_integrative_analysis_v4/
+    Untracked:  output/MOFA_integrative_analysis_v6/
+    Untracked:  output/MS_proteomics/
+    Untracked:  output/Macrophages_subclustering/
+    Untracked:  output/Mass_Spec_RV_dysf/
+    Untracked:  output/Mass_Spec_proteomics/
+    Untracked:  output/Mass_Spec_proteomics_2/
+    Untracked:  output/Mass_Spec_proteomics_3/
+    Untracked:  output/Matrifibrocytes_1/
+    Untracked:  output/Matrifibrocytes_2/
+    Untracked:  output/Matrifibrocytes_2_adjusted/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_high_score_populations_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_integration/
+    Untracked:  output/Matrifibrocytes_subclusters_disease_vs_HC_adj/
+    Untracked:  output/Mural_cells_subclustering/
+    Untracked:  output/Olink_RV_dysf/
+    Untracked:  output/Olink_SSc_PAH/
+    Untracked:  output/Olink_SSc_PAH_draft/
+    Untracked:  output/Olink_proteomics/
+    Untracked:  output/Olink_proteomics_2/
+    Untracked:  output/Proteomics_FB_state_PCA/
+    Untracked:  output/Proteomics_PCA_cell_state_composition/
+    Untracked:  output/Proteomics_combined/
+    Untracked:  output/Proteomics_combined_2/
+    Untracked:  output/Proteomics_combined_3/
+    Untracked:  output/Proteomics_combined_4/
+    Untracked:  output/Proteomics_combined_final/
+    Untracked:  output/Proteomics_combined_final_males_only/
+    Untracked:  output/Proteomics_combined_final_males_only_no_PK259/
+    Untracked:  output/Proteomics_combined_final_males_only_no_batch2/
+    Untracked:  output/Proteomics_differential_abundance/
+    Untracked:  output/Proteomics_differential_abundance_v2/
+    Untracked:  output/Proteomics_differential_abundance_v3/
+    Untracked:  output/Proteomics_differential_abundance_v4/
+    Untracked:  output/Proteomics_differential_abundance_v6/
+    Untracked:  output/Proteomics_matched_PCA_multicell_states_v2/
+    Untracked:  output/Proteomics_quality_control/
+    Untracked:  output/Proteomics_quality_control_v2/
+    Untracked:  output/Proteomics_quality_control_v3/
+    Untracked:  output/Proteomics_quality_control_v4/
+    Untracked:  output/Proteomics_quality_control_v6/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_HC/
+    Untracked:  output/Reichart2022_ventricle_specificity_noncoding/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/Selection_genes_histology/
+    Untracked:  output/TAPSE_sPAP_concordance_3datasets/
+    Untracked:  output/TAPSE_sPAP_proteomics_snrna/
+    Untracked:  output/UntitledR.R
+    Untracked:  output/Variance_partitioning/
+    Untracked:  output/mPAP_concordance_3datasets/
+    Untracked:  redsfewfref.R
+    Untracked:  reference_sources/
+    Untracked:  renv.lock
+    Untracked:  renv/
+    Untracked:  wflow_publish.log
+
+Unstaged changes:
+    Modified:   analysis/Amrute_2024_matrifibrocyte_markers.Rmd
+    Modified:   analysis/CM_lncRNAs.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cell_cycle.Rmd
+    Modified:   analysis/Comparison_LV.Rmd
+    Modified:   analysis/DE_Fibrosis_all_cell_types.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+    Modified:   analysis/Endothelial_cells_Koenig_Reichart_manuscript.Rmd
+    Modified:   analysis/Endothelial_cells_published_datasets.rmd
+    Modified:   analysis/Figures_manuscript.Rmd
+    Modified:   analysis/HMEC.Rmd
+    Modified:   analysis/HMEC_second_run_manuscript.Rmd
+    Modified:   analysis/LV_Klaudia.Rmd
+    Modified:   analysis/MOFA_integrative_analysis_v6.Rmd
+    Modified:   analysis/Olink_proteomics.Rmd
+    Modified:   analysis/Proteomics_PCA_cell_state_composition.Rmd
+    Modified:   analysis/Proteomics_combined_final.Rmd
+    Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
+    Modified:   analysis/SSc_PAH.Rmd
+    Modified:   analysis/_site.yml
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown (<code>analysis/CM_lncRNAs_2.Rmd</code>) and HTML
+(<code>docs/CM_lncRNAs_2.html</code>) files. If you’ve configured a
+remote Git repository (see <code>?wflow_git_remote</code>), click on the
+hyperlinks in the table below to view the files as they were in that
+past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/834f008010913faef2c477598b3a607fe68317e0/analysis/CM_lncRNAs_2.Rmd" target="_blank">834f008</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-09-30
+</td>
+<td>
+wflow_publish("analysis/CM_lncRNAs_2.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code># Get current file name to make folder
+current_file &lt;- &quot;CM_lncRNAs_2&quot;
+
+# Load libraries
+library(here)
+library(readr)
+library(readxl)
+library(Seurat)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(reshape2)
+library(S4Vectors)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(gridExtra)
+library(knitr)
+library(scales)
+library(RColorBrewer)
+library(Matrix.utils)
+library(tibble)
+library(ggplot2)
+library(scater)
+library(patchwork)
+library(statmod)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(ReactomePA)
+library(statmod)
+library(SeuratDisk)
+library(speckle)
+library(rtracklayer)
+library(png)
+library(reactable)
+library(UpSetR)
+library(msigdbr)
+library(simplifyEnrichment)
+library(biomaRt)
+library(igraph)
+library(gridExtra) 
+library(ggpubr)
+library(edgeR)
+library(qs2)
+
+#Output paths
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;))
+
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs)</code></pre>
+<pre class="r"><code>reference_genes &lt;- readGFF(here::here(&quot;data&quot;, &quot;refdata-gex-GRCh38-2020-A&quot;, &quot;genes&quot;, &quot;genes.gtf&quot;))</code></pre>
+<pre class="r"><code># Stable Ensembl IDs, dataset gene symbols and display names requested by Marta
+lncrna_ens &lt;- c(
+  CM1       = &quot;ENSG00000254002&quot;,
+  CM2       = &quot;ENSG00000228692&quot;,
+  CM4       = &quot;ENSG00000226900&quot;,
+  LINC02982 = &quot;ENSG00000215246&quot;,
+  LINC01170 = &quot;ENSG00000253807&quot;,
+  LINC00561 = &quot;ENSG00000261206&quot;,
+  H19       = &quot;ENSG00000130600&quot;
+)
+
+lncrna_symbol &lt;- c(
+  CM1       = &quot;AC012574.2&quot;,
+  CM2       = &quot;AL445307.1&quot;,
+  CM4       = &quot;AL451069.1&quot;,
+  LINC02982 = &quot;AC116351.1&quot;,
+  LINC01170 = &quot;LINC01170&quot;,
+  LINC00561 = &quot;LINC00561&quot;,
+  H19       = &quot;H19&quot;
+)
+
+lncrna_display &lt;- names(lncrna_symbol)
+lncrna_symbol_to_display &lt;- setNames(names(lncrna_symbol), unname(lncrna_symbol))
+lncrna_ens_to_display &lt;- setNames(names(lncrna_ens), unname(lncrna_ens))
+
+
+# Resolve each requested lncRNA against the actual feature names of a dataset.
+# The resolver tries, in order: gene symbol, exact Ensembl ID, then a versioned
+# Ensembl ID (e.g. ENSG00000130600.1). Missing genes are retained as NA so that
+# combined plots keep the same seven candidate columns across datasets.
+resolve_lncRNA_features &lt;- function(object) {
+  object_features &lt;- rownames(object)
+
+  matched &lt;- vapply(
+    names(lncrna_symbol),
+    FUN = function(gene_name) {
+      symbol &lt;- unname(lncrna_symbol[gene_name])
+      ensembl &lt;- unname(lncrna_ens[gene_name])
+
+      if (!is.na(symbol) &amp;&amp; symbol %in% object_features) {
+        return(symbol)
+      }
+
+      if (!is.na(ensembl) &amp;&amp; ensembl %in% object_features) {
+        return(ensembl)
+      }
+
+      if (!is.na(ensembl)) {
+        versioned_match &lt;- grep(
+          paste0(&quot;^&quot;, ensembl, &quot;\\.&quot;),
+          object_features,
+          value = TRUE
+        )
+        if (length(versioned_match) &gt; 0) {
+          return(versioned_match[1])
+        }
+      }
+
+      return(NA_character_)
+    },
+    FUN.VALUE = character(1)
+  )
+
+  matched
+}
+
+check_lncRNA_features &lt;- function(object) {
+  matched &lt;- resolve_lncRNA_features(object)
+
+  data.frame(
+    lncRNA = names(lncrna_symbol),
+    symbol = unname(lncrna_symbol),
+    ensembl = unname(lncrna_ens),
+    matched_feature = unname(matched),
+    available = !is.na(matched),
+    stringsAsFactors = FALSE
+  )
+}
+
+feature_display_map &lt;- function(features) {
+  available &lt;- features[!is.na(features)]
+  setNames(names(available), unname(available))
+}
+
+# Harmonized cell-type order requested by Marta
+cell_type_order &lt;- c(
+  &quot;Cardiomyocytes&quot;,
+  &quot;Endothelial cells&quot;,
+  &quot;Fibroblasts&quot;,
+  &quot;Lymphoid lineage cells&quot;,
+  &quot;Myeloid lineage cells&quot;,
+  &quot;Adipocytes&quot;,
+  &quot;Neuronal cells&quot;,
+  &quot;Mural cells&quot;
+)
+
+# One established marker per harmonized cell category
+marker_symbol &lt;- c(
+  TNNT2  = &quot;TNNT2&quot;,
+  PECAM1 = &quot;PECAM1&quot;,
+  DCN    = &quot;DCN&quot;,
+  LTB    = &quot;LTB&quot;,
+  LST1   = &quot;LST1&quot;,
+  ADIPOQ = &quot;ADIPOQ&quot;,
+  NRXN1  = &quot;NRXN1&quot;,
+  RGS5   = &quot;RGS5&quot;
+)
+
+marker_table &lt;- data.frame(
+  Cell_type = cell_type_order,
+  Marker = unname(marker_symbol)
+)
+marker_table</code></pre>
+<pre><code>               Cell_type Marker
+1         Cardiomyocytes  TNNT2
+2      Endothelial cells PECAM1
+3            Fibroblasts    DCN
+4 Lymphoid lineage cells    LTB
+5  Myeloid lineage cells   LST1
+6             Adipocytes ADIPOQ
+7         Neuronal cells  NRXN1
+8            Mural cells   RGS5</code></pre>
+<pre class="r"><code># Reichart uses Ensembl IDs as feature names. Retrieve the Ensembl IDs of the marker genes
+# from the same GTF used for the candidate lncRNAs.
+marker_ref &lt;- reference_genes %&gt;%
+  dplyr::filter(gene_name %in% unname(marker_symbol)) %&gt;%
+  dplyr::select(gene_id, gene_name) %&gt;%
+  dplyr::distinct(gene_name, .keep_all = TRUE)
+
+marker_ens &lt;- marker_ref$gene_id[match(unname(marker_symbol), marker_ref$gene_name)]
+names(marker_ens) &lt;- names(marker_symbol)
+if (any(is.na(marker_ens))) {
+  warning(&quot;At least one marker gene could not be mapped to an Ensembl ID in the reference GTF.&quot;)
+}</code></pre>
+<pre class="r"><code># Return only features that are actually present in a Seurat object, while preserving
+# the requested display names in the names of the vector.
+get_available_features &lt;- function(object, features) {
+  feature_values &lt;- unname(features)
+  keep &lt;- !is.na(feature_values) &amp; feature_values %in% rownames(object)
+  features[keep]
+}
+
+make_feature_availability_table &lt;- function(object, features) {
+  feature_values &lt;- unname(features)
+  available &lt;- !is.na(feature_values) &amp; feature_values %in% rownames(object)
+
+  data.frame(
+    lncRNA = names(features),
+    matched_feature = feature_values,
+    available = available,
+    stringsAsFactors = FALSE
+  )
+}
+
+# Extract Seurat DotPlot values, while keeping the same requested rows/columns.
+# Missing genes remain as empty positions (no grey boxes or captions).
+make_dotplot_data &lt;- function(object, features, dataset_name) {
+  available_named &lt;- get_available_features(object, features)
+  available_features &lt;- unname(available_named)
+  feature_to_label &lt;- setNames(names(available_named), unname(available_named))
+
+  if (length(available_features) &gt; 0) {
+    tmp &lt;- DotPlot(
+      object,
+      features = available_features,
+      group.by = &quot;cell_type_simple&quot;
+    )$data %&gt;%
+      as.data.frame() %&gt;%
+      dplyr::transmute(
+        dataset = dataset_name,
+        cell_type = as.character(id),
+        feature = as.character(features.plot),
+        gene = unname(feature_to_label[as.character(features.plot)]),
+        pct.exp = pct.exp,
+        avg.exp.scaled = avg.exp.scaled
+      )
+  } else {
+    tmp &lt;- data.frame(
+      dataset = character(),
+      cell_type = character(),
+      feature = character(),
+      gene = character(),
+      pct.exp = numeric(),
+      avg.exp.scaled = numeric()
+    )
+  }
+
+  availability &lt;- data.frame(
+    gene = names(features),
+    feature_available = !is.na(unname(features)) &amp; unname(features) %in% rownames(object),
+    stringsAsFactors = FALSE
+  )
+
+  grid &lt;- tidyr::expand_grid(
+    dataset = dataset_name,
+    cell_type = cell_type_order,
+    gene = names(features)
+  )
+
+  tmp &lt;- grid %&gt;%
+    dplyr::left_join(availability, by = &quot;gene&quot;) %&gt;%
+    dplyr::left_join(
+      tmp %&gt;% dplyr::select(dataset, cell_type, gene, pct.exp, avg.exp.scaled),
+      by = c(&quot;dataset&quot;, &quot;cell_type&quot;, &quot;gene&quot;)
+    )
+
+  tmp$cell_type &lt;- factor(tmp$cell_type, levels = rev(cell_type_order))
+  tmp$gene &lt;- factor(tmp$gene, levels = names(features))
+  tmp
+}
+
+# Individual datasets: use Seurat-like default scales.
+# The percent-expressed scale adapts to each dataset independently.
+# Positions with exactly 0% expression are retained in the grid but no dot is drawn.
+plot_dotplot_data &lt;- function(data, title = NULL) {
+  gene_levels &lt;- levels(data$gene)
+
+  ggplot(data, aes(x = gene, y = cell_type)) +
+    geom_point(
+      data = data %&gt;% dplyr::filter(!is.na(pct.exp) &amp; pct.exp &gt; 0),
+      aes(size = pct.exp, color = avg.exp.scaled)
+    ) +
+    scale_radius(
+      name = &quot;Percent expressed&quot;,
+      range = c(0, 6)
+    ) +
+    scale_color_gradient(
+      name = &quot;Average expression&quot;,
+      low = &quot;lightgrey&quot;,
+      high = &quot;blue&quot;
+    ) +
+    scale_x_discrete(drop = FALSE, limits = gene_levels) +
+    scale_y_discrete(drop = FALSE) +
+    labs(
+      x = NULL,
+      y = NULL,
+      title = title
+    ) +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 11),
+      axis.text.y = element_text(size = 11),
+      plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;)
+    )
+}
+
+# Combined datasets: one shared legend and fixed scales across all datasets.
+# max_pct only sets the common legend/size scale; the underlying percentages are unchanged.
+plot_combined_dotplot &lt;- function(data, dataset_order, title = NULL,
+                                  max_pct = 100, pct_breaks = NULL) {
+  data$dataset &lt;- factor(data$dataset, levels = dataset_order)
+  gene_levels &lt;- levels(data$gene)
+
+  if (is.null(pct_breaks)) {
+    pct_breaks &lt;- pretty(c(0, max_pct), n = 4)
+    pct_breaks &lt;- pct_breaks[pct_breaks &gt; 0 &amp; pct_breaks &lt;= max_pct]
+  }
+
+  ggplot(data, aes(x = gene, y = cell_type)) +
+    geom_point(
+      data = data %&gt;% dplyr::filter(!is.na(pct.exp) &amp; pct.exp &gt; 0),
+      aes(size = pct.exp, color = avg.exp.scaled)
+    ) +
+    facet_grid(. ~ dataset, scales = &quot;free_x&quot;, space = &quot;free_x&quot;) +
+    scale_radius(
+      name = &quot;Percent expressed&quot;,
+      range = c(0, 6),
+      limits = c(0, max_pct),
+      breaks = pct_breaks
+    ) +
+    scale_color_gradient(
+      name = &quot;Average expression&quot;,
+      low = &quot;lightgrey&quot;,
+      high = &quot;blue&quot;,
+      limits = c(-2.5, 2.5),
+      oob = scales::squish
+    ) +
+    scale_x_discrete(drop = FALSE, limits = gene_levels) +
+    scale_y_discrete(drop = FALSE) +
+    labs(
+      x = NULL,
+      y = NULL,
+      title = title
+    ) +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+      axis.text.y = element_text(size = 11),
+      strip.text = element_text(face = &quot;bold&quot;, size = 11),
+      strip.background = element_blank(),
+      panel.spacing.x = grid::unit(1.2, &quot;lines&quot;),
+      plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;)
+    )
+}
+
+make_stacked_vlnplot &lt;- function(object, features, dataset_title, alpha = 0.3) {
+  available_named &lt;- get_available_features(object, features)
+  available_features &lt;- unname(available_named)
+  available_labels &lt;- names(available_named)
+
+  if (length(available_features) == 0) {
+    stop(paste0(&quot;None of the requested features are present in &quot;, dataset_title, &quot;.&quot;))
+  }
+
+  Idents(object) &lt;- &quot;cell_type_simple&quot;
+  p &lt;- Stacked_VlnPlot(
+    object,
+    features = available_features,
+    x_lab_rotate = TRUE,
+    pt.size = 0.001,
+    plot_spacing = 0.05
+  )
+
+  for (i in seq_along(p)) {
+    if (length(p[[i]][[1]]$layers) &gt;= 2) {
+      p[[i]][[1]]$layers[[2]]$aes_params$alpha &lt;- alpha
+    }
+    p[[i]][[1]] &lt;- p[[i]][[1]] + labs(y = available_labels[i])
+  }
+
+  wrap_plots(p) +
+    plot_annotation(title = dataset_title) &amp;
+    theme(plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;, size = 15))
+}
+
+# Feature plots use the same scCustomize palette as the original presentation.
+# Genes absent from a released dataset are still shown as a grey-only UMAP panel.
+make_featureplot &lt;- function(object, features, dataset_title) {
+  available_named &lt;- get_available_features(object, features)
+  available_labels &lt;- names(available_named)
+  requested_labels &lt;- names(features)
+
+  plot_list &lt;- vector(&quot;list&quot;, length(requested_labels))
+  names(plot_list) &lt;- requested_labels
+
+  if (length(available_named) &gt; 0) {
+    available_plots &lt;- FeaturePlot_scCustom(
+      seurat_object = object,
+      features = unname(available_named),
+      colors_use = viridis_plasma_dark_high,
+      na_color = &quot;lightgray&quot;,
+      order = TRUE,
+      combine = FALSE
+    )
+
+    for (i in seq_along(available_plots)) {
+      label_here &lt;- available_labels[i]
+      available_plots[[i]] &lt;- available_plots[[i]] + ggtitle(label_here)
+      plot_list[[label_here]] &lt;- available_plots[[i]]
+    }
+  }
+
+  missing_labels &lt;- setdiff(requested_labels, available_labels)
+
+  if (length(missing_labels) &gt; 0) {
+    for (label_here in missing_labels) {
+      object$.feature_not_available &lt;- &quot;not available&quot;
+      plot_list[[label_here]] &lt;- DimPlot(
+        object,
+        group.by = &quot;.feature_not_available&quot;,
+        cols = &quot;lightgray&quot;
+      ) +
+        NoLegend() +
+        ggtitle(label_here)
+    }
+  }
+
+  wrap_plots(plot_list, ncol = 4) +
+    plot_annotation(title = dataset_title) &amp;
+    theme(plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;, size = 16))
+}
+
+# Make sample-level pseudobulk expression data from the unfiltered DGEList.
+# A candidate is plotted if it has at least one non-zero raw pseudobulk count.
+# Thus genes detected but excluded by filterByExpr remain visible, whereas genes
+# with zero counts in every sample are not shown.
+make_pseudobulk_box_data &lt;- function(pseudocounts_all, metadata, sample_col, group_col, features) {
+  raw_counts &lt;- pseudocounts_all$counts
+  detected_features &lt;- rownames(raw_counts)[rowSums(raw_counts) &gt; 0]
+
+  pseudocounts_plot &lt;- edgeR::normLibSizes(pseudocounts_all)
+  logcpm &lt;- edgeR::cpm(pseudocounts_plot, log = TRUE, prior.count = 1)
+
+  available_named &lt;- features[
+    !is.na(unname(features)) &amp;
+      unname(features) %in% rownames(logcpm) &amp;
+      unname(features) %in% detected_features
+  ]
+
+  if (length(available_named) == 0) {
+    stop(&quot;None of the requested features have non-zero pseudobulk counts.&quot;)
+  }
+
+  feature_to_label &lt;- setNames(names(available_named), unname(available_named))
+
+  expr &lt;- as.data.frame(
+    t(logcpm[unname(available_named), , drop = FALSE])
+  ) %&gt;%
+    tibble::rownames_to_column(&quot;sample&quot;) %&gt;%
+    tidyr::pivot_longer(
+      cols = -sample,
+      names_to = &quot;feature&quot;,
+      values_to = &quot;logCPM&quot;
+    ) %&gt;%
+    dplyr::mutate(
+      gene = unname(feature_to_label[feature])
+    )
+
+  meta &lt;- data.frame(
+    sample = as.character(metadata[[sample_col]]),
+    group = as.character(metadata[[group_col]]),
+    stringsAsFactors = FALSE
+  )
+
+  expr &lt;- expr %&gt;%
+    dplyr::left_join(meta, by = &quot;sample&quot;)
+
+  expr$gene &lt;- factor(expr$gene, levels = names(available_named))
+  expr
+}
+
+format_fdr_for_plot &lt;- function(x) {
+  out &lt;- rep(NA_character_, length(x))
+  keep &lt;- !is.na(x) &amp; x &lt; 0.1
+
+  out[keep &amp; x &lt; 0.001] &lt;- &quot;&lt;0.001&quot;
+
+  idx &lt;- keep &amp; x &gt;= 0.001
+  if (any(idx)) {
+    formatted &lt;- formatC(x[idx], format = &quot;f&quot;, digits = 4)
+    formatted &lt;- sub(&quot;0+$&quot;, &quot;&quot;, formatted)
+    formatted &lt;- sub(&quot;\\.$&quot;, &quot;&quot;, formatted)
+    out[idx] &lt;- formatted
+  }
+
+  out
+}
+
+prepare_fdr_annotations &lt;- function(stats, box_data) {
+  plotted_genes &lt;- unique(as.character(box_data$gene))
+
+  stats &lt;- stats %&gt;%
+    dplyr::filter(gene %in% plotted_genes, !is.na(FDR), FDR &lt; 0.1) %&gt;%
+    dplyr::mutate(
+      gene = as.character(gene),
+      label = format_fdr_for_plot(FDR)
+    )
+
+  if (nrow(stats) == 0) {
+    stats$y.position &lt;- numeric(0)
+    return(stats)
+  }
+
+  y_positions &lt;- box_data %&gt;%
+    dplyr::mutate(gene = as.character(gene)) %&gt;%
+    dplyr::group_by(gene) %&gt;%
+    dplyr::summarise(
+      ymin = min(logCPM, na.rm = TRUE),
+      ymax = max(logCPM, na.rm = TRUE),
+      yrange = ymax - ymin,
+      .groups = &quot;drop&quot;
+    )
+
+  stats &lt;- stats %&gt;%
+    dplyr::left_join(y_positions, by = &quot;gene&quot;) %&gt;%
+    dplyr::group_by(gene) %&gt;%
+    dplyr::mutate(
+      annotation_index = dplyr::row_number() - 1,
+      y.position = ymax + dplyr::if_else(
+        yrange &gt; 0,
+        (0.12 + 0.12 * annotation_index) * yrange,
+        0.2 + 0.2 * annotation_index
+      )
+    ) %&gt;%
+    dplyr::ungroup()
+
+  stats$gene &lt;- factor(stats$gene, levels = levels(box_data$gene))
+  stats
+}
+
+plot_pseudobulk_boxplots &lt;- function(box_data, stats, title, ncol = 4) {
+  p &lt;- ggplot(
+    box_data,
+    aes(x = group, y = logCPM, fill = group)
+  ) +
+    geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+    geom_jitter(width = 0.12, size = 1.5) +
+    facet_wrap(~ gene, scales = &quot;free_y&quot;, ncol = ncol) +
+    scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0.05, 0.35))
+    ) +
+    labs(
+      x = NULL,
+      y = &quot;Pseudobulk expression (log2 CPM)&quot;,
+      title = title
+    ) +
+    theme_classic() +
+    theme(
+      legend.position = &quot;none&quot;,
+      axis.text.x = element_text(angle = 20, hjust = 1),
+      strip.text = element_text(face = &quot;bold&quot;),
+      plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;)
+    )
+
+  if (nrow(stats) &gt; 0) {
+    p &lt;- p + ggpubr::stat_pvalue_manual(
+      stats,
+      label = &quot;label&quot;,
+      xmin = &quot;group1&quot;,
+      xmax = &quot;group2&quot;,
+      y.position = &quot;y.position&quot;,
+      tip.length = 0.01,
+      bracket.size = 0.4,
+      size = 3.5
+    )
+  }
+
+  p
+}
+
+public_lncRNA_dotplots &lt;- list()
+public_marker_dotplots &lt;- list()</code></pre>
+</div>
+<div id="litvinukova-et-al.-2020" class="section level2">
+<h2>Litvinukova et al. 2020</h2>
+<pre class="r"><code>Litvinukova &lt;- readRDS(here::here(&quot;data&quot;, &quot;Heart_datasets&quot;, &quot;Litvinukova_2020&quot;, &quot;Litvinukova.rds&quot;))
+DefaultAssay(Litvinukova) &lt;- &quot;RNA&quot;
+Litvinukova &lt;- NormalizeData(Litvinukova)
+Litvinukova_lncRNA_features &lt;- resolve_lncRNA_features(Litvinukova)
+Litvinukova_lncRNA_to_display &lt;- feature_display_map(Litvinukova_lncRNA_features)</code></pre>
+<pre class="r"><code>Litvinukova$cell_type_simple &lt;- dplyr::case_when(
+  Litvinukova$cell_type %in% c(&quot;Atrial_Cardiomyocyte&quot;, &quot;Ventricular_Cardiomyocyte&quot;) ~ &quot;Cardiomyocytes&quot;,
+  Litvinukova$cell_type %in% c(&quot;Endothelial&quot;) ~ &quot;Endothelial cells&quot;,
+  Litvinukova$cell_type %in% c(&quot;Fibroblast&quot;) ~ &quot;Fibroblasts&quot;,
+  Litvinukova$cell_type %in% c(&quot;Lymphoid&quot;) ~ &quot;Lymphoid lineage cells&quot;,
+  Litvinukova$cell_type %in% c(&quot;Myeloid&quot;) ~ &quot;Myeloid lineage cells&quot;,
+  Litvinukova$cell_type %in% c(&quot;Adipocytes&quot;) ~ &quot;Adipocytes&quot;,
+  Litvinukova$cell_type %in% c(&quot;Neuronal&quot;) ~ &quot;Neuronal cells&quot;,
+  Litvinukova$cell_type %in% c(&quot;Pericytes&quot;, &quot;Smooth_muscle_cells&quot;) ~ &quot;Mural cells&quot;,
+  TRUE ~ NA_character_
+)
+Litvinukova$cell_type_simple &lt;- factor(Litvinukova$cell_type_simple, levels = cell_type_order)
+Litvinukova_simple &lt;- subset(
+  Litvinukova,
+  cells = rownames(Litvinukova@meta.data)[!is.na(Litvinukova$cell_type_simple)]
+)</code></pre>
+<pre class="r"><code>Litvinukova_dimplot &lt;- DimPlot(Litvinukova_simple, group.by = &quot;cell_type_simple&quot;) +
+  ggtitle(&quot;Litvinukova et al. 2020&quot;)
+Litvinukova_dimplot</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Litvinukova_dimplot-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>check_lncRNA_features(Litvinukova)</code></pre>
+<pre><code>             lncRNA     symbol         ensembl matched_feature available
+CM1             CM1 AC012574.2 ENSG00000254002      AC012574.2      TRUE
+CM2             CM2 AL445307.1 ENSG00000228692      AL445307.1      TRUE
+CM4             CM4 AL451069.1 ENSG00000226900      AL451069.1      TRUE
+LINC02982 LINC02982 AC116351.1 ENSG00000215246      AC116351.1      TRUE
+LINC01170 LINC01170  LINC01170 ENSG00000253807       LINC01170      TRUE
+LINC00561 LINC00561  LINC00561 ENSG00000261206       LINC00561      TRUE
+H19             H19        H19 ENSG00000130600            &lt;NA&gt;     FALSE</code></pre>
+<pre class="r"><code>Litvinukova_lncRNA_dot_data &lt;- make_dotplot_data(
+  Litvinukova_simple,
+  Litvinukova_lncRNA_features,
+  &quot;Litvinukova et al. 2020&quot;
+)
+public_lncRNA_dotplots[[&quot;Litvinukova et al. 2020&quot;]] &lt;- Litvinukova_lncRNA_dot_data
+Litvinukova_dotplot &lt;- plot_dotplot_data(
+  Litvinukova_lncRNA_dot_data,
+  &quot;Litvinukova et al. 2020&quot;
+)
+Litvinukova_dotplot</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Litvinukova_dotplot-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Litvinukova_marker_dot_data &lt;- make_dotplot_data(
+  Litvinukova_simple,
+  marker_symbol,
+  &quot;Litvinukova et al. 2020&quot;
+)
+public_marker_dotplots[[&quot;Litvinukova et al. 2020&quot;]] &lt;- Litvinukova_marker_dot_data
+plot_dotplot_data(Litvinukova_marker_dot_data, &quot;Litvinukova et al. 2020 - cell-type markers&quot;)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Litvinukova_marker_dotplot-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Litvinukova_vlnplot &lt;- make_stacked_vlnplot(
+  Litvinukova_simple,
+  Litvinukova_lncRNA_features,
+  &quot;Litvinukova et al. 2020&quot;,
+  alpha = 0.3
+)
+print(Litvinukova_vlnplot)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Litvinukova_vlnplot-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Litvinukova_featureplot &lt;- make_featureplot(
+  Litvinukova,
+  Litvinukova_lncRNA_features,
+  &quot;Litvinukova et al. 2020&quot;
+)
+print(Litvinukova_featureplot)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Litvinukova_featureplot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Litvinukova_subset_V &lt;- subset(Litvinukova,  cell_type == &quot;Ventricular_Cardiomyocyte&quot; &amp; region %in% c(&quot;RV&quot;, &quot;LV&quot;))
+Litvinukova_subset_A &lt;- subset(Litvinukova, cell_type == &quot;Atrial_Cardiomyocyte&quot; &amp; region %in% c(&quot;RA&quot;, &quot;LA&quot;))
+
+Idents(Litvinukova_subset_V) &lt;- Litvinukova_subset_V$region
+Idents(Litvinukova_subset_A) &lt;- Litvinukova_subset_A$region
+
+Litvinukova_features_V &lt;- get_available_features(Litvinukova_subset_V, Litvinukova_lncRNA_features)
+Litvinukova_features_A &lt;- get_available_features(Litvinukova_subset_A, Litvinukova_lncRNA_features)
+
+Litvinukova_RV_vs_LV &lt;- FindMarkers(Litvinukova_subset_V, ident.1 = &quot;RV&quot;, ident.2 = &quot;LV&quot;, features = unname(Litvinukova_features_V), logfc.threshold = 0, min.pct = 0.001)
+Litvinukova_RV_vs_LV$gene &lt;- rownames(Litvinukova_RV_vs_LV)
+write.csv(Litvinukova_RV_vs_LV, here::here(output_dir_data, &quot;Litvinukova_RV_vs_LV.csv&quot;), row.names = FALSE)
+
+Litvinukova_RA_vs_LA &lt;- FindMarkers(Litvinukova_subset_A, ident.1 = &quot;RA&quot;, ident.2 = &quot;LA&quot;, features = unname(Litvinukova_features_A), logfc.threshold = 0, min.pct = 0.001)
+Litvinukova_RA_vs_LA$gene &lt;- rownames(Litvinukova_RA_vs_LA)
+write.csv(Litvinukova_RA_vs_LA, here::here(output_dir_data, &quot;Litvinukova_RA_vs_LA.csv&quot;), row.names = FALSE)</code></pre>
+<pre class="r"><code>reactable(Litvinukova_RV_vs_LV, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-f843a680a1fcd62a0dd1" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-f843a680a1fcd62a0dd1">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["LINC01170","AC012574.2","AC116351.1","AL451069.1","AL445307.1"],"p_val":[2.55550124946297e-230,1.3117292281359e-20,1.35928591439184e-13,0.296051194183501,0.65756464090102],"avg_log2FC":[0.510170011396172,-0.0402491784227054,-0.0214062367286227,0.0447746273024509,0.000347842191637179],"pct.1":[0.266,0.03,0.02,0.1,0.002],"pct.2":[0.173,0.043,0.029,0.099,0.002],"p_val_adj":[8.57064009044891e-226,4.39927748532217e-16,4.55877309968737e-09,1,1],"gene":["LINC01170","AC012574.2","AC116351.1","AL451069.1","AL445307.1"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"gene","name":"gene","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"82a5638db36dec70eafc4b9658787196"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>reactable(Litvinukova_RA_vs_LA, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-ba32e0541469b5ed4906" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-ba32e0541469b5ed4906">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["LINC01170","AC012574.2","AL451069.1","AL445307.1","AC116351.1"],"p_val":[0,5.15415030129217e-27,0.0128638308592988,0.0741276827240384,0.106653920832231],"avg_log2FC":[1.09811311228841,0.101301384594774,-0.00653762102115535,-0.00719857227376241,0.0177846692546747],"pct.1":[0.56,0.033,0.014,0.001,0.025],"pct.2":[0.285,0.013,0.019,0.002,0.022],"p_val_adj":[0,1.72859892804737e-22,1,1,1],"gene":["LINC01170","AC012574.2","AL451069.1","AL445307.1","AC116351.1"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"gene","name":"gene","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"399cbdadf62bfafacc1ad1f14d83559a"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>Litvinukova_dotplot_RV_vs_LV &lt;- DotPlot(
+  Litvinukova_subset_V,
+  features = unname(Litvinukova_features_V),
+  group.by = &quot;region&quot;,
+  scale = FALSE
+)
+Litvinukova_dotplot_RV_vs_LV$data &lt;- Litvinukova_dotplot_RV_vs_LV$data %&gt;%
+  dplyr::filter(!is.na(pct.exp) &amp; pct.exp &gt; 0)
+Litvinukova_dotplot_RV_vs_LV &lt;- Litvinukova_dotplot_RV_vs_LV +
+  scale_x_discrete(labels = setNames(names(Litvinukova_features_V), unname(Litvinukova_features_V))) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  ) +
+  ggtitle(&quot;Litvinukova et al. 2020 - RV vs LV&quot;)
+Litvinukova_dotplot_RV_vs_LV</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Litvinukova_dotplot_RV_vs_LV-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Litvinukova_dotplot_RA_vs_LA &lt;- DotPlot(
+  Litvinukova_subset_A,
+  features = unname(Litvinukova_features_A),
+  group.by = &quot;region&quot;,
+  scale = FALSE
+)
+Litvinukova_dotplot_RA_vs_LA$data &lt;- Litvinukova_dotplot_RA_vs_LA$data %&gt;%
+  dplyr::filter(!is.na(pct.exp) &amp; pct.exp &gt; 0)
+Litvinukova_dotplot_RA_vs_LA &lt;- Litvinukova_dotplot_RA_vs_LA +
+  scale_x_discrete(labels = setNames(names(Litvinukova_features_A), unname(Litvinukova_features_A))) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  ) +
+  ggtitle(&quot;Litvinukova et al. 2020 - RA vs LA&quot;)
+Litvinukova_dotplot_RA_vs_LA</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Litvinukova_dotplot_RA_vs_LA-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(Litvinukova, Litvinukova_simple)</code></pre>
+</div>
+<div id="koenig-et-al.-2022" class="section level2">
+<h2>Koenig et al. 2022</h2>
+<pre class="r"><code>load(here::here(&quot;data&quot;, &quot;Heart_datasets&quot;, &quot;Koenig_2022&quot;, &quot;GSE183852_DCM_Integrated.Robj&quot;))
+Koenig &lt;- RefMerge
+rm(RefMerge)
+DefaultAssay(Koenig) &lt;- &quot;RNA&quot;
+Koenig &lt;- NormalizeData(Koenig)
+Koenig_lncRNA_features &lt;- resolve_lncRNA_features(Koenig)
+Koenig_lncRNA_to_display &lt;- feature_display_map(Koenig_lncRNA_features)</code></pre>
+<pre class="r"><code>Koenig$cell_type_simple &lt;- dplyr::case_when(
+  Koenig$Names %in% c(&quot;Cardiomyocytes&quot;) ~ &quot;Cardiomyocytes&quot;,
+  Koenig$Names %in% c(&quot;Endothelium&quot;) ~ &quot;Endothelial cells&quot;,
+  Koenig$Names %in% c(&quot;Fibroblasts&quot;) ~ &quot;Fibroblasts&quot;,
+  Koenig$Names %in% c(&quot;B-Cells&quot;, &quot;NK/T-Cells&quot;) ~ &quot;Lymphoid lineage cells&quot;,
+  Koenig$Names %in% c(&quot;Myeloid&quot;, &quot;Mast&quot;) ~ &quot;Myeloid lineage cells&quot;,
+  Koenig$Names %in% c(&quot;Adipocytes&quot;) ~ &quot;Adipocytes&quot;,
+  Koenig$Names %in% c(&quot;Neurons&quot;) ~ &quot;Neuronal cells&quot;,
+  Koenig$Names %in% c(&quot;Smooth_Muscle&quot;, &quot;Pericytes&quot;) ~ &quot;Mural cells&quot;,
+  TRUE ~ NA_character_
+)
+Koenig$cell_type_simple &lt;- factor(Koenig$cell_type_simple, levels = cell_type_order)
+Koenig_simple &lt;- subset(
+  Koenig,
+  cells = rownames(Koenig@meta.data)[!is.na(Koenig$cell_type_simple)]
+)</code></pre>
+<pre class="r"><code>Koenig_dimplot &lt;- DimPlot(Koenig_simple, group.by = &quot;cell_type_simple&quot;) +
+  ggtitle(&quot;Koenig et al. 2022&quot;)
+Koenig_dimplot</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Koenig_dimplot-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>check_lncRNA_features(Koenig)</code></pre>
+<pre><code>             lncRNA     symbol         ensembl matched_feature available
+CM1             CM1 AC012574.2 ENSG00000254002      AC012574.2      TRUE
+CM2             CM2 AL445307.1 ENSG00000228692      AL445307.1      TRUE
+CM4             CM4 AL451069.1 ENSG00000226900      AL451069.1      TRUE
+LINC02982 LINC02982 AC116351.1 ENSG00000215246      AC116351.1      TRUE
+LINC01170 LINC01170  LINC01170 ENSG00000253807       LINC01170      TRUE
+LINC00561 LINC00561  LINC00561 ENSG00000261206       LINC00561      TRUE
+H19             H19        H19 ENSG00000130600            &lt;NA&gt;     FALSE</code></pre>
+<pre class="r"><code>Koenig_lncRNA_dot_data &lt;- make_dotplot_data(
+  Koenig_simple,
+  Koenig_lncRNA_features,
+  &quot;Koenig et al. 2022&quot;
+)
+public_lncRNA_dotplots[[&quot;Koenig et al. 2022&quot;]] &lt;- Koenig_lncRNA_dot_data
+Koenig_dotplot &lt;- plot_dotplot_data(Koenig_lncRNA_dot_data, &quot;Koenig et al. 2022&quot;)
+Koenig_dotplot</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Koenig_dotplot-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Koenig_marker_dot_data &lt;- make_dotplot_data(
+  Koenig_simple,
+  marker_symbol,
+  &quot;Koenig et al. 2022&quot;
+)
+public_marker_dotplots[[&quot;Koenig et al. 2022&quot;]] &lt;- Koenig_marker_dot_data
+plot_dotplot_data(Koenig_marker_dot_data, &quot;Koenig et al. 2022 - cell-type markers&quot;)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Koenig_marker_dotplot-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Koenig_vlnplot &lt;- make_stacked_vlnplot(
+  Koenig_simple,
+  Koenig_lncRNA_features,
+  &quot;Koenig et al. 2022&quot;,
+  alpha = 0.2
+)
+print(Koenig_vlnplot)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Koenig_vlnplot-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Koenig_featureplot &lt;- make_featureplot(
+  Koenig,
+  Koenig_lncRNA_features,
+  &quot;Koenig et al. 2022&quot;
+)
+print(Koenig_featureplot)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Koenig_featureplot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Koenig_CM &lt;- subset(Koenig, Names %in% c(&quot;Cardiomyocytes&quot;) &amp; CondTech %in% c(&quot;DCM_SN&quot;, &quot;Donor_SN&quot;))
+
+metadata &lt;- Koenig_CM@meta.data %&gt;%
+  dplyr::select(orig.ident, condition) %&gt;%
+  dplyr::distinct()
+rownames(metadata) &lt;- metadata$orig.ident
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-484ed42468d86de4a421" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-484ed42468d86de4a421">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["TWCM-11-74","TWCM-11-93","TWCM-11-103","TWCM-11-256","TWCM-13-132","TWCM-11-3","TWCM-13-235","TWCM-11-42","TWCM-13-192","H_ZC-11-292","H_ZC-LVAD","TWCM-10-5","TWCM-10-68","TWCM-11-41","TWCM-11-78","TWCM-11-82","TWCM-11-104","TWCM-11-192","TWCM-11-264","TWCM-13-1","TWCM-13-17","TWCM-13-36","TWCM-13-47","TWCM-13-80","TWCM-13-84","TWCM-13-96","TWCM-13-101","TWCM-13-102","TWCM-13-104","TWCM-13-152","TWCM-13-168","TWCM-13-181","TWCM-13-198","TWCM-13-208","TWCM-13-285","TWCM-14-173","TWCM-LVAD2","TWCM-LVAD3"],"orig.ident":["TWCM-11-74","TWCM-11-93","TWCM-11-103","TWCM-11-256","TWCM-13-132","TWCM-11-3","TWCM-13-235","TWCM-11-42","TWCM-13-192","H_ZC-11-292","H_ZC-LVAD","TWCM-10-5","TWCM-10-68","TWCM-11-41","TWCM-11-78","TWCM-11-82","TWCM-11-104","TWCM-11-192","TWCM-11-264","TWCM-13-1","TWCM-13-17","TWCM-13-36","TWCM-13-47","TWCM-13-80","TWCM-13-84","TWCM-13-96","TWCM-13-101","TWCM-13-102","TWCM-13-104","TWCM-13-152","TWCM-13-168","TWCM-13-181","TWCM-13-198","TWCM-13-208","TWCM-13-285","TWCM-14-173","TWCM-LVAD2","TWCM-LVAD3"],"condition":["Donor","DCM","Donor","Donor","Donor","DCM","Donor","Donor","Donor","Donor","DCM","DCM","Donor","Donor","Donor","Donor","Donor","Donor","Donor","Donor","DCM","Donor","DCM","Donor","DCM","Donor","Donor","DCM","Donor","Donor","Donor","DCM","Donor","DCM","DCM","Donor","DCM","DCM"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"orig.ident","name":"orig.ident","type":"character"},{"id":"condition","name":"condition","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"78e36feee7c124d75ac0112ebfc29592"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code># Build pseudobulk using all genes. Formal DE filtering is done only with filterByExpr.
+pseudocounts_all &lt;- Seurat2PB(Koenig_CM, sample = &quot;orig.ident&quot;, cluster = &quot;Names&quot;)
+colnames(pseudocounts_all) &lt;- pseudocounts_all$samples$sample
+pseudocounts_all &lt;- pseudocounts_all[, match(metadata$orig.ident, pseudocounts_all$samples$sample)]
+stopifnot(all(metadata$orig.ident == pseudocounts_all$samples$sample))
+
+keep_samples &lt;- pseudocounts_all$samples$lib.size &gt; 5e4
+pseudocounts_all &lt;- pseudocounts_all[, keep_samples]
+metadata &lt;- metadata[match(pseudocounts_all$samples$sample, metadata$orig.ident), , drop = FALSE]
+stopifnot(all(metadata$orig.ident == pseudocounts_all$samples$sample))
+
+metadata$condition &lt;- factor(metadata$condition, levels = c(&quot;Donor&quot;, &quot;DCM&quot;))
+design &lt;- model.matrix(~ condition, data = metadata)
+
+keep_genes &lt;- edgeR::filterByExpr(pseudocounts_all, design = design)
+pseudocounts &lt;- pseudocounts_all[keep_genes, , keep.lib.sizes = FALSE]
+
+Koenig_tested &lt;- data.frame(
+  gene = names(Koenig_lncRNA_features),
+  feature = unname(Koenig_lncRNA_features),
+  tested = !is.na(unname(Koenig_lncRNA_features)) &amp;
+    unname(Koenig_lncRNA_features) %in% rownames(pseudocounts)
+)
+Koenig_tested</code></pre>
+<pre><code>       gene    feature tested
+1       CM1 AC012574.2  FALSE
+2       CM2 AL445307.1  FALSE
+3       CM4 AL451069.1  FALSE
+4 LINC02982 AC116351.1  FALSE
+5 LINC01170  LINC01170   TRUE
+6 LINC00561  LINC00561  FALSE
+7       H19       &lt;NA&gt;  FALSE</code></pre>
+<pre class="r"><code>pseudocounts &lt;- edgeR::normLibSizes(pseudocounts)
+pseudocounts &lt;- edgeR::estimateDisp(pseudocounts, design)
+
+fit &lt;- edgeR::glmQLFit(pseudocounts, design, robust = TRUE)
+fit &lt;- edgeR::glmQLFTest(fit, coef = 2)
+
+results_Koenig &lt;- as.data.frame(edgeR::topTags(fit, n = Inf)$table)
+results_Koenig$gene &lt;- rownames(results_Koenig)
+results_Koenig$up_down &lt;- ifelse(
+  results_Koenig$logFC &gt; 0.5 &amp; results_Koenig$FDR &lt; 0.05, &quot;Increased&quot;,
+  ifelse(
+    results_Koenig$logFC &lt; -0.5 &amp; results_Koenig$FDR &lt; 0.05,
+    &quot;Decreased&quot;,
+    &quot;Not significant&quot;
+  )
+)
+
+results_Koenig_lncRNA &lt;- results_Koenig %&gt;%
+  dplyr::filter(gene %in% names(Koenig_lncRNA_to_display)) %&gt;%
+  dplyr::mutate(lncRNA = unname(Koenig_lncRNA_to_display[gene]))
+
+write.csv(
+  results_Koenig_lncRNA,
+  here::here(output_dir_data, &quot;Koenig_DCM_vs_HC.csv&quot;),
+  row.names = FALSE
+)
+
+reactable(
+  results_Koenig_lncRNA,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-697d58abce2053a24549" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-697d58abce2053a24549">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["LINC01170"],"gene":["LINC01170"],"logFC":[0.078532391444048],"logCPM":[5.88299330424265],"F":[0.034267262905176],"PValue":[0.854059766212165],"FDR":[0.902729750908547],"up_down":["Not significant"],"lncRNA":["LINC01170"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"gene","name":"gene","type":"character"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"up_down","name":"up_down","type":"character"},{"id":"lncRNA","name":"lncRNA","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"0082f1f7306aa6c3dcbd651718890b95"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>counts &lt;- edgeR::cpm(pseudocounts, log = TRUE)
+
+candidate_order &lt;- unname(Koenig_lncRNA_features[!is.na(Koenig_lncRNA_features)])
+candidate_order &lt;- candidate_order[candidate_order %in% rownames(counts)]
+counts &lt;- counts[candidate_order, , drop = FALSE]
+
+metadata_matched &lt;- metadata[match(colnames(counts), metadata$orig.ident), , drop = FALSE]
+stopifnot(all(colnames(counts) == metadata_matched$orig.ident))
+order_idx &lt;- order(metadata_matched$condition)
+counts &lt;- counts[, order_idx, drop = FALSE]
+metadata_matched &lt;- metadata_matched[order_idx, , drop = FALSE]
+rownames(counts) &lt;- unname(Koenig_lncRNA_to_display[rownames(counts)])
+
+annotation_col &lt;- data.frame(condition = metadata_matched$condition)
+rownames(annotation_col) &lt;- metadata_matched$orig.ident
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+pheatmap::pheatmap(
+  counts,
+  color = heat_colors,
+  cluster_rows = FALSE,
+  annotation_col = annotation_col,
+  border_color = NA,
+  fontsize = 10,
+  scale = &quot;row&quot;,
+  cluster_cols = FALSE,
+  fontsize_row = 15,
+  show_rownames = TRUE,
+  show_colnames = FALSE,
+  cellheight = 15,
+  legend_breaks = c(-1.5, 0, 1.5),
+  main = &quot;Koenig et al. 2022 - LV&quot;
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Koenig_heatmap_DCM_vs_HC-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Koenig_box_data &lt;- make_pseudobulk_box_data(
+  pseudocounts_all,
+  metadata,
+  sample_col = &quot;orig.ident&quot;,
+  group_col = &quot;condition&quot;,
+  features = Koenig_lncRNA_features
+)
+Koenig_box_data$group &lt;- factor(Koenig_box_data$group, levels = c(&quot;Donor&quot;, &quot;DCM&quot;))
+
+Koenig_stats &lt;- results_Koenig_lncRNA %&gt;%
+  dplyr::transmute(
+    gene = lncRNA,
+    group1 = &quot;Donor&quot;,
+    group2 = &quot;DCM&quot;,
+    FDR = FDR
+  )
+Koenig_stats &lt;- prepare_fdr_annotations(Koenig_stats, Koenig_box_data)
+
+plot_pseudobulk_boxplots(
+  Koenig_box_data,
+  Koenig_stats,
+  title = &quot;Koenig et al. 2022 - LV&quot;,
+  ncol = 2
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Koenig_boxplot_DE-1.png" width="1650" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(Koenig, Koenig_simple)</code></pre>
+</div>
+<div id="chaffin-et-al.-2022" class="section level2">
+<h2>Chaffin et al. 2022</h2>
+<pre class="r"><code>Chaffin &lt;- readRDS(here::here(&quot;data&quot;, &quot;Heart_datasets&quot;, &quot;Chaffin_2022&quot;, &quot;Chaffin.rds&quot;))
+Chaffin &lt;- RenameAssays(
+    object = Chaffin,
+    originalexp = &quot;RNA&quot;
+)
+DefaultAssay(Chaffin) &lt;- &quot;RNA&quot;
+Chaffin &lt;- NormalizeData(Chaffin)
+Chaffin_lncRNA_features &lt;- resolve_lncRNA_features(Chaffin)
+Chaffin_lncRNA_to_display &lt;- feature_display_map(Chaffin_lncRNA_features)</code></pre>
+<pre class="r"><code>Chaffin$cell_type_simple &lt;- dplyr::case_when(
+  Chaffin$cell_type_leiden0.6 %in% c(&quot;Cardiomyocyte_I&quot;, &quot;Cardiomyocyte_II&quot;, &quot;Cardiomyocyte_III&quot;) ~ &quot;Cardiomyocytes&quot;,
+  Chaffin$cell_type_leiden0.6 %in% c(&quot;Endothelial_I&quot;, &quot;Endothelial_II&quot;, &quot;Endothelial_III&quot;) ~ &quot;Endothelial cells&quot;,
+  Chaffin$cell_type_leiden0.6 %in% c(&quot;Fibroblast_I&quot;, &quot;Fibroblast_II&quot;) ~ &quot;Fibroblasts&quot;,
+  Chaffin$cell_type_leiden0.6 %in% c(&quot;Lymphocyte&quot;) ~ &quot;Lymphoid lineage cells&quot;,
+  Chaffin$cell_type_leiden0.6 %in% c(&quot;Macrophage&quot;, &quot;Proliferating_macrophage&quot;, &quot;Mast_cell&quot;) ~ &quot;Myeloid lineage cells&quot;,
+  Chaffin$cell_type_leiden0.6 %in% c(&quot;Adipocyte&quot;) ~ &quot;Adipocytes&quot;,
+  Chaffin$cell_type_leiden0.6 %in% c(&quot;Neuronal&quot;) ~ &quot;Neuronal cells&quot;,
+  Chaffin$cell_type_leiden0.6 %in% c(&quot;Pericyte_I&quot;, &quot;Pericyte_II&quot;, &quot;VSMC&quot;) ~ &quot;Mural cells&quot;,
+  TRUE ~ NA_character_
+)
+# Activated_fibroblast is intentionally excluded, following Marta&#39;s requested grouping.
+Chaffin$cell_type_simple &lt;- factor(Chaffin$cell_type_simple, levels = cell_type_order)
+Chaffin_simple &lt;- subset(
+  Chaffin,
+  cells = rownames(Chaffin@meta.data)[!is.na(Chaffin$cell_type_simple)]
+)</code></pre>
+<pre class="r"><code>Chaffin_dimplot &lt;- DimPlot(Chaffin_simple, group.by = &quot;cell_type_simple&quot;) +
+  ggtitle(&quot;Chaffin et al. 2022&quot;)
+Chaffin_dimplot</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Chaffin_dimplot-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>check_lncRNA_features(Chaffin)</code></pre>
+<pre><code>             lncRNA     symbol         ensembl matched_feature available
+CM1             CM1 AC012574.2 ENSG00000254002      AC012574.2      TRUE
+CM2             CM2 AL445307.1 ENSG00000228692      AL445307.1      TRUE
+CM4             CM4 AL451069.1 ENSG00000226900      AL451069.1      TRUE
+LINC02982 LINC02982 AC116351.1 ENSG00000215246      AC116351.1      TRUE
+LINC01170 LINC01170  LINC01170 ENSG00000253807       LINC01170      TRUE
+LINC00561 LINC00561  LINC00561 ENSG00000261206       LINC00561      TRUE
+H19             H19        H19 ENSG00000130600             H19      TRUE</code></pre>
+<pre class="r"><code>Chaffin_lncRNA_dot_data &lt;- make_dotplot_data(
+  Chaffin_simple,
+  Chaffin_lncRNA_features,
+  &quot;Chaffin et al. 2022&quot;
+)
+public_lncRNA_dotplots[[&quot;Chaffin et al. 2022&quot;]] &lt;- Chaffin_lncRNA_dot_data
+Chaffin_dotplot &lt;- plot_dotplot_data(Chaffin_lncRNA_dot_data, &quot;Chaffin et al. 2022&quot;)
+Chaffin_dotplot</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Chaffin_dotplot-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Chaffin_marker_dot_data &lt;- make_dotplot_data(
+  Chaffin_simple,
+  marker_symbol,
+  &quot;Chaffin et al. 2022&quot;
+)
+public_marker_dotplots[[&quot;Chaffin et al. 2022&quot;]] &lt;- Chaffin_marker_dot_data
+plot_dotplot_data(Chaffin_marker_dot_data, &quot;Chaffin et al. 2022 - cell-type markers&quot;)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Chaffin_marker_dotplot-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Chaffin_vlnplot &lt;- make_stacked_vlnplot(
+  Chaffin_simple,
+  Chaffin_lncRNA_features,
+  &quot;Chaffin et al. 2022&quot;,
+  alpha = 0.3
+)
+print(Chaffin_vlnplot)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Chaffin_vlnplot-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Chaffin_featureplot &lt;- make_featureplot(
+  Chaffin,
+  Chaffin_lncRNA_features,
+  &quot;Chaffin et al. 2022&quot;
+)
+print(Chaffin_featureplot)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Chaffin_featureplot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Chaffin_CM &lt;- subset(Chaffin, cell_type_leiden0.6 %in% c(&quot;Cardiomyocyte_I&quot;, &quot;Cardiomyocyte_II&quot;, &quot;Cardiomyocyte_III&quot;))
+Chaffin_CM$cell_type &lt;- &quot;Cardiomyocytes&quot;
+metadata &lt;- Chaffin_CM@meta.data %&gt;%
+  dplyr::select(donor_id, disease) %&gt;%
+  dplyr::distinct()
+rownames(metadata) &lt;- metadata$donor_id
+reactable(metadata, 
+          filterable = TRUE,
+          searchable = TRUE,
+          showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-29a56e939b13f92b7856" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-29a56e939b13f92b7856">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["P1622","P1422","P1722","P1462","P1558","P1540","P1718","P1602","P1430","P1630","P1516","P1515","P1603","P1447","P1678","P1547","P1610","P1510","P1371","P1479","P1300","P1617","P1290","P1600","P1437","P1685","P1582","P1702","P1561","P1358","P1549","P1735","P1304","P1707","P1425","P1508","P1631","P1539","P1726","P1504","P1472","P1606"],"donor_id":["P1622","P1422","P1722","P1462","P1558","P1540","P1718","P1602","P1430","P1630","P1516","P1515","P1603","P1447","P1678","P1547","P1610","P1510","P1371","P1479","P1300","P1617","P1290","P1600","P1437","P1685","P1582","P1702","P1561","P1358","P1549","P1735","P1304","P1707","P1425","P1508","P1631","P1539","P1726","P1504","P1472","P1606"],"disease":["NF","HCM","HCM","HCM","NF","NF","NF","HCM","DCM","HCM","NF","NF","NF","HCM","NF","NF","NF","HCM","DCM","HCM","DCM","DCM","DCM","NF","DCM","HCM","NF","NF","NF","DCM","NF","HCM","DCM","HCM","HCM","HCM","HCM","NF","HCM","DCM","DCM","DCM"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"donor_id","name":"donor_id","type":"factor"},{"id":"disease","name":"disease","type":"factor"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"93c7f03fc53da3889729557b3e280429"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code># Build pseudobulk using all genes. Formal DE filtering is done only with filterByExpr.
+pseudocounts_all &lt;- Seurat2PB(Chaffin_CM, sample = &quot;donor_id&quot;, cluster = &quot;cell_type&quot;)
+colnames(pseudocounts_all) &lt;- pseudocounts_all$samples$sample
+pseudocounts_all &lt;- pseudocounts_all[, match(metadata$donor_id, pseudocounts_all$samples$sample)]
+stopifnot(all(metadata$donor_id == pseudocounts_all$samples$sample))
+
+keep_samples &lt;- pseudocounts_all$samples$lib.size &gt; 5e4
+pseudocounts_all &lt;- pseudocounts_all[, keep_samples]
+metadata &lt;- metadata[match(pseudocounts_all$samples$sample, metadata$donor_id), , drop = FALSE]
+stopifnot(all(metadata$donor_id == pseudocounts_all$samples$sample))
+
+metadata$disease &lt;- factor(metadata$disease, levels = c(&quot;NF&quot;, &quot;DCM&quot;, &quot;HCM&quot;))
+design &lt;- model.matrix(~ disease, data = metadata)
+
+keep_genes &lt;- edgeR::filterByExpr(pseudocounts_all, design = design)
+pseudocounts &lt;- pseudocounts_all[keep_genes, , keep.lib.sizes = FALSE]
+
+Chaffin_tested &lt;- data.frame(
+  gene = names(Chaffin_lncRNA_features),
+  feature = unname(Chaffin_lncRNA_features),
+  tested = !is.na(unname(Chaffin_lncRNA_features)) &amp;
+    unname(Chaffin_lncRNA_features) %in% rownames(pseudocounts)
+)
+Chaffin_tested</code></pre>
+<pre><code>       gene    feature tested
+1       CM1 AC012574.2   TRUE
+2       CM2 AL445307.1   TRUE
+3       CM4 AL451069.1   TRUE
+4 LINC02982 AC116351.1   TRUE
+5 LINC01170  LINC01170   TRUE
+6 LINC00561  LINC00561  FALSE
+7       H19        H19  FALSE</code></pre>
+<pre class="r"><code>pseudocounts &lt;- edgeR::normLibSizes(pseudocounts)
+pseudocounts &lt;- edgeR::estimateDisp(pseudocounts, design)
+fit &lt;- edgeR::glmQLFit(pseudocounts, design, robust = TRUE)
+
+contrast_DCM_vs_NF &lt;- limma::makeContrasts(diseaseDCM, levels = design)
+results_Chaffin_DCM_vs_NF &lt;- edgeR::glmQLFTest(fit, contrast = contrast_DCM_vs_NF)
+results_Chaffin_DCM_vs_NF &lt;- as.data.frame(edgeR::topTags(results_Chaffin_DCM_vs_NF, n = Inf)$table)
+results_Chaffin_DCM_vs_NF$gene &lt;- rownames(results_Chaffin_DCM_vs_NF)
+results_Chaffin_DCM_vs_NF$up_down &lt;- ifelse(
+  results_Chaffin_DCM_vs_NF$logFC &gt; 0.5 &amp; results_Chaffin_DCM_vs_NF$FDR &lt; 0.05, &quot;Increased&quot;,
+  ifelse(
+    results_Chaffin_DCM_vs_NF$logFC &lt; -0.5 &amp; results_Chaffin_DCM_vs_NF$FDR &lt; 0.05,
+    &quot;Decreased&quot;,
+    &quot;Not significant&quot;
+  )
+)
+results_Chaffin_DCM_vs_NF_lncRNA &lt;- results_Chaffin_DCM_vs_NF %&gt;%
+  dplyr::filter(gene %in% names(Chaffin_lncRNA_to_display)) %&gt;%
+  dplyr::mutate(
+    lncRNA = unname(Chaffin_lncRNA_to_display[gene]),
+    Contrast = &quot;DCM_vs_NF&quot;
+  )
+write.csv(
+  results_Chaffin_DCM_vs_NF_lncRNA,
+  here::here(output_dir_data, &quot;Chaffin_DCM_vs_HC.csv&quot;),
+  row.names = FALSE
+)
+
+contrast_HCM_vs_NF &lt;- limma::makeContrasts(diseaseHCM, levels = design)
+results_Chaffin_HCM_vs_NF &lt;- edgeR::glmQLFTest(fit, contrast = contrast_HCM_vs_NF)
+results_Chaffin_HCM_vs_NF &lt;- as.data.frame(edgeR::topTags(results_Chaffin_HCM_vs_NF, n = Inf)$table)
+results_Chaffin_HCM_vs_NF$gene &lt;- rownames(results_Chaffin_HCM_vs_NF)
+results_Chaffin_HCM_vs_NF$up_down &lt;- ifelse(
+  results_Chaffin_HCM_vs_NF$logFC &gt; 0.5 &amp; results_Chaffin_HCM_vs_NF$FDR &lt; 0.05, &quot;Increased&quot;,
+  ifelse(
+    results_Chaffin_HCM_vs_NF$logFC &lt; -0.5 &amp; results_Chaffin_HCM_vs_NF$FDR &lt; 0.05,
+    &quot;Decreased&quot;,
+    &quot;Not significant&quot;
+  )
+)
+results_Chaffin_HCM_vs_NF_lncRNA &lt;- results_Chaffin_HCM_vs_NF %&gt;%
+  dplyr::filter(gene %in% names(Chaffin_lncRNA_to_display)) %&gt;%
+  dplyr::mutate(
+    lncRNA = unname(Chaffin_lncRNA_to_display[gene]),
+    Contrast = &quot;HCM_vs_NF&quot;
+  )
+write.csv(
+  results_Chaffin_HCM_vs_NF_lncRNA,
+  here::here(output_dir_data, &quot;Chaffin_HCM_vs_HC.csv&quot;),
+  row.names = FALSE
+)
+
+contrast_DCM_vs_HCM &lt;- limma::makeContrasts(diseaseDCM - diseaseHCM, levels = design)
+results_Chaffin_DCM_vs_HCM &lt;- edgeR::glmQLFTest(fit, contrast = contrast_DCM_vs_HCM)
+results_Chaffin_DCM_vs_HCM &lt;- as.data.frame(edgeR::topTags(results_Chaffin_DCM_vs_HCM, n = Inf)$table)
+results_Chaffin_DCM_vs_HCM$gene &lt;- rownames(results_Chaffin_DCM_vs_HCM)
+results_Chaffin_DCM_vs_HCM$up_down &lt;- ifelse(
+  results_Chaffin_DCM_vs_HCM$logFC &gt; 0.5 &amp; results_Chaffin_DCM_vs_HCM$FDR &lt; 0.05, &quot;Increased&quot;,
+  ifelse(
+    results_Chaffin_DCM_vs_HCM$logFC &lt; -0.5 &amp; results_Chaffin_DCM_vs_HCM$FDR &lt; 0.05,
+    &quot;Decreased&quot;,
+    &quot;Not significant&quot;
+  )
+)
+results_Chaffin_DCM_vs_HCM_lncRNA &lt;- results_Chaffin_DCM_vs_HCM %&gt;%
+  dplyr::filter(gene %in% names(Chaffin_lncRNA_to_display)) %&gt;%
+  dplyr::mutate(
+    lncRNA = unname(Chaffin_lncRNA_to_display[gene]),
+    Contrast = &quot;DCM_vs_HCM&quot;
+  )
+write.csv(
+  results_Chaffin_DCM_vs_HCM_lncRNA,
+  here::here(output_dir_data, &quot;Chaffin_DCM_vs_HCM.csv&quot;),
+  row.names = FALSE
+)
+
+reactable(
+  results_Chaffin_DCM_vs_NF_lncRNA,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-457827ab1876f7c57926" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-457827ab1876f7c57926">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["AL445307.1","AC012574.2","AL451069.1","AC116351.1","LINC01170"],"gene":["AL445307.1","AC012574.2","AL451069.1","AC116351.1","LINC01170"],"gene_ids":["ENSG00000228692","ENSG00000254002","ENSG00000226900","ENSG00000215246","ENSG00000253807"],"feature_types":["Gene Expression","Gene Expression","Gene Expression","Gene Expression","Gene Expression"],"genome":["GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna"],"logFC":[0.434927307977575,-0.581074175971897,0.220109339984678,0.160281419493266,0.159675490566842],"logCPM":[0.454755275673979,3.98282719436004,4.58398134299855,3.49619631342726,6.50053953241199],"F":[2.2330981532976,1.95264094017243,0.80716361601745,0.365250214915149,0.129045270671948],"PValue":[0.142600557253866,0.169621669739658,0.374068134841333,0.548847404057132,0.721218846331003],"FDR":[0.286916287532398,0.322151782194923,0.548111058866941,0.700144213027782,0.830165462726558],"up_down":["Not significant","Not significant","Not significant","Not significant","Not significant"],"lncRNA":["CM2","CM1","CM4","LINC02982","LINC01170"],"Contrast":["DCM_vs_NF","DCM_vs_NF","DCM_vs_NF","DCM_vs_NF","DCM_vs_NF"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"gene","name":"gene","type":"character"},{"id":"gene_ids","name":"gene_ids","type":"character"},{"id":"feature_types","name":"feature_types","type":"factor"},{"id":"genome","name":"genome","type":"factor"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"up_down","name":"up_down","type":"character"},{"id":"lncRNA","name":"lncRNA","type":"character"},{"id":"Contrast","name":"Contrast","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"1322ede39b2cfe07e83c9ce754ce6147"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>reactable(
+  results_Chaffin_HCM_vs_NF_lncRNA,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-b22985179f0d812c9115" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-b22985179f0d812c9115">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["AC116351.1","AC012574.2","LINC01170","AL451069.1","AL445307.1"],"gene":["AC116351.1","AC012574.2","LINC01170","AL451069.1","AL445307.1"],"gene_ids":["ENSG00000215246","ENSG00000254002","ENSG00000253807","ENSG00000226900","ENSG00000228692"],"feature_types":["Gene Expression","Gene Expression","Gene Expression","Gene Expression","Gene Expression"],"genome":["GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna"],"logFC":[0.62591256353439,-0.924617719591501,0.80792485033893,0.0685775946307149,-0.0136339307472497],"logCPM":[3.49619631342726,3.98282719436004,6.50053953241199,4.58398134299855,0.454755275673979],"F":[6.64326081431943,5.86088095505709,3.88217063405727,0.0918818634807441,0.00234933826082505],"PValue":[0.0135439041677107,0.0198700122140702,0.0553990611945522,0.763290579897256,0.96157274956296],"FDR":[0.0406677991921221,0.0548703330766574,0.12042687292363,0.839984473287765,0.975375229221758],"up_down":["Increased","Not significant","Not significant","Not significant","Not significant"],"lncRNA":["LINC02982","CM1","LINC01170","CM4","CM2"],"Contrast":["HCM_vs_NF","HCM_vs_NF","HCM_vs_NF","HCM_vs_NF","HCM_vs_NF"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"gene","name":"gene","type":"character"},{"id":"gene_ids","name":"gene_ids","type":"character"},{"id":"feature_types","name":"feature_types","type":"factor"},{"id":"genome","name":"genome","type":"factor"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"up_down","name":"up_down","type":"character"},{"id":"lncRNA","name":"lncRNA","type":"character"},{"id":"Contrast","name":"Contrast","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"1ab37e03a616945e2c4cd395f606bd9a"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>reactable(
+  results_Chaffin_DCM_vs_HCM_lncRNA,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-cde5c072f26745d6feeb" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-cde5c072f26745d6feeb">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["AC116351.1","AL445307.1","LINC01170","AC012574.2","AL451069.1"],"gene":["AC116351.1","AL445307.1","LINC01170","AC012574.2","AL451069.1"],"gene_ids":["ENSG00000215246","ENSG00000228692","ENSG00000253807","ENSG00000254002","ENSG00000226900"],"feature_types":["Gene Expression","Gene Expression","Gene Expression","Gene Expression","Gene Expression"],"genome":["GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna","GRCh38-2020-A_premrna"],"logFC":[-0.465631144041124,0.448561238724825,-0.648249359772088,0.343543543619603,0.151531745353963],"logCPM":[3.49619631342726,0.454755275673979,6.50053953241199,3.98282719436004,4.58398134299855],"F":[3.01469498178637,2.42770672493478,2.00444694116194,0.683305869140728,0.374206427463983],"PValue":[0.0898251897301291,0.126753588037289,0.16419166052287,0.413109844504455,0.544008693287545],"FDR":[0.322978499160625,0.389110799577697,0.447773250064629,0.704540660336869,0.797215815706303],"up_down":["Not significant","Not significant","Not significant","Not significant","Not significant"],"lncRNA":["LINC02982","CM2","LINC01170","CM1","CM4"],"Contrast":["DCM_vs_HCM","DCM_vs_HCM","DCM_vs_HCM","DCM_vs_HCM","DCM_vs_HCM"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"gene","name":"gene","type":"character"},{"id":"gene_ids","name":"gene_ids","type":"character"},{"id":"feature_types","name":"feature_types","type":"factor"},{"id":"genome","name":"genome","type":"factor"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"up_down","name":"up_down","type":"character"},{"id":"lncRNA","name":"lncRNA","type":"character"},{"id":"Contrast","name":"Contrast","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"25cfe64801cf6cf52ce117a10a15d4cb"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>counts &lt;- edgeR::cpm(pseudocounts, log = TRUE)
+
+candidate_order &lt;- unname(Chaffin_lncRNA_features[!is.na(Chaffin_lncRNA_features)])
+candidate_order &lt;- candidate_order[candidate_order %in% rownames(counts)]
+counts &lt;- counts[candidate_order, , drop = FALSE]
+
+metadata_matched &lt;- metadata[match(colnames(counts), metadata$donor_id), , drop = FALSE]
+stopifnot(all(colnames(counts) == metadata_matched$donor_id))
+order_idx &lt;- order(metadata_matched$disease)
+counts &lt;- counts[, order_idx, drop = FALSE]
+metadata_matched &lt;- metadata_matched[order_idx, , drop = FALSE]
+rownames(counts) &lt;- unname(Chaffin_lncRNA_to_display[rownames(counts)])
+
+annotation_col &lt;- data.frame(disease = metadata_matched$disease)
+rownames(annotation_col) &lt;- metadata_matched$donor_id
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+pheatmap::pheatmap(
+  counts,
+  color = heat_colors,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  annotation_col = annotation_col,
+  border_color = NA,
+  fontsize = 10,
+  scale = &quot;row&quot;,
+  fontsize_row = 15,
+  show_rownames = TRUE,
+  show_colnames = FALSE,
+  cellheight = 15,
+  legend_breaks = c(-1.5, 0, 1.5),
+  main = &quot;Chaffin et al. 2022 - LV&quot;
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Chaffin_heatmap_DCM_vs_HC-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Chaffin_box_data &lt;- make_pseudobulk_box_data(
+  pseudocounts_all,
+  metadata,
+  sample_col = &quot;donor_id&quot;,
+  group_col = &quot;disease&quot;,
+  features = Chaffin_lncRNA_features
+)
+Chaffin_box_data$group &lt;- factor(Chaffin_box_data$group, levels = c(&quot;NF&quot;, &quot;DCM&quot;, &quot;HCM&quot;))
+
+Chaffin_stats &lt;- dplyr::bind_rows(
+  results_Chaffin_DCM_vs_NF_lncRNA %&gt;%
+    dplyr::transmute(gene = lncRNA, group1 = &quot;NF&quot;, group2 = &quot;DCM&quot;, FDR = FDR),
+  results_Chaffin_HCM_vs_NF_lncRNA %&gt;%
+    dplyr::transmute(gene = lncRNA, group1 = &quot;NF&quot;, group2 = &quot;HCM&quot;, FDR = FDR),
+  results_Chaffin_DCM_vs_HCM_lncRNA %&gt;%
+    dplyr::transmute(gene = lncRNA, group1 = &quot;DCM&quot;, group2 = &quot;HCM&quot;, FDR = FDR)
+)
+Chaffin_stats &lt;- prepare_fdr_annotations(Chaffin_stats, Chaffin_box_data)
+
+plot_pseudobulk_boxplots(
+  Chaffin_box_data,
+  Chaffin_stats,
+  title = &quot;Chaffin et al. 2022 - LV&quot;,
+  ncol = 4
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Chaffin_boxplot_DE-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(Chaffin, Chaffin_simple)</code></pre>
+</div>
+<div id="reichart-et-al.-2022" class="section level2">
+<h2>Reichart et al. 2022</h2>
+<pre class="r"><code>Reichart &lt;- qs_read(here::here(&quot;data&quot;, &quot;Heart_datasets&quot;, &quot;Reichart_2022&quot;, &quot;Reichart_2022.qs2&quot;))
+DefaultAssay(Reichart) &lt;- &quot;RNA&quot;
+Reichart &lt;- NormalizeData(Reichart)
+Reichart_lncRNA_features &lt;- resolve_lncRNA_features(Reichart)
+Reichart_lncRNA_to_display &lt;- feature_display_map(Reichart_lncRNA_features)</code></pre>
+<pre class="r"><code>Reichart$cell_type_simple &lt;- dplyr::case_when(
+  Reichart$cell_type %in% c(&quot;cardiac muscle cell&quot;) ~ &quot;Cardiomyocytes&quot;,
+  Reichart$cell_type %in% c(&quot;endothelial cell&quot;) ~ &quot;Endothelial cells&quot;,
+  Reichart$cell_type %in% c(&quot;fibroblast of cardiac tissue&quot;) ~ &quot;Fibroblasts&quot;,
+  Reichart$cell_type %in% c(&quot;lymphocyte&quot;) ~ &quot;Lymphoid lineage cells&quot;,
+  Reichart$cell_type %in% c(&quot;myeloid cell&quot;, &quot;mast cell&quot;) ~ &quot;Myeloid lineage cells&quot;,
+  Reichart$cell_type %in% c(&quot;adipocyte&quot;) ~ &quot;Adipocytes&quot;,
+  Reichart$cell_type %in% c(&quot;cardiac neuron&quot;) ~ &quot;Neuronal cells&quot;,
+  Reichart$cell_type %in% c(&quot;mural cell&quot;) ~ &quot;Mural cells&quot;,
+  TRUE ~ NA_character_
+)
+Reichart$cell_type_simple &lt;- factor(Reichart$cell_type_simple, levels = cell_type_order)
+Reichart_simple &lt;- subset(
+  Reichart,
+  cells = rownames(Reichart@meta.data)[!is.na(Reichart$cell_type_simple)]
+)</code></pre>
+<pre class="r"><code>Reichart_dimplot &lt;- DimPlot(Reichart_simple, group.by = &quot;cell_type_simple&quot;) +
+  ggtitle(&quot;Reichart et al. 2022&quot;)
+Reichart_dimplot</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_dimplot-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>check_lncRNA_features(Reichart)</code></pre>
+<pre><code>             lncRNA     symbol         ensembl matched_feature available
+CM1             CM1 AC012574.2 ENSG00000254002 ENSG00000254002      TRUE
+CM2             CM2 AL445307.1 ENSG00000228692 ENSG00000228692      TRUE
+CM4             CM4 AL451069.1 ENSG00000226900 ENSG00000226900      TRUE
+LINC02982 LINC02982 AC116351.1 ENSG00000215246 ENSG00000215246      TRUE
+LINC01170 LINC01170  LINC01170 ENSG00000253807 ENSG00000253807      TRUE
+LINC00561 LINC00561  LINC00561 ENSG00000261206 ENSG00000261206      TRUE
+H19             H19        H19 ENSG00000130600            &lt;NA&gt;     FALSE</code></pre>
+<pre class="r"><code>Reichart_lncRNA_dot_data &lt;- make_dotplot_data(
+  Reichart_simple,
+  Reichart_lncRNA_features,
+  &quot;Reichart et al. 2022&quot;
+)
+public_lncRNA_dotplots[[&quot;Reichart et al. 2022&quot;]] &lt;- Reichart_lncRNA_dot_data
+Reichart_dotplot &lt;- plot_dotplot_data(Reichart_lncRNA_dot_data, &quot;Reichart et al. 2022&quot;)
+Reichart_dotplot</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_dotplot-1.png" width="1800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Reichart_marker_dot_data &lt;- make_dotplot_data(
+  Reichart_simple,
+  marker_ens,
+  &quot;Reichart et al. 2022&quot;
+)
+public_marker_dotplots[[&quot;Reichart et al. 2022&quot;]] &lt;- Reichart_marker_dot_data
+plot_dotplot_data(Reichart_marker_dot_data, &quot;Reichart et al. 2022 - cell-type markers&quot;)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_marker_dotplot-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Reichart_vlnplot &lt;- make_stacked_vlnplot(
+  Reichart_simple,
+  Reichart_lncRNA_features,
+  &quot;Reichart et al. 2022&quot;,
+  alpha = 0.1
+)
+print(Reichart_vlnplot)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_vlnplot-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Reichart_featureplot &lt;- make_featureplot(
+  Reichart,
+  Reichart_lncRNA_features,
+  &quot;Reichart et al. 2022&quot;
+)
+print(Reichart_featureplot)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_featureplot-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Reichart_subset_V &lt;- subset(
+  Reichart,
+  cell_type == &quot;cardiac muscle cell&quot; &amp; Region_x %in% c(&quot;RV&quot;, &quot;LV&quot;)
+)
+Idents(Reichart_subset_V) &lt;- Reichart_subset_V$Region_x
+Reichart_features_V &lt;- get_available_features(Reichart_subset_V, Reichart_lncRNA_features)
+
+Reichart_RV_vs_LV &lt;- FindMarkers(
+  Reichart_subset_V,
+  ident.1 = &quot;RV&quot;,
+  ident.2 = &quot;LV&quot;,
+  features = unname(Reichart_features_V),
+  logfc.threshold = 0,
+  min.pct = 0.001
+)
+Reichart_RV_vs_LV$gene &lt;- rownames(Reichart_RV_vs_LV)
+write.csv(
+  Reichart_RV_vs_LV,
+  here::here(output_dir_data, &quot;Reichart_RV_vs_LV.csv&quot;),
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>reactable(
+  Reichart_RV_vs_LV,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-4567664ad0e30c27d8af" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-4567664ad0e30c27d8af">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["ENSG00000253807","ENSG00000254002","ENSG00000215246","ENSG00000228692","ENSG00000226900"],"p_val":[0,8.54755274867191e-70,2.1058398875182e-09,0.00345222322218408,0.0521139948193787],"avg_log2FC":[0.35306232281758,-0.0408275591330281,-0.0143568520056033,-0.00144451159617072,0.00697091137093436],"pct.1":[0.192,0.028,0.054,0.004,0.093],"pct.2":[0.136,0.042,0.06,0.005,0.096],"p_val_adj":[0,2.83308635854731e-65,6.97980630717907e-05,1,1],"gene":["ENSG00000253807","ENSG00000254002","ENSG00000215246","ENSG00000228692","ENSG00000226900"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"gene","name":"gene","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"a5447ce349ceb28e723d8e8cfcedc266"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>Reichart_dotplot_RV_vs_LV &lt;- DotPlot(
+  Reichart_subset_V,
+  features = unname(Reichart_features_V),
+  group.by = &quot;Region_x&quot;,
+  scale = FALSE
+)
+Reichart_dotplot_RV_vs_LV$data &lt;- Reichart_dotplot_RV_vs_LV$data %&gt;%
+  dplyr::filter(!is.na(pct.exp) &amp; pct.exp &gt; 0)
+Reichart_dotplot_RV_vs_LV &lt;- Reichart_dotplot_RV_vs_LV +
+  scale_x_discrete(labels = setNames(names(Reichart_features_V), unname(Reichart_features_V))) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  ) +
+  ggtitle(&quot;Reichart et al. 2022 - RV vs LV&quot;)
+Reichart_dotplot_RV_vs_LV</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_dotplot_RV_vs_LV-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Reichart_CM_RV &lt;- subset(
+  Reichart,
+  cell_type %in% c(&quot;cardiac muscle cell&quot;) &amp;
+    disease %in% c(&quot;normal&quot;, &quot;dilated cardiomyopathy&quot;) &amp;
+    Region_x == &quot;RV&quot;
+)
+metadata_RV &lt;- Reichart_CM_RV@meta.data %&gt;%
+  dplyr::select(donor_id, disease) %&gt;%
+  dplyr::distinct()
+rownames(metadata_RV) &lt;- metadata_RV$donor_id
+reactable(
+  metadata_RV,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-58166d53661c8cfb95dc" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-58166d53661c8cfb95dc">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["DP2","H5","H3","H2","H6","H7","H4","H39","H02","H36","H28","H78","H31","H24","H33","H34","H13","H15","H49","H12","H27","H01","H79","H35","H03","H20","H14","H41","H55","H25","H53","H80","H22","H06","H19","D1","D2","D4","D5","D6","D7","IC_H04"],"donor_id":["DP2","H5","H3","H2","H6","H7","H4","H39","H02","H36","H28","H78","H31","H24","H33","H34","H13","H15","H49","H12","H27","H01","H79","H35","H03","H20","H14","H41","H55","H25","H53","H80","H22","H06","H19","D1","D2","D4","D5","D6","D7","IC_H04"],"disease":["dilated cardiomyopathy","normal","normal","normal","normal","normal","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","normal","normal","normal","normal","normal","dilated cardiomyopathy"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"donor_id","name":"donor_id","type":"factor"},{"id":"disease","name":"disease","type":"factor"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"f1412528d4e2e6f751334d1c1a4ee11d"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>Reichart_CM_LV &lt;- subset(
+  Reichart,
+  cell_type %in% c(&quot;cardiac muscle cell&quot;) &amp;
+    disease %in% c(&quot;normal&quot;, &quot;dilated cardiomyopathy&quot;) &amp;
+    Region_x == &quot;LV&quot;
+)
+metadata_LV &lt;- Reichart_CM_LV@meta.data %&gt;%
+  dplyr::select(donor_id, disease) %&gt;%
+  dplyr::distinct()
+rownames(metadata_LV) &lt;- metadata_LV$donor_id
+reactable(
+  metadata_LV,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-9b6b2f202c941e659048" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-9b6b2f202c941e659048">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["H3","DT4","DP2","DO1","H6","H5","H7","H2","DL2","DS3","H4","DL3","DP1","H33","H26","H40","H06","H53","H36","H51","H37","H14","H18","H34","H13","H15","H22","H27","H04","H02","H81","H67","H35","H31","H25","H49","H01","H58","H59","H79","H24","H46","H41","H21","H17","H12","H19","H55","H57","H16","H28","H05","H03","H56","H80","H20","H32","H78","H73","H39","D1","D2","D4","D5","D6","D7","IC_H01","IC_H02","IC_H03","IC_H04"],"donor_id":["H3","DT4","DP2","DO1","H6","H5","H7","H2","DL2","DS3","H4","DL3","DP1","H33","H26","H40","H06","H53","H36","H51","H37","H14","H18","H34","H13","H15","H22","H27","H04","H02","H81","H67","H35","H31","H25","H49","H01","H58","H59","H79","H24","H46","H41","H21","H17","H12","H19","H55","H57","H16","H28","H05","H03","H56","H80","H20","H32","H78","H73","H39","D1","D2","D4","D5","D6","D7","IC_H01","IC_H02","IC_H03","IC_H04"],"disease":["normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","normal","normal","normal","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","normal","normal","normal","normal","normal","normal","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy","dilated cardiomyopathy"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"donor_id","name":"donor_id","type":"factor"},{"id":"disease","name":"disease","type":"factor"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"689223443fadc274a74d1897802e76bf"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>pseudocounts_all_RV &lt;- Seurat2PB(
+  Reichart_CM_RV,
+  sample = &quot;donor_id&quot;,
+  cluster = &quot;cell_type&quot;
+)
+colnames(pseudocounts_all_RV) &lt;- pseudocounts_all_RV$samples$sample
+pseudocounts_all_RV &lt;- pseudocounts_all_RV[
+  ,
+  match(metadata_RV$donor_id, pseudocounts_all_RV$samples$sample)
+]
+stopifnot(all(metadata_RV$donor_id == pseudocounts_all_RV$samples$sample))
+
+keep_samples_RV &lt;- pseudocounts_all_RV$samples$lib.size &gt; 5e4
+pseudocounts_all_RV &lt;- pseudocounts_all_RV[, keep_samples_RV]
+metadata_RV &lt;- metadata_RV[
+  match(pseudocounts_all_RV$samples$sample, metadata_RV$donor_id),
+  ,
+  drop = FALSE
+]
+stopifnot(all(metadata_RV$donor_id == pseudocounts_all_RV$samples$sample))
+
+metadata_RV$disease &lt;- factor(
+  metadata_RV$disease,
+  levels = c(&quot;normal&quot;, &quot;dilated cardiomyopathy&quot;)
+)
+design_RV &lt;- model.matrix(~ disease, data = metadata_RV)
+
+keep_genes_RV &lt;- edgeR::filterByExpr(pseudocounts_all_RV, design = design_RV)
+pseudocounts_RV &lt;- pseudocounts_all_RV[
+  keep_genes_RV,
+  ,
+  keep.lib.sizes = FALSE
+]
+
+Reichart_tested_RV &lt;- data.frame(
+  gene = names(Reichart_lncRNA_features),
+  feature = unname(Reichart_lncRNA_features),
+  tested = !is.na(unname(Reichart_lncRNA_features)) &amp;
+    unname(Reichart_lncRNA_features) %in% rownames(pseudocounts_RV)
+)
+Reichart_tested_RV</code></pre>
+<pre><code>       gene         feature tested
+1       CM1 ENSG00000254002   TRUE
+2       CM2 ENSG00000228692  FALSE
+3       CM4 ENSG00000226900   TRUE
+4 LINC02982 ENSG00000215246   TRUE
+5 LINC01170 ENSG00000253807   TRUE
+6 LINC00561 ENSG00000261206  FALSE
+7       H19            &lt;NA&gt;  FALSE</code></pre>
+<pre class="r"><code>pseudocounts_RV &lt;- edgeR::normLibSizes(pseudocounts_RV)
+pseudocounts_RV &lt;- edgeR::estimateDisp(pseudocounts_RV, design_RV)
+fit_RV &lt;- edgeR::glmQLFit(pseudocounts_RV, design_RV, robust = TRUE)
+fit_RV &lt;- edgeR::glmQLFTest(fit_RV, coef = 2)
+
+results_Reichart_RV &lt;- as.data.frame(edgeR::topTags(fit_RV, n = Inf)$table)
+results_Reichart_RV$gene &lt;- rownames(results_Reichart_RV)
+results_Reichart_RV$up_down &lt;- ifelse(
+  results_Reichart_RV$logFC &gt; 0.5 &amp; results_Reichart_RV$FDR &lt; 0.05, &quot;Increased&quot;,
+  ifelse(
+    results_Reichart_RV$logFC &lt; -0.5 &amp; results_Reichart_RV$FDR &lt; 0.05,
+    &quot;Decreased&quot;,
+    &quot;Not significant&quot;
+  )
+)
+results_Reichart_RV_lncRNA &lt;- results_Reichart_RV %&gt;%
+  dplyr::filter(gene %in% names(Reichart_lncRNA_to_display)) %&gt;%
+  dplyr::mutate(lncRNA = unname(Reichart_lncRNA_to_display[gene]))
+
+write.csv(
+  results_Reichart_RV_lncRNA,
+  here::here(output_dir_data, &quot;Reichart_RV_DCM_vs_HC.csv&quot;),
+  row.names = FALSE
+)
+
+reactable(
+  results_Reichart_RV_lncRNA,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-e6565275f1592f6a3fdd" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-e6565275f1592f6a3fdd">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["ENSG00000226900","ENSG00000253807","ENSG00000215246","ENSG00000254002"],"gene":["ENSG00000226900","ENSG00000253807","ENSG00000215246","ENSG00000254002"],"feature_is_filtered":[false,false,false,false],"feature_name":["ENSG00000226900.2","LINC01170","LINC02982","ENSG00000254002.4"],"feature_reference":["NCBITaxon:9606","NCBITaxon:9606","NCBITaxon:9606","NCBITaxon:9606"],"feature_biotype":["gene","gene","gene","gene"],"feature_length":["2466","3850","3516","2193"],"logFC":[-1.31533818500059,-1.86228881175009,1.02283712478067,-0.985156161050834],"logCPM":[4.18772384233611,6.68121933052948,3.15731268406495,2.2703329087944],"F":[34.4902242735282,22.0395091937264,17.0218368817373,7.34390748149996],"PValue":[4.93647745314277e-07,2.55219711610992e-05,0.000159113583570837,0.00952646214343304],"FDR":[1.8001540201326e-05,0.000355080700568108,0.00143528747820083,0.0330218201834602],"up_down":["Decreased","Decreased","Increased","Decreased"],"lncRNA":["CM4","LINC01170","LINC02982","CM1"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"gene","name":"gene","type":"character"},{"id":"feature_is_filtered","name":"feature_is_filtered","type":"logical"},{"id":"feature_name","name":"feature_name","type":"factor"},{"id":"feature_reference","name":"feature_reference","type":"factor"},{"id":"feature_biotype","name":"feature_biotype","type":"factor"},{"id":"feature_length","name":"feature_length","type":"factor"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"up_down","name":"up_down","type":"character"},{"id":"lncRNA","name":"lncRNA","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"7976933ce6c3941748338142ec3a1ff4"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>counts_RV &lt;- edgeR::cpm(pseudocounts_RV, log = TRUE)
+
+candidate_order_RV &lt;- unname(Reichart_lncRNA_features[!is.na(Reichart_lncRNA_features)])
+candidate_order_RV &lt;- candidate_order_RV[candidate_order_RV %in% rownames(counts_RV)]
+counts_RV &lt;- counts_RV[candidate_order_RV, , drop = FALSE]
+
+metadata_matched_RV &lt;- metadata_RV[
+  match(colnames(counts_RV), metadata_RV$donor_id),
+  ,
+  drop = FALSE
+]
+stopifnot(all(colnames(counts_RV) == metadata_matched_RV$donor_id))
+order_idx_RV &lt;- order(metadata_matched_RV$disease)
+counts_RV &lt;- counts_RV[, order_idx_RV, drop = FALSE]
+metadata_matched_RV &lt;- metadata_matched_RV[order_idx_RV, , drop = FALSE]
+rownames(counts_RV) &lt;- unname(Reichart_lncRNA_to_display[rownames(counts_RV)])
+
+annotation_col_RV &lt;- data.frame(disease = metadata_matched_RV$disease)
+rownames(annotation_col_RV) &lt;- metadata_matched_RV$donor_id
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+pheatmap::pheatmap(
+  counts_RV,
+  color = heat_colors,
+  cluster_rows = FALSE,
+  annotation_col = annotation_col_RV,
+  border_color = NA,
+  fontsize = 10,
+  scale = &quot;row&quot;,
+  cluster_cols = FALSE,
+  fontsize_row = 15,
+  show_rownames = TRUE,
+  show_colnames = FALSE,
+  cellheight = 15,
+  legend_breaks = c(-1.5, 0, 1.5),
+  main = &quot;Reichart et al. 2022 - RV&quot;
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_heatmap_DCM_vs_HC_RV-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pseudocounts_all_LV &lt;- Seurat2PB(
+  Reichart_CM_LV,
+  sample = &quot;donor_id&quot;,
+  cluster = &quot;cell_type&quot;
+)
+colnames(pseudocounts_all_LV) &lt;- pseudocounts_all_LV$samples$sample
+pseudocounts_all_LV &lt;- pseudocounts_all_LV[
+  ,
+  match(metadata_LV$donor_id, pseudocounts_all_LV$samples$sample)
+]
+stopifnot(all(metadata_LV$donor_id == pseudocounts_all_LV$samples$sample))
+
+keep_samples_LV &lt;- pseudocounts_all_LV$samples$lib.size &gt; 5e4
+pseudocounts_all_LV &lt;- pseudocounts_all_LV[, keep_samples_LV]
+metadata_LV &lt;- metadata_LV[
+  match(pseudocounts_all_LV$samples$sample, metadata_LV$donor_id),
+  ,
+  drop = FALSE
+]
+stopifnot(all(metadata_LV$donor_id == pseudocounts_all_LV$samples$sample))
+
+metadata_LV$disease &lt;- factor(
+  metadata_LV$disease,
+  levels = c(&quot;normal&quot;, &quot;dilated cardiomyopathy&quot;)
+)
+design_LV &lt;- model.matrix(~ disease, data = metadata_LV)
+
+keep_genes_LV &lt;- edgeR::filterByExpr(pseudocounts_all_LV, design = design_LV)
+pseudocounts_LV &lt;- pseudocounts_all_LV[
+  keep_genes_LV,
+  ,
+  keep.lib.sizes = FALSE
+]
+
+Reichart_tested_LV &lt;- data.frame(
+  gene = names(Reichart_lncRNA_features),
+  feature = unname(Reichart_lncRNA_features),
+  tested = !is.na(unname(Reichart_lncRNA_features)) &amp;
+    unname(Reichart_lncRNA_features) %in% rownames(pseudocounts_LV)
+)
+Reichart_tested_LV</code></pre>
+<pre><code>       gene         feature tested
+1       CM1 ENSG00000254002   TRUE
+2       CM2 ENSG00000228692   TRUE
+3       CM4 ENSG00000226900   TRUE
+4 LINC02982 ENSG00000215246   TRUE
+5 LINC01170 ENSG00000253807   TRUE
+6 LINC00561 ENSG00000261206  FALSE
+7       H19            &lt;NA&gt;  FALSE</code></pre>
+<pre class="r"><code>pseudocounts_LV &lt;- edgeR::normLibSizes(pseudocounts_LV)
+pseudocounts_LV &lt;- edgeR::estimateDisp(pseudocounts_LV, design_LV)
+fit_LV &lt;- edgeR::glmQLFit(pseudocounts_LV, design_LV, robust = TRUE)
+fit_LV &lt;- edgeR::glmQLFTest(fit_LV, coef = 2)
+
+results_Reichart_LV &lt;- as.data.frame(edgeR::topTags(fit_LV, n = Inf)$table)
+results_Reichart_LV$gene &lt;- rownames(results_Reichart_LV)
+results_Reichart_LV$up_down &lt;- ifelse(
+  results_Reichart_LV$logFC &gt; 0.5 &amp; results_Reichart_LV$FDR &lt; 0.05, &quot;Increased&quot;,
+  ifelse(
+    results_Reichart_LV$logFC &lt; -0.5 &amp; results_Reichart_LV$FDR &lt; 0.05,
+    &quot;Decreased&quot;,
+    &quot;Not significant&quot;
+  )
+)
+results_Reichart_LV_lncRNA &lt;- results_Reichart_LV %&gt;%
+  dplyr::filter(gene %in% names(Reichart_lncRNA_to_display)) %&gt;%
+  dplyr::mutate(lncRNA = unname(Reichart_lncRNA_to_display[gene]))
+
+write.csv(
+  results_Reichart_LV_lncRNA,
+  here::here(output_dir_data, &quot;Reichart_LV_DCM_vs_HC.csv&quot;),
+  row.names = FALSE
+)
+
+reactable(
+  results_Reichart_LV_lncRNA,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-e9dffe663b32dc218980" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-e9dffe663b32dc218980">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["ENSG00000226900","ENSG00000253807","ENSG00000215246","ENSG00000228692","ENSG00000254002"],"gene":["ENSG00000226900","ENSG00000253807","ENSG00000215246","ENSG00000228692","ENSG00000254002"],"feature_is_filtered":[false,false,false,false,false],"feature_name":["ENSG00000226900.2","LINC01170","LINC02982","ENSG00000228692.2","ENSG00000254002.4"],"feature_reference":["NCBITaxon:9606","NCBITaxon:9606","NCBITaxon:9606","NCBITaxon:9606","NCBITaxon:9606"],"feature_biotype":["gene","gene","gene","gene","gene"],"feature_length":["2466","3850","3516","602","2193"],"logFC":[-1.16918198485323,-1.33176569517329,0.764386646099105,0.661383549164612,-0.419020891440421],"logCPM":[4.13623203693459,5.63413242125189,3.45044538771255,-0.0678194397119427,3.06146608968876],"F":[36.8608443053283,22.5645899620421,16.6285910854861,10.4395749227912,1.72294518885903],"PValue":[4.98498298435879e-08,9.90845553082542e-06,0.000113027030437126,0.00179750914113056,0.193267394278078],"FDR":[1.8897165037713e-06,0.000124706022161323,0.000843792988231878,0.00765947803642619,0.306286244336554],"up_down":["Decreased","Decreased","Increased","Increased","Not significant"],"lncRNA":["CM4","LINC01170","LINC02982","CM2","CM1"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"gene","name":"gene","type":"character"},{"id":"feature_is_filtered","name":"feature_is_filtered","type":"logical"},{"id":"feature_name","name":"feature_name","type":"factor"},{"id":"feature_reference","name":"feature_reference","type":"factor"},{"id":"feature_biotype","name":"feature_biotype","type":"factor"},{"id":"feature_length","name":"feature_length","type":"factor"},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"logCPM","name":"logCPM","type":"numeric"},{"id":"F","name":"F","type":"numeric"},{"id":"PValue","name":"PValue","type":"numeric"},{"id":"FDR","name":"FDR","type":"numeric"},{"id":"up_down","name":"up_down","type":"character"},{"id":"lncRNA","name":"lncRNA","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"e6a2f22abdf70d278d213efefd754440"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>counts_LV &lt;- edgeR::cpm(pseudocounts_LV, log = TRUE)
+
+candidate_order_LV &lt;- unname(Reichart_lncRNA_features[!is.na(Reichart_lncRNA_features)])
+candidate_order_LV &lt;- candidate_order_LV[candidate_order_LV %in% rownames(counts_LV)]
+counts_LV &lt;- counts_LV[candidate_order_LV, , drop = FALSE]
+
+metadata_matched_LV &lt;- metadata_LV[
+  match(colnames(counts_LV), metadata_LV$donor_id),
+  ,
+  drop = FALSE
+]
+stopifnot(all(colnames(counts_LV) == metadata_matched_LV$donor_id))
+order_idx_LV &lt;- order(metadata_matched_LV$disease)
+counts_LV &lt;- counts_LV[, order_idx_LV, drop = FALSE]
+metadata_matched_LV &lt;- metadata_matched_LV[order_idx_LV, , drop = FALSE]
+rownames(counts_LV) &lt;- unname(Reichart_lncRNA_to_display[rownames(counts_LV)])
+
+annotation_col_LV &lt;- data.frame(disease = metadata_matched_LV$disease)
+rownames(annotation_col_LV) &lt;- metadata_matched_LV$donor_id
+
+heat_colors &lt;- rev(brewer.pal(11, &quot;PuOr&quot;))
+pheatmap::pheatmap(
+  counts_LV,
+  color = heat_colors,
+  cluster_rows = FALSE,
+  annotation_col = annotation_col_LV,
+  border_color = NA,
+  fontsize = 10,
+  scale = &quot;row&quot;,
+  cluster_cols = FALSE,
+  fontsize_row = 15,
+  show_rownames = TRUE,
+  show_colnames = FALSE,
+  cellheight = 15,
+  legend_breaks = c(-1.5, 0, 1.5),
+  main = &quot;Reichart et al. 2022 - LV&quot;
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_heatmap_DCM_vs_HC_LV-1.png" width="2400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Reichart_box_data_RV &lt;- make_pseudobulk_box_data(
+  pseudocounts_all_RV,
+  metadata_RV,
+  sample_col = &quot;donor_id&quot;,
+  group_col = &quot;disease&quot;,
+  features = Reichart_lncRNA_features
+)
+Reichart_box_data_RV$group &lt;- factor(
+  Reichart_box_data_RV$group,
+  levels = c(&quot;normal&quot;, &quot;dilated cardiomyopathy&quot;)
+)
+
+Reichart_stats_RV &lt;- results_Reichart_RV_lncRNA %&gt;%
+  dplyr::transmute(
+    gene = lncRNA,
+    group1 = &quot;normal&quot;,
+    group2 = &quot;dilated cardiomyopathy&quot;,
+    FDR = FDR
+  )
+Reichart_stats_RV &lt;- prepare_fdr_annotations(Reichart_stats_RV, Reichart_box_data_RV)
+
+plot_pseudobulk_boxplots(
+  Reichart_box_data_RV,
+  Reichart_stats_RV,
+  title = &quot;Reichart et al. 2022 - RV&quot;,
+  ncol = 4
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_boxplot_DE_RV-1.png" width="2700" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Reichart_box_data_LV &lt;- make_pseudobulk_box_data(
+  pseudocounts_all_LV,
+  metadata_LV,
+  sample_col = &quot;donor_id&quot;,
+  group_col = &quot;disease&quot;,
+  features = Reichart_lncRNA_features
+)
+Reichart_box_data_LV$group &lt;- factor(
+  Reichart_box_data_LV$group,
+  levels = c(&quot;normal&quot;, &quot;dilated cardiomyopathy&quot;)
+)
+
+Reichart_stats_LV &lt;- results_Reichart_LV_lncRNA %&gt;%
+  dplyr::transmute(
+    gene = lncRNA,
+    group1 = &quot;normal&quot;,
+    group2 = &quot;dilated cardiomyopathy&quot;,
+    FDR = FDR
+  )
+Reichart_stats_LV &lt;- prepare_fdr_annotations(Reichart_stats_LV, Reichart_box_data_LV)
+
+plot_pseudobulk_boxplots(
+  Reichart_box_data_LV,
+  Reichart_stats_LV,
+  title = &quot;Reichart et al. 2022 - LV&quot;,
+  ncol = 4
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/Reichart_boxplot_DE_LV-1.png" width="2700" style="display: block; margin: auto;" /></p>
+</div>
+<div id="combined-public-datasets" class="section level2">
+<h2>Combined public datasets</h2>
+<p>The following panels combine Litvinukova, Koenig, Chaffin and
+Reichart using the same harmonized cell categories.</p>
+<pre class="r"><code>public_dataset_order &lt;- c(
+  &quot;Litvinukova et al. 2020&quot;,
+  &quot;Koenig et al. 2022&quot;,
+  &quot;Chaffin et al. 2022&quot;,
+  &quot;Reichart et al. 2022&quot;
+)
+combined_lncRNA_dot_data &lt;- dplyr::bind_rows(public_lncRNA_dotplots)
+plot_combined_dotplot(
+  combined_lncRNA_dot_data,
+  public_dataset_order,
+  &quot;Candidate lncRNA expression across datasets&quot;,
+  max_pct = 40,
+  pct_breaks = c(10, 20, 30, 40)
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/combined_lncRNA_dotplot-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>combined_marker_dot_data &lt;- dplyr::bind_rows(public_marker_dotplots)
+plot_combined_dotplot(
+  combined_marker_dot_data,
+  public_dataset_order,
+  &quot;Cell-type marker expression across datasets&quot;,
+  max_pct = 100,
+  pct_breaks = c(25, 50, 75, 100)
+)</code></pre>
+<p><img src="figure/CM_lncRNAs_2.Rmd/combined_marker_dotplot-1.png" width="5400" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>rm(Reichart, Reichart_simple)</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats4    stats     graphics  grDevices datasets  utils     methods  
+[8] base     
+
+other attached packages:
+ [1] qs2_0.1.7                   edgeR_4.8.0                
+ [3] limma_3.66.0                ggpubr_1.0.0               
+ [5] igraph_2.2.1                biomaRt_2.66.0             
+ [7] simplifyEnrichment_2.4.0    msigdbr_25.1.1             
+ [9] UpSetR_1.4.0                reactable_0.4.5            
+[11] rtracklayer_1.70.0          speckle_1.10.0             
+[13] SeuratDisk_0.0.0.9021       ReactomePA_1.54.0          
+[15] AnnotationHub_4.0.0         BiocFileCache_3.0.0        
+[17] dbplyr_2.5.1                org.Hs.eg.db_3.22.0        
+[19] AnnotationDbi_1.72.0        statmod_1.5.1              
+[21] patchwork_1.3.2             scater_1.38.0              
+[23] scuttle_1.20.0              Matrix.utils_0.9.7         
+[25] RColorBrewer_1.1-3          scales_1.4.0               
+[27] knitr_1.50                  gridExtra_2.3              
+[29] png_0.1-8                   pheatmap_1.0.13            
+[31] SingleCellExperiment_1.32.0 SummarizedExperiment_1.40.0
+[33] Biobase_2.70.0              GenomicRanges_1.62.0       
+[35] Seqinfo_1.0.0               IRanges_2.44.0             
+[37] MatrixGenerics_1.22.0       matrixStats_1.5.0          
+[39] S4Vectors_0.48.0            BiocGenerics_0.56.0        
+[41] generics_0.1.4              reshape2_1.4.5             
+[43] lubridate_1.9.4             forcats_1.0.1              
+[45] stringr_1.6.0               purrr_1.2.0                
+[47] tidyr_1.3.2                 tibble_3.3.0               
+[49] tidyverse_2.0.0             magrittr_2.0.4             
+[51] ggplot2_4.0.1               dplyr_1.2.1                
+[53] scCustomize_3.2.2           Matrix_1.6-5               
+[55] SeuratObject_5.0.2          Seurat_4.4.0               
+[57] readxl_1.4.5                readr_2.1.6                
+[59] here_1.0.2                 
+
+loaded via a namespace (and not attached):
+  [1] graph_1.88.0             ica_1.0-3                plotly_4.11.0           
+  [4] Formula_1.2-5            rematch2_2.1.2           tidyselect_1.2.1        
+  [7] bit_4.6.0                doParallel_1.0.17        clue_0.3-66             
+ [10] tm_0.7-16                lattice_0.22-7           rjson_0.2.23            
+ [13] blob_1.2.4               S4Arrays_1.10.1          parallel_4.5.2          
+ [16] cli_3.6.6                ggplotify_0.1.3          goftest_1.2-3           
+ [19] BiocIO_1.20.0            grr_0.9.5                BiocNeighbors_2.4.0     
+ [22] uwot_0.2.4               curl_7.0.0               mime_0.13               
+ [25] evaluate_1.0.5           tidytree_0.4.6           leiden_0.4.3.1          
+ [28] ComplexHeatmap_2.26.0    stringi_1.8.7            backports_1.5.0         
+ [31] XML_3.99-0.20            httpuv_1.6.16            paletteer_1.6.0         
+ [34] rappdirs_0.3.3           splines_4.5.2            ggraph_2.2.2            
+ [37] sctransform_0.4.2        ggbeeswarm_0.7.3         DBI_1.2.3               
+ [40] jquerylib_0.1.4          reactome.db_1.94.0       withr_3.0.2             
+ [43] git2r_0.36.2             systemfonts_1.3.1        rprojroot_2.1.1         
+ [46] enrichplot_1.30.4        lmtest_0.9-40            ggnewscale_0.5.2        
+ [49] tidygraph_1.3.1          BiocManager_1.30.27      htmlwidgets_1.6.4       
+ [52] fs_2.1.0                 ggrepel_0.9.6            labeling_0.4.3          
+ [55] SparseArray_1.10.4       cellranger_1.1.0         reticulate_1.44.1       
+ [58] zoo_1.8-14               XVector_0.50.0           timechange_0.3.0        
+ [61] foreach_1.5.2            grid_4.5.2               data.table_1.17.8       
+ [64] ggtree_4.0.1             R.oo_1.27.1              ggiraph_0.9.2           
+ [67] irlba_2.3.5.1            ggrastr_1.0.2            gridGraphics_0.5-1      
+ [70] lazyeval_0.2.2           yaml_2.3.11              survival_3.8-3          
+ [73] scattermore_1.2          BiocVersion_3.22.0       crayon_1.5.3            
+ [76] RcppAnnoy_0.0.22         progressr_0.18.0         tweenr_2.0.3            
+ [79] later_1.4.4              ggridges_0.5.7           codetools_0.2-20        
+ [82] GlobalOptions_0.1.3      KEGGREST_1.50.0          Rtsne_0.17              
+ [85] shape_1.4.6.1            reactR_0.6.1             gdtools_0.4.4           
+ [88] Rsamtools_2.26.0         filelock_1.0.3           pkgconfig_2.0.3         
+ [91] xml2_1.5.1               spatstat.univar_3.1-5    GenomicAlignments_1.46.0
+ [94] aplot_0.2.9              scatterplot3d_0.3-44     spatstat.sparse_3.1-0   
+ [97] ape_5.8-1                viridisLite_0.4.2        xtable_1.8-4            
+[100] car_3.1-3                plyr_1.8.9               httr_1.4.7              
+[103] tools_4.5.2              globals_0.18.0           beeswarm_0.4.0          
+[106] broom_1.0.11             nlme_3.1-168             hdf5r_1.3.12            
+[109] crosstalk_1.2.2          assertthat_0.2.1         digest_0.6.39           
+[112] farver_2.1.2             tzdb_0.5.0               yulab.utils_0.2.2       
+[115] viridis_0.6.5            glue_1.8.0               cachem_1.1.0            
+[118] polyclip_1.10-7          Biostrings_2.78.0        parallelly_1.45.1       
+[121] ScaledMatrix_1.18.0      fontBitstreamVera_0.1.1  carData_3.0-5           
+[124] pbapply_1.7-4            httr2_1.2.1              spam_2.11-1             
+[127] gson_0.1.0               graphlayouts_1.2.2       ggsignif_0.6.4          
+[130] shiny_1.12.0             tidydr_0.0.6             R.utils_2.13.0          
+[133] RCurl_1.98-1.17          memoise_2.0.1            rmarkdown_2.30          
+[136] R.methodsS3_1.8.2        future_1.68.0            RANN_2.6.2              
+[139] fontLiberation_0.1.0     renv_1.1.5               Cairo_1.7-0             
+[142] stringfish_0.18.0        spatstat.data_3.1-9      rstudioapi_0.17.1       
+[145] cluster_2.1.8.3          whisker_0.4.1            janitor_2.2.1           
+[148] spatstat.utils_3.2-0     hms_1.1.4                fitdistrplus_1.2-4      
+[151] cowplot_1.2.0            colorspace_2.1-2         rlang_1.2.0             
+[154] dotCall64_1.2            ggforce_0.5.0            circlize_0.4.16         
+[157] ggtangle_0.0.9           xfun_0.56                simona_1.8.0            
+[160] iterators_1.0.14         abind_1.4-8              GOSemSim_2.36.0         
+[163] treeio_1.34.0            bitops_1.0-9             promises_1.5.0          
+[166] scatterpie_0.2.6         RSQLite_2.4.5            qvalue_2.42.0           
+[169] fgsea_1.36.0             DelayedArray_0.36.0      GO.db_3.22.0            
+[172] compiler_4.5.2           prettyunits_1.2.0        beachmat_2.26.0         
+[175] graphite_1.56.0          listenv_0.10.0           Rcpp_1.1.0              
+[178] fontquiver_0.2.1         workflowr_1.7.2          BiocSingular_1.26.1     
+[181] tensor_1.5.1             MASS_7.3-65              progress_1.2.3          
+[184] BiocParallel_1.44.0      babelgene_22.9           spatstat.random_3.4-3   
+[187] R6_2.6.1                 fastmap_1.2.0            fastmatch_1.1-6         
+[190] rstatix_1.1.0            vipor_0.4.7              ROCR_1.0-11             
+[193] rsvd_1.0.5               gtable_0.3.6             KernSmooth_2.23-26      
+[196] miniUI_0.1.2             deldir_2.0-4             htmltools_0.5.9         
+[199] RcppParallel_5.1.11-1    bit64_4.6.0-1            spatstat.explore_3.6-0  
+[202] lifecycle_1.0.5          ggprism_1.0.7            S7_0.2.1                
+[205] NLP_0.3-2                restfulr_0.0.16          sass_0.4.10             
+[208] vctrs_0.7.3              Polychrome_1.5.4         slam_0.1-55             
+[211] spatstat.geom_3.6-1      snakecase_0.11.1         DOSE_4.4.0              
+[214] ggfun_0.2.0              sp_2.2-0                 future.apply_1.20.0     
+[217] bslib_0.9.0              pillar_1.11.1            prismatic_1.1.2         
+[220] locfit_1.5-9.12          otel_0.2.0               jsonlite_2.0.0          
+[223] cigarillo_1.0.0          GetoptLong_1.1.0        </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
