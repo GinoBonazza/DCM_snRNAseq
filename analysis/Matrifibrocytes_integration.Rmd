@@ -1,0 +1,1151 @@
+---
+title: "Matrifibrocytes integration"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "Matrifibrocytes_integration"
+
+library(here)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(patchwork)
+library(edgeR)
+library(limma)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(ggpubr)
+library(reactable)
+library(scales)
+library(cowplot)
+library(speckle)
+library(broom)
+library(harmony)
+library(clustree)
+library(qs2)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"), recursive = TRUE)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+fb_dir <- here::here("output", "Matrifibrocytes_1")
+
+cell_type_cols <- c(
+  "#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A",
+  "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600",
+  "#8DD3C7", "#FB8072", "#80B1D3", "#BC80BD", "#CCEBC5", "#FFED6F",
+  "#A6CEE3", "#F781BF"
+)
+
+group_cols <- c("HC" = "grey85", "DCM" = "#A63A2A", "NICM" = "#33A02C", "MI" = "#004C8C")
+dataset_cols <- c(
+  "Koenig" = "#CAB2D6",
+  "Reichart" = "#B2DF8A",
+  "Chaffin" = "#FDBF6F",
+  "Amrute" = "#FA95C0",
+  "Kuppe" = "#7aCDF9"
+)
+```
+
+## Load fibroblast datasets
+
+```{r load fibroblast datasets}
+koenig_fb <- qs_read(
+  file = here::here(fb_dir, "koenig_fb.qs2"),
+  nthreads = 32
+)
+
+reichart_fb <- qs_read(
+  file = here::here(fb_dir, "reichart_fb.qs2"),
+  nthreads = 32
+)
+
+chaffin_fb <- qs_read(
+  file = here::here(fb_dir, "chaffin_fb.qs2"),
+  nthreads = 32
+)
+
+amrute_fb <- qs_read(
+  file = here::here(fb_dir, "amrute_fb.qs2"),
+  nthreads = 32
+)
+
+kuppe_fb <- qs_read(
+  file = here::here(fb_dir, "kuppe_fb.qs2"),
+  nthreads = 32
+)
+```
+
+## Prepare metadata
+
+```{r prepare metadata}
+reichart_fb$nCount_RNA <- reichart_fb$nCounts_RNA
+reichart_fb$nFeature_RNA <- reichart_fb$nFeaturess_RNA
+
+koenig_fb$Group <- factor(koenig_fb$Group, levels = c("HC", "DCM", "NICM", "MI"))
+reichart_fb$Group <- factor(reichart_fb$Group, levels = c("HC", "DCM", "NICM", "MI"))
+chaffin_fb$Group <- factor(chaffin_fb$Group, levels = c("HC", "DCM", "NICM", "MI"))
+amrute_fb$Group <- factor(amrute_fb$Group, levels = c("HC", "DCM", "NICM", "MI"))
+kuppe_fb$Group <- factor(kuppe_fb$Group, levels = c("HC", "DCM", "NICM", "MI"))
+
+koenig_fb$Dataset <- factor(koenig_fb$Dataset, levels = c("Koenig", "Reichart", "Chaffin", "Amrute", "Kuppe"))
+reichart_fb$Dataset <- factor(reichart_fb$Dataset, levels = c("Koenig", "Reichart", "Chaffin", "Amrute", "Kuppe"))
+chaffin_fb$Dataset <- factor(chaffin_fb$Dataset, levels = c("Koenig", "Reichart", "Chaffin", "Amrute", "Kuppe"))
+amrute_fb$Dataset <- factor(amrute_fb$Dataset, levels = c("Koenig", "Reichart", "Chaffin", "Amrute", "Kuppe"))
+kuppe_fb$Dataset <- factor(kuppe_fb$Dataset, levels = c("Koenig", "Reichart", "Chaffin", "Amrute", "Kuppe"))
+
+koenig_fb$percent.mt <- PercentageFeatureSet(koenig_fb, pattern = "^MT-")
+reichart_fb$percent.mt <- PercentageFeatureSet(reichart_fb, pattern = "^MT-")
+chaffin_fb$percent.mt <- PercentageFeatureSet(chaffin_fb, pattern = "^MT-")
+amrute_fb$percent.mt <- PercentageFeatureSet(amrute_fb, pattern = "^MT-")
+kuppe_fb$percent.mt <- PercentageFeatureSet(kuppe_fb, pattern = "^MT-")
+
+koenig_fb <- RenameCells(koenig_fb, add.cell.id = "Koenig")
+reichart_fb <- RenameCells(reichart_fb, add.cell.id = "Reichart")
+chaffin_fb <- RenameCells(chaffin_fb, add.cell.id = "Chaffin")
+amrute_fb <- RenameCells(amrute_fb, add.cell.id = "Amrute")
+kuppe_fb <- RenameCells(kuppe_fb, add.cell.id = "Kuppe")
+```
+
+## Merge fibroblast objects
+
+```{r merge fibroblast objects}
+common_genes_fb <- Reduce(
+  intersect,
+  list(
+    rownames(koenig_fb),
+    rownames(reichart_fb),
+    rownames(chaffin_fb),
+    rownames(amrute_fb),
+    rownames(kuppe_fb)
+  )
+)
+
+length(common_genes_fb)
+
+FB_combined <- merge(
+  x = koenig_fb[common_genes_fb, ],
+  y = list(
+    reichart_fb[common_genes_fb, ],
+    chaffin_fb[common_genes_fb, ],
+    amrute_fb[common_genes_fb, ],
+    kuppe_fb[common_genes_fb, ]
+  ),
+  merge.data = FALSE
+)
+
+rm(koenig_fb, reichart_fb, chaffin_fb, amrute_fb, kuppe_fb)
+```
+
+## QC metadata combined fibroblasts
+
+```{r qc metadata combined fibroblasts}
+FB_combined$nCount_RNA <- Matrix::colSums(FB_combined@assays$RNA@counts)
+FB_combined$nFeature_RNA <- Matrix::colSums(FB_combined@assays$RNA@counts > 0)
+
+FB_combined@meta.data %>%
+  dplyr::count(Dataset, Group)
+
+FB_combined@meta.data %>%
+  dplyr::count(Dataset, Sample, sort = TRUE) %>%
+  reactable::reactable()
+```
+
+```{r qc violin fibroblasts, fig.width=10, fig.height=5}
+VlnPlot(
+  FB_combined,
+  features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
+  group.by = "Dataset",
+  pt.size = 0,
+  ncol = 3
+)
+```
+
+## SCTransform combined fibroblasts
+
+```{r sctransform fibroblasts combined}
+DefaultAssay(FB_combined) <- "RNA"
+FB_list <- SplitObject(FB_combined, split.by = "Sample")
+
+for (i in seq_along(FB_list)) {
+  FB_list[[i]] <- SCTransform(
+    FB_list[[i]],
+    vst.flavor = "v2",
+    vars.to.regress = "percent.mt",
+    return.only.var.genes = TRUE,
+    variable.features.n = 3000,
+    min_cells = 0,
+    verbose = FALSE
+  )
+}
+
+features_fb <- SelectIntegrationFeatures(object.list = FB_list, nfeatures = 3000)
+
+FB_combined <- merge(
+  x = FB_list[[1]],
+  y = FB_list[2:length(FB_list)],
+  merge.data = TRUE
+)
+VariableFeatures(FB_combined) <- features_fb
+
+rm(FB_list)
+```
+
+## PCA
+
+```{r pca fibroblasts combined, fig.width=6, fig.height=4}
+FB_combined <- RunPCA(FB_combined, npcs = 50, verbose = FALSE)
+ElbowPlot(FB_combined, ndims = 50)
+```
+
+## Harmony
+
+```{r harmony fibroblasts combined}
+FB_combined <- harmony::RunHarmony(
+  object = FB_combined,
+  assay.use = "SCT",
+  group.by.vars = c("Sample", "Dataset"),
+  dims.use = 1:50,
+  plot_convergence = TRUE,
+  .options = harmony::harmony_options(max.iter.cluster = 100)
+)
+```
+
+```{r}
+resolutions_to_keep <- paste0("SCT_snn.res.", c("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8"))
+
+sct_res_cols <- grep("^SCT_snn[\\._]res\\.", colnames(FB_combined@meta.data), value = TRUE)
+
+cols_to_remove <- setdiff(sct_res_cols, resolutions_to_keep)
+
+if (length(cols_to_remove) > 0) {
+  FB_combined@meta.data <- FB_combined@meta.data[, !colnames(FB_combined@meta.data) %in% cols_to_remove, drop = FALSE]
+}
+
+grep("^SCT_snn[\\._]res\\.", colnames(FB_combined@meta.data), value = TRUE)
+```
+
+## Clustering
+
+```{r clustering fibroblasts combined}
+DefaultAssay(FB_combined) <- "SCT"
+
+FB_combined <- RunUMAP(
+  FB_combined,
+  reduction = "harmony",
+  dims = 1:15
+)
+
+FB_combined <- FindNeighbors(
+  FB_combined,
+  reduction = "harmony",
+  dims = 1:15
+)
+
+FB_combined <- FindClusters(
+  FB_combined,
+  resolution = seq(0.1, 0.8, by = 0.1)
+  )
+
+Idents(FB_combined) <- "SCT_snn_res.0.2"
+```
+
+```{r clustree, fig.width=8, fig.height=10}
+clustree::clustree(FB_combined@meta.data[,grep("SCT_snn_res", colnames(FB_combined@meta.data))], prefix = "SCT_snn_res.")
+```
+
+## UMAPs combined fibroblasts
+
+```{r umaps fibroblasts combined, fig.width=11, fig.height=10}
+p1 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "SCT_snn_res.0.2",
+  label = TRUE,
+  repel = TRUE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle("Combined fibroblast subclusters") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p2 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "Dataset",
+  cols = dataset_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("Dataset") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p3 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "Group",
+  cols = group_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("Group") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p4 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  split.by = "Dataset",
+  group.by = "SCT_snn_res.0.2",
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 0.1,
+  raster = FALSE,
+  ncol = 3
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  )
+
+(p1 + p2) / (p3 + p4)
+```
+
+## Marker features on integrated fibroblasts
+
+```{r matrifibrocyte markers integrated, fig.width=16, fig.height=4}
+DefaultAssay(FB_combined) <- "SCT"
+
+FeaturePlot(
+  FB_combined,
+  features = c("COMP", "CILP", "CHAD", "THBS4"),
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  ncol = 4,
+  raster = FALSE
+)
+```
+
+## Matrifibrocyte score on integrated fibroblasts
+
+```{r add matrifibrocyte score integrated}
+matrifibrocyte_genes <- c("COMP", "CILP", "CHAD", "THBS4")
+matrifibrocyte_genes_present <- matrifibrocyte_genes[matrifibrocyte_genes %in% rownames(FB_combined)]
+
+FB_combined <- AddModuleScore(
+  object = FB_combined,
+  features = list(matrifibrocyte_genes_present),
+  name = "Matrifibrocyte_score",
+  assay = "SCT",
+  slot = "data",
+  ctrl = 25,
+  nbin = 24,
+  seed = 1
+)
+
+FB_combined$Matrifibrocyte_score <- FB_combined$Matrifibrocyte_score1
+FB_combined$Matrifibrocyte_score1 <- NULL
+```
+
+```{r feature plot matrifibrocyte score integrated, fig.width=4, fig.height=4}
+FeaturePlot(
+  FB_combined,
+  features = "Matrifibrocyte_score",
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  raster = FALSE
+) +
+  ggtitle("Matrifibrocyte score") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r FB_combined_qc, fig.height=5, fig.width=20}
+VlnPlot_scCustom(
+  FB_combined,
+  features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "TTN", "PECAM1"),
+  num_columns = 5,
+  pt.size = 0,
+  colors_use = cell_type_cols
+) + theme(axis.title.x = element_blank())
+```
+
+```{r cluster proportions by dataset and group, fig.width=12, fig.height=5}
+FB_combined$Disease_status <- ifelse(
+  FB_combined$Group == "HC",
+  "HC",
+  "Disease"
+)
+
+FB_combined$Disease_status <- factor(
+  FB_combined$Disease_status,
+  levels = c("HC", "Disease")
+)
+
+df_prop_ec <- FB_combined@meta.data %>%
+  dplyr::count(Dataset, Disease_status, Sample, cluster = SCT_snn_res.0.2) %>%
+  dplyr::group_by(Dataset, Disease_status, Sample) %>%
+  dplyr::mutate(freq = n / sum(n)) %>%
+  dplyr::ungroup()
+
+p_prop_dataset <- ggplot(df_prop_ec, aes(x = cluster, y = freq, fill = Dataset)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(width = 0.15, size = 1.2, alpha = 0.8) +
+  scale_fill_manual(values = dataset_cols) +
+  labs(x = "Cluster", y = "Fraction of fibroblasts") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_blank()
+  )
+
+p_prop_group <- ggplot(df_prop_ec, aes(x = cluster, y = freq, fill = Disease_status)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(width = 0.15, size = 1.2, alpha = 0.8) +
+  scale_fill_manual(values = group_cols) +
+  labs(x = "Cluster", y = "Fraction of fibroblasts") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_blank()
+  )
+
+p_prop_dataset | p_prop_group
+```
+
+```{r markers fibroblast combined_2}
+DefaultAssay(FB_combined) <- "RNA"
+FB_combined <- NormalizeData(FB_combined)
+Idents(FB_combined) <- "SCT_snn_res.0.2"
+
+FB_markers_combined <- FindAllMarkers(
+  FB_combined,
+  assay = "RNA",
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_combined <- FB_markers_combined %>%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_combined <- FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_top3_combined <- FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_head(n = 20) %>%
+  reactable::reactable()
+```
+
+```{r write cluster markers_2, eval=TRUE}
+write.csv(
+  FB_markers_combined,
+  here::here(output_dir_data, "FB_markers_combined_all.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_combined,
+  here::here(output_dir_data, "FB_markers_combined_top10.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_combined,
+  here::here(output_dir_data, "FB_markers_combined_top3.csv"),
+  row.names = FALSE
+)
+```
+
+```{r annotate fibroblast cell states}
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c("0"), "cell_state"] = "FB_1"
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c("1"), "cell_state"] = "FB_2"
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c("2"), "cell_state"] = "FB_matrifibrocyte"
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c("3"), "cell_state"] = "FB_3"
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c("4"), "cell_state"] = "FB_4"
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c("5"), "cell_state"] = "FB_5"
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c("6"), "cell_state"] = "FB_CM_contamination"
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c("7"), "cell_state"] = "FB_6"
+
+FB_combined$cell_state <- factor(FB_combined$cell_state, levels = c("FB_1", "FB_2", "FB_matrifibrocyte", "FB_3", "FB_4", "FB_5", "FB_CM_contamination", "FB_6"))
+Idents(FB_combined) <- FB_combined$cell_state
+```
+
+```{r}
+FB_combined <- subset(FB_combined, cell_state %in% c("FB_1", "FB_2", "FB_matrifibrocyte", "FB_3", "FB_4", "FB_5", "FB_6"))
+FB_combined$cell_state <- factor(FB_combined$cell_state, levels = c("FB_1", "FB_2", "FB_matrifibrocyte", "FB_3", "FB_4", "FB_5", "FB_6"))
+Idents(FB_combined) <- FB_combined$cell_state
+```
+
+```{r save FB_combined_subclustering qs2, eval=FALSE}
+DefaultAssay(FB_combined) <- "RNA"
+qs_save(
+  FB_combined,
+  file = here::here(output_dir_data, "FB_combined.qs2"),
+  nthreads = 32
+)
+```
+
+```{r read FB_combined_subclustering qs2, eval=TRUE}
+FB_combined <- qs_read(
+  file = here::here(output_dir_data, "FB_combined.qs2"),
+  nthreads = 32
+)
+```
+
+```{r UMAP cell states, fig.width=5, fig.height=5, dpi = 300}
+plot_group <- if ("cell_state" %in% colnames(FB_combined@meta.data)) "cell_state" else "SCT_snn_res.0.2"
+
+p <- DimPlot(
+  FB_combined,
+  group.by = plot_group,
+  reduction = "umap",
+  cols = cell_type_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_blank()
+  )
+
+LabelClusters(
+  p,
+  id = plot_group,
+  fontface = "bold",
+  size = 5,
+  repel = TRUE
+)
+```
+
+```{r markers fibroblast combined}
+FB_markers_combined <- FindAllMarkers(
+  FB_combined,
+  assay = "RNA",
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_combined <- FB_markers_combined %>%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_combined <- FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_top3_combined <- FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_head(n = 20) %>%
+  reactable::reactable()
+```
+
+```{r write cluster markers, eval=FALSE}
+write.csv(
+  FB_markers_combined,
+  here::here(output_dir_data, "FB_markers_combined_all_cell_state.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_combined,
+  here::here(output_dir_data, "FB_markers_combined_top10_cell_state.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_combined,
+  here::here(output_dir_data, "FB_markers_combined_top3_cell_state.csv"),
+  row.names = FALSE
+)
+```
+
+```{r dotplot top markers, fig.width=10, fig.height=5}
+id_backup <- Idents(FB_combined)
+Idents(FB_combined) <- factor(Idents(FB_combined), levels = rev(levels(Idents(FB_combined))))
+
+p_dot <- DotPlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  x_lab_rotate = TRUE
+)
+
+p_dot + theme(
+  axis.text.x = element_text(size = 11, angle = 60, vjust = 1, hjust = 1),
+  axis.text.y = element_text(size = 12)
+)
+
+Idents(FB_combined) <- id_backup
+```
+
+```{r heatmap top markers, fig.width=11, fig.height=11}
+heatmap_cols <- colorRampPalette(RColorBrewer::brewer.pal(9, "RdBu"))(256)
+heatmap_cols <- rev(heatmap_cols[1:256])
+
+set.seed(123)
+cells_use_heatmap <- colnames(FB_combined)
+if (length(cells_use_heatmap) > 20000) {
+  cells_use_heatmap <- sample(cells_use_heatmap, 20000)
+}
+
+DoHeatmap(
+  subset(FB_combined, cells = cells_use_heatmap),
+  label = TRUE,
+  draw.lines = FALSE,
+  features = unique(FB_markers_top10_combined$gene),
+  assay = "SCT",
+  size = 3.5
+) +
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(
+    text = element_text(size = 12),
+    axis.text.y = element_text(size = 8),
+    plot.margin = unit(c(0, 0, 0, 0), "inches")
+  ) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) +
+  guides(color = "none")
+```
+
+
+```{r featureplot selected markers, fig.width=12, fig.height=20}
+FeaturePlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  num_columns = 3,
+  order = TRUE
+)
+```
+
+```{r cluster proportions metadata}
+cluster_var <- "cell_state"
+
+df_prop_ec <- FB_combined@meta.data %>%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %>%
+  dplyr::count(Dataset, Disease_status, Sample, cluster, name = "n") %>%
+  dplyr::group_by(Dataset, Disease_status, Sample) %>%
+  dplyr::mutate(
+    total_n = sum(n),
+    freq = n / total_n
+  ) %>%
+  dplyr::ungroup()
+
+df_prop_ec$cluster <- factor(
+  df_prop_ec$cluster,
+  levels = sort(unique(as.character(df_prop_ec$cluster)))
+)
+
+df_prop_ec$Disease_status <- factor(
+  df_prop_ec$Disease_status,
+  levels = c("HC", "Disease")
+)
+
+df_prop_ec$Dataset <- factor(
+  df_prop_ec$Dataset,
+  levels = c("Koenig", "Reichart", "Chaffin", "Amrute", "Kuppe")
+)
+```
+
+```{r cluster proportions stats by dataset}
+get_p_label <- function(p) {
+  if (is.na(p)) return("p = NA")
+  if (p < 0.001) return("p < 0.001")
+  paste0("p = ", formatC(p, format = "f", digits = 3))
+}
+
+abund_by_dataset <- df_prop_ec %>%
+  dplyr::group_by(Dataset, cluster) %>%
+  dplyr::summarise(
+    p_value = {
+      tmp <- cur_data()
+      if (length(unique(tmp$Disease_status)) < 2) {
+        NA_real_
+      } else {
+        broom::tidy(lm(freq ~ Disease_status, data = tmp)) %>%
+          dplyr::filter(term == "Disease_statusDisease") %>%
+          dplyr::pull(p.value)
+      }
+    },
+    y = max(freq, na.rm = TRUE) + 0.04,
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+write.csv(
+  abund_by_dataset,
+  file = file.path(output_dir_data, "FB_subclusters_differential_abundance_by_dataset_HC_vs_Disease.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+abund_by_dataset
+
+```
+
+```{r cluster proportions by dataset and disease status, fig.width=16, fig.height=8, dpi=300}
+pd  <- position_dodge(width = 0.75)
+pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+p_prop_dataset_group <- ggplot(
+  df_prop_ec,
+  aes(x = cluster, y = freq, fill = Disease_status)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.7,
+    shape = 16
+  ) +
+  geom_segment(
+    data = abund_by_dataset,
+    aes(
+      x = as.numeric(cluster) - 0.18,
+      xend = as.numeric(cluster) + 0.18,
+      y = y,
+      yend = y
+    ),
+    inherit.aes = FALSE,
+    linewidth = 0.4
+  ) +
+  geom_text(
+    data = abund_by_dataset,
+    aes(
+      x = cluster,
+      y = y + 0.02,
+      label = p_label
+    ),
+    inherit.aes = FALSE,
+    size = 3,
+    fontface = "bold"
+  ) +
+  facet_wrap(~Dataset, ncol = 2, scales = "free_y") +
+  scale_fill_manual(values = c("HC" = "grey85", "Disease" = "#A63A2A")) +
+  labs(
+    x = "Cluster",
+    y = "Fraction of fibroblast cells"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
+    legend.title = element_blank()
+  )
+
+p_prop_dataset_group
+```
+
+```{r cluster proportions h vs disease, fig.width=10, fig.height=3.8, dpi=300}
+cluster_var <- "cell_state"
+
+df_prop_fb <- FB_combined@meta.data %>%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %>%
+  dplyr::count(Disease_status, Sample, cluster, name = "n") %>%
+  dplyr::group_by(Disease_status, Sample) %>%
+  dplyr::mutate(
+    total_n = sum(n),
+    freq = n / total_n
+  ) %>%
+  dplyr::ungroup()
+
+df_prop_fb$cluster <- factor(
+  df_prop_fb$cluster,
+  levels = sort(unique(as.character(df_prop_fb$cluster)))
+)
+
+df_prop_fb$Disease_status <- factor(
+  df_prop_fb$Disease_status,
+  levels = c("HC", "Disease")
+)
+
+get_p_label <- function(p) {
+  if (is.na(p)) return("p = NA")
+  if (p < 0.001) return("p < 0.001")
+  paste0("p = ", formatC(p, format = "f", digits = 3))
+}
+
+stat_prop_fb <- df_prop_fb %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::summarise(
+    p_value = {
+      tmp <- cur_data()
+      if (length(unique(tmp$Disease_status)) < 2) {
+        NA_real_
+      } else {
+        broom::tidy(lm(freq ~ Disease_status, data = tmp)) %>%
+          dplyr::filter(term == "Disease_statusDisease") %>%
+          dplyr::pull(p.value)
+      }
+    },
+    y = max(freq, na.rm = TRUE) + 0.03,
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+pd  <- position_dodge(width = 0.75)
+pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+ggplot(
+  df_prop_fb,
+  aes(x = cluster, y = freq, fill = Disease_status)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.7,
+    shape = 16
+  ) +
+  geom_segment(
+    data = stat_prop_fb,
+    aes(
+      x = as.numeric(cluster) - 0.18,
+      xend = as.numeric(cluster) + 0.18,
+      y = y,
+      yend = y
+    ),
+    inherit.aes = FALSE,
+    linewidth = 0.4
+  ) +
+  geom_text(
+    data = stat_prop_fb,
+    aes(
+      x = cluster,
+      y = y + 0.02,
+      label = p_label
+    ),
+    inherit.aes = FALSE,
+    size = 3.2,
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = c("HC" = "grey85", "Disease" = "#A63A2A")) +
+  labs(
+    x = "Cluster",
+    y = "Fraction of fibroblast cells"
+  ) +
+  coord_cartesian(
+    ylim = c(0, max(stat_prop_fb$y + 0.04, na.rm = TRUE))
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_blank()
+  )
+```
+
+```{r cluster proportions split by disease status, fig.width=12, fig.height=4.5, dpi=300}
+pd  <- position_dodge(width = 0.75)
+pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+p_prop_disease_split <- ggplot(
+  df_prop_ec,
+  aes(x = cluster, y = freq, fill = Dataset)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.7,
+    shape = 16
+  ) +
+  facet_wrap(~Disease_status, ncol = 2, scales = "free_y") +
+  scale_fill_manual(values = dataset_cols) +
+  labs(
+    x = "Cluster",
+    y = "Fraction of fibroblast cells"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
+    legend.title = element_blank()
+  )
+
+p_prop_disease_split
+```
+
+```{r featureplot ACTA2 by cell state, fig.width=5.5, fig.height=5, dpi=300}
+DefaultAssay(FB_combined) <- "SCT"
+
+FeaturePlot(
+  FB_combined,
+  features = "ACTA2",
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.25,
+  raster = FALSE
+) +
+  ggtitle("ACTA2") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r}
+DefaultAssay(FB_combined) <- "RNA"
+FB_combined <- NormalizeData(FB_combined)
+```
+
+```{r violin ACTA2 by cell state, fig.width=4, fig.height=3, dpi=300}
+Idents(FB_combined) <- "cell_state"
+
+VlnPlot(
+  FB_combined,
+  features = "ACTA2",
+  group.by = "cell_state",
+  cols = cell_type_cols,
+  pt.size = 0,
+  add.noise = F
+) +
+  ggtitle("ACTA2") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+```
+
+```{r violin matrifibrocyte genes by cell state, fig.width=16, fig.height=3, dpi=300}
+Idents(FB_combined) <- "cell_state"
+
+matrifibrocyte_genes_present <- matrifibrocyte_genes[
+  matrifibrocyte_genes %in% rownames(FB_combined)
+]
+
+VlnPlot(
+  FB_combined,
+  features = matrifibrocyte_genes_present,
+  group.by = "cell_state",
+  cols = cell_type_cols,
+  pt.size = 0,
+  add.noise = F,
+  ncol = length(matrifibrocyte_genes_present)
+) &
+  theme_classic() &
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+```{r violin matrifibrocyte score by cell state, fig.width=4, fig.height=3, dpi=300}
+Idents(FB_combined) <- "cell_state"
+
+VlnPlot(
+  FB_combined,
+  features = "Matrifibrocyte_score",
+  group.by = "cell_state",
+  cols = cell_type_cols,
+  pt.size = 0
+) +
+  ggtitle("Matrifibrocyte score") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+```
+
+```{r dotplot matrifibrocyte genes by cell state, fig.width=5, fig.height=4, dpi=300}
+DefaultAssay(FB_combined) <- "SCT"
+Idents(FB_combined) <- "cell_state"
+
+DotPlot(
+  FB_combined,
+  features = matrifibrocyte_genes_present,
+  assay = "SCT",
+  cols = c("grey90", "#A63A2A")
+) +
+  RotatedAxis() +
+  ggtitle("Matrifibrocyte genes") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r add cell cycle module scores}
+DefaultAssay(FB_combined) <- "RNA"
+
+s_phase_genes <- Seurat::cc.genes.updated.2019$s.genes
+g2m_phase_genes <- Seurat::cc.genes.updated.2019$g2m.genes
+
+s_phase_genes_present <- intersect(s_phase_genes, rownames(FB_combined))
+g2m_phase_genes_present <- intersect(g2m_phase_genes, rownames(FB_combined))
+
+length(s_phase_genes_present)
+length(g2m_phase_genes_present)
+
+FB_combined <- AddModuleScore(
+  object = FB_combined,
+  features = list(s_phase_genes_present),
+  name = "S_phase_score",
+  assay = "RNA",
+  slot = "data",
+  ctrl = 25,
+  nbin = 24,
+  seed = 1
+)
+
+FB_combined$S_phase_score <- FB_combined$S_phase_score1
+FB_combined$S_phase_score1 <- NULL
+
+FB_combined <- AddModuleScore(
+  object = FB_combined,
+  features = list(g2m_phase_genes_present),
+  name = "G2M_phase_score",
+  assay = "RNA",
+  slot = "data",
+  ctrl = 25,
+  nbin = 24,
+  seed = 1
+)
+
+FB_combined$G2M_phase_score <- FB_combined$G2M_phase_score1
+FB_combined$G2M_phase_score1 <- NULL
+```
+
+```{r violin cell cycle module scores by cell state, fig.width=10, fig.height=4, dpi=300}
+Idents(FB_combined) <- "cell_state"
+
+VlnPlot(
+  FB_combined,
+  features = c("S_phase_score", "G2M_phase_score"),
+  group.by = "cell_state",
+  cols = cell_type_cols,
+  pt.size = 0,
+  ncol = 2
+) &
+  theme_classic() &
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+```{r save FB_combined final, eval=FALSE}
+DefaultAssay(FB_combined) <- "RNA"
+qs_save(
+  FB_combined,
+  file = here::here(output_dir_data, "FB_combined.qs2"),
+  nthreads = 32
+)
+```
