@@ -1,0 +1,2452 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Matrifibrocytes integration</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.js"></script>
+<link href="site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.5/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.5/reactable.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Variance_partitioning.html">Variance partitioning</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP_all_cell_types.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="DE_Fibrosis_fibroblasts.html">Fibrosis and fibroblasts</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="Proteomics_quality_control.html">QC Olink and MS proteomics</a>
+    </li>
+    <li>
+      <a href="Proteomics_differential_abundance.html">Proteomics differential abundance</a>
+    </li>
+    <li>
+      <a href="MOFA_integrative_analysis.html">MOFA_integrative_analysis</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Matrifibrocytes integration</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">16 October, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-10-16
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>DCM_snRNAseq/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree5433bea3729e1faaac86028c3f4bbe8a6e1ea5c8targetblank5433beaa">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/5433bea3729e1faaac86028c3f4bbe8a6e1ea5c8" target="_blank">5433bea</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtree5433bea3729e1faaac86028c3f4bbe8a6e1ea5c8targetblank5433beaa"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/5433bea3729e1faaac86028c3f4bbe8a6e1ea5c8" target="_blank">5433bea</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    output/CellChat/
+    Ignored:    output/Cell_cell_communication_Macrophages/
+    Ignored:    output/Chaffin_2022/
+    Ignored:    output/Comparison_RV_bulk_RNAseq/
+    Ignored:    output/Koenig_2022/
+    Ignored:    output/Matrifibrocytes/
+    Ignored:    output/Matrifibrocytes_disease_vs_HC_adj_subsets/
+    Ignored:    output/SSc_PAH/
+
+Untracked files:
+    Untracked:  .Rprofile
+    Untracked:  Chaffin_wilcox.csv
+    Untracked:  GRCh38-2020-A_build/
+    Untracked:  Koenig_wilcox.csv
+    Untracked:  analysis/A_01_Cohort_proteomics_QC_20261013.Rmd
+    Untracked:  analysis/A_02_mPAP_programmes_HC_20261013.Rmd
+    Untracked:  analysis/A_03_Olink_DCM_HC_clinical_20261013.Rmd
+    Untracked:  analysis/A_04_MS_DCM_HC_clinical_20261013.Rmd
+    Untracked:  analysis/A_05_Protein_pathways_20261013.Rmd
+    Untracked:  analysis/A_06_External_RV_comparison_20261013.Rmd
+    Untracked:  analysis/A_07_Protein_robustness_RNA_pairs_20261013.Rmd
+    Untracked:  analysis/A_08_Mechanism_robustness_20261013.Rmd
+    Untracked:  analysis/A_09_Pressure_mechanisms_20261013.Rmd
+    Untracked:  analysis/A_10_Olink_assay_audit_20261013.Rmd
+    Untracked:  analysis/A_11_External_candidate_evidence_20261013.Rmd
+    Untracked:  analysis/A_12_Slice_mechanism_context_20261013.Rmd
+    Untracked:  analysis/A_13_Interim_results_summary_20261013.Rmd
+    Untracked:  analysis/A_14_Pressure_gene_drivers_20261013.Rmd
+    Untracked:  analysis/A_15_Cell_state_mechanisms_20261013.Rmd
+    Untracked:  analysis/A_16_Regulatory_and_signalling_context_20261013.Rmd
+    Untracked:  analysis/A_17_Mechanism_expression_atlas_20261013.Rmd
+    Untracked:  analysis/A_18_Clinical_pressure_components_20261013.Rmd
+    Untracked:  analysis/A_19_Protein_turnover_evidence_20261013.Rmd
+    Untracked:  analysis/A_20_Detailed_RV_results_20261013.Rmd
+    Untracked:  analysis/A_21_Functional_candidate_audit_20261014.Rmd
+    Untracked:  analysis/A_22_Experimental_proposals_20261014.Rmd
+    Untracked:  analysis/A_23_External_cohort_intake_20261014.Rmd
+    Untracked:  analysis/A_24_External_nuclei_pseudobulk_20261014.Rmd
+    Untracked:  analysis/A_25_External_bulk_pressure_function_20261014.Rmd
+    Untracked:  analysis/A_26_External_mPAP_signature_validation_20261014.Rmd
+    Untracked:  analysis/A_27_Strict_pressure_disease_candidates_20261014.Rmd
+    Untracked:  analysis/A_28_External_nucleus_gene_models_20261014.Rmd
+    Untracked:  analysis/A_29_Candidate_external_validation_20261014.Rmd
+    Untracked:  analysis/A_30_External_pressure_model_sensitivity_20261014.Rmd
+    Untracked:  analysis/A_31_Pressure_adaptation_evidence_20261014.Rmd
+    Untracked:  analysis/A_32_External_deposited_model_audit_20261014.Rmd
+    Untracked:  analysis/A_33_Male_external_DCM_validation_20261014.Rmd
+    Untracked:  analysis/A_34_Candidate_protein_evidence_20261014.Rmd
+    Untracked:  analysis/A_35_Direct_all_nucleus_bulk_mPAP_logFC_20261014.Rmd
+    Untracked:  analysis/A_36_Disease_pressure_volcano_plots_20261014.Rmd
+    Untracked:  analysis/A_37_mPAP_above35_comparison_20261014.Rmd
+    Untracked:  analysis/A_38_External_RAP_age_differential_expression_20261014.Rmd
+    Untracked:  analysis/A_39_Manuscript_Fig3E_TGFbeta_validation_20261014.Rmd
+    Untracked:  analysis/A_40_Chaffin_intake_20261015.Rmd
+    Untracked:  analysis/A_40_Koenig_intake_20261015.Rmd
+    Untracked:  analysis/A_40_Our_intake_20261015.Rmd
+    Untracked:  analysis/A_40_Reichart_intake_20261015.Rmd
+    Untracked:  analysis/A_41_Resources_20261015.Rmd
+    Untracked:  analysis/A_42_Chaffin_LV_DCM_HC_20261015.Rmd
+    Untracked:  analysis/A_42_Koenig_LV_DCM_HC_20261015.Rmd
+    Untracked:  analysis/A_42_Kuznetsov_RV_DCM_HC_20261015.Rmd
+    Untracked:  analysis/A_42_Kuznetsov_bulk_RV_DCM_HC_20261015.Rmd
+    Untracked:  analysis/A_42_Our_RV_DCM_HC_20261015.Rmd
+    Untracked:  analysis/A_42_Reichart_LV_DCM_HC_20261015.Rmd
+    Untracked:  analysis/A_42_Reichart_RV_DCM_HC_20261015.Rmd
+    Untracked:  analysis/A_43_Paired_Reichart_chamber_tests_20261015.Rmd
+    Untracked:  analysis/A_44_Combined_pseudobulk_models_20261015.Rmd
+    Untracked:  analysis/A_45_Independent_cohort_meta_analysis_20261015.Rmd
+    Untracked:  analysis/A_46_Protein_RNA_pathway_agreement_20261015.Rmd
+    Untracked:  analysis/A_47_RV_LV_summary_20261015.Rmd
+    Untracked:  analysis/A_48_Our_RV_age_sensitivity_20261015.Rmd
+    Untracked:  analysis/A_49_Analysis_checks_20261015.Rmd
+    Untracked:  analysis/A_50_TF_target_protein_agreement_20261015.Rmd
+    Untracked:  analysis/A_Cardiomyocytes_subclustering_20261012.Rmd
+    Untracked:  analysis/A_Cell_cycle_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_Combined_cell_states_20261012.Rmd
+    Untracked:  analysis/A_DA_DE_cell_state_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_DA_DE_cell_type_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_DCM_intake_20261008.Rmd
+    Untracked:  analysis/A_DCM_protocol_20261008.md
+    Untracked:  analysis/A_DCM_results_20261009.md
+    Untracked:  analysis/A_Endothelial_cells_subclustering_20261012.Rmd
+    Untracked:  analysis/A_Fibroblasts_subclustering_20261012.Rmd
+    Untracked:  analysis/A_GSEA_cell_state_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_GSEA_cell_type_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_Lymphocytes_subclustering_20261012.Rmd
+    Untracked:  analysis/A_Macrophages_subclustering_20261012.Rmd
+    Untracked:  analysis/A_MultiNicheNet_cell_state_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_MultiNicheNet_cell_type_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_Mural_cells_subclustering_20261012.Rmd
+    Untracked:  analysis/A_Overview_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_QC_integration_annotation_HC_DCM_20261012.Rmd
+    Untracked:  analysis/A_Reference_resources_20261012.Rmd
+    Untracked:  analysis/A_Selected_paper_markers_DCM_vs_HC_20261012.Rmd
+    Untracked:  analysis/A_TF_Pathway_Cardiomyocytes_20261012.Rmd
+    Untracked:  analysis/A_TF_Pathway_Endothelial_cells_20261012.Rmd
+    Untracked:  analysis/A_TF_Pathway_Fibroblasts_20261012.Rmd
+    Untracked:  analysis/A_TF_Pathway_Lymphocytes_20261012.Rmd
+    Untracked:  analysis/A_TF_Pathway_Macrophages_20261012.Rmd
+    Untracked:  analysis/A_TF_Pathway_Mural_cells_20261012.Rmd
+    Untracked:  analysis/A_TF_Pathway_Other_20261012.Rmd
+    Untracked:  analysis/Amrute_2024_fibroblast_integration.Rmd
+    Untracked:  analysis/Amrute_2024_fibroblast_pseudobulk.Rmd
+    Untracked:  analysis/Chaffin_2022.Rmd
+    Untracked:  analysis/Check_IMC_panel.Rmd
+    Untracked:  analysis/Comparison_RV_bulk_RNAseq.Rmd
+    Untracked:  analysis/DE_Group_all_cell_types.Rmd
+    Untracked:  analysis/EC_capillary_angiogenic_boxplot_stats.csv
+    Untracked:  analysis/Endothelial_cells_SGLT2_I.Rmd
+    Untracked:  analysis/Endothelial_integration_QC_figures.Rmd
+    Untracked:  analysis/Fibroblasts_DA_DE_26.Rmd
+    Untracked:  analysis/Genes_Luxembourg.Rmd
+    Untracked:  analysis/HC_DEGs_clustering.Rmd
+    Untracked:  analysis/Koenig_2022.Rmd
+    Untracked:  analysis/Mass_Spec_RV_dysf.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_2.Rmd
+    Untracked:  analysis/Mass_Spec_proteomics_3.Rmd
+    Untracked:  analysis/Matrifibrocytes.Rmd
+    Untracked:  analysis/Matrifibrocytes_2.Rmd
+    Untracked:  analysis/Matrifibrocytes_3.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Matrifibrocytes_disease_vs_HC_adj_subsets.Rmd
+    Untracked:  analysis/Matrifibrocytes_high_score_populations_disease_vs_HC_adj.Rmd
+    Untracked:  analysis/Olink_RV_dysf.Rmd
+    Untracked:  analysis/Olink_SSc_PAH.Rmd
+    Untracked:  analysis/Olink_SSc_PAH_draft.Rmd
+    Untracked:  analysis/Olink_proteomics_2.Rmd
+    Untracked:  analysis/Proteomics_OLINK_MS.Rmd
+    Untracked:  analysis/Proteomics_combined.Rmd
+    Untracked:  analysis/Proteomics_combined_2.Rmd
+    Untracked:  analysis/Pseudobulk_all.csv
+    Untracked:  analysis/Pseudobulk_all_2.csv
+    Untracked:  analysis/Pseudobulk_byCellType_facetGrid.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_filtered_wrap3col_proportional.pdf
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox.filtered.csv
+    Untracked:  analysis/Pseudobulk_byCellType_wilcox_2.csv
+    Untracked:  analysis/QC_integration_annotation_HC.Rmd
+    Untracked:  analysis/Reichart_ncRNA.Rmd
+    Untracked:  analysis/Reichart_wilcox.csv
+    Untracked:  analysis/Selection_genes_histology.Rmd
+    Untracked:  analysis/TAPSE_sPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/TF_activity_program_score_correlations_by_sample.csv
+    Untracked:  analysis/TF_activity_program_scores_by_sample_cell_state.csv
+    Untracked:  analysis/TOM/
+    Untracked:  analysis/UntitledR.R
+    Untracked:  analysis/ec_Reichart_logCPM.csv
+    Untracked:  analysis/mPAP_concordance_3datasets.Rmd
+    Untracked:  analysis/omnipathr-log/
+    Untracked:  analysis/prot_test.Rmd
+    Untracked:  analysis/test_1.Rmd
+    Untracked:  analysis/test_fb_prot.Rmd
+    Untracked:  code/A_Chambers_20261015/
+    Untracked:  code/A_DCM_reanalysis_20261008/
+    Untracked:  code/A_External_RV_20261014/
+    Untracked:  code/A_HC_DCM_20261012/
+    Untracked:  code/A_HC_QC_20261012/
+    Untracked:  code/A_Novelty_20261013/
+    Untracked:  code/Add_metadata.R
+    Untracked:  code/Check DYSF.R
+    Untracked:  code/Clustering_genes.R
+    Untracked:  code/DE_5_percent.Rmd
+    Untracked:  code/DE_5_percent.html
+    Untracked:  code/DE_5_percent/
+    Untracked:  code/DE_CM_test1.R
+    Untracked:  code/DE_no_401.Rmd
+    Untracked:  code/DE_no_401.html
+    Untracked:  code/DE_no_401/
+    Untracked:  code/Differential abundance test1.R
+    Untracked:  code/Differential_Expression_edgeR_All.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_Age.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_Age_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_2.html
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.Rmd
+    Untracked:  code/Differential_Expression_edgeR_All_groups_3.html
+    Untracked:  code/Endothelial_cells_cubclustering_removed.Rmd
+    Untracked:  code/PCA and CCA analysis test.R
+    Untracked:  code/Pseudobulk DCM HC.R
+    Untracked:  code/Published_heart_datasets_RV_vs_LV.Rmd
+    Untracked:  code/QC_integration_annotation_orig.Rmd
+    Untracked:  code/Removed_chunks.Rmd
+    Untracked:  code/UpSet_plot_DEGs.Rmd
+    Untracked:  code/Volcano_highlighted_genes.R
+    Untracked:  code/ezInteractiveTable.Rmd
+    Untracked:  code/ezInteractiveTable.html
+    Untracked:  code/old.R
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output/
+    Untracked:  data/Cellranger_output/
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/DCM_Clinical_data_30_261012.xlsx
+    Untracked:  data/DCM_Clinical_data_83.xlsx
+    Untracked:  data/HMEC_RNAseq/
+    Untracked:  data/Heart_datasets/
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec/
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK/
+    Untracked:  data/OLINK_LVAD/
+    Untracked:  data/Published_datasets/
+    Untracked:  data/Raw/
+    Untracked:  data/SSc-PAH/
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/refdata-gex-GRCh38-2020-A/
+    Untracked:  omnipathr-log/
+    Untracked:  output/A_Chambers_20261015/
+    Untracked:  output/A_DCM_reanalysis_20261008/
+    Untracked:  output/A_External_RV_20261014/
+    Untracked:  output/A_HC_DCM_20261012/
+    Untracked:  output/A_HC_QC_20261012/
+    Untracked:  output/A_Novelty_20261013/
+    Untracked:  output/A_mPAP_GSEA_20261009/
+    Untracked:  output/A_mPAP_PCA_20261009/
+    Untracked:  output/A_mPAP_age_20261009/
+    Untracked:  output/A_mPAP_leave_batch_20261009/
+    Untracked:  output/Add_cell_states_remove_contamination/
+    Untracked:  output/Amrute_2024_fibroblast_integration/
+    Untracked:  output/Amrute_2024_fibroblast_pseudobulk/
+    Untracked:  output/Amrute_2024_matrifibrocyte_markers/
+    Untracked:  output/Biomarkers_selection/
+    Untracked:  output/CM_lncRNAs/
+    Untracked:  output/CM_lncRNAs_2/
+    Untracked:  output/Cardiomyocytes_DA_DE/
+    Untracked:  output/Cardiomyocytes_subclustering/
+    Untracked:  output/Cardiomyocytes_subclustering_26/
+    Untracked:  output/Cell_cell_communication/
+    Untracked:  output/Cell_cell_communication_LV/
+    Untracked:  output/Cell_cell_communication_LV2/
+    Untracked:  output/Cell_cycle/
+    Untracked:  output/Check_IMC_panel/
+    Untracked:  output/Comparison_LV/
+    Untracked:  output/DA_DE_all_cell_types_and_parameters/
+    Untracked:  output/DE_Fibrosis_all_cell_types/
+    Untracked:  output/DE_Fibrosis_fibroblasts/
+    Untracked:  output/DE_Group_all_cell_types/
+    Untracked:  output/DE_all_cell_types_mPAP/
+    Untracked:  output/DE_mPAP_all_cell_types/
+    Untracked:  output/Differential_expression_edgeR_All/
+    Untracked:  output/Differential_expression_edgeR_All_Age/
+    Untracked:  output/Dysferlin/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart/
+    Untracked:  output/Endothelial_cells_Koenig_Reichart_manuscript/
+    Untracked:  output/Endothelial_cells_SGLT2_I/
+    Untracked:  output/Endothelial_cells_published_datasets/
+    Untracked:  output/Endothelial_cells_subclustering/
+    Untracked:  output/Fibroblasts_DA_DE_26/
+    Untracked:  output/Fibroblasts_subclustering/
+    Untracked:  output/Figures_manuscript/
+    Untracked:  output/Genes_Luxembourg/
+    Untracked:  output/Genes_Luxembourg_2/
+    Untracked:  output/HC_DEGs_clustering/
+    Untracked:  output/HMEC/
+    Untracked:  output/HMEC_second_run/
+    Untracked:  output/HMEC_second_run_manuscript/
+    Untracked:  output/LVAD_OLINK/
+    Untracked:  output/LV_Klaudia/
+    Untracked:  output/LV_datasets_DCM_vs_HC/
+    Untracked:  output/Lymphocytes_subclustering/
+    Untracked:  output/MOFA_integrative_analysis/
+    Untracked:  output/MOFA_integrative_analysis_v2/
+    Untracked:  output/MOFA_integrative_analysis_v3/
+    Untracked:  output/MOFA_integrative_analysis_v4/
+    Untracked:  output/MOFA_integrative_analysis_v6/
+    Untracked:  output/MS_proteomics/
+    Untracked:  output/Macrophages_subclustering/
+    Untracked:  output/Mass_Spec_RV_dysf/
+    Untracked:  output/Mass_Spec_proteomics/
+    Untracked:  output/Mass_Spec_proteomics_2/
+    Untracked:  output/Mass_Spec_proteomics_3/
+    Untracked:  output/Matrifibrocytes_1/
+    Untracked:  output/Matrifibrocytes_2/
+    Untracked:  output/Matrifibrocytes_2_adjusted/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC/
+    Untracked:  output/Matrifibrocytes_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_high_score_populations_disease_vs_HC_adj/
+    Untracked:  output/Matrifibrocytes_integration/
+    Untracked:  output/Matrifibrocytes_subclusters_disease_vs_HC_adj/
+    Untracked:  output/Mural_cells_subclustering/
+    Untracked:  output/Olink_RV_dysf/
+    Untracked:  output/Olink_SSc_PAH/
+    Untracked:  output/Olink_SSc_PAH_draft/
+    Untracked:  output/Olink_proteomics/
+    Untracked:  output/Olink_proteomics_2/
+    Untracked:  output/Proteomics_FB_state_PCA/
+    Untracked:  output/Proteomics_PCA_cell_state_composition/
+    Untracked:  output/Proteomics_combined/
+    Untracked:  output/Proteomics_combined_2/
+    Untracked:  output/Proteomics_combined_3/
+    Untracked:  output/Proteomics_combined_4/
+    Untracked:  output/Proteomics_combined_final/
+    Untracked:  output/Proteomics_combined_final_males_only/
+    Untracked:  output/Proteomics_combined_final_males_only_no_PK259/
+    Untracked:  output/Proteomics_combined_final_males_only_no_batch2/
+    Untracked:  output/Proteomics_differential_abundance/
+    Untracked:  output/Proteomics_differential_abundance_v2/
+    Untracked:  output/Proteomics_differential_abundance_v3/
+    Untracked:  output/Proteomics_differential_abundance_v4/
+    Untracked:  output/Proteomics_differential_abundance_v6/
+    Untracked:  output/Proteomics_matched_PCA_multicell_states_v2/
+    Untracked:  output/Proteomics_quality_control/
+    Untracked:  output/Proteomics_quality_control_v2/
+    Untracked:  output/Proteomics_quality_control_v3/
+    Untracked:  output/Proteomics_quality_control_v4/
+    Untracked:  output/Proteomics_quality_control_v6/
+    Untracked:  output/QC_integration_annotation/
+    Untracked:  output/QC_integration_annotation_HC/
+    Untracked:  output/Reichart2022_ventricle_specificity_noncoding/
+    Untracked:  output/Reichart_DE_DCMvsHC/
+    Untracked:  output/Selection_genes_histology/
+    Untracked:  output/TAPSE_sPAP_concordance_3datasets/
+    Untracked:  output/TAPSE_sPAP_proteomics_snrna/
+    Untracked:  output/UntitledR.R
+    Untracked:  output/Variance_partitioning/
+    Untracked:  output/mPAP_concordance_3datasets/
+    Untracked:  redsfewfref.R
+    Untracked:  reference_sources/
+    Untracked:  renv.lock
+    Untracked:  renv/
+    Untracked:  wflow_publish.log
+
+Unstaged changes:
+    Modified:   analysis/Amrute_2024_matrifibrocyte_markers.Rmd
+    Modified:   analysis/CM_lncRNAs.Rmd
+    Modified:   analysis/Cardiomyocytes_DA_DE.Rmd
+    Modified:   analysis/Cell_cycle.Rmd
+    Modified:   analysis/Comparison_LV.Rmd
+    Modified:   analysis/DE_Fibrosis_all_cell_types.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All.Rmd
+    Deleted:    analysis/Differential_Expression_edgeR_All_Age.Rmd
+    Modified:   analysis/Endothelial_cells_Koenig_Reichart_manuscript.Rmd
+    Modified:   analysis/Endothelial_cells_published_datasets.rmd
+    Modified:   analysis/Figures_manuscript.Rmd
+    Modified:   analysis/HMEC.Rmd
+    Modified:   analysis/HMEC_second_run_manuscript.Rmd
+    Modified:   analysis/LV_Klaudia.Rmd
+    Modified:   analysis/MOFA_integrative_analysis_v6.Rmd
+    Modified:   analysis/Olink_proteomics.Rmd
+    Modified:   analysis/Proteomics_PCA_cell_state_composition.Rmd
+    Modified:   analysis/Proteomics_combined_final.Rmd
+    Modified:   analysis/Reichart_DE_DCMvsHC.Rmd
+    Modified:   analysis/SSc_PAH.Rmd
+    Modified:   analysis/_site.yml
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/Matrifibrocytes_integration.Rmd</code>) and HTML
+(<code>docs/Matrifibrocytes_integration.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/5433bea3729e1faaac86028c3f4bbe8a6e1ea5c8/analysis/Matrifibrocytes_integration.Rmd" target="_blank">5433bea</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-16
+</td>
+<td>
+wflow_publish("analysis/Matrifibrocytes_integration.Rmd")
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r fold-hide"><code>current_file &lt;- &quot;Matrifibrocytes_integration&quot;
+
+library(here)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(patchwork)
+library(edgeR)
+library(limma)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(ggpubr)
+library(reactable)
+library(scales)
+library(cowplot)
+library(speckle)
+library(broom)
+library(harmony)
+library(clustree)
+library(qs2)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here(&quot;docs&quot;, &quot;figure&quot;))) dir.create(here::here(&quot;docs&quot;, &quot;figure&quot;), recursive = TRUE)
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+fb_dir &lt;- here::here(&quot;output&quot;, &quot;Matrifibrocytes_1&quot;)
+
+cell_type_cols &lt;- c(
+  &quot;#d05050&quot;, &quot;#33A02C&quot;, &quot;#1F78B4&quot;, &quot;#CAB2D6&quot;, &quot;#FF7F00&quot;, &quot;#B2DF8A&quot;,
+  &quot;#B15928&quot;, &quot;#FFD000&quot;, &quot;#FA95C0&quot;, &quot;#FDBF6F&quot;, &quot;#6A3D9A&quot;, &quot;#7aCDF9&quot;, &quot;#E6E600&quot;,
+  &quot;#8DD3C7&quot;, &quot;#FB8072&quot;, &quot;#80B1D3&quot;, &quot;#BC80BD&quot;, &quot;#CCEBC5&quot;, &quot;#FFED6F&quot;,
+  &quot;#A6CEE3&quot;, &quot;#F781BF&quot;
+)
+
+group_cols &lt;- c(&quot;HC&quot; = &quot;grey85&quot;, &quot;DCM&quot; = &quot;#A63A2A&quot;, &quot;NICM&quot; = &quot;#33A02C&quot;, &quot;MI&quot; = &quot;#004C8C&quot;)
+dataset_cols &lt;- c(
+  &quot;Koenig&quot; = &quot;#CAB2D6&quot;,
+  &quot;Reichart&quot; = &quot;#B2DF8A&quot;,
+  &quot;Chaffin&quot; = &quot;#FDBF6F&quot;,
+  &quot;Amrute&quot; = &quot;#FA95C0&quot;,
+  &quot;Kuppe&quot; = &quot;#7aCDF9&quot;
+)</code></pre>
+</div>
+<div id="load-fibroblast-datasets" class="section level2">
+<h2>Load fibroblast datasets</h2>
+<pre class="r"><code>koenig_fb &lt;- qs_read(
+  file = here::here(fb_dir, &quot;koenig_fb.qs2&quot;),
+  nthreads = 32
+)
+
+reichart_fb &lt;- qs_read(
+  file = here::here(fb_dir, &quot;reichart_fb.qs2&quot;),
+  nthreads = 32
+)
+
+chaffin_fb &lt;- qs_read(
+  file = here::here(fb_dir, &quot;chaffin_fb.qs2&quot;),
+  nthreads = 32
+)
+
+amrute_fb &lt;- qs_read(
+  file = here::here(fb_dir, &quot;amrute_fb.qs2&quot;),
+  nthreads = 32
+)
+
+kuppe_fb &lt;- qs_read(
+  file = here::here(fb_dir, &quot;kuppe_fb.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+</div>
+<div id="prepare-metadata" class="section level2">
+<h2>Prepare metadata</h2>
+<pre class="r"><code>reichart_fb$nCount_RNA &lt;- reichart_fb$nCounts_RNA
+reichart_fb$nFeature_RNA &lt;- reichart_fb$nFeaturess_RNA
+
+koenig_fb$Group &lt;- factor(koenig_fb$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;, &quot;NICM&quot;, &quot;MI&quot;))
+reichart_fb$Group &lt;- factor(reichart_fb$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;, &quot;NICM&quot;, &quot;MI&quot;))
+chaffin_fb$Group &lt;- factor(chaffin_fb$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;, &quot;NICM&quot;, &quot;MI&quot;))
+amrute_fb$Group &lt;- factor(amrute_fb$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;, &quot;NICM&quot;, &quot;MI&quot;))
+kuppe_fb$Group &lt;- factor(kuppe_fb$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;, &quot;NICM&quot;, &quot;MI&quot;))
+
+koenig_fb$Dataset &lt;- factor(koenig_fb$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;, &quot;Chaffin&quot;, &quot;Amrute&quot;, &quot;Kuppe&quot;))
+reichart_fb$Dataset &lt;- factor(reichart_fb$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;, &quot;Chaffin&quot;, &quot;Amrute&quot;, &quot;Kuppe&quot;))
+chaffin_fb$Dataset &lt;- factor(chaffin_fb$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;, &quot;Chaffin&quot;, &quot;Amrute&quot;, &quot;Kuppe&quot;))
+amrute_fb$Dataset &lt;- factor(amrute_fb$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;, &quot;Chaffin&quot;, &quot;Amrute&quot;, &quot;Kuppe&quot;))
+kuppe_fb$Dataset &lt;- factor(kuppe_fb$Dataset, levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;, &quot;Chaffin&quot;, &quot;Amrute&quot;, &quot;Kuppe&quot;))
+
+koenig_fb$percent.mt &lt;- PercentageFeatureSet(koenig_fb, pattern = &quot;^MT-&quot;)
+reichart_fb$percent.mt &lt;- PercentageFeatureSet(reichart_fb, pattern = &quot;^MT-&quot;)
+chaffin_fb$percent.mt &lt;- PercentageFeatureSet(chaffin_fb, pattern = &quot;^MT-&quot;)
+amrute_fb$percent.mt &lt;- PercentageFeatureSet(amrute_fb, pattern = &quot;^MT-&quot;)
+kuppe_fb$percent.mt &lt;- PercentageFeatureSet(kuppe_fb, pattern = &quot;^MT-&quot;)
+
+koenig_fb &lt;- RenameCells(koenig_fb, add.cell.id = &quot;Koenig&quot;)
+reichart_fb &lt;- RenameCells(reichart_fb, add.cell.id = &quot;Reichart&quot;)
+chaffin_fb &lt;- RenameCells(chaffin_fb, add.cell.id = &quot;Chaffin&quot;)
+amrute_fb &lt;- RenameCells(amrute_fb, add.cell.id = &quot;Amrute&quot;)
+kuppe_fb &lt;- RenameCells(kuppe_fb, add.cell.id = &quot;Kuppe&quot;)</code></pre>
+</div>
+<div id="merge-fibroblast-objects" class="section level2">
+<h2>Merge fibroblast objects</h2>
+<pre class="r"><code>common_genes_fb &lt;- Reduce(
+  intersect,
+  list(
+    rownames(koenig_fb),
+    rownames(reichart_fb),
+    rownames(chaffin_fb),
+    rownames(amrute_fb),
+    rownames(kuppe_fb)
+  )
+)
+
+length(common_genes_fb)</code></pre>
+<pre><code>[1] 17797</code></pre>
+<pre class="r"><code>FB_combined &lt;- merge(
+  x = koenig_fb[common_genes_fb, ],
+  y = list(
+    reichart_fb[common_genes_fb, ],
+    chaffin_fb[common_genes_fb, ],
+    amrute_fb[common_genes_fb, ],
+    kuppe_fb[common_genes_fb, ]
+  ),
+  merge.data = FALSE
+)
+
+rm(koenig_fb, reichart_fb, chaffin_fb, amrute_fb, kuppe_fb)</code></pre>
+</div>
+<div id="qc-metadata-combined-fibroblasts" class="section level2">
+<h2>QC metadata combined fibroblasts</h2>
+<pre class="r"><code>FB_combined$nCount_RNA &lt;- Matrix::colSums(FB_combined@assays$RNA@counts)
+FB_combined$nFeature_RNA &lt;- Matrix::colSums(FB_combined@assays$RNA@counts &gt; 0)
+
+FB_combined@meta.data %&gt;%
+  dplyr::count(Dataset, Group)</code></pre>
+<pre><code>    Dataset Group     n
+1    Amrute    HC 15700
+2    Amrute  NICM 11180
+3   Chaffin   DCM 51356
+4   Chaffin    HC 38219
+5    Koenig   DCM 20388
+6    Koenig    HC 28736
+7     Kuppe    HC  9452
+8     Kuppe    MI 37857
+9  Reichart   DCM 35353
+10 Reichart    HC 20300</code></pre>
+<pre class="r"><code>FB_combined@meta.data %&gt;%
+  dplyr::count(Dataset, Sample, sort = TRUE) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-f843a680a1fcd62a0dd1" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-f843a680a1fcd62a0dd1">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"Dataset":["Chaffin","Chaffin","Kuppe","Chaffin","Chaffin","Chaffin","Kuppe","Koenig","Chaffin","Chaffin","Kuppe","Chaffin","Chaffin","Kuppe","Koenig","Chaffin","Chaffin","Reichart","Chaffin","Reichart","Kuppe","Kuppe","Kuppe","Chaffin","Chaffin","Chaffin","Koenig","Chaffin","Chaffin","Kuppe","Koenig","Reichart","Reichart","Chaffin","Amrute","Reichart","Chaffin","Chaffin","Kuppe","Koenig","Kuppe","Koenig","Chaffin","Koenig","Koenig","Kuppe","Amrute","Amrute","Chaffin","Amrute","Koenig","Koenig","Amrute","Kuppe","Koenig","Kuppe","Chaffin","Reichart","Chaffin","Kuppe","Kuppe","Reichart","Amrute","Koenig","Chaffin","Koenig","Koenig","Chaffin","Reichart","Reichart","Koenig","Amrute","Reichart","Amrute","Koenig","Koenig","Amrute","Kuppe","Koenig","Amrute","Kuppe","Reichart","Kuppe","Koenig","Reichart","Reichart","Reichart","Amrute","Reichart","Koenig","Amrute","Reichart","Chaffin","Reichart","Koenig","Koenig","Koenig","Reichart","Amrute","Reichart","Reichart","Reichart","Amrute","Amrute","Koenig","Reichart","Amrute","Koenig","Amrute","Reichart","Reichart","Reichart","Reichart","Kuppe","Reichart","Koenig","Reichart","Amrute","Koenig","Koenig","Koenig","Amrute","Koenig","Amrute","Koenig","Amrute","Kuppe","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Koenig","Reichart","Koenig","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Koenig","Koenig","Koenig","Reichart","Koenig","Amrute","Reichart","Koenig","Reichart","Amrute","Reichart","Amrute","Amrute","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Amrute","Reichart","Reichart","Reichart","Reichart","Reichart","Reichart","Amrute","Reichart"],"Sample":["P1304","P1437","P3","P1358","P1472","P1617","P9","TWCM-LVAD3","P1515","P1371","P2","P1430","P1300","P15","TWCM-13-181","P1549","P1561","D5","P1606","D4","P8","P1","P5","P1603","P1582","P1539","TWCM-13-208","P1610","P1718","P6","TWCM-11-78","H40","H51","P1558","TWCM-11-78","D2","P1504","P1622","P18","TWCM-13-96","P17","TWCM-13-198","P1516","H_ZC-11-292","H_ZC-LVAD","P10","H_ZC-11-292","TWCM-190-R-pre","P1600","TWCM-13-192","TWCM-13-192","TWCM-13-168","TWCM-13-168","P12","TWCM-13-36","P14","P1678","DP1","P1540","P19","P7","H01","TWCM-388-NR-pre","TWCM-13-102","P1702","TWCM-11-104","TWCM-LVAD2","P1547","H32","H02","TWCM-13-1","TWCM-378-NR-pre","H19","TWCM-13-1","TWCM-11-93","TWCM-13-235","TWCM-463-R-pre","P20","TWCM-11-264","TWCM-376-NR-pre","P11","H28","P13","TWCM-13-152","D7","H03","H49","TWCM-13-152","H12","TWCM-13-285","TWCM-296-R-pre","H24","P1290","H14","TWCM-11-103","TWCM-13-104","TWCM-11-192","D1","TWCM-11-192","H56","H55","IC_H02","TWCM-13-104","TWCM-11-103","TWCM-11-74","H37","TWCM-359-NR-pre","TWCM-13-47","TWCM-410-NR-pre","H3","H18","H33","H27","P16","H06","TWCM-11-82","H35","TWCM-11-82","TWCM-11-42","TWCM-13-132","TWCM-11-41","TWCM-11-41","TWCM-11-3","TWCM-11-74","TWCM-13-80","TWCM-13-80","P4","DT4","H80","H17","H67","H16","H05","TWCM-13-101","H46","TWCM-10-5","H13","H39","H21","H36","H57","H20","H53","H6","TWCM-13-17","TWCM-13-84","TWCM-10-68","DL3","TWCM-14-173","TWCM-14-173","D6","TWCM-11-256","H25","TWCM-229-R-pre","H04","TWCM-397-NR-pre","TWCM-373-NR-pre","H58","IC_H01","H41","H73","H22","H31","H81","H59","DP2","H34","IC_H04","DL2","H5","H2","TWCM-363-NR-pre","IC_H03","DS3","H4","H7","H26","DO1","TWCM-239-R-pre","H79"],"n":[8807,7737,7052,6383,5771,5446,4882,4194,3869,3674,3601,3584,3558,3481,3429,3367,3355,3332,3238,3222,3103,3024,2951,2945,2888,2815,2775,2689,2688,2531,2387,2385,2379,2321,2299,2291,2187,2146,2122,2048,1955,1944,1838,1815,1799,1776,1703,1691,1684,1670,1660,1623,1616,1608,1569,1554,1526,1446,1440,1394,1370,1369,1363,1347,1333,1320,1316,1315,1276,1246,1244,1226,1220,1190,1173,1162,1160,1155,1154,1149,1147,1138,1108,1079,1071,1067,1064,1059,1036,1008,1005,977,971,966,959,958,956,956,939,933,925,915,887,882,869,850,845,841,833,831,817,810,788,781,777,770,768,767,751,751,727,723,722,718,718,715,714,712,705,697,694,679,668,666,659,652,637,632,628,628,625,600,586,581,568,564,548,546,537,532,531,521,512,496,492,487,475,456,440,426,418,413,411,405,388,377,344,340,337,337,324,322,311,309,291,226,192,187,128,54]},"columns":[{"id":"Dataset","name":"Dataset","type":"character"},{"id":"Sample","name":"Sample","type":"character"},{"id":"n","name":"n","type":"numeric"}],"dataKey":"fcb66932cfd3d3df2c579d781064630e"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>VlnPlot(
+  FB_combined,
+  features = c(&quot;nFeature_RNA&quot;, &quot;nCount_RNA&quot;, &quot;percent.mt&quot;),
+  group.by = &quot;Dataset&quot;,
+  pt.size = 0,
+  ncol = 3
+)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/qc%20violin%20fibroblasts-1.png" width="3000" style="display: block; margin: auto;" /></p>
+</div>
+<div id="sctransform-combined-fibroblasts" class="section level2">
+<h2>SCTransform combined fibroblasts</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+FB_list &lt;- SplitObject(FB_combined, split.by = &quot;Sample&quot;)
+
+for (i in seq_along(FB_list)) {
+  FB_list[[i]] &lt;- SCTransform(
+    FB_list[[i]],
+    vst.flavor = &quot;v2&quot;,
+    vars.to.regress = &quot;percent.mt&quot;,
+    return.only.var.genes = TRUE,
+    variable.features.n = 3000,
+    min_cells = 0,
+    verbose = FALSE
+  )
+}
+
+features_fb &lt;- SelectIntegrationFeatures(object.list = FB_list, nfeatures = 3000)
+
+FB_combined &lt;- merge(
+  x = FB_list[[1]],
+  y = FB_list[2:length(FB_list)],
+  merge.data = TRUE
+)
+VariableFeatures(FB_combined) &lt;- features_fb
+
+rm(FB_list)</code></pre>
+</div>
+<div id="pca" class="section level2">
+<h2>PCA</h2>
+<pre class="r"><code>FB_combined &lt;- RunPCA(FB_combined, npcs = 50, verbose = FALSE)
+ElbowPlot(FB_combined, ndims = 50)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/pca%20fibroblasts%20combined-1.png" width="1800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="harmony" class="section level2">
+<h2>Harmony</h2>
+<pre class="r"><code>FB_combined &lt;- harmony::RunHarmony(
+  object = FB_combined,
+  assay.use = &quot;SCT&quot;,
+  group.by.vars = c(&quot;Sample&quot;, &quot;Dataset&quot;),
+  dims.use = 1:50,
+  plot_convergence = TRUE,
+  .options = harmony::harmony_options(max.iter.cluster = 100)
+)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/harmony%20fibroblasts%20combined-1.png" width="2100" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>resolutions_to_keep &lt;- paste0(&quot;SCT_snn.res.&quot;, c(&quot;0.1&quot;, &quot;0.2&quot;, &quot;0.3&quot;, &quot;0.4&quot;, &quot;0.5&quot;, &quot;0.6&quot;, &quot;0.7&quot;, &quot;0.8&quot;))
+
+sct_res_cols &lt;- grep(&quot;^SCT_snn[\\._]res\\.&quot;, colnames(FB_combined@meta.data), value = TRUE)
+
+cols_to_remove &lt;- setdiff(sct_res_cols, resolutions_to_keep)
+
+if (length(cols_to_remove) &gt; 0) {
+  FB_combined@meta.data &lt;- FB_combined@meta.data[, !colnames(FB_combined@meta.data) %in% cols_to_remove, drop = FALSE]
+}
+
+grep(&quot;^SCT_snn[\\._]res\\.&quot;, colnames(FB_combined@meta.data), value = TRUE)</code></pre>
+<pre><code>character(0)</code></pre>
+</div>
+<div id="clustering" class="section level2">
+<h2>Clustering</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+FB_combined &lt;- RunUMAP(
+  FB_combined,
+  reduction = &quot;harmony&quot;,
+  dims = 1:15
+)
+
+FB_combined &lt;- FindNeighbors(
+  FB_combined,
+  reduction = &quot;harmony&quot;,
+  dims = 1:15
+)
+
+FB_combined &lt;- FindClusters(
+  FB_combined,
+  resolution = seq(0.1, 0.8, by = 0.1)
+  )</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 268541
+Number of edges: 4908769
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.9244
+Number of communities: 16
+Elapsed time: 91 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 268541
+Number of edges: 4908769
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8989
+Number of communities: 20
+Elapsed time: 68 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 268541
+Number of edges: 4908769
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8820
+Number of communities: 23
+Elapsed time: 67 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 268541
+Number of edges: 4908769
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8662
+Number of communities: 24
+Elapsed time: 68 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 268541
+Number of edges: 4908769
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8518
+Number of communities: 23
+Elapsed time: 67 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 268541
+Number of edges: 4908769
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8401
+Number of communities: 27
+Elapsed time: 66 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 268541
+Number of edges: 4908769
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8312
+Number of communities: 29
+Elapsed time: 59 seconds</code></pre>
+<pre><code>Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+
+Number of nodes: 268541
+Number of edges: 4908769
+
+Running Louvain algorithm...
+Maximum modularity in 10 random starts: 0.8222
+Number of communities: 31
+Elapsed time: 63 seconds</code></pre>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;SCT_snn_res.0.2&quot;</code></pre>
+<pre class="r"><code>clustree::clustree(FB_combined@meta.data[,grep(&quot;SCT_snn_res&quot;, colnames(FB_combined@meta.data))], prefix = &quot;SCT_snn_res.&quot;)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/clustree-1.png" width="2400" style="display: block; margin: auto;" /></p>
+</div>
+<div id="umaps-combined-fibroblasts" class="section level2">
+<h2>UMAPs combined fibroblasts</h2>
+<pre class="r"><code>p1 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;SCT_snn_res.0.2&quot;,
+  label = TRUE,
+  repel = TRUE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  ggtitle(&quot;Combined fibroblast subclusters&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p2 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;Dataset&quot;,
+  cols = dataset_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;Dataset&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p3 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  group.by = &quot;Group&quot;,
+  cols = group_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle(&quot;Group&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 14, face = &quot;bold&quot;, hjust = 0.5)
+  )
+
+p4 &lt;- DimPlot(
+  FB_combined,
+  reduction = &quot;umap&quot;,
+  split.by = &quot;Dataset&quot;,
+  group.by = &quot;SCT_snn_res.0.2&quot;,
+  label = FALSE,
+  shuffle = TRUE,
+  pt.size = 0.1,
+  raster = FALSE,
+  ncol = 3
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    strip.text = element_text(size = 12, face = &quot;bold&quot;)
+  )
+
+(p1 + p2) / (p3 + p4)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/umaps%20fibroblasts%20combined-1.png" width="3300" style="display: block; margin: auto;" /></p>
+</div>
+<div id="marker-features-on-integrated-fibroblasts"
+class="section level2">
+<h2>Marker features on integrated fibroblasts</h2>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+FeaturePlot(
+  FB_combined,
+  features = c(&quot;COMP&quot;, &quot;CILP&quot;, &quot;CHAD&quot;, &quot;THBS4&quot;),
+  reduction = &quot;umap&quot;,
+  order = TRUE,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;),
+  pt.size = 0.5,
+  ncol = 4,
+  raster = FALSE
+)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/matrifibrocyte%20markers%20integrated-1.png" width="4800" style="display: block; margin: auto;" /></p>
+</div>
+<div id="matrifibrocyte-score-on-integrated-fibroblasts"
+class="section level2">
+<h2>Matrifibrocyte score on integrated fibroblasts</h2>
+<pre class="r"><code>matrifibrocyte_genes &lt;- c(&quot;COMP&quot;, &quot;CILP&quot;, &quot;CHAD&quot;, &quot;THBS4&quot;)
+matrifibrocyte_genes_present &lt;- matrifibrocyte_genes[matrifibrocyte_genes %in% rownames(FB_combined)]
+
+FB_combined &lt;- AddModuleScore(
+  object = FB_combined,
+  features = list(matrifibrocyte_genes_present),
+  name = &quot;Matrifibrocyte_score&quot;,
+  assay = &quot;SCT&quot;,
+  slot = &quot;data&quot;,
+  ctrl = 25,
+  nbin = 24,
+  seed = 1
+)
+
+FB_combined$Matrifibrocyte_score &lt;- FB_combined$Matrifibrocyte_score1
+FB_combined$Matrifibrocyte_score1 &lt;- NULL</code></pre>
+<pre class="r"><code>FeaturePlot(
+  FB_combined,
+  features = &quot;Matrifibrocyte_score&quot;,
+  reduction = &quot;umap&quot;,
+  order = TRUE,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;),
+  pt.size = 0.5,
+  raster = FALSE
+) +
+  ggtitle(&quot;Matrifibrocyte score&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/feature%20plot%20matrifibrocyte%20score%20integrated-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>VlnPlot_scCustom(
+  FB_combined,
+  features = c(&quot;nCount_RNA&quot;, &quot;nFeature_RNA&quot;, &quot;percent.mt&quot;, &quot;TTN&quot;, &quot;PECAM1&quot;),
+  num_columns = 5,
+  pt.size = 0,
+  colors_use = cell_type_cols
+) + theme(axis.title.x = element_blank())</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/FB_combined_qc-1.png" width="6000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FB_combined$Disease_status &lt;- ifelse(
+  FB_combined$Group == &quot;HC&quot;,
+  &quot;HC&quot;,
+  &quot;Disease&quot;
+)
+
+FB_combined$Disease_status &lt;- factor(
+  FB_combined$Disease_status,
+  levels = c(&quot;HC&quot;, &quot;Disease&quot;)
+)
+
+df_prop_ec &lt;- FB_combined@meta.data %&gt;%
+  dplyr::count(Dataset, Disease_status, Sample, cluster = SCT_snn_res.0.2) %&gt;%
+  dplyr::group_by(Dataset, Disease_status, Sample) %&gt;%
+  dplyr::mutate(freq = n / sum(n)) %&gt;%
+  dplyr::ungroup()
+
+p_prop_dataset &lt;- ggplot(df_prop_ec, aes(x = cluster, y = freq, fill = Dataset)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(width = 0.15, size = 1.2, alpha = 0.8) +
+  scale_fill_manual(values = dataset_cols) +
+  labs(x = &quot;Cluster&quot;, y = &quot;Fraction of fibroblasts&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_blank()
+  )
+
+p_prop_group &lt;- ggplot(df_prop_ec, aes(x = cluster, y = freq, fill = Disease_status)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(width = 0.15, size = 1.2, alpha = 0.8) +
+  scale_fill_manual(values = group_cols) +
+  labs(x = &quot;Cluster&quot;, y = &quot;Fraction of fibroblasts&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_blank()
+  )
+
+p_prop_dataset | p_prop_group</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/cluster%20proportions%20by%20dataset%20and%20group-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+FB_combined &lt;- NormalizeData(FB_combined)
+Idents(FB_combined) &lt;- &quot;SCT_snn_res.0.2&quot;
+
+FB_markers_combined &lt;- FindAllMarkers(
+  FB_combined,
+  assay = &quot;RNA&quot;,
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+FB_markers_top3_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_head(n = 20) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-ba32e0541469b5ed4906" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-ba32e0541469b5ed4906">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"p_val":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3.23872414400123e-297,0,0,0,0,5.97103251711384e-181,0,0,0,0,9.25763492551622e-106],"avg_log2FC":[1.4662740973421,1.16367711739455,1.09199965950417,1.05597792002185,1.04615169836492,0.807624974322859,0.746591387880436,0.740354648385259,0.716645178265755,0.688223223356787,0.687043513418716,0.686596668266449,0.672078789478051,0.634176487454703,0.630846439918807,0.615962715972991,0.609357709245303,0.606350177091918,0.597981673510939,0.588147635659496,1.66018977802344,1.22791279918548,1.20749568909363,1.19748587633522,1.19265794340956,1.16583595257614,1.13781236725756,1.07751501958526,1.07342081142501,1.04411734796191,1.03710001129528,1.01202777608948,0.978323805942467,0.97638269131343,0.969068808521584,0.964986766652763,0.913062061079898,0.892288771787114,0.854240386539902,0.834192211922204,2.96381568664206,2.04454844199435,1.63890631271612,1.50337756075807,1.29153719427682,1.26148709567244,1.21382601445993,1.12549103902396,1.12270531425153,1.11684930179591,1.11436921165689,1.11114577534695,1.08635630449437,1.04198312734112,1.02113554807477,1.01588601800235,0.969809298338934,0.946185459395167,0.925262986922748,0.903007306307918,2.26570267460979,2.03885351439866,2.01241754362219,1.95728262469794,1.75984085851326,1.59959574671036,1.55690752050408,1.48715983100432,1.43861863582707,1.40307156009671,1.3764615961546,1.35708064593726,1.34417979667704,1.32426814107547,1.28733990649988,1.26559598445791,1.21148432496196,1.19996861940774,1.176667101336,1.17635784639585,2.19060981836002,1.64319735746388,1.21441580269222,1.20511950870534,1.13375164289719,1.04520691695371,0.986957011855331,0.984346550956248,0.978988591147337,0.879364446895398,0.865060554482947,0.852814347570531,0.851071839156164,0.833686625636845,0.83362709152889,0.822760857576843,0.752181924162063,0.749687070895482,0.746439255564129,0.739951796622476,1.52963606581362,1.45955169114419,1.45700950915559,1.37211296780919,1.3620483797947,1.27075851284117,1.24225315790717,1.21766206938619,1.18796085424606,1.17379956286538,1.15837346182314,1.15662735989023,1.15171131547465,1.14615494335629,1.12823329549363,1.07598896744639,1.06635671703605,1.0480353151215,1.03324938778245,1.0205460071235,1.66301719511542,1.50313211095624,1.21735642059075,1.21722810728072,1.20045639167348,1.14833446410394,1.1293675934763,1.12302745040476,1.06973717143355,1.04123076023148,1.03668505743797,1.03496323755604,1.00223941731913,0.985921600141295,0.984435698381677,0.982291486690172,0.962488644122745,0.944924948558784,0.922963719089558,0.914565152943137,2.13350670165004,2.08828789676863,2.00232379029954,1.99644041935289,1.86218068090329,1.79720183215387,1.61105037508875,1.53770326758123,1.48698787939308,1.47089818478711,1.42419755233774,1.41490582072538,1.39758281561677,1.37188658750102,1.36096077544743,1.32036704206196,1.28007047614482,1.27550311591488,1.25483853368108,1.21511013662168],"pct.1":[0.785,0.39,0.351,0.875,0.301,0.185,0.507,0.118,0.537,0.545,0.523,0.302,0.232,0.153,0.343,0.437,0.289,0.666,0.565,0.471,0.714,0.403,0.236,0.506,0.894,0.455,0.127,0.257,0.555,0.682,0.445,0.266,0.639,0.284,0.29,0.125,0.243,0.557,0.164,0.78,0.437,0.404,0.657,0.208,0.746,0.258,0.401,0.35,0.132,0.142,0.42,0.691,0.638,0.599,0.214,0.218,0.42,0.454,0.523,0.599,0.683,0.717,0.954,0.664,0.316,0.66,0.588,0.789,0.464,0.551,0.966,0.715,0.66,0.45,0.528,0.454,0.26,0.882,0.522,0.195,0.76,0.27,0.178,0.43,0.497,0.665,0.425,0.258,0.369,0.514,0.41,0.324,0.218,0.316,0.154,0.303,0.646,0.439,0.22,0.136,0.108,0.601,0.44,0.455,0.304,0.45,0.281,0.211,0.139,0.637,0.202,0.166,0.378,0.327,0.363,0.402,0.507,0.369,0.318,0.182,0.654,0.558,0.322,0.359,0.313,0.294,0.28,0.246,0.255,0.239,0.206,0.259,0.203,0.22,0.229,0.195,0.317,0.25,0.161,0.184,0.427,0.532,0.477,0.474,0.287,0.273,0.544,0.581,0.373,0.255,0.446,0.257,0.16,0.556,0.378,0.234,0.115,0.159,0.376,0.135],"pct.2":[0.514,0.188,0.197,0.657,0.143,0.096,0.394,0.052,0.383,0.397,0.366,0.184,0.131,0.084,0.23,0.307,0.177,0.518,0.429,0.314,0.321,0.151,0.076,0.237,0.714,0.199,0.036,0.069,0.275,0.408,0.193,0.082,0.385,0.134,0.117,0.022,0.078,0.331,0.02,0.59,0.08,0.133,0.37,0.058,0.564,0.058,0.19,0.122,0.042,0.032,0.172,0.446,0.422,0.357,0.087,0.105,0.211,0.243,0.305,0.363,0.376,0.393,0.76,0.301,0.092,0.333,0.268,0.524,0.19,0.263,0.853,0.423,0.396,0.189,0.246,0.223,0.073,0.704,0.261,0.11,0.355,0.083,0.049,0.193,0.225,0.478,0.2,0.093,0.161,0.311,0.199,0.172,0.079,0.155,0.039,0.164,0.485,0.248,0.101,0.037,0.015,0.321,0.171,0.194,0.1,0.221,0.083,0.049,0.023,0.422,0.076,0.035,0.179,0.186,0.167,0.196,0.325,0.208,0.149,0.048,0.464,0.356,0.155,0.19,0.168,0.133,0.135,0.102,0.116,0.105,0.08,0.12,0.081,0.098,0.113,0.074,0.193,0.134,0.067,0.073,0.166,0.156,0.139,0.179,0.093,0.079,0.27,0.262,0.178,0.13,0.215,0.087,0.025,0.364,0.263,0.049,0.023,0.03,0.192,0.075],"p_val_adj":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5.76395735907898e-293,0,0,0,0,1.06266465707075e-176,0,0,0,0,1.64758128769412e-101],"cluster":["0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","1","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","2","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","3","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","4","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","5","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","6","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7","7"],"gene":["ACSM3","ACSM1","THUMPD1","SCN7A","TLL2","ERI2","SMOC2","LRRTM4","IL1RAPL1","ABCA9-AS1","PLD1","ADAM19","KCNMB2-AS1","KCNMB2","RBFOX1","COLEC12","FRMD3","COL15A1","MAMDC2","FMO2","PCOLCE2","SEMA3C","KIRREL3","GFPT2","FBN1","UAP1","PDZRN4","ZBTB7C","MFAP5","PXDNL","SCARA5","SLC4A4","CREB5","ADAMTS6","CD55","SHISA6","ACKR3","DOCK4","LINC01133","ABI3BP","POSTN","THBS4","FGF14","TNC","FN1","MEOX1","KALRN","FAP","KCNMA1","SLC44A5","DDAH1","NOX4","PALLD","LTBP2","DGKI","NRXN3","SERPINE2","RUNX1","LDLRAD4","MYO1D","APOD","CFD","GSN","CST3","IGFBP6","SERPINF1","LUM","MGP","TIMP1","SERPING1","DCN","ITM2B","VIM","S100A6","C1R","ACTB","MFAP4","SPARCL1","PRELP","PLA2G2A","KAZN","CNTNAP2","KCND2","LSAMP","SLIT3","SVEP1","FGF7","PLXNA4","ANGPT1","NAV3","SAMHD1","PLCXD3","C8orf34","CATSPERB","GPC3","NAV2","CFH","TC2N","CCBE1","TRHDE","ZNF804B","GPC6","ITGA1","NR2F2-AS1","COL21A1","MAGI1","CASC15","ARHGAP15","NKAIN3","DAAM1","SEMA5A","SMAD6","MICAL2","LINC01091","NAV2","TANC1","PLPP1","TMEM108","RNF152","LAMA3","TTN","RYR2","CTNNA3","SORBS2","FGF12","NEBL","MLIP","TECRL","CACNB2","LDB3","RBM20","CD36","FHOD3","AKAP6","MYBPC3","DTNA","TNNT2","MYOM1","MYH6","TRDN","ATP1B3","NAMPT","NR4A1","THBS1","ZNF331","MT2A","ELL2","GFPT2","SPSB1","SERPINE1","FGF7","CCL2","NR4A3","CRISPLD2","PGAP1","ADAMTS4","GRID2","FOSB","ACSL4","TNC"]},"columns":[{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"cluster","name":"cluster","type":"factor"},{"id":"gene","name":"gene","type":"character"}],"dataKey":"8409eaadce296cbcc44879fb2fac37d3"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>write.csv(
+  FB_markers_combined,
+  here::here(output_dir_data, &quot;FB_markers_combined_all.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_combined,
+  here::here(output_dir_data, &quot;FB_markers_combined_top10.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_combined,
+  here::here(output_dir_data, &quot;FB_markers_combined_top3.csv&quot;),
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c(&quot;0&quot;), &quot;cell_state&quot;] = &quot;FB_1&quot;
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c(&quot;1&quot;), &quot;cell_state&quot;] = &quot;FB_2&quot;
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c(&quot;2&quot;), &quot;cell_state&quot;] = &quot;FB_matrifibrocyte&quot;
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c(&quot;3&quot;), &quot;cell_state&quot;] = &quot;FB_3&quot;
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c(&quot;4&quot;), &quot;cell_state&quot;] = &quot;FB_4&quot;
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c(&quot;5&quot;), &quot;cell_state&quot;] = &quot;FB_5&quot;
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c(&quot;6&quot;), &quot;cell_state&quot;] = &quot;FB_CM_contamination&quot;
+FB_combined@meta.data[FB_combined@meta.data$SCT_snn_res.0.2 %in% c(&quot;7&quot;), &quot;cell_state&quot;] = &quot;FB_6&quot;
+
+FB_combined$cell_state &lt;- factor(FB_combined$cell_state, levels = c(&quot;FB_1&quot;, &quot;FB_2&quot;, &quot;FB_matrifibrocyte&quot;, &quot;FB_3&quot;, &quot;FB_4&quot;, &quot;FB_5&quot;, &quot;FB_CM_contamination&quot;, &quot;FB_6&quot;))
+Idents(FB_combined) &lt;- FB_combined$cell_state</code></pre>
+<pre class="r"><code>FB_combined &lt;- subset(FB_combined, cell_state %in% c(&quot;FB_1&quot;, &quot;FB_2&quot;, &quot;FB_matrifibrocyte&quot;, &quot;FB_3&quot;, &quot;FB_4&quot;, &quot;FB_5&quot;, &quot;FB_6&quot;))
+FB_combined$cell_state &lt;- factor(FB_combined$cell_state, levels = c(&quot;FB_1&quot;, &quot;FB_2&quot;, &quot;FB_matrifibrocyte&quot;, &quot;FB_3&quot;, &quot;FB_4&quot;, &quot;FB_5&quot;, &quot;FB_6&quot;))
+Idents(FB_combined) &lt;- FB_combined$cell_state</code></pre>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+qs_save(
+  FB_combined,
+  file = here::here(output_dir_data, &quot;FB_combined.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+<pre class="r"><code>FB_combined &lt;- qs_read(
+  file = here::here(output_dir_data, &quot;FB_combined.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+<pre class="r"><code>plot_group &lt;- if (&quot;cell_state&quot; %in% colnames(FB_combined@meta.data)) &quot;cell_state&quot; else &quot;SCT_snn_res.0.2&quot;
+
+p &lt;- DimPlot(
+  FB_combined,
+  group.by = plot_group,
+  reduction = &quot;umap&quot;,
+  cols = cell_type_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_blank()
+  )
+
+LabelClusters(
+  p,
+  id = plot_group,
+  fontface = &quot;bold&quot;,
+  size = 5,
+  repel = TRUE
+)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/UMAP%20cell%20states-1.png" width="1500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FB_markers_combined &lt;- FindAllMarkers(
+  FB_combined,
+  assay = &quot;RNA&quot;,
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+FB_markers_top3_combined &lt;- FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %&gt;%
+  dplyr::ungroup()
+
+FB_markers_combined %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::slice_head(n = 20) %&gt;%
+  reactable::reactable()</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-484ed42468d86de4a421" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-484ed42468d86de4a421">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"p_val":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7.42084218109683e-169,0,0,0,0,0],"avg_log2FC":[1.4522067908917,1.15424111949452,1.08994877209342,1.04331847922028,1.03780012052213,0.809083091603297,0.747818904430349,0.738109040663032,0.735263161685769,0.69587697422299,0.685278905267753,0.683892205722439,0.665485137853974,0.65766642017863,0.654347072195272,0.63158268640281,0.619269723324656,0.606601943694534,0.579959055723151,0.577788789158888,1.63924739984168,1.23034659795917,1.19851475402295,1.19725887009089,1.17719713909494,1.167832956911,1.13316060289816,1.08017106615269,1.06081660400847,1.0411405748716,1.03307803840153,1.01873612528082,0.973684768244622,0.971176035587595,0.965031195168308,0.963453190017649,0.912177877035803,0.898498131854785,0.855610132517912,0.813656075893233,3.02326262136326,2.05986915461228,1.62195615809502,1.51202810230749,1.28884673427898,1.27626129394079,1.25582366908781,1.14831943943421,1.14163893837693,1.13715437465424,1.13130339981103,1.116836123243,1.08657838444219,1.04061216533851,1.03095207573337,1.00942514620765,0.967311192240121,0.966832020698501,0.946618909577498,0.916692100217499,2.26275416454376,2.0368335501584,2.00743409204892,1.95810044797362,1.75769692379168,1.59590575711772,1.54405785489049,1.48317977591125,1.4447038236972,1.39993459079207,1.36160557840136,1.35312625817868,1.34821061364896,1.33331162361559,1.29572356764835,1.28688501136605,1.2071893830483,1.18857286565563,1.17249147951079,1.17160614992329,2.18729142530343,1.63852672833584,1.21568323176462,1.20071111002566,1.1251588237208,1.0226095812713,0.991395087063947,0.976432884794667,0.963267644264898,0.887373739384401,0.879524321659558,0.872659844956239,0.846220414366591,0.83561259034616,0.831010755298143,0.829009211356033,0.744571566862698,0.73998249816535,0.736999061484804,0.734328446878652,1.52789143035517,1.45448868526205,1.4507307208903,1.37201090861467,1.36935514325095,1.31476163531764,1.25014227846385,1.23266358204541,1.18736426628939,1.18633130041746,1.16717020121333,1.16555537383569,1.15989044236702,1.13940219498606,1.13630234939587,1.10458808996281,1.07166459727765,1.05883574836177,1.03721946467831,1.03089744431675,2.13944660050608,2.10911633814403,2.01530253403695,2.01014153963419,1.87162321649404,1.8125607468195,1.62186135423753,1.53771221959347,1.53070538545636,1.49058078510334,1.4231354267784,1.41154070616523,1.40256425451736,1.37073970724827,1.3497658265062,1.32257660329173,1.28392218384714,1.2755155450806,1.25982904213976,1.22828554759199],"pct.1":[0.785,0.39,0.351,0.301,0.875,0.185,0.118,0.507,0.537,0.302,0.232,0.523,0.545,0.153,0.343,0.289,0.437,0.666,0.471,0.565,0.714,0.403,0.506,0.236,0.894,0.455,0.127,0.257,0.555,0.682,0.445,0.266,0.284,0.29,0.639,0.125,0.243,0.557,0.164,0.78,0.437,0.404,0.657,0.208,0.746,0.258,0.401,0.132,0.638,0.142,0.35,0.42,0.691,0.599,0.214,0.218,0.42,0.454,0.523,0.599,0.683,0.717,0.954,0.664,0.316,0.66,0.588,0.789,0.464,0.551,0.966,0.715,0.66,0.45,0.454,0.528,0.26,0.882,0.522,0.195,0.76,0.27,0.178,0.43,0.497,0.665,0.258,0.425,0.369,0.324,0.41,0.514,0.218,0.303,0.316,0.154,0.22,0.439,0.136,0.253,0.108,0.44,0.601,0.304,0.455,0.45,0.281,0.211,0.202,0.139,0.637,0.166,0.378,0.363,0.327,0.402,0.507,0.366,0.254,0.369,0.427,0.532,0.477,0.474,0.287,0.273,0.544,0.255,0.581,0.373,0.257,0.446,0.16,0.556,0.378,0.234,0.159,0.115,0.376,0.354],"pct.2":[0.521,0.192,0.201,0.145,0.667,0.098,0.052,0.401,0.381,0.186,0.132,0.372,0.407,0.083,0.227,0.177,0.311,0.525,0.32,0.439,0.327,0.152,0.238,0.077,0.722,0.201,0.037,0.07,0.28,0.41,0.195,0.082,0.136,0.118,0.391,0.022,0.079,0.332,0.02,0.599,0.076,0.133,0.376,0.057,0.567,0.058,0.186,0.04,0.416,0.032,0.123,0.173,0.455,0.361,0.087,0.105,0.214,0.242,0.304,0.364,0.381,0.397,0.767,0.304,0.093,0.338,0.274,0.53,0.191,0.267,0.862,0.429,0.399,0.19,0.22,0.249,0.074,0.712,0.265,0.111,0.356,0.084,0.049,0.194,0.228,0.487,0.093,0.202,0.165,0.167,0.198,0.314,0.081,0.161,0.157,0.04,0.102,0.253,0.038,0.104,0.015,0.174,0.323,0.1,0.197,0.217,0.083,0.048,0.074,0.023,0.428,0.035,0.18,0.165,0.189,0.194,0.327,0.192,0.114,0.212,0.166,0.154,0.138,0.178,0.092,0.077,0.27,0.125,0.265,0.18,0.086,0.218,0.024,0.366,0.268,0.049,0.03,0.024,0.193,0.109],"p_val_adj":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.3206872829698e-164,0,0,0,0,0],"cluster":["FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_1","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_2","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_matrifibrocyte","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_3","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_4","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_5","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6","FB_6"],"gene":["ACSM3","ACSM1","THUMPD1","TLL2","SCN7A","ERI2","LRRTM4","SMOC2","IL1RAPL1","ADAM19","KCNMB2-AS1","PLD1","ABCA9-AS1","KCNMB2","RBFOX1","FRMD3","COLEC12","COL15A1","FMO2","MAMDC2","PCOLCE2","SEMA3C","GFPT2","KIRREL3","FBN1","UAP1","PDZRN4","ZBTB7C","MFAP5","PXDNL","SCARA5","SLC4A4","ADAMTS6","CD55","CREB5","SHISA6","ACKR3","DOCK4","LINC01133","ABI3BP","POSTN","THBS4","FGF14","TNC","FN1","MEOX1","KALRN","KCNMA1","PALLD","SLC44A5","FAP","DDAH1","NOX4","LTBP2","DGKI","NRXN3","SERPINE2","RUNX1","LDLRAD4","MYO1D","APOD","CFD","GSN","CST3","IGFBP6","SERPINF1","LUM","MGP","TIMP1","SERPING1","DCN","ITM2B","VIM","S100A6","ACTB","C1R","MFAP4","SPARCL1","PRELP","PLA2G2A","KAZN","CNTNAP2","KCND2","LSAMP","SLIT3","SVEP1","PLXNA4","FGF7","ANGPT1","PLCXD3","SAMHD1","NAV3","C8orf34","NAV2","CATSPERB","GPC3","CCBE1","TC2N","TRHDE","AOX1","ZNF804B","ITGA1","GPC6","COL21A1","NR2F2-AS1","MAGI1","CASC15","ARHGAP15","SEMA5A","NKAIN3","DAAM1","SMAD6","MICAL2","NAV2","LINC01091","TANC1","PLPP1","PLCL1","CDH13","TMEM108","ATP1B3","NAMPT","NR4A1","THBS1","ZNF331","MT2A","ELL2","SERPINE1","GFPT2","SPSB1","CCL2","FGF7","NR4A3","CRISPLD2","PGAP1","ADAMTS4","FOSB","GRID2","ACSL4","PVT1"]},"columns":[{"id":"p_val","name":"p_val","type":"numeric"},{"id":"avg_log2FC","name":"avg_log2FC","type":"numeric"},{"id":"pct.1","name":"pct.1","type":"numeric"},{"id":"pct.2","name":"pct.2","type":"numeric"},{"id":"p_val_adj","name":"p_val_adj","type":"numeric"},{"id":"cluster","name":"cluster","type":"factor"},{"id":"gene","name":"gene","type":"character"}],"dataKey":"a1d3b231cfc559b5860769c1d4175048"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>write.csv(
+  FB_markers_combined,
+  here::here(output_dir_data, &quot;FB_markers_combined_all_cell_state.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_combined,
+  here::here(output_dir_data, &quot;FB_markers_combined_top10_cell_state.csv&quot;),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_combined,
+  here::here(output_dir_data, &quot;FB_markers_combined_top3_cell_state.csv&quot;),
+  row.names = FALSE
+)</code></pre>
+<pre class="r"><code>id_backup &lt;- Idents(FB_combined)
+Idents(FB_combined) &lt;- factor(Idents(FB_combined), levels = rev(levels(Idents(FB_combined))))
+
+p_dot &lt;- DotPlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  x_lab_rotate = TRUE
+)
+
+p_dot + theme(
+  axis.text.x = element_text(size = 11, angle = 60, vjust = 1, hjust = 1),
+  axis.text.y = element_text(size = 12)
+)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/dotplot%20top%20markers-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB_combined) &lt;- id_backup</code></pre>
+<pre class="r"><code>heatmap_cols &lt;- colorRampPalette(RColorBrewer::brewer.pal(9, &quot;RdBu&quot;))(256)
+heatmap_cols &lt;- rev(heatmap_cols[1:256])
+
+set.seed(123)
+cells_use_heatmap &lt;- colnames(FB_combined)
+if (length(cells_use_heatmap) &gt; 20000) {
+  cells_use_heatmap &lt;- sample(cells_use_heatmap, 20000)
+}
+
+DoHeatmap(
+  subset(FB_combined, cells = cells_use_heatmap),
+  label = TRUE,
+  draw.lines = FALSE,
+  features = unique(FB_markers_top10_combined$gene),
+  assay = &quot;SCT&quot;,
+  size = 3.5
+) +
+  scale_fill_gradientn(colours = heatmap_cols) +
+  theme(
+    text = element_text(size = 12),
+    axis.text.y = element_text(size = 8),
+    plot.margin = unit(c(0, 0, 0, 0), &quot;inches&quot;)
+  ) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 4)) +
+  guides(color = &quot;none&quot;)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/heatmap%20top%20markers-1.png" width="3300" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>FeaturePlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  num_columns = 3,
+  order = TRUE
+)</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/featureplot%20selected%20markers-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>cluster_var &lt;- &quot;cell_state&quot;
+
+df_prop_ec &lt;- FB_combined@meta.data %&gt;%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %&gt;%
+  dplyr::count(Dataset, Disease_status, Sample, cluster, name = &quot;n&quot;) %&gt;%
+  dplyr::group_by(Dataset, Disease_status, Sample) %&gt;%
+  dplyr::mutate(
+    total_n = sum(n),
+    freq = n / total_n
+  ) %&gt;%
+  dplyr::ungroup()
+
+df_prop_ec$cluster &lt;- factor(
+  df_prop_ec$cluster,
+  levels = sort(unique(as.character(df_prop_ec$cluster)))
+)
+
+df_prop_ec$Disease_status &lt;- factor(
+  df_prop_ec$Disease_status,
+  levels = c(&quot;HC&quot;, &quot;Disease&quot;)
+)
+
+df_prop_ec$Dataset &lt;- factor(
+  df_prop_ec$Dataset,
+  levels = c(&quot;Koenig&quot;, &quot;Reichart&quot;, &quot;Chaffin&quot;, &quot;Amrute&quot;, &quot;Kuppe&quot;)
+)</code></pre>
+<pre class="r"><code>get_p_label &lt;- function(p) {
+  if (is.na(p)) return(&quot;p = NA&quot;)
+  if (p &lt; 0.001) return(&quot;p &lt; 0.001&quot;)
+  paste0(&quot;p = &quot;, formatC(p, format = &quot;f&quot;, digits = 3))
+}
+
+abund_by_dataset &lt;- df_prop_ec %&gt;%
+  dplyr::group_by(Dataset, cluster) %&gt;%
+  dplyr::summarise(
+    p_value = {
+      tmp &lt;- cur_data()
+      if (length(unique(tmp$Disease_status)) &lt; 2) {
+        NA_real_
+      } else {
+        broom::tidy(lm(freq ~ Disease_status, data = tmp)) %&gt;%
+          dplyr::filter(term == &quot;Disease_statusDisease&quot;) %&gt;%
+          dplyr::pull(p.value)
+      }
+    },
+    y = max(freq, na.rm = TRUE) + 0.04,
+    .groups = &quot;drop&quot;
+  ) %&gt;%
+  dplyr::mutate(
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+write.csv(
+  abund_by_dataset,
+  file = file.path(output_dir_data, &quot;FB_subclusters_differential_abundance_by_dataset_HC_vs_Disease.csv&quot;),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+abund_by_dataset</code></pre>
+<pre><code># A tibble: 35 × 5
+   Dataset  cluster           p_value     y p_label  
+   &lt;fct&gt;    &lt;fct&gt;               &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;    
+ 1 Koenig   FB_1              0.0827  0.517 p = 0.083
+ 2 Koenig   FB_2              0.249   0.240 p = 0.249
+ 3 Koenig   FB_3              0.0960  0.288 p = 0.096
+ 4 Koenig   FB_4              0.0817  0.206 p = 0.082
+ 5 Koenig   FB_5              0.00334 0.320 p = 0.003
+ 6 Koenig   FB_6              0.326   0.180 p = 0.326
+ 7 Koenig   FB_matrifibrocyte 0.00898 0.256 p = 0.009
+ 8 Reichart FB_1              0.167   0.567 p = 0.167
+ 9 Reichart FB_2              0.0938  0.28  p = 0.094
+10 Reichart FB_3              0.105   0.260 p = 0.105
+# ℹ 25 more rows</code></pre>
+<pre class="r"><code>pd  &lt;- position_dodge(width = 0.75)
+pjd &lt;- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+p_prop_dataset_group &lt;- ggplot(
+  df_prop_ec,
+  aes(x = cluster, y = freq, fill = Disease_status)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.7,
+    shape = 16
+  ) +
+  geom_segment(
+    data = abund_by_dataset,
+    aes(
+      x = as.numeric(cluster) - 0.18,
+      xend = as.numeric(cluster) + 0.18,
+      y = y,
+      yend = y
+    ),
+    inherit.aes = FALSE,
+    linewidth = 0.4
+  ) +
+  geom_text(
+    data = abund_by_dataset,
+    aes(
+      x = cluster,
+      y = y + 0.02,
+      label = p_label
+    ),
+    inherit.aes = FALSE,
+    size = 3,
+    fontface = &quot;bold&quot;
+  ) +
+  facet_wrap(~Dataset, ncol = 2, scales = &quot;free_y&quot;) +
+  scale_fill_manual(values = c(&quot;HC&quot; = &quot;grey85&quot;, &quot;Disease&quot; = &quot;#A63A2A&quot;)) +
+  labs(
+    x = &quot;Cluster&quot;,
+    y = &quot;Fraction of fibroblast cells&quot;
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    strip.text = element_text(face = &quot;bold&quot;, size = 12),
+    legend.title = element_blank()
+  )
+
+p_prop_dataset_group</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/cluster%20proportions%20by%20dataset%20and%20disease%20status-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>cluster_var &lt;- &quot;cell_state&quot;
+
+df_prop_fb &lt;- FB_combined@meta.data %&gt;%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %&gt;%
+  dplyr::count(Disease_status, Sample, cluster, name = &quot;n&quot;) %&gt;%
+  dplyr::group_by(Disease_status, Sample) %&gt;%
+  dplyr::mutate(
+    total_n = sum(n),
+    freq = n / total_n
+  ) %&gt;%
+  dplyr::ungroup()
+
+df_prop_fb$cluster &lt;- factor(
+  df_prop_fb$cluster,
+  levels = sort(unique(as.character(df_prop_fb$cluster)))
+)
+
+df_prop_fb$Disease_status &lt;- factor(
+  df_prop_fb$Disease_status,
+  levels = c(&quot;HC&quot;, &quot;Disease&quot;)
+)
+
+get_p_label &lt;- function(p) {
+  if (is.na(p)) return(&quot;p = NA&quot;)
+  if (p &lt; 0.001) return(&quot;p &lt; 0.001&quot;)
+  paste0(&quot;p = &quot;, formatC(p, format = &quot;f&quot;, digits = 3))
+}
+
+stat_prop_fb &lt;- df_prop_fb %&gt;%
+  dplyr::group_by(cluster) %&gt;%
+  dplyr::summarise(
+    p_value = {
+      tmp &lt;- cur_data()
+      if (length(unique(tmp$Disease_status)) &lt; 2) {
+        NA_real_
+      } else {
+        broom::tidy(lm(freq ~ Disease_status, data = tmp)) %&gt;%
+          dplyr::filter(term == &quot;Disease_statusDisease&quot;) %&gt;%
+          dplyr::pull(p.value)
+      }
+    },
+    y = max(freq, na.rm = TRUE) + 0.03,
+    .groups = &quot;drop&quot;
+  ) %&gt;%
+  dplyr::mutate(
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+pd  &lt;- position_dodge(width = 0.75)
+pjd &lt;- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+ggplot(
+  df_prop_fb,
+  aes(x = cluster, y = freq, fill = Disease_status)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.7,
+    shape = 16
+  ) +
+  geom_segment(
+    data = stat_prop_fb,
+    aes(
+      x = as.numeric(cluster) - 0.18,
+      xend = as.numeric(cluster) + 0.18,
+      y = y,
+      yend = y
+    ),
+    inherit.aes = FALSE,
+    linewidth = 0.4
+  ) +
+  geom_text(
+    data = stat_prop_fb,
+    aes(
+      x = cluster,
+      y = y + 0.02,
+      label = p_label
+    ),
+    inherit.aes = FALSE,
+    size = 3.2,
+    fontface = &quot;bold&quot;
+  ) +
+  scale_fill_manual(values = c(&quot;HC&quot; = &quot;grey85&quot;, &quot;Disease&quot; = &quot;#A63A2A&quot;)) +
+  labs(
+    x = &quot;Cluster&quot;,
+    y = &quot;Fraction of fibroblast cells&quot;
+  ) +
+  coord_cartesian(
+    ylim = c(0, max(stat_prop_fb$y + 0.04, na.rm = TRUE))
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    legend.title = element_blank()
+  )</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/cluster%20proportions%20h%20vs%20disease-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>pd  &lt;- position_dodge(width = 0.75)
+pjd &lt;- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+p_prop_disease_split &lt;- ggplot(
+  df_prop_ec,
+  aes(x = cluster, y = freq, fill = Dataset)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.7,
+    shape = 16
+  ) +
+  facet_wrap(~Disease_status, ncol = 2, scales = &quot;free_y&quot;) +
+  scale_fill_manual(values = dataset_cols) +
+  labs(
+    x = &quot;Cluster&quot;,
+    y = &quot;Fraction of fibroblast cells&quot;
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    strip.text = element_text(face = &quot;bold&quot;, size = 12),
+    legend.title = element_blank()
+  )
+
+p_prop_disease_split</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/cluster%20proportions%20split%20by%20disease%20status-1.png" width="3600" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+
+FeaturePlot(
+  FB_combined,
+  features = &quot;ACTA2&quot;,
+  reduction = &quot;umap&quot;,
+  order = TRUE,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;),
+  pt.size = 0.25,
+  raster = FALSE
+) +
+  ggtitle(&quot;ACTA2&quot;) +
+  theme(
+    axis.text = element_text(size = 8, face = &quot;bold&quot;),
+    axis.title = element_text(size = 12, face = &quot;bold&quot;),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/featureplot%20ACTA2%20by%20cell%20state-1.png" width="1650" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+FB_combined &lt;- NormalizeData(FB_combined)</code></pre>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;cell_state&quot;
+
+VlnPlot(
+  FB_combined,
+  features = &quot;ACTA2&quot;,
+  group.by = &quot;cell_state&quot;,
+  cols = cell_type_cols,
+  pt.size = 0,
+  add.noise = F
+) +
+  ggtitle(&quot;ACTA2&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/violin%20ACTA2%20by%20cell%20state-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;cell_state&quot;
+
+matrifibrocyte_genes_present &lt;- matrifibrocyte_genes[
+  matrifibrocyte_genes %in% rownames(FB_combined)
+]
+
+VlnPlot(
+  FB_combined,
+  features = matrifibrocyte_genes_present,
+  group.by = &quot;cell_state&quot;,
+  cols = cell_type_cols,
+  pt.size = 0,
+  add.noise = F,
+  ncol = length(matrifibrocyte_genes_present)
+) &amp;
+  theme_classic() &amp;
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    strip.text = element_text(face = &quot;bold&quot;),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/violin%20matrifibrocyte%20genes%20by%20cell%20state-1.png" width="4800" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;cell_state&quot;
+
+VlnPlot(
+  FB_combined,
+  features = &quot;Matrifibrocyte_score&quot;,
+  group.by = &quot;cell_state&quot;,
+  cols = cell_type_cols,
+  pt.size = 0
+) +
+  ggtitle(&quot;Matrifibrocyte score&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/violin%20matrifibrocyte%20score%20by%20cell%20state-1.png" width="1200" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;SCT&quot;
+Idents(FB_combined) &lt;- &quot;cell_state&quot;
+
+DotPlot(
+  FB_combined,
+  features = matrifibrocyte_genes_present,
+  assay = &quot;SCT&quot;,
+  cols = c(&quot;grey90&quot;, &quot;#A63A2A&quot;)
+) +
+  RotatedAxis() +
+  ggtitle(&quot;Matrifibrocyte genes&quot;) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    plot.title = element_text(size = 16, face = &quot;bold&quot;, hjust = 0.5)
+  )</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/dotplot%20matrifibrocyte%20genes%20by%20cell%20state-1.png" width="1500" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+
+s_phase_genes &lt;- Seurat::cc.genes.updated.2019$s.genes
+g2m_phase_genes &lt;- Seurat::cc.genes.updated.2019$g2m.genes
+
+s_phase_genes_present &lt;- intersect(s_phase_genes, rownames(FB_combined))
+g2m_phase_genes_present &lt;- intersect(g2m_phase_genes, rownames(FB_combined))
+
+length(s_phase_genes_present)</code></pre>
+<pre><code>[1] 43</code></pre>
+<pre class="r"><code>length(g2m_phase_genes_present)</code></pre>
+<pre><code>[1] 52</code></pre>
+<pre class="r"><code>FB_combined &lt;- AddModuleScore(
+  object = FB_combined,
+  features = list(s_phase_genes_present),
+  name = &quot;S_phase_score&quot;,
+  assay = &quot;RNA&quot;,
+  slot = &quot;data&quot;,
+  ctrl = 25,
+  nbin = 24,
+  seed = 1
+)
+
+FB_combined$S_phase_score &lt;- FB_combined$S_phase_score1
+FB_combined$S_phase_score1 &lt;- NULL
+
+FB_combined &lt;- AddModuleScore(
+  object = FB_combined,
+  features = list(g2m_phase_genes_present),
+  name = &quot;G2M_phase_score&quot;,
+  assay = &quot;RNA&quot;,
+  slot = &quot;data&quot;,
+  ctrl = 25,
+  nbin = 24,
+  seed = 1
+)
+
+FB_combined$G2M_phase_score &lt;- FB_combined$G2M_phase_score1
+FB_combined$G2M_phase_score1 &lt;- NULL</code></pre>
+<pre class="r"><code>Idents(FB_combined) &lt;- &quot;cell_state&quot;
+
+VlnPlot(
+  FB_combined,
+  features = c(&quot;S_phase_score&quot;, &quot;G2M_phase_score&quot;),
+  group.by = &quot;cell_state&quot;,
+  cols = cell_type_cols,
+  pt.size = 0,
+  ncol = 2
+) &amp;
+  theme_classic() &amp;
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = &quot;bold&quot;),
+    axis.text.y = element_text(face = &quot;bold&quot;),
+    axis.title = element_text(face = &quot;bold&quot;),
+    strip.text = element_text(face = &quot;bold&quot;),
+    legend.position = &quot;none&quot;
+  )</code></pre>
+<p><img src="figure/Matrifibrocytes_integration.Rmd/violin%20cell%20cycle%20module%20scores%20by%20cell%20state-1.png" width="3000" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>DefaultAssay(FB_combined) &lt;- &quot;RNA&quot;
+qs_save(
+  FB_combined,
+  file = here::here(output_dir_data, &quot;FB_combined.qs2&quot;),
+  nthreads = 32
+)</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices datasets  utils    
+[8] methods   base     
+
+other attached packages:
+ [1] future_1.68.0               dorothea_1.22.0            
+ [3] OmnipathR_3.18.2            decoupleR_2.16.0           
+ [5] qs2_0.1.7                   clustree_0.5.1             
+ [7] ggraph_2.2.2                harmony_1.2.4              
+ [9] Rcpp_1.1.0                  broom_1.0.11               
+[11] speckle_1.10.0              cowplot_1.2.0              
+[13] scales_1.4.0                reactable_0.4.5            
+[15] ggpubr_1.0.0                RColorBrewer_1.1-3         
+[17] circlize_0.4.16             ComplexHeatmap_2.26.0      
+[19] enrichplot_1.30.4           org.Hs.eg.db_3.22.0        
+[21] AnnotationDbi_1.72.0        clusterProfiler_4.18.2     
+[23] EnhancedVolcano_1.29.1      ggrepel_0.9.6              
+[25] edgeR_4.8.0                 limma_3.66.0               
+[27] patchwork_1.3.2             tibble_3.3.0               
+[29] stringr_1.6.0               tidyr_1.3.2                
+[31] ggplot2_4.0.1               dplyr_1.2.1                
+[33] scCustomize_3.2.2           Matrix_1.6-5               
+[35] DropletUtils_1.30.0         SingleCellExperiment_1.32.0
+[37] SummarizedExperiment_1.40.0 Biobase_2.70.0             
+[39] GenomicRanges_1.62.0        Seqinfo_1.0.0              
+[41] IRanges_2.44.0              S4Vectors_0.48.0           
+[43] BiocGenerics_0.56.0         generics_0.1.4             
+[45] MatrixGenerics_1.22.0       matrixStats_1.5.0          
+[47] SeuratObject_5.0.2          Seurat_4.4.0               
+[49] readxl_1.4.5                here_1.0.2                 
+
+loaded via a namespace (and not attached):
+  [1] R.methodsS3_1.8.2         progress_1.2.3           
+  [3] goftest_1.2-3             Biostrings_2.78.0        
+  [5] HDF5Array_1.38.0          vctrs_0.7.3              
+  [7] ggtangle_0.0.9            spatstat.random_3.4-3    
+  [9] digest_0.6.39             png_0.1-8                
+ [11] shape_1.4.6.1             git2r_0.36.2             
+ [13] deldir_2.0-4              parallelly_1.45.1        
+ [15] bcellViper_1.46.0         renv_1.1.5               
+ [17] MASS_7.3-65               fontLiberation_0.1.0     
+ [19] reshape2_1.4.5            httpuv_1.6.16            
+ [21] foreach_1.5.2             qvalue_2.42.0            
+ [23] withr_3.0.2               ggrastr_1.0.2            
+ [25] xfun_0.56                 ggfun_0.2.0              
+ [27] survival_3.8-3            memoise_2.0.1            
+ [29] ggbeeswarm_0.7.3          janitor_2.2.1            
+ [31] gson_0.1.0                systemfonts_1.3.1        
+ [33] tidytree_0.4.6            zoo_1.8-14               
+ [35] GlobalOptions_0.1.3       pbapply_1.7-4            
+ [37] R.oo_1.27.1               prettyunits_1.2.0        
+ [39] Formula_1.2-5             rematch2_2.1.2           
+ [41] KEGGREST_1.50.0           promises_1.5.0           
+ [43] otel_0.2.0                httr_1.4.7               
+ [45] rstatix_1.1.0             globals_0.18.0           
+ [47] fitdistrplus_1.2-4        rhdf5filters_1.22.0      
+ [49] stringfish_0.18.0         rhdf5_2.54.0             
+ [51] rstudioapi_0.17.1         miniUI_0.1.2             
+ [53] DOSE_4.4.0                curl_7.0.0               
+ [55] h5mread_1.2.1             polyclip_1.10-7          
+ [57] SparseArray_1.10.4        xtable_1.8-4             
+ [59] doParallel_1.0.17         evaluate_1.0.5           
+ [61] S4Arrays_1.10.1           hms_1.1.4                
+ [63] irlba_2.3.5.1             colorspace_2.1-2         
+ [65] ROCR_1.0-11               reticulate_1.44.1        
+ [67] spatstat.data_3.1-9       readr_2.1.6              
+ [69] magrittr_2.0.4            lmtest_0.9-40            
+ [71] snakecase_0.11.1          glmGamPoi_1.22.0         
+ [73] viridis_0.6.5             later_1.4.4              
+ [75] ggtree_4.0.1              lattice_0.22-7           
+ [77] spatstat.geom_3.6-1       future.apply_1.20.0      
+ [79] XML_3.99-0.20             scattermore_1.2          
+ [81] scuttle_1.20.0            RcppAnnoy_0.0.22         
+ [83] pillar_1.11.1             nlme_3.1-168             
+ [85] iterators_1.0.14          compiler_4.5.2           
+ [87] beachmat_2.26.0           RSpectra_0.16-2          
+ [89] stringi_1.8.7             tensor_1.5.1             
+ [91] lubridate_1.9.4           plyr_1.8.9               
+ [93] crayon_1.5.3              abind_1.4-8              
+ [95] gridGraphics_0.5-1        locfit_1.5-9.12          
+ [97] sp_2.2-0                  graphlayouts_1.2.2       
+ [99] bit_4.6.0                 fastmatch_1.1-6          
+[101] whisker_0.4.1             codetools_0.2-20         
+[103] crosstalk_1.2.2           bslib_0.9.0              
+[105] paletteer_1.6.0           GetoptLong_1.1.0         
+[107] plotly_4.11.0             mime_0.13                
+[109] splines_4.5.2             tidydr_0.0.6             
+[111] sparseMatrixStats_1.22.0  cellranger_1.1.0         
+[113] utf8_1.2.6                knitr_1.50               
+[115] blob_1.2.4                clue_0.3-66              
+[117] fs_2.1.0                  checkmate_2.3.3          
+[119] listenv_0.10.0            DelayedMatrixStats_1.32.0
+[121] logger_0.4.1              ggsignif_0.6.4           
+[123] ggplotify_0.1.3           statmod_1.5.1            
+[125] tzdb_0.5.0                tweenr_2.0.3             
+[127] pkgconfig_2.0.3           tools_4.5.2              
+[129] cachem_1.1.0              RhpcBLASctl_0.23-42      
+[131] RSQLite_2.4.5             rvest_1.0.5              
+[133] viridisLite_0.4.2         DBI_1.2.3                
+[135] fastmap_1.2.0             rmarkdown_2.30           
+[137] ica_1.0-3                 sass_0.4.10              
+[139] ggprism_1.0.7             BiocManager_1.30.27      
+[141] dotCall64_1.2             carData_3.0-5            
+[143] RANN_2.6.2                farver_2.1.2             
+[145] tidygraph_1.3.1           scatterpie_0.2.6         
+[147] yaml_2.3.11               workflowr_1.7.2          
+[149] cli_3.6.6                 purrr_1.2.0              
+[151] leiden_0.4.3.1            lifecycle_1.0.5          
+[153] uwot_0.2.4                sessioninfo_1.2.3        
+[155] backports_1.5.0           BiocParallel_1.44.0      
+[157] timechange_0.3.0          gtable_0.3.6             
+[159] rjson_0.2.23              ggridges_0.5.7           
+[161] progressr_0.18.0          parallel_4.5.2           
+[163] ape_5.8-1                 jsonlite_2.0.0           
+[165] bit64_4.6.0-1             Rtsne_0.17               
+[167] yulab.utils_0.2.2         spatstat.utils_3.2-0     
+[169] zip_2.3.3                 RcppParallel_5.1.11-1    
+[171] jquerylib_0.1.4           GOSemSim_2.36.0          
+[173] dqrng_0.4.1               spatstat.univar_3.1-5    
+[175] R.utils_2.13.0            reactR_0.6.1             
+[177] lazyeval_0.2.2            shiny_1.12.0             
+[179] htmltools_0.5.9           GO.db_3.22.0             
+[181] sctransform_0.4.2         rappdirs_0.3.3           
+[183] glue_1.8.0                tcltk_4.5.2              
+[185] spam_2.11-1               httr2_1.2.1              
+[187] XVector_0.50.0            gdtools_0.4.4            
+[189] rprojroot_2.1.1           treeio_1.34.0            
+[191] gridExtra_2.3             igraph_2.2.1             
+[193] R6_2.6.1                  ggiraph_0.9.2            
+[195] labeling_0.4.3            forcats_1.0.1            
+[197] cluster_2.1.8.3           Rhdf5lib_1.32.0          
+[199] aplot_0.2.9               DelayedArray_0.36.0      
+[201] tidyselect_1.2.1          vipor_0.4.7              
+[203] xml2_1.5.1                ggforce_0.5.0            
+[205] fontBitstreamVera_0.1.1   car_3.1-3                
+[207] KernSmooth_2.23-26        S7_0.2.1                 
+[209] fontquiver_0.2.1          data.table_1.17.8        
+[211] htmlwidgets_1.6.4         fgsea_1.36.0             
+[213] rlang_1.2.0               spatstat.sparse_3.1-0    
+[215] spatstat.explore_3.6-0    ggnewscale_0.5.2         
+[217] beeswarm_0.4.0           </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
