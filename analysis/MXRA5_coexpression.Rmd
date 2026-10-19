@@ -1,0 +1,1151 @@
+---
+title: "MXRA5 co-expression in cardiac fibroblasts"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "MXRA5_coexpression"
+
+library(here)
+library(Seurat)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(patchwork)
+library(pheatmap)
+library(RColorBrewer)
+library(scales)
+library(cowplot)
+library(reactable)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(ReactomePA)
+library(DOSE)
+library(igraph)
+library(WGCNA)
+library(hdWGCNA)
+library(qs2)
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"), recursive = TRUE)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+fb_dir <- here::here("output", "Matrifibrocytes_integration")
+network_scratch <- Sys.getenv("MXRA5_NETWORK_SCRATCH")
+if (!nzchar(network_scratch)) {
+  network_scratch <- tempfile("MXRA5_network_", tmpdir = "/scratch/gbonaz")
+}
+dir.create(network_scratch, recursive = TRUE, showWarnings = FALSE)
+
+cell_type_cols <- c(
+  "#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A",
+  "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600",
+  "#8DD3C7", "#FB8072", "#80B1D3", "#BC80BD", "#CCEBC5", "#FFED6F",
+  "#A6CEE3", "#F781BF"
+)
+
+group_cols <- c("HC" = "grey85", "DCM" = "#A63A2A", "NICM" = "#33A02C", "MI" = "#004C8C")
+dataset_cols <- c(
+  "Koenig" = "#CAB2D6",
+  "Reichart" = "#B2DF8A",
+  "Chaffin" = "#FDBF6F",
+  "Amrute" = "#FA95C0",
+  "Kuppe" = "#7aCDF9"
+)
+
+cell_state_levels <- c("FB_1", "FB_2", "FB_matrifibrocyte", "FB_3", "FB_4", "FB_5", "FB_6")
+dataset_levels <- c("Koenig", "Reichart", "Chaffin", "Amrute", "Kuppe")
+group_levels <- c("HC", "DCM", "NICM", "MI")
+
+wgcna_fraction <- 0.01
+metacell_k <- 15
+metacell_max_shared <- 5
+metacell_min_cells <- 50
+min_metacells_cor <- 15
+min_samples_cor <- 10
+
+set.seed(12345)
+enableWGCNAThreads(nThreads = 32)
+```
+
+## Load fibroblast object
+
+```{r load fibroblast object}
+FB_combined <- qs_read(
+  file = here::here(fb_dir, "FB_combined.qs2"),
+  nthreads = 32
+)
+
+FB_combined$Dataset <- factor(as.character(FB_combined$Dataset), levels = dataset_levels)
+FB_combined$Group <- factor(as.character(FB_combined$Group), levels = group_levels)
+FB_combined$cell_state <- factor(as.character(FB_combined$cell_state), levels = cell_state_levels)
+FB_combined$Sample_ID <- paste0(FB_combined$Dataset, "_", FB_combined$Sample)
+FB_combined$all_fibroblasts <- "Fibroblasts"
+
+DefaultAssay(FB_combined) <- "RNA"
+FB_combined <- NormalizeData(FB_combined)
+Idents(FB_combined) <- "cell_state"
+```
+
+```{r object summary}
+FB_combined@meta.data %>%
+  dplyr::select(Dataset, Group, Sample, Sample_ID) %>%
+  dplyr::distinct() %>%
+  dplyr::count(Dataset, Group, name = "n_samples") %>%
+  reactable::reactable()
+```
+
+## Metacells
+
+Metacells are generated separately within each biological sample. Fibroblast cell-state labels are not used to split the cells.
+
+```{r select genes hdWGCNA}
+DefaultAssay(FB_combined) <- "RNA"
+
+expr_counts <- GetAssayData(
+  object = FB_combined,
+  assay = "RNA",
+  slot = "counts"
+)
+
+percent_cells <- Matrix::rowSums(expr_counts > 0) / ncol(expr_counts)
+wgcna_genes <- names(percent_cells[percent_cells >= wgcna_fraction])
+wgcna_genes <- unique(c(wgcna_genes, "MXRA5"))
+
+length(wgcna_genes)
+"MXRA5" %in% wgcna_genes
+```
+
+```{r setup hdWGCNA}
+FB_combined <- SetupForWGCNA(
+  FB_combined,
+  gene_select = "custom",
+  gene_list = wgcna_genes,
+  wgcna_name = "MXRA5_FB"
+)
+```
+
+```{r metacells by sample, eval=TRUE}
+FB_combined <- MetacellsByGroups(
+  seurat_obj = FB_combined,
+  group.by = c("Sample_ID", "all_fibroblasts"),
+  reduction = "harmony",
+  k = metacell_k,
+  max_shared = metacell_max_shared,
+  min_cells = metacell_min_cells,
+  ident.group = "all_fibroblasts"
+)
+
+FB_combined <- NormalizeMetacells(FB_combined)
+
+FB_metacells <- GetMetacellObject(FB_combined)
+DefaultAssay(FB_metacells) <- "RNA"
+```
+
+```{r metacell summary}
+metacell_summary <- FB_metacells@meta.data %>%
+  dplyr::count(Sample_ID, name = "n_metacells") %>%
+  dplyr::left_join(
+    FB_combined@meta.data %>%
+      dplyr::select(Sample_ID, Sample, Dataset, Group) %>%
+      dplyr::distinct(),
+    by = "Sample_ID"
+  ) %>%
+  dplyr::arrange(Dataset, Group, Sample)
+
+reactable::reactable(metacell_summary)
+```
+
+```{r metacells per sample, fig.width=8, fig.height=4, dpi=300}
+ggplot(metacell_summary, aes(x = reorder(Sample_ID, n_metacells), y = n_metacells, fill = Dataset)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = dataset_cols) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 10, face = "bold"),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11)
+  ) +
+  labs(x = "Biological sample", y = "Number of metacells")
+```
+
+```{r save metacells, eval=FALSE}
+qs_save(
+  FB_metacells,
+  file = here::here(output_dir_data, "FB_metacells.qs2"),
+  nthreads = 32
+)
+```
+
+# MXRA5 co-expression across the fibroblast landscape
+
+## Correlations within each sample
+
+```{r genes for correlations}
+metacell_counts <- GetAssayData(
+  object = FB_metacells,
+  assay = "RNA",
+  slot = "counts"
+)
+
+percent_metacells <- Matrix::rowSums(metacell_counts > 0) / ncol(metacell_counts)
+cor_genes <- names(percent_metacells[percent_metacells >= 0.05])
+cor_genes <- unique(c(cor_genes, "MXRA5"))
+
+length(cor_genes)
+```
+
+```{r MXRA5 correlations per sample}
+metacell_mat <- GetAssayData(
+  object = FB_metacells,
+  assay = "RNA",
+  slot = "data"
+)
+
+sample_ids <- unique(FB_metacells$Sample_ID)
+cor_results_samples <- list()
+
+for (sample_i in sample_ids) {
+  cells_use <- colnames(FB_metacells)[FB_metacells$Sample_ID == sample_i]
+
+  if (length(cells_use) < min_metacells_cor) next
+
+  mat_sample <- as.matrix(
+    metacell_mat[cor_genes, cells_use, drop = FALSE]
+  )
+
+  mxra5_sample <- mat_sample["MXRA5", ]
+
+  if (sd(mxra5_sample) == 0) next
+
+  cor_values <- apply(
+    mat_sample,
+    1,
+    function(x) {
+      if (sd(x) == 0) return(NA)
+      stats::cor(x, mxra5_sample, method = "spearman")
+    }
+  )
+
+  cor_results_temp <- data.frame(
+    gene = names(cor_values),
+    rho = as.numeric(cor_values),
+    n_metacells = length(cells_use),
+    Sample_ID = sample_i
+  )
+
+  cor_results_temp <- cor_results_temp %>%
+    dplyr::filter(gene != "MXRA5")
+
+  cor_results_samples[[sample_i]] <- cor_results_temp
+}
+
+cor_results_samples <- dplyr::bind_rows(cor_results_samples)
+
+sample_metadata <- FB_combined@meta.data %>%
+  dplyr::select(Sample_ID, Sample, Dataset, Group) %>%
+  dplyr::distinct()
+
+cor_results_samples <- cor_results_samples %>%
+  dplyr::left_join(sample_metadata, by = "Sample_ID")
+
+write.csv(
+  cor_results_samples,
+  here::here(output_dir_data, "MXRA5_correlations_per_sample.csv"),
+  row.names = FALSE
+)
+```
+
+```{r samples retained correlations}
+cor_results_samples %>%
+  dplyr::select(Sample_ID, Sample, Dataset, Group, n_metacells) %>%
+  dplyr::distinct() %>%
+  dplyr::arrange(Dataset, Group, Sample) %>%
+  reactable::reactable()
+```
+
+## Combine within-sample correlations
+
+The Fisher-transformed correlations are combined across biological samples. Each sample contributes one correlation estimate.
+
+```{r meta correlation MXRA5}
+cor_results_meta <- cor_results_samples %>%
+  dplyr::filter(!is.na(rho)) %>%
+  dplyr::mutate(
+    rho_fisher = pmax(pmin(rho, 0.999999), -0.999999),
+    fisher_z = atanh(rho_fisher)
+  ) %>%
+  dplyr::group_by(gene) %>%
+  dplyr::filter(dplyr::n() >= min_samples_cor) %>%
+  dplyr::summarise(
+    n_samples = dplyr::n(),
+    mean_rho = mean(rho, na.rm = TRUE),
+    median_rho = median(rho, na.rm = TRUE),
+    fisher_z_mean = mean(fisher_z, na.rm = TRUE),
+    fisher_z_se = sd(fisher_z, na.rm = TRUE) / sqrt(dplyr::n()),
+    t_stat = fisher_z_mean / fisher_z_se,
+    PValue = 2 * pt(-abs(t_stat), df = dplyr::n() - 1),
+    meta_r = tanh(fisher_z_mean),
+    positive_samples = sum(rho > 0, na.rm = TRUE),
+    negative_samples = sum(rho < 0, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  dplyr::filter(is.finite(PValue), is.finite(meta_r)) %>%
+  dplyr::mutate(
+    FDR = p.adjust(PValue, method = "BH"),
+    metric = meta_r * -log10(pmax(PValue, 1e-300)),
+    sign_consistency = pmax(positive_samples, negative_samples) / n_samples
+  ) %>%
+  dplyr::arrange(dplyr::desc(meta_r))
+
+write.csv(
+  cor_results_meta,
+  here::here(output_dir_data, "MXRA5_correlations_meta.csv"),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  cor_results_meta,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)
+```
+
+```{r top MXRA5 correlated genes, fig.width=7, fig.height=7, dpi=300}
+top_positive <- cor_results_meta %>%
+  dplyr::slice_max(order_by = meta_r, n = 15)
+
+top_negative <- cor_results_meta %>%
+  dplyr::slice_min(order_by = meta_r, n = 15)
+
+top_correlated <- dplyr::bind_rows(top_negative, top_positive) %>%
+  dplyr::arrange(meta_r)
+
+top_correlated$gene <- factor(
+  top_correlated$gene,
+  levels = top_correlated$gene
+)
+
+ggplot(top_correlated, aes(x = gene, y = meta_r, fill = -log10(pmax(FDR, 1e-300)))) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(low = "grey85", high = "#A63A2A") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 11, face = "bold"),
+    axis.text.y = element_text(size = 11, face = "bold"),
+    axis.title = element_text(size = 13, face = "bold"),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  labs(
+    x = NULL,
+    y = "MXRA5 correlation",
+    fill = "-log10(FDR)",
+    title = "MXRA5-associated genes"
+  )
+```
+
+```{r MXRA5 correlation heatmap, fig.width=15, fig.height=7, dpi=300}
+top_positive_genes <- cor_results_meta %>%
+  dplyr::slice_max(order_by = meta_r, n = 10) %>%
+  dplyr::pull(gene)
+
+top_negative_genes <- cor_results_meta %>%
+  dplyr::slice_min(order_by = meta_r, n = 10) %>%
+  dplyr::pull(gene)
+
+top_cor_genes <- c(top_positive_genes, top_negative_genes)
+
+cor_heatmap <- cor_results_samples %>%
+  dplyr::filter(gene %in% top_cor_genes) %>%
+  dplyr::select(gene, Sample_ID, rho) %>%
+  tidyr::pivot_wider(
+    id_cols = gene,
+    names_from = Sample_ID,
+    values_from = rho
+  ) %>%
+  tibble::column_to_rownames("gene") %>%
+  as.matrix()
+
+sample_annotation <- sample_metadata %>%
+  dplyr::filter(Sample_ID %in% colnames(cor_heatmap)) %>%
+  dplyr::arrange(Dataset, Group, Sample)
+
+cor_heatmap <- cor_heatmap[
+  c(top_positive_genes, top_negative_genes),
+  sample_annotation$Sample_ID,
+  drop = FALSE
+]
+
+annotation_col <- sample_annotation %>%
+  dplyr::select(Dataset, Group)
+rownames(annotation_col) <- sample_annotation$Sample_ID
+
+cor_cols <- colorRampPalette(c("#28A2EB", "white", "#A63A2A"))(101)
+cor_breaks <- seq(-1, 1, length.out = 102)
+
+pheatmap::pheatmap(
+  cor_heatmap,
+  color = cor_cols,
+  breaks = cor_breaks,
+  border_color = "white",
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = annotation_col,
+  annotation_colors = list(
+    Dataset = dataset_cols,
+    Group = group_cols
+  ),
+  fontsize_row = 11,
+  treeheight_row = 0,
+  treeheight_col = 0
+)
+```
+
+# Gene set enrichment analysis
+
+```{r reorder_GO_by_pvalue}
+reorder_GO_by_pvalue <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(go_results$p.adjust), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r ranked genes MXRA5}
+results_MXRA5 <- cor_results_meta
+
+entrezid <- bitr(
+  results_MXRA5$gene,
+  fromType = "SYMBOL",
+  toType = "ENTREZID",
+  OrgDb = "org.Hs.eg.db",
+  drop = TRUE
+)
+
+results_MXRA5 <- merge(
+  results_MXRA5,
+  entrezid,
+  by.x = "gene",
+  by.y = "SYMBOL",
+  all.x = TRUE
+)
+
+results_MXRA5[duplicated(results_MXRA5$metric) | duplicated(results_MXRA5$metric, fromLast = TRUE), ]
+results_MXRA5 <- results_MXRA5[!duplicated(results_MXRA5$metric), ]
+
+ranked_genes <- results_MXRA5[!is.na(results_MXRA5$ENTREZID), ]
+ranked_genes <- ranked_genes[!duplicated(ranked_genes$ENTREZID), ]
+
+genelist <- ranked_genes$metric
+names(genelist) <- ranked_genes$ENTREZID
+genelist <- genelist[order(genelist, decreasing = TRUE)]
+
+write.csv(
+  results_MXRA5,
+  here::here(output_dir_data, "MXRA5_ranked_genes_GSEA.csv"),
+  row.names = FALSE
+)
+```
+
+## GO
+
+```{r save GSEA_GO MXRA5, eval=TRUE}
+GSEA_GO <- gseGO(
+  geneList = genelist,
+  OrgDb = org.Hs.eg.db,
+  ont = "ALL",
+  keyType = "ENTREZID",
+  nPermSimple = 100000,
+  minGSSize = 10
+)
+
+GSEA_GO <- reorder_GO_by_pvalue(GSEA_GO)
+
+saveRDS(
+  GSEA_GO,
+  here::here(output_dir_data, "FB_GSEA_GO_MXRA5.rds")
+)
+```
+
+```{r GSEA_GO MXRA5, fig.height=8, fig.width=8}
+dotplot(
+  GSEA_GO,
+  showCategory = 10,
+  split = ".sign",
+  title = paste0("GO Enrichment Analysis", "\n MXRA5-associated genes"),
+  label_format = 30,
+  font.size = 15
+) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    axis.text.y = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 18)
+  ) +
+  facet_grid(. ~ .sign)
+```
+
+```{r classify_terms}
+classify_terms <- function(df) {
+  df$sign <- ifelse(df$NES > 0, "activated", "suppressed")
+  return(df)
+}
+```
+
+```{r GSEA_GO_emapplot MXRA5, fig.height=10, fig.width=20}
+GSEA_GO@result <- classify_terms(GSEA_GO@result)
+
+activated_terms <- subset(GSEA_GO@result, sign == "activated")
+suppressed_terms <- subset(GSEA_GO@result, sign == "suppressed")
+
+GSEA_GO_activated <- GSEA_GO
+GSEA_GO_activated@result <- activated_terms
+GSEA_GO_activated <- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed <- GSEA_GO
+GSEA_GO_suppressed@result <- suppressed_terms
+GSEA_GO_suppressed <- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 <- emapplot(
+  GSEA_GO_activated,
+  showCategory = 100,
+  node_label_size = 3.5,
+  min_edge = 0.2
+) +
+  ggtitle("Positively associated terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(
+  GSEA_GO_suppressed,
+  showCategory = 100,
+  node_label_size = 3.5,
+  min_edge = 0.2
+) +
+  ggtitle("Negatively associated terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r GSEA_GO_simplified MXRA5, fig.height=8, fig.width=8}
+GSEA_GO_simplified <- clusterProfiler::simplify(
+  GSEA_GO,
+  cutoff = 0.7,
+  by = "p.adjust",
+  select_fun = min,
+  measure = "Wang",
+  semData = NULL
+)
+
+p1 <- dotplot(
+  GSEA_GO_simplified,
+  showCategory = 15,
+  split = ".sign",
+  title = paste0("GO Enrichment Analysis", "\n MXRA5-associated genes"),
+  label_format = 35,
+  font.size = 15
+) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    axis.text.y = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 18)
+  ) +
+  facet_grid(. ~ .sign)
+
+print(p1)
+```
+
+```{r GSEA_GO_simplified_emapplot MXRA5, fig.height=8, fig.width=16}
+GSEA_GO_simplified@result <- classify_terms(GSEA_GO_simplified@result)
+
+activated_terms <- subset(GSEA_GO_simplified@result, sign == "activated")
+suppressed_terms <- subset(GSEA_GO_simplified@result, sign == "suppressed")
+
+GSEA_GO_activated <- GSEA_GO_simplified
+GSEA_GO_activated@result <- activated_terms
+GSEA_GO_activated <- pairwise_termsim(GSEA_GO_activated)
+
+GSEA_GO_suppressed <- GSEA_GO_simplified
+GSEA_GO_suppressed@result <- suppressed_terms
+GSEA_GO_suppressed <- pairwise_termsim(GSEA_GO_suppressed)
+
+p1 <- emapplot(
+  GSEA_GO_activated,
+  showCategory = 100,
+  node_label_size = 3.5,
+  min_edge = 0.12
+) +
+  ggtitle("Positively associated terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p2 <- emapplot(
+  GSEA_GO_suppressed,
+  showCategory = 100,
+  node_label_size = 3.5,
+  min_edge = 0.12
+) +
+  ggtitle("Negatively associated terms") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+combined_plot <- p1 | p2
+print(combined_plot)
+```
+
+```{r reorder_GO_by_NES}
+reorder_GO_by_NES <- function(enrichGO_result) {
+  go_results <- enrichGO_result@result
+  go_results_sorted <- go_results[order(dplyr::desc(go_results$NES)), ]
+  enrichGO_result@result <- go_results_sorted
+  return(enrichGO_result)
+}
+```
+
+```{r default_labeller}
+default_labeller <- function(n) {
+  function(str) {
+    str <- gsub("_", " ", str)
+    ep_str_wrap(str, n)
+  }
+}
+```
+
+```{r barplot.enrichResult}
+barplot.enrichResult <- function(height, x = "Count", color = "p.adjust", showCategory = 8,
+                                 font.size = 12, title = "", label_format = 30, ...) {
+  object <- height
+  colorBy <- match.arg(color, c("pvalue", "p.adjust", "qvalue"))
+  if (x == "geneRatio" || x == "GeneRatio") {
+    x <- "GeneRatio"
+  }
+  else if (x == "count" || x == "Count") {
+    x <- "Count"
+  }
+  df <- fortify(object, showCategory = showCategory, by = x, ...)
+  if (colorBy %in% colnames(df)) {
+    p <- ggplot(df, aes_string(x = x, y = "Description", fill = colorBy)) +
+      theme_dose(font.size) +
+      set_enrichplot_color(type = "fill", name = color)
+  }
+  else {
+    p <- ggplot(df, aes_string(x = x, y = "Description", fill = "Description")) +
+      theme_dose(font.size) +
+      theme(legend.position = "none")
+  }
+  label_func <- default_labeller(label_format)
+  if (is.function(label_format)) {
+    label_func <- label_format
+  }
+  p + geom_col() + scale_y_discrete(labels = label_func) +
+    ggtitle(title) + ylab(NULL)
+}
+```
+
+```{r ep_str_wrap}
+ep_str_wrap <- function(string, width) {
+  x <- gregexpr(' ', string)
+  vapply(
+    seq_along(x),
+    FUN = function(i) {
+      y <- x[[i]]
+      n <- nchar(string[i])
+      len <- (c(y, n) - c(0, y))
+      idx <- len > width
+      j <- which(!idx)
+      if (length(j) && max(j) == length(len)) {
+        j <- j[-length(j)]
+      }
+      if (length(j)) {
+        idx[j] <- len[j] + len[j + 1] > width
+      }
+      idx <- idx[-length(idx)]
+      start <- c(1, y[idx] + 1)
+      end <- c(y[idx] - 1, n)
+      words <- substring(string[i], start, end)
+      paste0(words, collapse = "\n")
+    },
+    FUN.VALUE = character(1)
+  )
+}
+```
+
+```{r GSEA_GO_simplified_barplot_top20_up_down MXRA5, fig.width=8, fig.height=5.3, dpi=300}
+top_up <- GSEA_GO_simplified@result %>%
+  dplyr::filter(NES > 0) %>%
+  dplyr::slice_max(order_by = NES, n = 20)
+
+top_down <- GSEA_GO_simplified@result %>%
+  dplyr::filter(NES < 0) %>%
+  dplyr::slice_min(order_by = NES, n = 20)
+
+top_terms <- dplyr::bind_rows(top_up, top_down)
+
+GSEA_GO_top40 <- GSEA_GO_simplified
+GSEA_GO_top40@result <- top_terms
+
+barplot.enrichResult(
+  reorder_GO_by_NES(GSEA_GO_top40),
+  x = "NES",
+  showCategory = 100,
+  label_format = 45
+) +
+  scale_y_discrete(
+    labels = function(x) stringr::str_wrap(x, width = 50)
+  ) +
+  ggtitle("Gene Ontology Enrichment Analysis\nMXRA5-associated terms") +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    axis.title.x = element_text(size = 14),
+    axis.text.y = element_text(lineheight = 0.7, size = 11)
+  ) +
+  labs(x = "Normalized Enrichment Score")
+```
+
+## KEGG
+
+```{r save GSEA_KEGG MXRA5, eval=TRUE}
+GSEA_KEGG <- gseKEGG(
+  geneList = genelist,
+  organism = "hsa",
+  keyType = "kegg",
+  nPermSimple = 100000,
+  minGSSize = 10
+)
+
+saveRDS(
+  GSEA_KEGG,
+  here::here(output_dir_data, "FB_GSEA_KEGG_MXRA5.rds")
+)
+```
+
+```{r GSEA KEGG dotplot, fig.width=10, fig.height=6}
+if (nrow(GSEA_KEGG@result) > 0) {
+
+  dotplot(
+    GSEA_KEGG,
+    showCategory = 10,
+    split = ".sign",
+    title = paste0("GSEA\nKEGG Pathways", "\n MXRA5-associated genes"),
+    label_format = 35,
+    font.size = 15
+  ) +
+    theme(
+      plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+      axis.text.y = element_text(face = "bold"),
+      strip.text = element_text(face = "bold", size = 18)
+    ) +
+    facet_grid(. ~ .sign)
+
+} else {
+  message("No significant KEGG pathways identified.")
+}
+```
+
+
+## Reactome
+
+```{r save GSEA_Reactome MXRA5, eval=TRUE}
+GSEA_Reactome <- gsePathway(
+  geneList = genelist,
+  nPermSimple = 100000,
+  minGSSize = 10
+)
+
+saveRDS(
+  GSEA_Reactome,
+  here::here(output_dir_data, "FB_GSEA_Reactome_MXRA5.rds")
+)
+```
+
+```{r GSEA_Reactome MXRA5, fig.height=8, fig.width=8}
+dotplot(
+  GSEA_Reactome,
+  showCategory = 10,
+  split = ".sign",
+  title = paste0("GSEA\nReactome Pathways", "\n MXRA5-associated genes"),
+  label_format = 40,
+  font.size = 15
+) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    axis.text.y = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 18)
+  ) +
+  facet_grid(. ~ .sign)
+```
+
+```{r GSEA_Reactome_emapplot MXRA5, fig.height=8, fig.width=8}
+GSEA_Reactome@result <- classify_terms(GSEA_Reactome@result)
+
+activated_terms <- subset(GSEA_Reactome@result, sign == "activated")
+suppressed_terms <- subset(GSEA_Reactome@result, sign == "suppressed")
+
+GSEA_Reactome_activated <- GSEA_Reactome
+GSEA_Reactome_activated@result <- activated_terms
+GSEA_Reactome_activated <- pairwise_termsim(GSEA_Reactome_activated)
+
+p1 <- emapplot(
+  GSEA_Reactome_activated,
+  showCategory = 100,
+  node_label_size = 3.5,
+  min_edge = 0.15
+) +
+  ggtitle("Positively associated pathways") +
+  theme(plot.title = element_text(face = "bold", size = 18, hjust = 0.5))
+
+p1 
+```
+
+```{r GSEA_Reactome_barplot_top20_up_down MXRA5, fig.width=8, fig.height=5.3, dpi=300}
+top_up <- GSEA_Reactome@result %>%
+  dplyr::filter(NES > 0) %>%
+  dplyr::slice_max(order_by = NES, n = 20)
+
+top_down <- GSEA_Reactome@result %>%
+  dplyr::filter(NES < 0) %>%
+  dplyr::slice_min(order_by = NES, n = 20)
+
+top_terms <- dplyr::bind_rows(top_up, top_down)
+
+GSEA_Reactome_top40 <- GSEA_Reactome
+GSEA_Reactome_top40@result <- top_terms
+
+barplot.enrichResult(
+  reorder_GO_by_NES(GSEA_Reactome_top40),
+  x = "NES",
+  showCategory = 100,
+  label_format = 45
+) +
+  scale_y_discrete(
+    labels = function(x) stringr::str_wrap(x, width = 50)
+  ) +
+  ggtitle("Reactome Pathway Enrichment Analysis\nMXRA5-associated terms") +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    axis.title.x = element_text(size = 14),
+    axis.text.y = element_text(lineheight = 0.7, size = 11)
+  ) +
+  labs(x = "Normalized Enrichment Score")
+```
+
+```{r GSEA combined export}
+GSEA_GO_export <- GSEA_GO@result
+GSEA_Reactome_export <- GSEA_Reactome@result
+
+GSEA_GO_export$SOURCE <- "GO"
+GSEA_Reactome_export$SOURCE <- "Reactome"
+
+GSEA_Combined <- dplyr::bind_rows(
+  GSEA_GO_export,
+  GSEA_Reactome_export
+)
+
+write.csv(
+  GSEA_Combined,
+  here::here(output_dir_data, "FB_GSEA_MXRA5_ALL.csv"),
+  row.names = FALSE
+)
+```
+
+# hdWGCNA
+
+## Expression matrix and soft power
+
+```{r hdWGCNA expression matrix}
+DefaultAssay(FB_combined) <- "RNA"
+
+FB_combined <- SetDatExpr(
+  FB_combined,
+  group_name = "Fibroblasts",
+  group.by = "all_fibroblasts",
+  assay = "RNA",
+  layer = "data"
+)
+```
+
+```{r hdWGCNA soft powers, eval=TRUE}
+FB_combined <- TestSoftPowers(
+  FB_combined,
+  networkType = "signed"
+)
+
+power_table <- GetPowerTable(FB_combined)
+reactable::reactable(power_table)
+```
+
+```{r hdWGCNA soft power plots, fig.width=10, fig.height=7, dpi=300}
+plot_list <- PlotSoftPowers(FB_combined)
+patchwork::wrap_plots(plot_list, ncol = 2)
+```
+
+## Co-expression network
+
+```{r construct hdWGCNA network, eval=TRUE}
+FB_combined <- ConstructNetwork(
+  FB_combined,
+  tom_name = "FB_MXRA5",
+  tom_outdir = network_scratch
+)
+```
+
+```{r hdWGCNA dendrogram, fig.width=12, fig.height=5, dpi=300}
+PlotDendrogram(
+  FB_combined,
+  main = "Fibroblast hdWGCNA dendrogram"
+)
+```
+
+## Module eigengenes and connectivity
+
+```{r hdWGCNA module eigengenes, eval=TRUE}
+FB_combined <- ModuleEigengenes(
+  FB_combined,
+  group.by.vars = "Dataset"
+)
+
+FB_combined <- ModuleConnectivity(
+  FB_combined,
+  group.by = "all_fibroblasts",
+  group_name = "Fibroblasts"
+)
+
+FB_combined <- ResetModuleNames(
+  FB_combined,
+  new_name = "FB-M"
+)
+```
+
+```{r hdWGCNA modules}
+modules <- GetModules(FB_combined)
+
+write.csv(
+  modules,
+  here::here(output_dir_data, "FB_hdWGCNA_modules.csv"),
+  row.names = FALSE
+)
+
+reactable::reactable(
+  modules,
+  filterable = TRUE,
+  searchable = TRUE,
+  showPageSizeOptions = TRUE
+)
+```
+
+```{r MXRA5 module}
+MXRA5_module <- modules %>%
+  dplyr::filter(gene_name == "MXRA5") %>%
+  dplyr::pull(module)
+
+MXRA5_module
+
+MXRA5_info <- modules %>%
+  dplyr::filter(gene_name == "MXRA5")
+
+reactable::reactable(MXRA5_info)
+```
+
+```{r MXRA5 module hub genes}
+MXRA5_hub_genes <- GetHubGenes(
+  FB_combined,
+  n_hubs = 50,
+  mods = MXRA5_module
+)
+
+write.csv(
+  MXRA5_hub_genes,
+  here::here(output_dir_data, "FB_MXRA5_module_hub_genes.csv"),
+  row.names = FALSE
+)
+
+reactable::reactable(MXRA5_hub_genes)
+```
+
+```{r MXRA5 module top hub genes, fig.width=7, fig.height=6, dpi=300}
+MXRA5_module_color <- modules %>%
+  dplyr::filter(module == MXRA5_module) %>%
+  dplyr::slice(1) %>%
+  dplyr::pull(color)
+
+MXRA5_top_hubs <- MXRA5_hub_genes %>%
+  dplyr::slice_head(n = 25) %>%
+  dplyr::arrange(kME)
+
+MXRA5_top_hubs$gene_name <- factor(
+  MXRA5_top_hubs$gene_name,
+  levels = MXRA5_top_hubs$gene_name
+)
+
+ggplot(MXRA5_top_hubs, aes(x = gene_name, y = kME)) +
+  geom_col(fill = MXRA5_module_color) +
+  coord_flip() +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 11, face = "bold"),
+    axis.text.y = element_text(size = 11, face = "bold"),
+    axis.title = element_text(size = 13, face = "bold"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  labs(
+    x = NULL,
+    y = "kME",
+    title = paste0(MXRA5_module, " hub genes")
+  )
+```
+
+## Module activity across fibroblasts
+
+```{r hdWGCNA all module feature plots, fig.width=12, fig.height=10, dpi=300}
+plot_list <- ModuleFeaturePlot(
+  FB_combined,
+  features = "hMEs",
+  order_points = TRUE,
+  restrict_range = FALSE,
+  point_size = 0.1,
+  raster = FALSE
+)
+
+patchwork::wrap_plots(plot_list, ncol = 4)
+```
+
+```{r MXRA5 and MXRA5 module UMAP, fig.width=12, fig.height=4, dpi=300}
+Idents(FB_combined) <- "cell_state"
+
+p1 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "cell_state",
+  cols = cell_type_cols,
+  label = TRUE,
+  repel = TRUE,
+  pt.size = 0.1,
+  raster = FALSE
+) +
+  NoLegend() +
+  ggtitle("Cell states") +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+DefaultAssay(FB_combined) <- "RNA"
+p2 <- FeaturePlot_scCustom(
+  FB_combined,
+  features = "MXRA5",
+  pt.size = 0.1,
+  order = TRUE
+) +
+  ggtitle("MXRA5 expression") +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p3 <- ModuleFeaturePlot(
+  FB_combined,
+  module_names = MXRA5_module,
+  features = "hMEs",
+  order_points = TRUE,
+  restrict_range = FALSE,
+  point_size = 0.1,
+  raster = FALSE
+)[[1]] +
+  ggtitle(paste0(MXRA5_module, " activity")) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p1 | p2 | p3
+```
+
+```{r MXRA5 module across cell states, fig.width=8, fig.height=5, dpi=300}
+hMEs <- GetMEs(FB_combined, harmonized = TRUE)
+
+module_metadata <- FB_combined@meta.data %>%
+  dplyr::select(cell_state) %>%
+  dplyr::mutate(
+    MXRA5_module = hMEs[, MXRA5_module]
+  )
+
+ggplot(module_metadata, aes(x = cell_state, y = MXRA5_module, fill = cell_state)) +
+  geom_boxplot(outlier.shape = NA) +
+  scale_fill_manual(values = cell_type_cols[seq_along(cell_state_levels)]) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(face = "bold", size = 12, angle = 45, hjust = 1),
+    axis.text.y = element_text(face = "bold", size = 11),
+    axis.title = element_text(face = "bold", size = 13),
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  labs(
+    x = NULL,
+    y = "Harmonized module eigengene",
+    title = paste0(MXRA5_module, " across fibroblast states")
+  )
+```
+
+## Save object
+
+```{r save final object, eval=FALSE}
+DefaultAssay(FB_combined) <- "RNA"
+
+qs_save(
+  FB_combined,
+  file = here::here(output_dir_data, "FB_combined_MXRA5_coexpression.qs2"),
+  nthreads = 32
+)
+```
+
+
+## Compact reusable results
+
+```{r save compact reusable results}
+write.csv(metacell_summary, file.path(output_dir_data, "FB_metacell_summary.csv"), row.names = FALSE)
+write.csv(data.frame(gene = wgcna_genes), file.path(output_dir_data, "FB_network_genes.csv"), row.names = FALSE)
+write.csv(power_table, file.path(output_dir_data, "FB_soft_power_diagnostics.csv"), row.names = FALSE)
+saveRDS(GSEA_GO_simplified, file.path(output_dir_data, "FB_GSEA_GO_MXRA5_simplified.rds"))
+all_module_hubs <- GetHubGenes(FB_combined, n_hubs = 50)
+write.csv(all_module_hubs, file.path(output_dir_data, "FB_all_module_hub_genes.csv"), row.names = FALSE)
+module_eigengenes <- GetMEs(FB_combined, harmonized = FALSE)
+harmonized_eigengenes <- GetMEs(FB_combined, harmonized = TRUE)
+module_cell_metadata <- FB_combined@meta.data[, c("Sample_ID", "Sample", "Dataset", "Group", "cell_state"), drop = FALSE]
+saveRDS(list(eigengenes = module_eigengenes,
+             harmonized_eigengenes = harmonized_eigengenes,
+             cell_metadata = module_cell_metadata),
+        file.path(output_dir_data, "FB_module_eigengenes.rds"), compress = TRUE)
+saveRDS(list(wgcna_fraction = wgcna_fraction, metacell_k = metacell_k,
+             metacell_max_shared = metacell_max_shared, metacell_min_cells = metacell_min_cells,
+             target_metacells = 1000, min_metacells_cor = min_metacells_cor,
+             min_samples_cor = min_samples_cor, seed = 12345,
+             network_parameters = GetWGCNAParams(FB_combined)),
+        file.path(output_dir_data, "FB_network_parameters.rds"))
+```
