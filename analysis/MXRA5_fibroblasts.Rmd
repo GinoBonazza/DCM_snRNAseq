@@ -1,0 +1,1407 @@
+---
+title: "MXRA5 in cardiac fibroblasts"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r knitr config, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(dpi = 300, fig.align = "center")
+```
+
+## Setup
+
+```{r setup, class.source = "fold-hide"}
+current_file <- "MXRA5_fibroblasts"
+
+library(here)
+library(readxl)
+library(Seurat)
+library(DropletUtils)
+library(Matrix)
+library(scCustomize)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(patchwork)
+library(edgeR)
+library(limma)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(ggpubr)
+library(reactable)
+library(scales)
+library(cowplot)
+library(speckle)
+library(broom)
+library(harmony)
+library(clustree)
+library(qs2)
+library(decoupleR)
+library(OmnipathR)
+library(dorothea)
+library(pheatmap)
+
+output_dir_data <- here::here("output", current_file)
+if (!dir.exists(output_dir_data)) dir.create(output_dir_data, recursive = TRUE)
+
+if (!dir.exists(here::here("docs", "figure"))) dir.create(here::here("docs", "figure"), recursive = TRUE)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+if (!dir.exists(output_dir_figs)) dir.create(output_dir_figs, recursive = TRUE)
+
+fb_dir <- here::here("output", "Matrifibrocytes_integration")
+
+cell_type_cols <- c(
+  "#d05050", "#33A02C", "#1F78B4", "#CAB2D6", "#FF7F00", "#B2DF8A",
+  "#B15928", "#FFD000", "#FA95C0", "#FDBF6F", "#6A3D9A", "#7aCDF9", "#E6E600",
+  "#8DD3C7", "#FB8072", "#80B1D3", "#BC80BD", "#CCEBC5", "#FFED6F",
+  "#A6CEE3", "#F781BF"
+)
+
+group_cols <- c("HC" = "grey85", "DCM" = "#A63A2A", "NICM" = "#33A02C", "MI" = "#004C8C")
+dataset_cols <- c(
+  "Koenig" = "#CAB2D6",
+  "Reichart" = "#B2DF8A",
+  "Chaffin" = "#FDBF6F",
+  "Amrute" = "#FA95C0",
+  "Kuppe" = "#7aCDF9"
+)
+
+matrifibrocyte_genes <- c("COMP", "CILP", "CHAD", "THBS4")
+activation_genes <- c(
+  "COMP", "CILP", "CHAD", "THBS4",
+  "MXRA5", "ACTA2", "POSTN", "FAP",
+  "COL1A1", "COL3A1", "FN1", "CTHRC1"
+)
+
+cell_state_levels <- c("FB_1", "FB_2", "FB_matrifibrocyte", "FB_3", "FB_4", "FB_5", "FB_6")
+dataset_levels <- c("Koenig", "Reichart", "Chaffin", "Amrute", "Kuppe")
+group_levels <- c("HC", "DCM", "NICM", "MI")
+dcm_datasets <- c("Koenig", "Reichart", "Chaffin")
+
+min_pb_libsize <- 10000
+min_fibroblast_cells <- 100
+min_fibroblast_cells_subcluster <- 20
+```
+
+## Load integrated fibroblast object
+
+```{r load integrated fibroblast object}
+FB_combined <- qs_read(
+  file = here::here(fb_dir, "FB_combined.qs2"),
+  nthreads = 32
+)
+
+FB_combined$Dataset <- factor(as.character(FB_combined$Dataset), levels = dataset_levels)
+FB_combined$Group <- factor(as.character(FB_combined$Group), levels = group_levels)
+FB_combined$cell_state <- factor(as.character(FB_combined$cell_state), levels = cell_state_levels)
+
+FB_combined$Disease_status <- ifelse(FB_combined$Group == "HC", "HC", "Disease")
+FB_combined$Disease_status <- factor(FB_combined$Disease_status, levels = c("HC", "Disease"))
+
+Idents(FB_combined) <- FB_combined$cell_state
+```
+
+## Dataset summary
+
+```{r dataset summary}
+sample_summary <- FB_combined@meta.data %>%
+  dplyr::select(Dataset, Group, Sample) %>%
+  dplyr::distinct() %>%
+  dplyr::count(Dataset, Group, name = "n_samples")
+
+cell_summary <- FB_combined@meta.data %>%
+  dplyr::count(Dataset, Group, name = "n_cells")
+
+dataset_summary <- dplyr::left_join(
+  sample_summary,
+  cell_summary,
+  by = c("Dataset", "Group")
+)
+
+dataset_summary %>%
+  dplyr::arrange(Dataset, Group) %>%
+  reactable::reactable()
+```
+
+```{r sample summary}
+FB_combined@meta.data %>%
+  dplyr::count(Dataset, Group, Sample, sort = TRUE) %>%
+  reactable::reactable()
+```
+
+## UMAP
+
+```{r UMAP cell states, fig.width=5, fig.height=5, dpi = 300}
+p <- DimPlot(
+  FB_combined,
+  group.by = "cell_state",
+  reduction = "umap",
+  cols = cell_type_cols,
+  label = FALSE,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  NoLegend() +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_blank()
+  )
+
+LabelClusters(
+  p,
+  id = "cell_state",
+  fontface = "bold",
+  size = 5,
+  repel = TRUE
+)
+```
+
+```{r UMAP dataset and group, fig.width=11, fig.height=5, dpi = 300}
+p1 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "Dataset",
+  cols = dataset_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("Dataset") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p2 <- DimPlot(
+  FB_combined,
+  reduction = "umap",
+  group.by = "Group",
+  cols = group_cols,
+  shuffle = TRUE,
+  raster = FALSE,
+  pt.size = 0.1
+) +
+  ggtitle("Group") +
+  theme(
+    axis.text = element_text(size = 8, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+
+p1 | p2
+```
+
+## Cluster markers
+
+```{r markers fibroblast combined}
+DefaultAssay(FB_combined) <- "RNA"
+FB_combined <- NormalizeData(FB_combined)
+Idents(FB_combined) <- "cell_state"
+
+FB_markers_combined <- FindAllMarkers(
+  FB_combined,
+  assay = "RNA",
+  only.pos = TRUE,
+  min.pct = 0.1,
+  logfc.threshold = 0.25,
+  return.thresh = 0.05
+)
+
+FB_markers_combined <- FB_markers_combined %>%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+FB_markers_top10_combined <- FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 10, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_top3_combined <- FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_max(order_by = avg_log2FC, n = 3, with_ties = FALSE) %>%
+  dplyr::ungroup()
+
+FB_markers_combined %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::slice_head(n = 20) %>%
+  reactable::reactable()
+```
+
+```{r write cluster markers, eval=FALSE}
+write.csv(
+  FB_markers_combined,
+  here::here(output_dir_data, "FB_markers_combined_all_cell_state.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top10_combined,
+  here::here(output_dir_data, "FB_markers_combined_top10_cell_state.csv"),
+  row.names = FALSE
+)
+write.csv(
+  FB_markers_top3_combined,
+  here::here(output_dir_data, "FB_markers_combined_top3_cell_state.csv"),
+  row.names = FALSE
+)
+```
+
+```{r dotplot top markers, fig.width=10, fig.height=5}
+id_backup <- Idents(FB_combined)
+Idents(FB_combined) <- factor(Idents(FB_combined), levels = rev(levels(Idents(FB_combined))))
+
+p_dot <- DotPlot_scCustom(
+  FB_combined,
+  features = unique(FB_markers_top3_combined$gene),
+  x_lab_rotate = TRUE
+)
+
+p_dot + theme(
+  axis.text.x = element_text(size = 11, angle = 60, vjust = 1, hjust = 1),
+  axis.text.y = element_text(size = 12)
+)
+
+Idents(FB_combined) <- id_backup
+```
+
+## Fibroblast activation markers
+
+```{r featureplot activation markers, fig.width=16.8, fig.height=12, dpi = 300}
+DefaultAssay(FB_combined) <- "SCT"
+
+activation_genes_present <- activation_genes[
+  activation_genes %in% rownames(FB_combined)
+]
+
+FeaturePlot(
+  FB_combined,
+  features = activation_genes_present,
+  reduction = "umap",
+  order = TRUE,
+  cols = c("grey90", "#A63A2A"),
+  pt.size = 0.5,
+  ncol = 4,
+  raster = FALSE
+) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+```{r dotplot activation markers by cell state, fig.width=8, fig.height=6.5, dpi=300}
+DefaultAssay(FB_combined) <- "SCT"
+Idents(FB_combined) <- "cell_state"
+
+DotPlot(
+  FB_combined,
+  dot.scale = 13,
+  features = activation_genes_present,
+  assay = "SCT",
+  cols = c("grey90", "#A63A2A")
+) +
+  coord_flip() +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(
+      face = "bold",
+      size = 14,
+      angle = 45,
+      hjust = 1,
+      vjust = 1
+    ),
+    axis.text.y = element_text(face = "bold", size = 14),
+    axis.title = element_blank(),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
+```
+
+## Differential abundance by dataset
+
+```{r cluster proportions metadata by dataset}
+cluster_var <- "cell_state"
+
+df_prop_dataset <- FB_combined@meta.data %>%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %>%
+  dplyr::count(Dataset, Group, Disease_status, Sample, cluster, name = "n") %>%
+  dplyr::group_by(Dataset, Group, Disease_status, Sample) %>%
+  dplyr::mutate(
+    total_n = sum(n),
+    freq = n / total_n
+  ) %>%
+  dplyr::ungroup()
+
+df_prop_dataset$cluster <- factor(df_prop_dataset$cluster, levels = cell_state_levels)
+df_prop_dataset$Group <- factor(as.character(df_prop_dataset$Group), levels = group_levels)
+df_prop_dataset$Disease_status <- factor(as.character(df_prop_dataset$Disease_status), levels = c("HC", "Disease"))
+df_prop_dataset$Dataset <- factor(as.character(df_prop_dataset$Dataset), levels = dataset_levels)
+```
+
+```{r cluster proportions stats by dataset}
+get_p_label <- function(p) {
+  if (is.na(p)) return("p = NA")
+  if (p < 0.001) return("p < 0.001")
+  paste0("p = ", formatC(p, format = "f", digits = 3))
+}
+
+abund_by_dataset <- df_prop_dataset %>%
+  dplyr::group_by(Dataset, cluster) %>%
+  dplyr::summarise(
+    p_value = {
+      tmp <- cur_data()
+      if (length(unique(tmp$Disease_status)) < 2) {
+        NA_real_
+      } else {
+        broom::tidy(lm(freq ~ Disease_status, data = tmp)) %>%
+          dplyr::filter(term == "Disease_statusDisease") %>%
+          dplyr::pull(p.value)
+      }
+    },
+    y = max(freq, na.rm = TRUE) + 0.04,
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+write.csv(
+  abund_by_dataset,
+  file = file.path(output_dir_data, "FB_subclusters_differential_abundance_by_dataset_HC_vs_Disease.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+abund_by_dataset
+```
+
+```{r cluster proportions by dataset and group, fig.width=16, fig.height=8, dpi=300}
+pd  <- position_dodge(width = 0.75)
+pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+p_prop_dataset_group <- ggplot(
+  df_prop_dataset,
+  aes(x = cluster, y = freq, fill = Group)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.7,
+    shape = 16
+  ) +
+  geom_segment(
+    data = abund_by_dataset,
+    aes(
+      x = as.numeric(cluster) - 0.18,
+      xend = as.numeric(cluster) + 0.18,
+      y = y,
+      yend = y
+    ),
+    inherit.aes = FALSE,
+    linewidth = 0.4
+  ) +
+  geom_text(
+    data = abund_by_dataset,
+    aes(
+      x = cluster,
+      y = y + 0.02,
+      label = p_label
+    ),
+    inherit.aes = FALSE,
+    size = 3,
+    fontface = "bold"
+  ) +
+  facet_wrap(~Dataset, ncol = 2, scales = "free_y") +
+  scale_fill_manual(values = group_cols) +
+  labs(
+    x = "Cluster",
+    y = "Fraction of fibroblast cells"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
+    legend.title = element_blank()
+  )
+
+p_prop_dataset_group
+```
+
+## Differential abundance in pooled DCM datasets
+
+```{r cluster proportions metadata pooled DCM}
+df_prop_dcm <- FB_combined@meta.data %>%
+  dplyr::filter(
+    Dataset %in% dcm_datasets,
+    Group %in% c("HC", "DCM")
+  ) %>%
+  dplyr::mutate(cluster = .data[[cluster_var]]) %>%
+  dplyr::count(Dataset, Group, Sample, cluster, name = "n") %>%
+  dplyr::group_by(Dataset, Group, Sample) %>%
+  dplyr::mutate(
+    total_n = sum(n),
+    freq = n / total_n
+  ) %>%
+  dplyr::ungroup()
+
+df_prop_dcm$cluster <- factor(df_prop_dcm$cluster, levels = cell_state_levels)
+df_prop_dcm$Group <- factor(as.character(df_prop_dcm$Group), levels = c("HC", "DCM"))
+df_prop_dcm$Dataset <- factor(as.character(df_prop_dcm$Dataset), levels = dcm_datasets)
+```
+
+```{r cluster proportions stats pooled DCM}
+abund_dcm <- df_prop_dcm %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::summarise(
+    p_value = {
+      tmp <- cur_data()
+      broom::tidy(lm(freq ~ Group + Dataset, data = tmp)) %>%
+        dplyr::filter(term == "GroupDCM") %>%
+        dplyr::pull(p.value)
+    },
+    coefficient = {
+      tmp <- cur_data()
+      broom::tidy(lm(freq ~ Group + Dataset, data = tmp)) %>%
+        dplyr::filter(term == "GroupDCM") %>%
+        dplyr::pull(estimate)
+    },
+    y = max(freq, na.rm = TRUE) + 0.03,
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+write.csv(
+  abund_dcm,
+  file = file.path(output_dir_data, "FB_subclusters_differential_abundance_DCM_HC_adjusted_Dataset.csv"),
+  row.names = FALSE,
+  quote = FALSE
+)
+
+abund_dcm
+```
+
+```{r cluster proportions pooled DCM, fig.width=10, fig.height=3.8, dpi=300}
+pd  <- position_dodge(width = 0.75)
+pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+ggplot(
+  df_prop_dcm,
+  aes(x = cluster, y = freq, fill = Group)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 0.8,
+    alpha = 0.7,
+    shape = 16
+  ) +
+  geom_segment(
+    data = abund_dcm,
+    aes(
+      x = as.numeric(cluster) - 0.18,
+      xend = as.numeric(cluster) + 0.18,
+      y = y,
+      yend = y
+    ),
+    inherit.aes = FALSE,
+    linewidth = 0.4
+  ) +
+  geom_text(
+    data = abund_dcm,
+    aes(
+      x = cluster,
+      y = y + 0.02,
+      label = p_label
+    ),
+    inherit.aes = FALSE,
+    size = 3.2,
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = group_cols) +
+  labs(
+    x = "Cluster",
+    y = "Fraction of fibroblast cells"
+  ) +
+  coord_cartesian(
+    ylim = c(0, max(abund_dcm$y + 0.04, na.rm = TRUE))
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_blank()
+  )
+```
+
+## Pseudobulk all fibroblasts by sample
+
+```{r pseudobulk all fibroblasts}
+DefaultAssay(FB_combined) <- "RNA"
+counts_fb <- GetAssayData(FB_combined, assay = "RNA", slot = "counts")
+
+metadata_fb_matched <- FB_combined@meta.data[colnames(FB_combined), , drop = FALSE] %>%
+  tibble::rownames_to_column("cell") %>%
+  dplyr::mutate(
+    Sample_dataset = paste(as.character(Dataset), as.character(Sample), sep = "_")
+  )
+
+sample_vec <- metadata_fb_matched$Sample_dataset
+sample_levels <- unique(sample_vec)
+
+counts_pb <- do.call(
+  cbind,
+  lapply(sample_levels, function(sid) {
+    Matrix::rowSums(counts_fb[, sample_vec == sid, drop = FALSE])
+  })
+)
+
+counts_pb <- methods::as(counts_pb, "dgCMatrix")
+rownames(counts_pb) <- rownames(counts_fb)
+colnames(counts_pb) <- sample_levels
+
+sample_meta <- metadata_fb_matched %>%
+  dplyr::select(Sample_dataset, Sample, Group, Dataset) %>%
+  dplyr::distinct() %>%
+  dplyr::arrange(match(Sample_dataset, colnames(counts_pb)))
+
+sample_meta$n_fibroblast_cells <- as.numeric(
+  table(factor(sample_vec, levels = colnames(counts_pb)))[sample_meta$Sample_dataset]
+)
+sample_meta$libsize <- Matrix::colSums(counts_pb)[sample_meta$Sample_dataset]
+
+sample_meta <- sample_meta %>%
+  dplyr::filter(
+    libsize >= min_pb_libsize,
+    n_fibroblast_cells >= min_fibroblast_cells
+  )
+
+counts_pb <- counts_pb[, sample_meta$Sample_dataset, drop = FALSE]
+
+sample_meta$Group <- factor(as.character(sample_meta$Group), levels = group_levels)
+sample_meta$Dataset <- factor(as.character(sample_meta$Dataset), levels = dataset_levels)
+rownames(sample_meta) <- sample_meta$Sample_dataset
+
+write.csv(
+  sample_meta,
+  file.path(
+    output_dir_data,
+    paste0(
+      "FB_pseudobulk_sample_metadata_min_libsize_",
+      min_pb_libsize,
+      "_min_fibroblast_cells_",
+      min_fibroblast_cells,
+      ".csv"
+    )
+  ),
+  row.names = FALSE
+)
+
+sample_meta %>%
+  dplyr::count(Dataset, Group, name = "n_samples") %>%
+  reactable::reactable()
+```
+
+```{r logcpm all fibroblasts}
+dge <- edgeR::DGEList(counts = counts_pb)
+dge <- edgeR::calcNormFactors(dge)
+logcpm <- edgeR::cpm(dge, log = TRUE, prior.count = 1)
+
+if (!"MXRA5" %in% rownames(logcpm)) {
+  stop("MXRA5 was not found in the pseudobulk logCPM matrix.")
+}
+
+mxra5_plot_df <- tibble::tibble(
+  Sample_dataset = colnames(logcpm),
+  logCPM = as.numeric(logcpm["MXRA5", ])
+) %>%
+  dplyr::left_join(sample_meta, by = "Sample_dataset") %>%
+  dplyr::mutate(
+    Group = factor(as.character(Group), levels = group_levels),
+    Dataset = factor(as.character(Dataset), levels = dataset_levels)
+  )
+
+write.csv(
+  mxra5_plot_df,
+  file.path(output_dir_data, "MXRA5_pseudobulk_logCPM_all_fibroblasts.csv"),
+  row.names = FALSE
+)
+```
+
+## MXRA5 all fibroblasts by dataset
+
+```{r MXRA5 stats all fibroblasts by dataset}
+mxra5_stats_by_dataset <- dplyr::bind_rows(lapply(dataset_levels, function(ds) {
+  tmp <- mxra5_plot_df %>%
+    dplyr::filter(Dataset == ds) %>%
+    droplevels()
+
+  disease_group <- setdiff(unique(as.character(tmp$Group)), "HC")
+
+  if (nrow(tmp) == 0 || length(disease_group) != 1 || !"HC" %in% unique(as.character(tmp$Group))) {
+    return(tibble::tibble(
+      Dataset = ds,
+      disease_group = ifelse(length(disease_group) == 1, disease_group, NA_character_),
+      coefficient_logFC = NA_real_,
+      p_value = NA_real_
+    ))
+  }
+
+  tmp$Group <- stats::relevel(factor(tmp$Group), ref = "HC")
+  fit <- broom::tidy(lm(logCPM ~ Group, data = tmp))
+  term_use <- paste0("Group", disease_group)
+
+  tibble::tibble(
+    Dataset = ds,
+    disease_group = disease_group,
+    coefficient_logFC = fit$estimate[fit$term == term_use],
+    p_value = fit$p.value[fit$term == term_use]
+  )
+})) %>%
+  dplyr::mutate(
+    Dataset = factor(Dataset, levels = dataset_levels),
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+write.csv(
+  mxra5_stats_by_dataset,
+  file.path(output_dir_data, "MXRA5_all_fibroblasts_HC_vs_disease_by_dataset.csv"),
+  row.names = FALSE
+)
+
+mxra5_stats_by_dataset
+```
+
+```{r boxplot MXRA5 all fibroblasts by dataset, fig.width=12, fig.height=3.5, dpi = 300}
+mxra5_ypos_by_dataset <- mxra5_plot_df %>%
+  dplyr::group_by(Dataset) %>%
+  dplyr::summarise(
+    y_min = min(logCPM, na.rm = TRUE),
+    y_max = max(logCPM, na.rm = TRUE),
+    y_range = y_max - y_min,
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(y_range = dplyr::if_else(y_range == 0, 1, y_range))
+
+mxra5_annot_by_dataset <- mxra5_stats_by_dataset %>%
+  dplyr::left_join(mxra5_ypos_by_dataset, by = "Dataset") %>%
+  dplyr::mutate(
+    line_y = y_max + 0.12 * y_range,
+    tick_height = 0.035 * y_range,
+    label_y = line_y + 0.055 * y_range
+  )
+
+ggplot(mxra5_plot_df, aes(x = Group, y = logCPM, fill = Group)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, color = "black", linewidth = 0.45) +
+  geom_jitter(width = 0.12, size = 1.9, alpha = 0.9, color = "black") +
+  geom_segment(
+    data = mxra5_annot_by_dataset,
+    aes(x = 1, xend = 2, y = line_y, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = mxra5_annot_by_dataset,
+    aes(x = 1, xend = 1, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = mxra5_annot_by_dataset,
+    aes(x = 2, xend = 2, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_text(
+    data = mxra5_annot_by_dataset,
+    aes(x = 1.5, y = label_y, label = p_label),
+    inherit.aes = FALSE,
+    size = 3.0,
+    fontface = "bold"
+  ) +
+  facet_wrap(~Dataset, nrow = 1, scales = "free_x") +
+  scale_fill_manual(values = group_cols, drop = TRUE) +
+  scale_x_discrete(drop = TRUE) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.10))) +
+  labs(
+    title = "MXRA5",
+    x = NULL,
+    y = "logCPM"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", color = "black"),
+    axis.text.y = element_text(color = "black"),
+    axis.title.y = element_text(face = "bold"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+## MXRA5 all fibroblasts in pooled DCM datasets
+
+```{r MXRA5 stats all fibroblasts pooled DCM}
+mxra5_dcm_plot_df <- mxra5_plot_df %>%
+  dplyr::filter(
+    Dataset %in% dcm_datasets,
+    Group %in% c("HC", "DCM")
+  ) %>%
+  dplyr::mutate(
+    Group = factor(as.character(Group), levels = c("HC", "DCM")),
+    Dataset = factor(as.character(Dataset), levels = dcm_datasets)
+  )
+
+mxra5_dcm_fit <- broom::tidy(
+  lm(logCPM ~ Group + Dataset, data = mxra5_dcm_plot_df)
+)
+
+mxra5_dcm_stats <- mxra5_dcm_fit %>%
+  dplyr::filter(term == "GroupDCM") %>%
+  dplyr::transmute(
+    coefficient_logFC = estimate,
+    p_value = p.value,
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+write.csv(
+  mxra5_dcm_stats,
+  file.path(output_dir_data, "MXRA5_all_fibroblasts_DCM_HC_adjusted_Dataset.csv"),
+  row.names = FALSE
+)
+
+mxra5_dcm_stats
+```
+
+```{r boxplot MXRA5 all fibroblasts pooled DCM, fig.width=3, fig.height=3.5, dpi = 300}
+mxra5_dcm_ypos <- mxra5_dcm_plot_df %>%
+  dplyr::summarise(
+    y_min = min(logCPM, na.rm = TRUE),
+    y_max = max(logCPM, na.rm = TRUE),
+    y_range = y_max - y_min
+  ) %>%
+  dplyr::mutate(y_range = dplyr::if_else(y_range == 0, 1, y_range))
+
+mxra5_dcm_annot <- mxra5_dcm_stats %>%
+  dplyr::mutate(
+    line_y = mxra5_dcm_ypos$y_max + 0.12 * mxra5_dcm_ypos$y_range,
+    tick_height = 0.035 * mxra5_dcm_ypos$y_range,
+    label_y = line_y + 0.055 * mxra5_dcm_ypos$y_range
+  )
+
+ggplot(mxra5_dcm_plot_df, aes(x = Group, y = logCPM, fill = Group)) +
+  geom_boxplot(width = 0.65, outlier.shape = NA, color = "black", linewidth = 0.45) +
+  geom_jitter(width = 0.12, size = 2.0, alpha = 0.9, color = "black") +
+  geom_segment(
+    data = mxra5_dcm_annot,
+    aes(x = 1, xend = 2, y = line_y, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = mxra5_dcm_annot,
+    aes(x = 1, xend = 1, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_segment(
+    data = mxra5_dcm_annot,
+    aes(x = 2, xend = 2, y = line_y - tick_height, yend = line_y),
+    inherit.aes = FALSE,
+    linewidth = 0.45
+  ) +
+  geom_text(
+    data = mxra5_dcm_annot,
+    aes(x = 1.5, y = label_y, label = p_label),
+    inherit.aes = FALSE,
+    size = 3.0,
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = group_cols, drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.08))) +
+  labs(
+    title = "MXRA5",
+    x = NULL,
+    y = "logCPM"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold", color = "black"),
+    axis.text.y = element_text(color = "black"),
+    axis.title.y = element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+## Pseudobulk MXRA5 by fibroblast cell state
+
+```{r pseudobulk MXRA5 by cell state}
+mxra5_subcluster_list <- list()
+
+for (cell_state_i in cell_state_levels) {
+  cells_state <- metadata_fb_matched %>%
+    dplyr::filter(cell_state == cell_state_i)
+
+  counts_state <- counts_fb[, cells_state$cell, drop = FALSE]
+  sample_vec_state <- cells_state$Sample_dataset
+  sample_levels_state <- unique(sample_vec_state)
+
+  counts_pb_state <- do.call(
+    cbind,
+    lapply(sample_levels_state, function(sid) {
+      Matrix::rowSums(counts_state[, sample_vec_state == sid, drop = FALSE])
+    })
+  )
+
+  counts_pb_state <- methods::as(counts_pb_state, "dgCMatrix")
+  rownames(counts_pb_state) <- rownames(counts_state)
+  colnames(counts_pb_state) <- sample_levels_state
+
+  sample_meta_state <- cells_state %>%
+    dplyr::select(Sample_dataset, Sample, Group, Dataset, cell_state) %>%
+    dplyr::distinct() %>%
+    dplyr::arrange(match(Sample_dataset, colnames(counts_pb_state)))
+
+  sample_meta_state$n_fibroblast_cells <- as.numeric(
+    table(factor(sample_vec_state, levels = colnames(counts_pb_state)))[sample_meta_state$Sample_dataset]
+  )
+  sample_meta_state$libsize <- Matrix::colSums(counts_pb_state)[sample_meta_state$Sample_dataset]
+
+  sample_meta_state <- sample_meta_state %>%
+    dplyr::filter(
+      libsize >= min_pb_libsize,
+      n_fibroblast_cells >= min_fibroblast_cells_subcluster
+    )
+
+  if (nrow(sample_meta_state) == 0) {
+    next
+  }
+
+  counts_pb_state <- counts_pb_state[, sample_meta_state$Sample_dataset, drop = FALSE]
+
+  dge_state <- edgeR::DGEList(counts = counts_pb_state)
+  dge_state <- edgeR::calcNormFactors(dge_state)
+  logcpm_state <- edgeR::cpm(dge_state, log = TRUE, prior.count = 1)
+
+  if (!"MXRA5" %in% rownames(logcpm_state)) {
+    next
+  }
+
+  mxra5_subcluster_list[[cell_state_i]] <- tibble::tibble(
+    Sample_dataset = colnames(logcpm_state),
+    logCPM = as.numeric(logcpm_state["MXRA5", ])
+  ) %>%
+    dplyr::left_join(sample_meta_state, by = "Sample_dataset")
+}
+
+mxra5_subcluster_df <- dplyr::bind_rows(mxra5_subcluster_list) %>%
+  dplyr::mutate(
+    cell_state = factor(as.character(cell_state), levels = cell_state_levels),
+    Group = factor(as.character(Group), levels = group_levels),
+    Dataset = factor(as.character(Dataset), levels = dataset_levels)
+  )
+
+write.csv(
+  mxra5_subcluster_df,
+  file.path(
+    output_dir_data,
+    paste0(
+      "MXRA5_pseudobulk_logCPM_by_cell_state_min_libsize_",
+      min_pb_libsize,
+      "_min_fibroblast_cells_",
+      min_fibroblast_cells_subcluster,
+      ".csv"
+    )
+  ),
+  row.names = FALSE
+)
+```
+
+## MXRA5 by cell state and dataset
+
+```{r MXRA5 stats by cell state and dataset}
+mxra5_subcluster_stats_by_dataset <- dplyr::bind_rows(lapply(dataset_levels, function(ds) {
+  dplyr::bind_rows(lapply(cell_state_levels, function(cs) {
+    tmp <- mxra5_subcluster_df %>%
+      dplyr::filter(Dataset == ds, cell_state == cs) %>%
+      droplevels()
+
+    disease_group <- setdiff(unique(as.character(tmp$Group)), "HC")
+
+    if (nrow(tmp) == 0 || length(disease_group) != 1 || !"HC" %in% unique(as.character(tmp$Group))) {
+      return(tibble::tibble(
+        Dataset = ds,
+        cell_state = cs,
+        disease_group = ifelse(length(disease_group) == 1, disease_group, NA_character_),
+        coefficient_logFC = NA_real_,
+        p_value = NA_real_
+      ))
+    }
+
+    tmp$Group <- stats::relevel(factor(tmp$Group), ref = "HC")
+    fit <- broom::tidy(lm(logCPM ~ Group, data = tmp))
+    term_use <- paste0("Group", disease_group)
+
+    tibble::tibble(
+      Dataset = ds,
+      cell_state = cs,
+      disease_group = disease_group,
+      coefficient_logFC = fit$estimate[fit$term == term_use],
+      p_value = fit$p.value[fit$term == term_use]
+    )
+  }))
+})) %>%
+  dplyr::mutate(
+    Dataset = factor(Dataset, levels = dataset_levels),
+    cell_state = factor(cell_state, levels = cell_state_levels),
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+write.csv(
+  mxra5_subcluster_stats_by_dataset,
+  file.path(output_dir_data, "MXRA5_by_cell_state_HC_vs_disease_by_dataset.csv"),
+  row.names = FALSE
+)
+
+mxra5_subcluster_stats_by_dataset %>%
+  reactable::reactable()
+```
+
+```{r boxplot MXRA5 by cell state and dataset, fig.width=16, fig.height=8, dpi = 300}
+mxra5_subcluster_y_by_dataset <- mxra5_subcluster_df %>%
+  dplyr::group_by(Dataset, cell_state) %>%
+  dplyr::summarise(
+    y = max(logCPM, na.rm = TRUE) + 0.5,
+    .groups = "drop"
+  )
+
+mxra5_subcluster_annot_by_dataset <- mxra5_subcluster_stats_by_dataset %>%
+  dplyr::left_join(
+    mxra5_subcluster_y_by_dataset,
+    by = c("Dataset", "cell_state")
+  )
+
+pd  <- position_dodge(width = 0.75)
+pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+ggplot(
+  mxra5_subcluster_df,
+  aes(x = cell_state, y = logCPM, fill = Group)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 1.2,
+    alpha = 0.8,
+    shape = 16
+  ) +
+  geom_text(
+    data = mxra5_subcluster_annot_by_dataset,
+    aes(
+      x = cell_state,
+      y = y,
+      label = p_label
+    ),
+    inherit.aes = FALSE,
+    size = 3,
+    fontface = "bold"
+  ) +
+  facet_wrap(~Dataset, ncol = 2, scales = "free_y") +
+  scale_fill_manual(values = group_cols) +
+  labs(
+    x = "Fibroblast cell state",
+    y = "MXRA5 logCPM"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
+    legend.title = element_blank()
+  )
+```
+
+## MXRA5 by cell state in pooled DCM datasets
+
+```{r MXRA5 stats by cell state pooled DCM}
+mxra5_subcluster_dcm_df <- mxra5_subcluster_df %>%
+  dplyr::filter(
+    Dataset %in% dcm_datasets,
+    Group %in% c("HC", "DCM")
+  ) %>%
+  dplyr::mutate(
+    Group = factor(as.character(Group), levels = c("HC", "DCM")),
+    Dataset = factor(as.character(Dataset), levels = dcm_datasets)
+  )
+
+mxra5_subcluster_dcm_stats <- dplyr::bind_rows(lapply(cell_state_levels, function(cs) {
+  tmp <- mxra5_subcluster_dcm_df %>%
+    dplyr::filter(cell_state == cs) %>%
+    droplevels()
+
+  if (nrow(tmp) == 0 || length(unique(tmp$Group)) < 2 || length(unique(tmp$Dataset)) < 2) {
+    return(tibble::tibble(
+      cell_state = cs,
+      coefficient_logFC = NA_real_,
+      p_value = NA_real_
+    ))
+  }
+
+  fit <- broom::tidy(lm(logCPM ~ Group + Dataset, data = tmp))
+
+  tibble::tibble(
+    cell_state = cs,
+    coefficient_logFC = fit$estimate[fit$term == "GroupDCM"],
+    p_value = fit$p.value[fit$term == "GroupDCM"]
+  )
+})) %>%
+  dplyr::mutate(
+    cell_state = factor(cell_state, levels = cell_state_levels),
+    p_label = vapply(p_value, get_p_label, character(1))
+  )
+
+write.csv(
+  mxra5_subcluster_dcm_stats,
+  file.path(output_dir_data, "MXRA5_by_cell_state_DCM_HC_adjusted_Dataset.csv"),
+  row.names = FALSE
+)
+
+mxra5_subcluster_dcm_stats
+```
+
+```{r boxplot MXRA5 by cell state pooled DCM, fig.width=10, fig.height=3.8, dpi = 300}
+mxra5_subcluster_dcm_y <- mxra5_subcluster_dcm_df %>%
+  dplyr::group_by(cell_state) %>%
+  dplyr::summarise(
+    y = max(logCPM, na.rm = TRUE) + 0.5,
+    .groups = "drop"
+  )
+
+mxra5_subcluster_dcm_annot <- mxra5_subcluster_dcm_stats %>%
+  dplyr::left_join(
+    mxra5_subcluster_dcm_y,
+    by = "cell_state"
+  )
+
+pd  <- position_dodge(width = 0.75)
+pjd <- position_jitterdodge(jitter.width = 0.12, dodge.width = 0.75, seed = 123)
+
+ggplot(
+  mxra5_subcluster_dcm_df,
+  aes(x = cell_state, y = logCPM, fill = Group)
+) +
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.8,
+    width = 0.7,
+    position = pd
+  ) +
+  geom_point(
+    position = pjd,
+    size = 1.2,
+    alpha = 0.8,
+    shape = 16
+  ) +
+  geom_text(
+    data = mxra5_subcluster_dcm_annot,
+    aes(
+      x = cell_state,
+      y = y,
+      label = p_label
+    ),
+    inherit.aes = FALSE,
+    size = 3.2,
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = group_cols) +
+  labs(
+    x = "Fibroblast cell state",
+    y = "MXRA5 logCPM"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_blank()
+  )
+```
+
+## Transcription factor inference analysis
+
+```{r net}
+DefaultAssay(FB_combined) <- "RNA"
+Idents(FB_combined) <- "cell_state"
+
+net <- get_collectri(organism='human', split_complexes=FALSE)
+```
+
+```{r percent_stats}
+expr_matrix <- GetAssayData(object = FB_combined, assay = "RNA", slot = "counts")
+non_zero_cells <- rowSums(expr_matrix > 0)
+total_cells <- ncol(expr_matrix)
+percent_cells <- (non_zero_cells / total_cells) * 100
+percent_stats <- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+```
+
+```{r filter percent_stats}
+net <- net %>% 
+  dplyr::filter(source %in% filter(percent_stats, percentCells > 1)$gene)
+```
+
+```{r TF_cols}
+TF_cols <- rev(colorRampPalette(RColorBrewer::brewer.pal(5, "BrBG"))(101))
+```
+
+```{r TF_tfsulm, eval=TRUE}
+mat <- as.matrix(FB_combined@assays$RNA@data)
+
+acts <- decoupleR::run_ulm(mat = mat, 
+                           net = net, 
+                           .source = 'source', 
+                           .target = 'target',
+                           .mor='mor', 
+                           minsize = 10)
+
+FB_combined[['tfsulm']] <- acts %>%
+                    tidyr::pivot_wider(id_cols = 'source', 
+                                       names_from = 'condition',
+                                       values_from = 'score') %>%
+                    tibble::column_to_rownames('source') %>%
+                    Seurat::CreateAssayObject(.)
+
+DefaultAssay(object = FB_combined) <- "tfsulm"
+
+FB_combined <- Seurat::ScaleData(FB_combined)
+FB_combined@assays$tfsulm@data <- FB_combined@assays$tfsulm@scale.data
+```
+
+```{r TF_heatmap_cluster_10, fig.width=4, fig.height=2.5}
+n_tfs <- 10
+
+df <- t(as.matrix(FB_combined@assays$tfsulm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(FB_combined)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+
+tfs <- df %>%
+       dplyr::group_by(source) %>%
+       dplyr::summarise(std = stats::sd(mean)) %>%
+       dplyr::arrange(-abs(std)) %>%
+       head(n_tfs) %>%
+       dplyr::pull(source)
+
+top_acts_mat <- df %>%
+                dplyr::filter(source %in% tfs) %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames('cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-2, 0, length.out = ceiling(101 / 2) + 1),
+               seq(0.05, 2, length.out = floor(101 / 2)))
+
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = TF_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+```{r TF_heatmap_cluster_20, fig.width=6, fig.height=2.5}
+n_tfs <- 20
+
+df <- t(as.matrix(FB_combined@assays$tfsulm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(FB_combined)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+
+tfs <- df %>%
+       dplyr::group_by(source) %>%
+       dplyr::summarise(std = stats::sd(mean)) %>%
+       dplyr::arrange(-abs(std)) %>%
+       head(n_tfs) %>%
+       dplyr::pull(source)
+
+top_acts_mat <- df %>%
+                dplyr::filter(source %in% tfs) %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames('cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-2, 0, length.out = ceiling(100 / 2) + 1),
+               seq(0.05, 2, length.out = floor(100 / 2)))
+
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = TF_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 15,
+                   cellheight = 15,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+```{r TF_Feat_HIF1A, fig.width=12, fig.height=4}
+Seurat::DefaultAssay(FB_combined) <- "tfsulm"
+p1 <- Seurat::DimPlot(FB_combined, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.1) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(FB_combined, features = c("HIF1A"), pt.size = 0.1, order=T) + 
+      ggplot2::scale_colour_gradient2(low = TF_cols[1], high = TF_cols[101], mid = "white") +
+      ggplot2::ggtitle('HIF1A activity')
+
+DefaultAssay(object = FB_combined) <- "RNA"
+p3 <- FeaturePlot_scCustom(FB_combined, 
+                          features = c("HIF1A"), pt.size = 0.1, order=T) + 
+      ggplot2::ggtitle('HIF1A expression')
+
+Seurat::DefaultAssay(FB_combined) <- "tfsulm"
+
+p <- p1 | p2 | p3
+p
+```
+
+## Pathway activity inference
+
+```{r net_pathway}
+net_path <- get_progeny(organism = 'human', top = 100000)
+```
+
+```{r Pathway_cols}
+Pathway_cols <- colorRampPalette(c("#28A2EB", "white", "#FFB233"))(101)
+```
+
+```{r Pathway_pathwaysmlm, eval=TRUE}
+acts_pathway <- decoupleR::run_mlm(mat = mat, 
+                           net = net_path, 
+                           .source = 'source', 
+                           .target = 'target',
+                           .mor = 'weight', 
+                           minsize = 10)
+
+FB_combined[['pathwaysmlm']] <- acts_pathway %>%
+                         tidyr::pivot_wider(id_cols = 'source', 
+                                            names_from = 'condition',
+                                            values_from = 'score') %>%
+                         tibble::column_to_rownames(var = 'source') %>%
+                         Seurat::CreateAssayObject(.)
+
+Seurat::DefaultAssay(object = FB_combined) <- "pathwaysmlm"
+
+FB_combined <- Seurat::ScaleData(FB_combined)
+FB_combined@assays$pathwaysmlm@data <- FB_combined@assays$pathwaysmlm@scale.data
+```
+
+```{r Pathway_heatmap_cluster, fig.width=6, fig.height=2.5}
+df_pathway <- t(as.matrix(FB_combined@assays$pathwaysmlm@data)) %>%
+      as.data.frame() %>%
+      dplyr::mutate(cluster = Seurat::Idents(FB_combined)) %>%
+      tidyr::pivot_longer(cols = -cluster, 
+                          names_to = "source", 
+                          values_to = "score") %>%
+      dplyr::group_by(cluster, source) %>%
+      dplyr::summarise(mean = mean(score))
+
+top_acts_mat <- df_pathway %>%
+                tidyr::pivot_wider(id_cols = 'cluster', 
+                                   names_from = 'source',
+                                   values_from = 'mean') %>%
+                tibble::column_to_rownames(var = 'cluster') %>%
+                as.matrix()
+
+my_breaks <- c(seq(-1.25, 0, length.out = ceiling(101 / 2) + 1),
+               seq(0.05, 1.25, length.out = floor(101 / 2)))
+
+pheatmap::pheatmap(mat = top_acts_mat,
+                   color = Pathway_cols,
+                   border_color = "white",
+                   breaks = my_breaks,
+                   cellwidth = 20,
+                   cellheight = 20,
+                   treeheight_row = 20,
+                   treeheight_col = 20) 
+```
+
+```{r Pathway_Feat_Hypoxia, fig.width=8, fig.height=4}
+Seurat::DefaultAssay(object = FB_combined) <- "pathwaysmlm"
+
+p1 <- Seurat::DimPlot(FB_combined, 
+                      reduction = "umap", 
+                      label = TRUE, 
+                      pt.size = 0.11) + 
+      Seurat::NoLegend() + 
+      ggplot2::ggtitle('Cell states')
+
+p2 <- Seurat::FeaturePlot(FB_combined, features = c("Hypoxia"), 
+                      pt.size = 0.1, order=T) + 
+      ggplot2::scale_colour_gradientn(colors = Pathway_cols
+                                      ) +
+      ggplot2::ggtitle('Hypoxia activity')
+
+p <- p1 | p2
+p
+```
+
+## Save final object
+
+```{r save FB_combined final, eval=TRUE}
+DefaultAssay(FB_combined) <- "RNA"
+qs_save(
+  FB_combined,
+  file = here::here(output_dir_data, "FB_combined.qs2"),
+  nthreads = 32
+)
+```
