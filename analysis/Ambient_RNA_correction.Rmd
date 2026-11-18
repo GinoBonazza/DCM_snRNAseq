@@ -1,0 +1,287 @@
+---
+title: "Residual ambient RNA correction"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  workflowr::wflow_html:
+    code_folding: none
+editor_options:
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 300, fig.retina = 1, 
+    fig.align = "center", dev = "png", dev.args = list(type = "cairo", family = "Arial"))
+library(here)
+current_file <- "Ambient_RNA_correction"
+output_dir_data <- here::here("output", current_file)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
+set.seed(20240606)
+```
+
+```{r libraries}
+library(Seurat)
+library(qs2)
+library(Matrix)
+library(SoupX)
+library(dplyr)
+library(ggplot2)
+O <- output_dir_data
+input_dir <- here::here("data", "processed", "SoupX")
+m <- read.csv(file.path(input_dir, "samples.csv"))
+manifest <- read.csv(file.path(input_dir, "source_profile_manifest.csv"))
+```
+
+## Empty-droplet profiles
+
+```{r source_profiles}
+for (i in seq_len(nrow(manifest))) {
+    r <- manifest[i, ]
+    s <- r$Sample
+    r$raw <- here::here(r$raw)
+    r$cellranger <- here::here(r$cellranger)
+    checkpoint <- file.path(input_dir, paste0("A_fresh_ambient_profile_", s, ".qs2"))
+    if (file.exists(checkpoint)) {
+        p <- qs2::qs_read(checkpoint, nthreads = 1)
+    }
+    else {
+        raw <- Read10X_h5(r$raw)
+        if (is.list(raw)) 
+            raw <- raw[["Gene Expression"]]
+        cr <- Read10X_h5(r$cellranger)
+        if (is.list(cr)) 
+            cr <- cr[["Gene Expression"]]
+        called <- colnames(cr)
+        stopifnot(setequal(rownames(raw), rownames(cr)), all(called %in% colnames(raw)))
+        difference <- raw[match(rownames(cr), rownames(raw)), match(called, colnames(raw)), drop = FALSE] - cr
+        stopifnot(!length(difference@x) || all(difference@x == 0))
+        total <- Matrix::colSums(raw)
+        keep <- total >= 10 & total <= 100 & !colnames(raw) %in% called
+        profile <- Matrix::rowSums(raw[, keep, drop = FALSE])
+        profile <- profile/sum(profile)
+        p <- list(profile = profile, source = "Empirical source raw 10-100 UMI droplets; all original CellRanger called barcodes excluded", 
+            empty_droplets = sum(keep), empty_total_UMI = sum(total[keep]))
+    }
+    qs2::qs_save(p, file.path(O, paste0("A_fresh_ambient_profile_", s, ".qs2")), nthreads = 1)
+}
+```
+
+## Compartment-specific SoupX correction
+
+```{r residual_correction}
+for (i in seq_len(nrow(m))) {
+    s <- m$Sample[i]
+    set.seed(20240606 + i)
+    a <- qs_read(file.path(input_dir, paste0("A_SoupX_input_", s, ".qs2")), nthreads = 1)
+    x <- a$counts
+    mm <- a$meta
+    stopifnot(identical(colnames(x), as.character(mm$cell)))
+    colnames(x) <- mm$barcode
+    p <- qs_read(file.path(O, paste0("A_fresh_ambient_profile_", s, ".qs2")), nthreads = 1)
+    prof <- p$profile[match(rownames(x), names(p$profile))]
+    prof[is.na(prof)] <- 0
+    stopifnot(all(prof >= 0), sum(prof) > 0)
+    prof <- prof/sum(prof)
+    sc <- SoupChannel(tod = x, toc = x, calcSoupProfile = FALSE)
+    sc$soupProfile <- data.frame(est = as.numeric(prof), counts = as.numeric(prof) * 1e+06, row.names = rownames(x))
+    sc <- setClusters(sc, setNames(as.character(mm$cell_type), mm$barcode))
+    training <- intersect(c("MYH6", "TNNI3", "TNNT2", "MYBPC3"), rownames(x))
+    negative <- mm$cell_type %in% c("Fibroblasts", "Endothelial cells", "Macrophages")
+    stopifnot(length(training) >= 3, sum(negative) >= 100, sum(x[training, negative, drop = FALSE]) > 0)
+    use <- matrix(negative, ncol = 1, dimnames = list(mm$barcode, "CM_training"))
+    sc_base <- sc
+    sc_nonCM <- calculateContaminationFraction(sc_base, list(CM_training = training), use, verbose = TRUE)
+    rho_nonCM <- sc_nonCM$metaData[mm$barcode, "rho"]
+    isCM <- as.character(mm$cell_type) == "Cardiomyocytes"
+    foreign_training <- intersect(c("DCN", "COL6A3", "VWF", "EMCN", "MRC1", "C1QA", "C1QB"), rownames(x))
+    foreign_heldout <- intersect(c("PDGFRA", "LUM", "COL1A1", "COL1A2", "PECAM1", "CDH5", "LST1", "TYROBP", "AIF1"), 
+        rownames(x))
+    stopifnot(sum(isCM) >= 100, length(foreign_training) >= 3, sum(prof[match(foreign_training, rownames(x))]) > 
+        0)
+    foreign_signal <- sum(x[foreign_training, isCM, drop = FALSE])
+    if (foreign_signal > 0) {
+        use_CM <- matrix(isCM, ncol = 1, dimnames = list(mm$barcode, "foreign_training"))
+        sc_CM <- calculateContaminationFraction(sc_base, list(foreign_training = foreign_training), use_CM, verbose = TRUE)
+        rho_CM <- sc_CM$metaData[mm$barcode, "rho"]
+        CM_fit_status <- "positive foreign-marker signal; fitted"
+    }
+    else {
+        rho_CM <- rep(0, ncol(x))
+        CM_fit_status <- "no foreign training counts in CM; zero-evidence boundary rho=0"
+    }
+    rho <- ifelse(isCM, rho_CM, rho_nonCM)
+    stopifnot(all(is.finite(rho)), all(rho >= 0), all(rho < 1))
+    sc <- setContaminationFraction(sc_base, setNames(rho, mm$barcode))
+    y <- adjustCounts(sc, roundToInt = TRUE, verbose = 1)
+    stopifnot(identical(dimnames(x), dimnames(y)), all(y@x >= 0))
+    d <- y - x
+    stopifnot(!length(d@x) || max(d@x) <= 0)
+    held <- intersect(c("MYH7", "TTN", "MYL2", "MYL3", "ACTC1"), rownames(x))
+    definitions <- read.csv(file.path(input_dir, "canonical_marker_definitions.csv"), stringsAsFactors = FALSE)
+    native <- split(definitions$gene, definitions$lineage)
+    native[["Cardiomyocytes"]] <- c("RYR2", "PLN", "RBM20", "CASQ2")
+    stopifnot(all(unique(as.character(mm$cell_type)) %in% names(native)))
+    qc <- list()
+    gene_qc <- list()
+    validation_genes <- intersect(unique(c(training, held, foreign_training, foreign_heldout, unlist(native))), rownames(x))
+    for (pop in unique(as.character(mm$cell_type))) {
+        jj <- which(mm$cell_type == pop)
+        ng <- intersect(native[[pop]], rownames(x))
+        qc[[pop]] <- data.frame(Sample = s, Group = as.character(mm$Group[jj[1]]), population = pop, nuclei = length(jj), 
+            rho_estimate = mean(rho[jj]), before_UMI = sum(x[, jj, drop = FALSE]), after_UMI = sum(y[, jj, drop = FALSE]), 
+            heldout_before = sum(x[held, jj, drop = FALSE]), heldout_after = sum(y[held, jj, drop = FALSE]), native_before = if (length(ng)) 
+                sum(x[ng, jj, drop = FALSE])
+            else NA_real_, native_after = if (length(ng)) 
+                sum(y[ng, jj, drop = FALSE])
+            else NA_real_, profile_source = p$source, source_kind = if (grepl("Empirical source raw", p$source, 
+                fixed = TRUE)) 
+                "empirical_raw"
+            else "source_H5_fallback")
+        gene_qc[[pop]] <- data.frame(Sample = s, Group = as.character(mm$Group[jj[1]]), population = pop, nuclei = length(jj), 
+            gene = validation_genes, is_training = validation_genes %in% training, is_heldout = validation_genes %in% held, is_native = validation_genes %in% 
+                ng, is_foreign_training_for_CM = validation_genes %in% foreign_training, is_foreign_heldout_for_CM = validation_genes %in% 
+                foreign_heldout, before_UMI = Matrix::rowSums(x[validation_genes, jj, drop = FALSE]), after_UMI = Matrix::rowSums(y[validation_genes, 
+                jj, drop = FALSE]), before_detected = Matrix::rowSums(x[validation_genes, jj, drop = FALSE] > 0), after_detected = Matrix::rowSums(y[validation_genes, 
+                jj, drop = FALSE] > 0))
+    }
+    rho <- sc$metaData[mm$barcode, "rho"]
+    stopifnot(length(rho) == ncol(y))
+    plot_genes <- intersect(c("MYH7", "TTN", "MYL2", "ACTC1"), rownames(x))
+    stopifnot(length(plot_genes) == 4)
+    fixed_library <- Matrix::colSums(x)
+    stopifnot(all(fixed_library > 0))
+    plot_rows <- list()
+    for (pop in intersect(c("Fibroblasts", "Endothelial cells", "Macrophages", "Cardiomyocytes"), unique(as.character(mm$cell_type)))) {
+        jj <- which(mm$cell_type == pop)
+        for (stage in c("After CellBender", "After CellBender + SoupX")) {
+            mat <- if (stage == "After CellBender") 
+                x
+            else y
+            block <- mat[plot_genes, jj, drop = FALSE]
+            plot_rows[[paste(pop, stage)]] <- data.frame(Sample = s, Group = as.character(mm$Group[jj[1]]), population = pop, 
+                stage = stage, gene = plot_genes, nuclei = length(jj), fraction_detected = Matrix::rowSums(block > 
+                  0)/length(jj), mean_normalized = as.numeric(block %*% (10000/fixed_library[jj]))/length(jj))
+        }
+    }
+    write.csv(bind_rows(plot_rows), file.path(O, paste0("A_SoupX_dotplot_donor_", s, ".csv")), row.names = FALSE)
+    colnames(y) <- mm$cell
+    qs_save(list(counts = y, meta = mm, rho = rho, profile_source = p$source, method = "fresh residual marker-guided SoupX with CM/non-CM negative-marker compartment fits"), 
+        file.path(O, paste0("Corrected_", s, ".qs2")), nthreads = 1)
+    write.csv(bind_rows(qc), file.path(O, paste0("A_SoupX_v2_QC_", s, ".csv")), row.names = FALSE)
+    write.csv(bind_rows(gene_qc), file.path(O, paste0("A_SoupX_v2_gene_QC_", s, ".csv")), row.names = FALSE)
+    write.csv(data.frame(Sample = s, nuclei = ncol(x), rho = mean(rho), rho_min = min(rho), rho_max = max(rho), 
+        negative_nuclei = sum(negative), training_negative_UMI = sum(x[training, negative, drop = FALSE]), training_profile_fraction = sum(prof[match(training, 
+            rownames(x))]), profile_source = p$source, rho_nonCM_from_CM_training = mean(rho_nonCM), rho_CM_from_foreign_training = mean(rho_CM), 
+        CM_nuclei = sum(isCM), CM_foreign_training_UMI = foreign_signal, CM_foreign_training_profile_fraction = sum(prof[match(foreign_training, 
+            rownames(x))]), CM_fit_status = CM_fit_status), file.path(O, paste0("A_SoupX_v2_correction_", s, ".csv")), 
+        row.names = FALSE)
+}
+```
+
+## Corrected RNA object
+
+```{r combine_samples}
+orig <- qs2::qs_read(here::here("data", "processed", "QC", "annotated_RNA.qs2"), nthreads = 2)
+xs <- list()
+mds <- list()
+qc <- list()
+gene_qc <- list()
+corrections <- list()
+for (s in m$Sample) {
+    a <- qs_read(file.path(O, paste0("Corrected_", s, ".qs2")), nthreads = 1)
+    stopifnot(identical(colnames(a$counts), as.character(a$meta$cell)), all(a$counts@x >= 0), all(a$counts@x == 
+        round(a$counts@x)), all(is.finite(a$rho)), all(a$rho >= 0), all(a$rho < 1))
+    if (length(xs)) 
+        stopifnot(identical(rownames(a$counts), rownames(xs[[1]])))
+    xs[[s]] <- a$counts
+    mds[[s]] <- a$meta
+    qc[[s]] <- read.csv(file.path(O, paste0("A_SoupX_v2_QC_", s, ".csv")))
+    gene_qc[[s]] <- read.csv(file.path(O, paste0("A_SoupX_v2_gene_QC_", s, ".csv")))
+    corrections[[s]] <- read.csv(file.path(O, paste0("A_SoupX_v2_correction_", s, ".csv")))
+}
+x <- do.call(cbind, xs)
+md <- bind_rows(mds)
+rownames(md) <- md$cell
+stopifnot(!anyDuplicated(colnames(x)), setequal(colnames(x), colnames(orig)))
+x <- x[, colnames(orig), drop = FALSE]
+md <- md[colnames(orig), , drop = FALSE]
+stopifnot(identical(colnames(x), rownames(md)), identical(rownames(x), rownames(orig)))
+md$A_before_SoupX_nCount_RNA <- md$nCount_RNA
+md$A_before_SoupX_nFeature_RNA <- md$nFeature_RNA
+md$A_before_SoupX_percent.mt <- md$percent.mt
+md$A_before_SoupX_percent.rp <- md$percent.rp
+md <- md[, setdiff(names(md), c("nCount_RNA", "nFeature_RNA")), drop = FALSE]
+out <- CreateSeuratObject(x, meta.data = md, min.cells = 0, min.features = 0)
+out$percent.mt <- PercentageFeatureSet(out, pattern = "^MT-")
+out$percent.rp <- PercentageFeatureSet(out, pattern = "^RP[SL]")
+stopifnot(identical(colnames(out), colnames(orig)), !anyNA(out$cell_type))
+qs_save(out, file.path(O, "Ambient_corrected_RNA.qs2"), nthreads = 2)
+write.csv(out[[]], file.path(O, "A_fresh_SoupX_metadata.csv"))
+tab <- bind_rows(qc)
+tab$heldout_fraction_removed <- ifelse(tab$heldout_before > 0, 1 - tab$heldout_after/tab$heldout_before, NA_real_)
+tab$native_fraction_removed <- ifelse(tab$native_before > 0, 1 - tab$native_after/tab$native_before, NA_real_)
+tab$UMI_fraction_removed <- 1 - tab$after_UMI/tab$before_UMI
+write.csv(tab, file.path(O, "A_SoupX_validation_by_donor_lineage.csv"), row.names = FALSE)
+write.csv(bind_rows(gene_qc), file.path(O, "A_SoupX_validation_by_donor_lineage_gene.csv"), row.names = FALSE)
+write.csv(bind_rows(corrections), file.path(O, "A_SoupX_correction_by_donor.csv"), row.names = FALSE)
+expected <- qs2::qs_read(here::here("data", "processed", "RNA_quality_control.qs2"), nthreads = 2)
+stopifnot(isTRUE(all.equal(GetAssayData(out, assay = "RNA", slot = "counts"), GetAssayData(expected, assay = "RNA", 
+    slot = "counts"), tolerance = 0)))
+rm(expected, orig, x, xs)
+gc()
+```
+
+## Held-out cardiac markers
+
+```{r heldout_markers, fig.width=11, fig.height=7}
+z <- bind_rows(lapply(m$Sample, function(s) read.csv(file.path(O, paste0("A_SoupX_dotplot_donor_", s, ".csv")))))
+stopifnot(nrow(z) == 29 * 4 * 4 * 2, !anyDuplicated(z[, c("Sample", "population", "stage", "gene")]), all(z$fraction_detected >= 
+    0 & z$fraction_detected <= 1), all(z$mean_normalized >= 0))
+a <- z[z$stage == "After CellBender", ]
+b <- z[z$stage == "After CellBender + SoupX", ]
+key <- function(d) paste(d$Sample, d$population, d$gene)
+b <- b[match(key(a), key(b)), ]
+stopifnot(identical(key(a), key(b)), identical(a$nuclei, b$nuclei), all(a$mean_normalized + 1e-12 >= b$mean_normalized), 
+    all(a$fraction_detected >= b$fraction_detected))
+s <- z %>% group_by(Group, population, stage, gene) %>% summarise(donors = n_distinct(Sample), mean_normalized = mean(mean_normalized), 
+    percent_detected = 100 * mean(fraction_detected), .groups = "drop")
+s <- s %>% group_by(gene) %>% mutate(colour_value = log1p(mean_normalized)/max(log1p(mean_normalized))) %>% ungroup()
+s$population <- factor(s$population, levels = rev(c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Macrophages")))
+s$stage <- factor(s$stage, levels = c("After CellBender", "After CellBender + SoupX"))
+s$Group <- factor(s$Group, levels = c("HC", "DCM"))
+s$gene <- factor(s$gene, levels = c("MYH7", "TTN", "MYL2", "ACTC1"))
+p <- ggplot(s, aes(gene, population)) + geom_point(aes(size = percent_detected, colour = colour_value)) + facet_grid(Group ~ 
+    stage) + scale_size_area(name = "Nuclei expressing\nthe gene (%)", max_size = 9, limits = c(0, 100), breaks = c(0, 
+    25, 50, 75, 100)) + scale_colour_gradient(name = "Relative mean\nexpression", low = "#DCE8F1", high = "#004C8C", 
+    limits = c(0, 1)) + labs(x = NULL, y = NULL, title = "Residual cardiac RNA before and after SoupX", subtitle = "Same nuclei at both stages; donors weighted equally", 
+    caption = "Colour is log1p mean expression relative to the maximum for each gene across both stages, groups and cell types\nNormalization uses each nucleus’s pre-SoupX library size at both stages; genes were not used to fit non-CM contamination") + 
+    theme_bw(base_family = "Arial", base_size = 12) + theme(panel.grid = element_blank(), axis.text.x = element_text(face = "italic"), 
+    strip.text = element_text(face = "bold"), plot.caption = element_text(size = 9, hjust = 0), legend.position = "right", 
+    plot.margin = margin(10, 14, 10, 10))
+p
+```
+
+## Donor-level correction
+
+```{r donor_validation, fig.width=11, fig.height=5}
+validation <- read.csv(file.path(O, "A_SoupX_validation_by_donor_lineage.csv"))
+correction <- read.csv(file.path(O, "A_SoupX_correction_by_donor.csv"))
+knitr::kable(correction[, c("Sample", "nuclei", "rho_nonCM_from_CM_training", "rho_CM_from_foreign_training")])
+ggplot(validation, aes(population, heldout_fraction_removed, fill = Group)) + geom_boxplot(outlier.shape = NA) + 
+    geom_point(position = position_jitterdodge(jitter.width = 0.1, seed = 1), size = 0.8) + theme_classic(base_family = "Arial") + 
+    theme(axis.text.x = element_text(angle = 40, hjust = 1)) + labs(x = NULL, y = "Held-out cardiac UMI fraction removed")
+```
+
+## Supplementary tables
+
+```{r supplementary_tables}
+tables <- list(Correction_by_donor = correction, Validation_by_lineage = validation, Validation_by_gene = read.csv(file.path(O, 
+    "A_SoupX_validation_by_donor_lineage_gene.csv")), Heldout_donor_values = z, Heldout_group_values = s)
+saveRDS(tables, file.path(O, "SoupX_results_for_EV2.rds"))
+```

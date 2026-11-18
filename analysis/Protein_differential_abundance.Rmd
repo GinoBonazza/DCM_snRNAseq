@@ -1,0 +1,491 @@
+---
+title: "Protein differential abundance and enrichment"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  workflowr::wflow_html:
+    code_folding: none
+editor_options:
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 600, fig.retina = 1, 
+    fig.align = "center", dev = "png", dev.args = list(type = "cairo", family = "Arial"))
+library(here)
+current_file <- "Protein_differential_abundance"
+output_dir_data <- here::here("output", current_file)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
+set.seed(20240606)
+```
+
+```{r libraries}
+library(limma)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggrepel)
+library(EnhancedVolcano)
+library(patchwork)
+library(ComplexHeatmap)
+library(circlize)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+O <- output_dir_data
+input <- here::here("output", "Protein_quality_control", "Proteomics_QC.rds")
+```
+
+## Differential abundance
+
+```{r differential_abundance}
+q <- readRDS(input)
+parameters <- c("mPAP_mmHg", "sPAP_mmHg", "PCW_mmHg", "PVR_WU", "TAPSE_mm", "RVIT_mm", "LVEF_percent", "LVEDD_mm", 
+    "RV_state", "DCM_vs_HC")
+samples <- intersect(colnames(q$olink), colnames(q$ms))
+m <- as.data.frame(q$clinical[match(samples, q$clinical$Sample), ])
+stopifnot(identical(as.character(m$Sample), samples), !anyDuplicated(samples))
+if ("BCA_mg_ml" %in% names(m)) m$BCA_mg_ml <- NULL
+m$BCA_mg_ml <- q$olink_metadata$BCA_mg_ml[match(m$Sample, q$olink_metadata$Sample)]
+for (n in c(parameters[1:8], "Age_years", "BCA_mg_ml")) m[[n]] <- as.numeric(m[[n]])
+m$RV_state <- ifelse(m$Group == "DCM" & is.finite(m$mPAP_mmHg) & m$mPAP_mmHg > 20 & is.finite(m$TAPSE_mm/m$sPAP_mmHg), 
+    ifelse(m$TAPSE_mm/m$sPAP_mmHg > 0.36, "Compensated", "Decompensated"), NA)
+write.csv(m, file.path(O, "A_cohort.csv"), row.names = FALSE, na = "")
+results <- list()
+models <- list()
+summary <- list()
+for (assay in c("Olink", "MS")) for (param in parameters) {
+    key <- paste(assay, param, sep = "__")
+    message(format(Sys.time(), "%FT%T"), " ", key)
+    meta <- m
+    if (param != "DCM_vs_HC") 
+        meta <- meta[meta$Group == "DCM", , drop = FALSE]
+    if (param == "DCM_vs_HC") 
+        meta$predictor <- factor(meta$Group, levels = c("HC", "DCM"))
+    else if (param == "RV_state") 
+        meta$predictor <- factor(meta$RV_state, levels = c("Compensated", "Decompensated"))
+    else meta$predictor <- meta[[param]]
+    covs <- c("Age_years", if (assay == "Olink") "BCA_mg_ml", "Sex")
+    meta <- meta[complete.cases(meta[, c("Sample", "predictor", covs)]), , drop = FALSE]
+    meta$Sex <- droplevels(factor(meta$Sex))
+    if (nlevels(meta$Sex) < 2) 
+        covs <- setdiff(covs, "Sex")
+    rescale <- function(x) {
+        stopifnot(diff(range(x)) > 0)
+        (x - min(x))/diff(range(x))
+    }
+    if (is.numeric(meta$predictor)) 
+        meta$predictor <- rescale(meta$predictor)
+    for (n in setdiff(covs, "Sex")) meta[[n]] <- rescale(meta[[n]])
+    X <- model.matrix(reformulate(c("predictor", covs)), meta)
+    stopifnot(qr(X)$rank == ncol(X), nrow(X) > ncol(X) + 1)
+    coefidx <- which(startsWith(colnames(X), "predictor"))
+    stopifnot(length(coefidx) == 1)
+    y <- q[[if (assay == "Olink") 
+        "olink"
+    else "ms"]][, meta$Sample, drop = FALSE]
+    stopifnot(!anyDuplicated(rownames(y)), all(is.finite(y) | is.na(y)))
+    fit <- lmFit(y, X, na.action = na.exclude)
+    estimable <- is.finite(fit$coefficients[, coefidx]) & is.finite(fit$stdev.unscaled[, coefidx]) & is.finite(fit$sigma) & 
+        fit$df.residual > 0 & is.finite(fit$Amean)
+    write.csv(data.frame(feature = rownames(y), n_observed = rowSums(is.finite(y)), estimable = estimable), file.path(O, 
+        paste0(key, "__estimability.csv")), row.names = FALSE)
+    fit <- fit[estimable, ]
+    y <- y[estimable, , drop = FALSE]
+    fit <- eBayes(fit, robust = TRUE, trend = assay == "MS")
+    tab <- topTable(fit, coef = coefidx, number = Inf, sort.by = "none")
+    tab$feature <- rownames(tab)
+    rownames(tab) <- NULL
+    tab$FDR <- tab$adj.P.Val
+    tab$assay <- assay
+    tab$comparison <- param
+    idx <- match(tab$feature, rownames(y))
+        tab$n_observed <- rowSums(is.finite(y))[idx]
+    tab$n_model <- nrow(meta)
+    tab$direction <- ifelse(tab$logFC > 0, "Positive", "Negative")
+    write.csv(tab, file.path(O, paste0(key, "__DE.csv")), row.names = FALSE, na = "")
+    write.csv(data.frame(Sample = meta$Sample, Group = meta$Group, Sex = meta$Sex, X, check.names = FALSE), file.path(O, 
+        paste0(key, "__design.csv")), row.names = FALSE)
+    results[[key]] <- tab
+    models[[key]] <- list(fit = fit, design = X, meta = meta, expression = y, coefidx = coefidx)
+    counts <- table(factor(meta$Group, levels = c("DCM", "HC")))
+    summary[[key]] <- data.frame(key, assay, comparison = param, n = nrow(meta), n_DCM = counts[1], n_HC = counts[2], 
+        n_female = sum(tolower(as.character(meta$Sex)) %in% c("f", "female")), tested = sum(is.finite(tab$P.Value)), 
+        FDR05 = sum(tab$FDR < 0.05, na.rm = TRUE), FDR10 = sum(tab$FDR < 0.1, na.rm = TRUE), FDR20 = sum(tab$FDR < 
+            0.2, na.rm = TRUE), positive20 = sum(tab$FDR < 0.2 & tab$logFC > 0, na.rm = TRUE), negative20 = sum(tab$FDR < 
+            0.2 & tab$logFC < 0, na.rm = TRUE), adjustment = paste(covs, collapse = " + "), effect = if (param == 
+            "DCM_vs_HC") 
+            "DCM minus HC"
+        else if (param == "RV_state") 
+            "Decompensated minus compensated"
+        else "Observed minimum to maximum", stringsAsFactors = FALSE)
+}
+summary <- do.call(rbind, summary)
+rownames(summary) <- NULL
+write.csv(summary, file.path(O, "A_DE_summary.csv"), row.names = FALSE)
+saveRDS(list(results = results, models = models, summary = summary, input = input), file.path(O, "A_DE_models.rds"))
+```
+
+## Gene Ontology enrichment
+
+```{r GO_enrichment}
+a <- readRDS(file.path(O, "A_DE_models.rds"))
+for (task in seq_along(a$results)) {
+    key <- names(a$results)[task]
+    tab <- a$results[[key]]
+    set.seed(20261106L + task)
+    tab <- tab[is.finite(tab$logFC) & is.finite(tab$P.Value), ]
+    tab$metric <- tab$logFC * -log10(pmax(tab$P.Value, .Machine$double.xmin))
+    map <- bitr(unique(tab$feature), fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db, drop = TRUE)
+    z <- merge(tab, map, by.x = "feature", by.y = "SYMBOL", sort = FALSE)
+    z <- z[order(-abs(z$metric), z$P.Value, z$feature, z$ENTREZID), ]
+    z <- z[!duplicated(z$ENTREZID), ]
+    z <- z[order(-z$metric, z$ENTREZID), ]
+    ranks <- setNames(z$metric, z$ENTREZID)
+    stopifnot(!anyDuplicated(names(ranks)), all(is.finite(ranks)), all(diff(ranks) <= 0))
+    write.csv(z, file.path(O, paste0(key, "__GSEA_rank_mapping.csv")), row.names = FALSE)
+    g <- gseGO(geneList = ranks, OrgDb = org.Hs.eg.db, ont = "ALL", keyType = "ENTREZID", nPermSimple = 10000, 
+        minGSSize = 10, pvalueCutoff = 1, eps = 0, seed = TRUE, verbose = FALSE)
+    all <- as.data.frame(g)
+    write.csv(all, file.path(O, paste0(key, "__GO_all.csv")), row.names = FALSE)
+    sig <- all[is.finite(all$p.adjust) & all$p.adjust < 0.1, , drop = FALSE]
+    s <- g
+    s@result <- sig
+    if (nrow(sig) > 0) 
+        s <- clusterProfiler::simplify(s, cutoff = 0.75, by = "p.adjust", select_fun = min, measure = "Wang", semData = NULL)
+    simple <- as.data.frame(s)
+    write.csv(simple, file.path(O, paste0(key, "__GO_simplified_FDR10.csv")), row.names = FALSE)
+    saveRDS(list(key = key, all = g, simplified = s, ranks = ranks, mapping = z, seed = 20261106L + task), file.path(O, 
+        paste0(key, "__GSEA.rds")))
+}
+```
+
+## Setup
+
+```{r plot_settings}
+a <- readRDS(file.path(O, "A_DE_models.rds"))
+s <- a$summary
+stopifnot(length(a$results) == 20, all(file.exists(file.path(O, paste0(names(a$results), "__GSEA.rds")))))
+T <- O
+q <- readRDS(input)
+ordered_parameters <- c("mPAP_mmHg", "sPAP_mmHg", "PVR_WU", "PCW_mmHg", "RVIT_mm", "TAPSE_mm", "LVEF_percent", 
+    "LVEDD_mm", "DCM_vs_HC")
+olink_da_results <- list()
+ms_da_results <- list()
+for (param in ordered_parameters) {
+    olink_da_results[[param]] <- a$results[[paste("Olink", param, sep = "__")]] %>% mutate(n_complete_samples = n_model)
+    ms_da_results[[param]] <- a$results[[paste("MS", param, sep = "__")]] %>% mutate(n_complete_samples = n_model)
+}
+s$positive10 <- vapply(a$results, function(x) sum(x$FDR < 0.1 & x$logFC > 0, na.rm = TRUE), integer(1))
+s$negative10 <- vapply(a$results, function(x) sum(x$FDR < 0.1 & x$logFC < 0, na.rm = TRUE), integer(1))
+stopifnot(identical(s$key, names(a$results)), all(s$FDR10 == s$positive10 + s$negative10))
+write.csv(s, file.path(T, "A_DE_summary.csv"), row.names = FALSE)
+sumtab <- s %>% filter(comparison %in% ordered_parameters) %>% transmute(assay, parameter = comparison, Up = positive10, 
+    Down = negative10) %>% pivot_longer(c(Up, Down), names_to = "direction", values_to = "n_sig")
+olink_da_summary_df <- filter(sumtab, assay == "Olink")
+ms_da_summary_df <- filter(sumtab, assay == "MS")
+fmt <- function(x) ifelse(is.na(x), "NA", formatC(x, digits = 3, format = "g"))
+showtable <- function(x) knitr::kable(x, format = "html", row.names = FALSE)
+theme_set(theme_classic(base_size = 12, base_family = "Arial"))
+```
+
+## Helper functions
+
+```{r helper_functions}
+pretty_var_names <- c(mPAP_mmHg = "mPAP (mmHg)", sPAP_mmHg = "sPAP (mmHg)", PVR_WU = "PVR (WU)", PCW_mmHg = "PCWP (mmHg)", 
+    RVIT_mm = "RVIT (mm)", TAPSE_mm = "TAPSE (mm)", LVEF_percent = "LVEF (%)", LVEDD_mm = "LVEDD (mm)", DCM_vs_HC = "DCM vs HC")
+ordered_params <- ordered_parameters
+`%||%` <- function(x, y) if (is.null(x)) y else x
+make_clinical_volcano <- function(res, param, pretty_var_names, p_cutoff = 0.1) {
+    keyvals <- rep("grey70", nrow(res))
+    names(keyvals) <- rep("Not significant", nrow(res))
+    keyvals[res$logFC > 0 & res$adj.P.Val < p_cutoff] <- "#A63A2A"
+    names(keyvals)[keyvals == "#A63A2A"] <- "Positive"
+    keyvals[res$logFC < 0 & res$adj.P.Val < p_cutoff] <- "#004C8C"
+    names(keyvals)[keyvals == "#004C8C"] <- "Negative"
+    EnhancedVolcano(res, lab = res$feature, x = "logFC", y = "adj.P.Val", labSize = 0, titleLabSize = 15, subtitleLabSize = 12, 
+        axisLabSize = 11, captionLabSize = 9, pointSize = 0.8, FCcutoff = 0, pCutoff = p_cutoff, ylim = c(0, max(2.5, 
+            ceiling(max(-log10(res$adj.P.Val), na.rm = TRUE) + 0.5))), colCustom = keyvals, colAlpha = 1, drawConnectors = FALSE, 
+        subtitle = NULL, title = paste0(pretty_var_names[[param]] %||% param, "\n", "n = ", unique(res$n_complete_samples)), 
+        xlab = "Effect size (rescaled 0-1 predictor)", ylab = expression(-log[10](FDR))) + theme(legend.position = "none", 
+        text = element_text(family = "Arial"))
+}
+build_sig_heatmap <- function(res_tbl, expr_mat, meta_df, param, assay_label, sig_cutoff = 0.1, filter_detect_frac = NULL) {
+    meta_sub <- meta_df %>% dplyr::select(Sample, all_of(param)) %>% dplyr::distinct(Sample, .keep_all = TRUE) %>% 
+        dplyr::filter(Sample %in% colnames(expr_mat)) %>% dplyr::filter(!is.na(.data[[param]])) %>% dplyr::arrange(.data[[param]])
+    expr_sub <- expr_mat[, meta_sub$Sample, drop = FALSE]
+    if (!is.null(filter_detect_frac)) {
+        keep_rows <- rowMeans(!is.na(expr_sub)) >= filter_detect_frac
+        expr_sub <- expr_sub[keep_rows, , drop = FALSE]
+    }
+    sig_tbl <- res_tbl %>% dplyr::filter(adj.P.Val < sig_cutoff) %>% dplyr::filter(feature %in% rownames(expr_sub)) %>% 
+        dplyr::arrange(dplyr::desc(logFC))
+    if (nrow(sig_tbl) == 0) {
+        message("No significant features for ", assay_label, " - ", param)
+        return(NULL)
+    }
+    mat <- expr_sub[sig_tbl$feature, meta_sub$Sample, drop = FALSE]
+    mat_z <- t(scale(t(mat)))
+    mat_z[is.nan(mat_z)] <- 0
+    mat_z[!is.finite(mat_z)] <- 0
+    stopifnot(all(meta_df$Group[match(meta_sub$Sample, meta_df$Sample)] == "DCM"))
+    write.csv(sig_tbl, file.path(T, paste0("A_", sub("_mm$", "", param), "_heatmap_features.csv")), row.names = FALSE)
+    write.csv(mat, file.path(T, paste0("A_", sub("_mm$", "", param), "_heatmap_abundance.csv")))
+    write.csv(mat_z, file.path(T, paste0("A_", sub("_mm$", "", param), "_heatmap_zscores.csv")))
+    write.csv(meta_sub, file.path(T, paste0("A_", sub("_mm$", "", param), "_heatmap_donors.csv")), row.names = FALSE)
+    row_split <- ifelse(sig_tbl$logFC > 0, paste0("Positive association with ", pretty_var_names[[param]] %||% 
+        param), paste0("Negative association with ", pretty_var_names[[param]] %||% param))
+    ann_df <- data.frame(row.names = meta_sub$Sample)
+    ann_df[[pretty_var_names[[param]] %||% param]] <- meta_sub[[param]]
+    ann_col_list <- list()
+    ann_col_list[[pretty_var_names[[param]] %||% param]] <- circlize::colorRamp2(c(min(meta_sub[[param]], na.rm = TRUE), 
+        median(meta_sub[[param]], na.rm = TRUE), max(meta_sub[[param]], na.rm = TRUE)), c("#DCEAF7", "#6AAED6", 
+        "#08306B"))
+    ha <- ComplexHeatmap::HeatmapAnnotation(df = ann_df, col = ann_col_list, annotation_name_gp = grid::gpar(fontfamily = "Arial", 
+        fontsize = 9))
+    row_height_mm <- 2.5
+    heatmap_height <- grid::unit(max(2, nrow(mat_z)) * row_height_mm, "mm")
+    ComplexHeatmap::Heatmap(mat_z, name = "Z-score", col = circlize::colorRamp2(c(-2, 0, 2), c("#2166AC", "white", 
+        "#B2182B")), top_annotation = ha, cluster_rows = FALSE, cluster_columns = FALSE, row_split = row_split, 
+        show_row_dend = FALSE, show_column_dend = FALSE, column_title = paste0(assay_label, " - significant features for ", 
+            pretty_var_names[[param]] %||% param), row_title = NULL, column_names_rot = 90, column_names_gp = grid::gpar(fontfamily = "Arial", 
+            fontsize = 8), row_names_gp = grid::gpar(fontfamily = "Arial", fontsize = 7), height = heatmap_height)
+}
+```
+
+## Differential abundance summary
+
+```{r differential_abundance_summary, fig.width=3.8, fig.height=5.5}
+deg_summary <- bind_rows(olink_da_summary_df, ms_da_summary_df) %>% dplyr::mutate(assay = dplyr::recode(assay, 
+    `LC-MS/MS` = "MS", `Mass spec` = "MS"), parameter = factor(parameter, levels = ordered_params), parameter_label = factor(pretty_var_names[as.character(parameter)], 
+    levels = pretty_var_names[ordered_params]), assay = factor(assay, levels = c("Olink", "MS")), direction = factor(direction, 
+    levels = c("Up", "Down")))
+ggplot(deg_summary, aes(x = assay, y = parameter_label, fill = n_sig)) + geom_tile(color = "white", linewidth = 0.8) + 
+    geom_text(aes(label = n_sig), size = 4) + scale_fill_gradient(low = "grey95", high = "#A63A2A") + facet_wrap(~direction, 
+    ncol = 2) + labs(x = NULL, y = NULL, fill = "n proteins") + theme_classic(base_family = "Arial", base_size = 13) + 
+    theme(plot.margin = margin(8, 8, 8, 20), axis.line = element_blank(), panel.border = element_blank(), strip.background = element_blank(), 
+        strip.text = element_text(face = "bold"), axis.text.x = element_text(face = "bold"), axis.text.y = element_text(face = "bold"), 
+        legend.position = "bottom", legend.direction = "horizontal") + guides(fill = guide_colorbar(title.position = "top", 
+    title.hjust = 0.5, barwidth = grid::unit(4.5, "cm"), barheight = grid::unit(0.4, "cm")))
+```
+
+## Rvit volcano plots
+
+```{r RVIT_volcano_plots, fig.width=6, fig.height=4}
+p_RVIT_olink <- make_clinical_volcano(res = olink_da_results[["RVIT_mm"]], param = "RVIT_mm", pretty_var_names = pretty_var_names, 
+    p_cutoff = 0.1) + ggtitle("Olink - RVIT")
+p_RVIT_ms <- make_clinical_volcano(res = ms_da_results[["RVIT_mm"]], param = "RVIT_mm", pretty_var_names = pretty_var_names, 
+    p_cutoff = 0.1) + ggtitle("MS - RVIT")
+pp <- p_RVIT_olink + p_RVIT_ms
+for (ext in c("png", "pdf")) ggsave(paste0(output_dir_figs, "/RVIT_volcano_pair.", ext), pp, width = 6, height = 4, 
+    dpi = 600, device = if (ext == "pdf") grDevices::cairo_pdf else "png")
+print(pp)
+```
+
+## Tapse volcano plots
+
+```{r TAPSE_volcano_plots, fig.width=6, fig.height=4}
+p_TAPSE_olink <- make_clinical_volcano(res = olink_da_results[["TAPSE_mm"]], param = "TAPSE_mm", pretty_var_names = pretty_var_names, 
+    p_cutoff = 0.1) + ggtitle("Olink - TAPSE")
+p_TAPSE_ms <- make_clinical_volcano(res = ms_da_results[["TAPSE_mm"]], param = "TAPSE_mm", pretty_var_names = pretty_var_names, 
+    p_cutoff = 0.1) + ggtitle("MS - TAPSE")
+pp <- p_TAPSE_olink + p_TAPSE_ms
+for (ext in c("png", "pdf")) ggsave(paste0(output_dir_figs, "/TAPSE_volcano_pair.", ext), pp, width = 6, height = 4, 
+    dpi = 600, device = if (ext == "pdf") grDevices::cairo_pdf else "png")
+print(pp)
+```
+
+## Dcm hc volcanoes
+
+```{r DCM_HC_volcanoes, fig.width=6, fig.height=4}
+p1 <- make_clinical_volcano(olink_da_results[["DCM_vs_HC"]], "DCM_vs_HC", pretty_var_names) + ggtitle("Olink - DCM vs HC") + 
+    labs(x = "log2 abundance difference\n(DCM - HC)")
+p2 <- make_clinical_volcano(ms_da_results[["DCM_vs_HC"]], "DCM_vs_HC", pretty_var_names) + ggtitle("MS - DCM vs HC") + 
+    labs(x = "log2 abundance difference\n(DCM - HC)")
+pp <- p1 + p2
+for (ext in c("png", "pdf")) ggsave(paste0(output_dir_figs, "/DCM_HC_volcano_pair.", ext), pp, width = 6, height = 4, 
+    dpi = 600, device = if (ext == "pdf") grDevices::cairo_pdf else "png")
+print(pp)
+```
+
+## Tapse heatmap
+
+```{r TAPSE_heatmap, fig.width=9, fig.height=2.5}
+ms_expr <- a$models[["Olink__TAPSE_mm"]]$expression
+ms_meta <- q$clinical[match(colnames(ms_expr), q$clinical$Sample), ]
+ms_TAPSE_heat <- build_sig_heatmap(res_tbl = olink_da_results[["TAPSE_mm"]], expr_mat = ms_expr, meta_df = ms_meta, 
+    param = "TAPSE_mm", assay_label = "Olink", sig_cutoff = 0.1, filter_detect_frac = NULL)
+if (!is.null(ms_TAPSE_heat)) {
+    ComplexHeatmap::draw(ms_TAPSE_heat, heatmap_legend_side = "right", annotation_legend_side = "right", padding = grid::unit(c(2, 
+        8, 2, 2), "mm"))
+}
+```
+
+## Rvit heatmap
+
+```{r RVIT_heatmap, fig.width=9, fig.height=3.1}
+ms_expr <- a$models[["MS__RVIT_mm"]]$expression
+ms_meta <- q$clinical[match(colnames(ms_expr), q$clinical$Sample), ]
+ms_RVIT_heat <- build_sig_heatmap(res_tbl = ms_da_results[["RVIT_mm"]], expr_mat = ms_expr, meta_df = ms_meta, 
+    param = "RVIT_mm", assay_label = "MS", sig_cutoff = 0.1, filter_detect_frac = 0.7)
+if (!is.null(ms_RVIT_heat)) {
+    ComplexHeatmap::draw(ms_RVIT_heat, heatmap_legend_side = "right", annotation_legend_side = "right", padding = grid::unit(c(2, 
+        8, 2, 2), "mm"))
+}
+```
+
+## Dcm hc combined heatmap
+
+```{r DCM_HC_combined_heatmap, fig.width=9, fig.height=6.5}
+sel <- bind_rows(lapply(c("Olink", "MS"), function(v) {
+    a$results[[paste(v, "DCM_vs_HC", sep = "__")]] %>% filter(FDR < 0.1) %>% mutate(Direction = ifelse(logFC > 
+        0, "Higher in DCM", "Lower in DCM")) %>% group_by(Direction) %>% arrange(FDR, P.Value, desc(abs(logFC)), 
+        feature) %>% slice_head(n = 10) %>% ungroup()
+}))
+sel <- sel %>% mutate(assay = factor(assay, levels = c("Olink", "MS")), Direction = factor(Direction, levels = c("Higher in DCM", 
+    "Lower in DCM"))) %>% arrange(assay, Direction, FDR)
+ids <- intersect(a$models[["Olink__DCM_vs_HC"]]$meta$Sample, a$models[["MS__DCM_vs_HC"]]$meta$Sample)
+md <- q$clinical[match(ids, q$clinical$Sample), ]
+md <- md[order(factor(md$Group, levels = c("HC", "DCM")), md$Sample), ]
+mat <- do.call(rbind, lapply(seq_len(nrow(sel)), function(i) q[[if (sel$assay[i] == "Olink") "olink" else "ms"]][sel$feature[i], 
+    md$Sample, drop = FALSE]))
+rownames(mat) <- paste(sel$assay, sel$feature, sep = ": ")
+zz <- t(scale(t(mat)))
+stopifnot(ncol(zz) == 63, nrow(zz) == 40, !anyDuplicated(rownames(zz)))
+write.csv(sel, file.path(T, "A_DCM_HC_combined_heatmap_features.csv"), row.names = FALSE)
+write.csv(md, file.path(T, "A_DCM_HC_combined_heatmap_donors.csv"), row.names = FALSE)
+write.csv(zz, file.path(T, "A_DCM_HC_combined_heatmap_row_zscores.csv"))
+ha <- HeatmapAnnotation(Group = md$Group, col = list(Group = c(HC = "#004C8C", DCM = "#A63A2A")), annotation_name_gp = grid::gpar(fontfamily = "Arial", 
+    fontsize = 10, fontface = "bold", fontfamily = "Arial"))
+hm <- Heatmap(zz, name = "Z-score", col = colorRamp2(c(-2, 0, 2), c("#2166AC", "white", "#B2182B")), na_col = "grey80", 
+    top_annotation = ha, row_split = interaction(sel$assay, sel$Direction, drop = TRUE, lex.order = TRUE), row_gap = grid::unit(2, 
+        "mm"), cluster_rows = FALSE, cluster_row_slices = FALSE, column_split = factor(md$Group, levels = c("HC", 
+        "DCM")), column_gap = grid::unit(2, "mm"), cluster_columns = FALSE, cluster_column_slices = FALSE, row_names_gp = grid::gpar(fontfamily = "Arial", 
+        fontsize = 8, fontfamily = "Arial"), column_names_gp = grid::gpar(fontfamily = "Arial", fontsize = 7, fontfamily = "Arial"), 
+    column_names_rot = 45, row_title = NULL, column_title = NULL, border = TRUE)
+draw(hm, merge_legends = TRUE, heatmap_legend_side = "right", annotation_legend_side = "right", padding = grid::unit(c(2, 
+    10, 2, 2), "mm"))
+```
+
+## Summary
+
+```{r summary,results='asis'}
+print(showtable(s[, c("assay", "comparison", "n", "n_DCM", "n_HC", "n_female", "tested", "FDR05", "FDR10", "positive10", 
+    "negative10")]))
+```
+
+## Go-summary
+
+```{r go-summary,results='asis'}
+gsummary <- do.call(rbind, lapply(names(a$results), function(k) {
+    g <- readRDS(file.path(O, paste0(k, "__GSEA.rds")))
+    all <- g$all@result
+    sig <- all[is.finite(all$p.adjust) & all$p.adjust < 0.05, , drop = FALSE]
+    data.frame(key = k, mapped_Entrez = length(g$ranks), tested_GO = nrow(all), positive_FDR05 = sum(sig$NES > 
+        0), negative_FDR05 = sum(sig$NES < 0), simplified_FDR05 = sum(g$simplified@result$p.adjust < 0.05, na.rm = TRUE))
+}))
+write.csv(gsummary, file.path(T, "A_GSEA_summary.csv"), row.names = FALSE)
+print(showtable(gsummary))
+```
+
+## Details
+
+```{r details,results='asis',fig.width=8,fig.height=5.8}
+for (key in names(a$results)) {
+    t <- a$results[[key]]
+    row <- s[s$key == key, ]
+    g <- readRDS(file.path(O, paste0(key, "__GSEA.rds")))
+    cat("\n\n## ", row$assay, " — ", row$comparison, "\n\n", sep = "")
+    cat("**", row$n, " donors** (", row$n_DCM, " DCM; ", row$n_HC, " HC); adjustment: ", row$adjustment, ". Effect: ", 
+        row$effect, ".\n\n", sep = "")
+    cat(row$FDR10, " proteins meet FDR <0.10 (", row$positive10, " positive, ", row$negative10, " negative); ", 
+        row$FDR05, " meet FDR <0.05.\n\n", sep = "")
+    t$status <- factor(ifelse(t$FDR < 0.1, ifelse(t$logFC > 0, "Positive", "Negative"), "Not significant"), levels = c("Negative", 
+        "Not significant", "Positive"))
+    t$y <- -log10(pmax(t$FDR, 1e-300))
+    labels <- do.call(rbind, lapply(c("Positive", "Negative"), function(d) {
+        u <- t[which(t$status == d), , drop = FALSE]
+        head(u[order(u$FDR), ], 5)
+    }))
+    p <- ggplot(t, aes(logFC, y, colour = status)) + geom_point(alpha = 0.7, size = 1.3, na.rm = TRUE) + geom_hline(yintercept = -log10(0.1), 
+        linetype = 2, colour = "grey45") + geom_vline(xintercept = 0, colour = "grey75") + geom_text_repel(data = labels, 
+        aes(label = feature), size = 3, family = "Arial", max.overlaps = Inf, seed = 20261106, show.legend = FALSE) + 
+        scale_colour_manual(values = c(Negative = "#2166AC", `Not significant` = "grey75", Positive = "#B2182B"), 
+            drop = FALSE) + labs(title = paste(row$assay, row$comparison), x = paste("logFC:", row$effect), y = expression(-log[10](FDR)), 
+        colour = NULL) + theme(legend.position = "bottom")
+    for (ext in c("png", "pdf")) ggsave(paste0(output_dir_figs, "/", key, "__volcano.", ext), p, width = 8, height = 5.8, 
+        dpi = 600, device = if (ext == "pdf") 
+            grDevices::cairo_pdf
+        else "png")
+    cat("<img style=\"width:100%;height:auto\" src=\"data:image/png;base64,", base64enc::base64encode(paste0(output_dir_figs, 
+        "/", key, "__volcano.png")), "\"/>\n", sep = "")
+    top <- head(t[order(t$FDR, t$P.Value), c("feature", "logFC", "P.Value", "FDR", "n_observed")], 15)
+    top[2:4] <- lapply(top[2:4], fmt)
+    cat("\nTop 15 proteins ranked by FDR (not a significance-filtered table)\n\n")
+    print(showtable(top))
+    write.csv(g$all@result, file.path(T, paste0(key, "__GO_all.csv")), row.names = FALSE)
+    write.csv(g$all@result[which(g$all@result$p.adjust < 0.05), , drop = FALSE], file.path(T, paste0(key, "__GO_FDR05.csv")), 
+        row.names = FALSE)
+    z <- g$simplified@result
+    z <- z[is.finite(z$p.adjust) & z$p.adjust < 0.05, , drop = FALSE]
+    write.csv(z, file.path(T, paste0(key, "__GO_simplified_FDR05.csv")), row.names = FALSE)
+    if (!nrow(z)) {
+        cat("\n**No GO terms meet GSEA FDR <0.05.**\n\n")
+        next
+    }
+    z <- do.call(rbind, lapply(c(-1, 1), function(sg) {
+        u <- z[which(sign(z$NES) == sg), , drop = FALSE]
+        head(u[order(u$p.adjust), ], 8)
+    }))
+    z$label <- paste0(z$ONTOLOGY, ": ", z$Description)
+    z$label <- vapply(z$label, function(v) paste(strwrap(v, width = 80), collapse = "\n"), character(1))
+    z$label <- factor(z$label, levels = unique(z$label[order(z$NES)]))
+    p <- ggplot(z, aes(NES, label, colour = -log10(pmax(p.adjust, 1e-300)))) + geom_vline(xintercept = 0, colour = "grey75") + 
+        geom_point(size = 3) + scale_colour_gradient(low = "#FDD49E", high = "#B30000") + labs(title = paste(row$assay, 
+        row$comparison, "GO GSEA"), subtitle = "Up to 8 terms per NES direction, FDR <0.05 after redundancy reduction", 
+        x = "Normalised enrichment score", y = NULL, colour = expression(-log[10](FDR))) + theme(axis.text.y = element_text(size = 9), 
+        legend.position = "bottom")
+    goheight <- max(4.5, 1.6 + nrow(z) * max(vapply(strsplit(as.character(z$label), "\n", fixed = TRUE), length, 
+        integer(1))) * 0.16)
+    for (ext in c("png", "pdf")) ggsave(paste0(output_dir_figs, "/", key, "__GO_GSEA.", ext), p, width = 10, height = goheight, 
+        dpi = 600, device = if (ext == "pdf") 
+            grDevices::cairo_pdf
+        else "png")
+    f <- file.path(T, paste0(key, "__GO_plot_v3.svg"))
+    ggsave(f, p, width = 10, height = goheight, device = svglite::svglite)
+    cat("<img alt=\"", key, " GO GSEA\" style=\"width:100%;height:auto\" src=\"data:image/svg+xml;base64,", base64enc::base64encode(f), 
+        "\"/>\n", sep = "")
+    gt <- z[, c("ID", "Description", "NES", "p.adjust", "setSize")]
+    names(gt)[4] <- "FDR"
+    gt$NES <- fmt(gt$NES)
+    gt$FDR <- fmt(gt$FDR)
+    print(showtable(gt))
+}
+```
+
+## Session
+
+```{r session}
+sessionInfo()
+```
+
+## Dataset EV9
+
+```{r Dataset_EV9}
+q <- readRDS(input)
+protein_results <- dplyr::bind_rows(a$results) %>% dplyr::select(assay, comparison, feature, logFC, AveExpr, P.Value, 
+    FDR, n_observed, n_model)
+go_results <- dplyr::bind_rows(lapply(names(a$results), function(key) {
+    x <- readRDS(file.path(O, paste0(key, "__GSEA.rds")))
+    dplyr::mutate(as.data.frame(x$all), Comparison = key)
+}))
+Dataset_EV9 <- list(Samples = q$clinical, Assay_inclusion = q$availability, Olink_NPX = tibble::rownames_to_column(as.data.frame(q$olink), 
+    "Gene"), LCMS_log2_abundance = tibble::rownames_to_column(as.data.frame(q$ms), "Gene"), Differential_abundance = protein_results, 
+    GO_enrichment = go_results)
+writexl::write_xlsx(Dataset_EV9, here::here("output", "Datasets", "Dataset_EV9.xlsx"), format_headers = FALSE)
+```

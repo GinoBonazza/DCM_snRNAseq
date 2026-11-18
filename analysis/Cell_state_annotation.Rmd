@@ -1,0 +1,79 @@
+---
+title: "Final cell-state annotation"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  workflowr::wflow_html:
+    code_folding: none
+editor_options:
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 300, fig.retina = 1, 
+    fig.align = "center", dev = "png", dev.args = list(type = "cairo", family = "Arial"))
+library(here)
+current_file <- "Cell_state_annotation"
+output_dir_data <- here::here("output", current_file)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
+set.seed(20240606)
+```
+
+```{r libraries}
+library(Seurat)
+library(qs2)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+```
+
+## Combine cell states
+
+```{r annotation}
+rna <- qs2::qs_read(here::here("data", "processed", "RNA_quality_control.qs2"), nthreads = 2)
+lineages <- c(CM = "Cardiomyocytes", FB = "Fibroblasts", EC = "Endothelial cells", MC = "Mural cells", MP = "Macrophages", 
+    LC = "Lymphocytes")
+states <- list()
+retained <- list()
+before <- list()
+for (tag in names(lineages)) {
+    object <- qs2::qs_read(here::here("data", "processed", tag, "annotated.qs2"), nthreads = 2)
+    initial <- qs2::qs_read(here::here("data", "processed", tag, "baseline.qs2"), nthreads = 2)
+    before[[tag]] <- colnames(initial)
+    retained[[tag]] <- colnames(object)
+    states[[tag]] <- data.frame(cell = colnames(object), cell_state = as.character(object$cell_state), Sample = object$Sample, 
+        cell_type = object$cell_type)
+}
+annotation <- bind_rows(states)
+stopifnot(!anyDuplicated(annotation$cell), all(annotation$cell %in% colnames(rna)))
+removed <- setdiff(unlist(before, use.names = FALSE), unlist(retained, use.names = FALSE))
+removal_summary <- rna[[]][removed, , drop = FALSE] %>% count(Group, cell_type, Sample, name = "Removed_nuclei")
+rna <- subset(rna, cells = setdiff(colnames(rna), removed))
+rna$cell_state <- annotation$cell_state[match(colnames(rna), annotation$cell)]
+expected <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+stopifnot(setequal(colnames(rna), colnames(expected)))
+stopifnot(identical(as.character(rna$cell_state), as.character(expected$cell_state[match(colnames(rna), colnames(expected))])))
+stopifnot(isTRUE(all.equal(GetAssayData(rna, assay = "RNA", slot = "counts"), GetAssayData(expected, assay = "RNA", 
+    slot = "counts")[, colnames(rna), drop = FALSE], tolerance = 0)))
+qs2::qs_save(rna, file.path(output_dir_data, "RV_cell_states_RNA.qs2"), nthreads = 2)
+write.csv(annotation, file.path(output_dir_data, "Cell_annotations.csv"), row.names = FALSE)
+write.csv(removal_summary, file.path(output_dir_data, "Removed_nuclei_by_sample.csv"), row.names = FALSE)
+knitr::kable(removal_summary)
+```
+
+## Final cell counts
+
+```{r final_counts, fig.width=12, fig.height=10}
+counts <- rna[[]] %>% count(Group, Sample, cell_type, cell_state, name = "Nuclei")
+write.csv(counts, file.path(output_dir_data, "Final_cell_counts.csv"), row.names = FALSE)
+knitr::kable(counts %>% group_by(Group, cell_type) %>% summarise(Nuclei = sum(Nuclei), .groups = "drop"))
+ggplot(counts, aes(Sample, Nuclei, fill = cell_state)) + geom_col() + facet_wrap(~cell_type, scales = "free", ncol = 3) + 
+    theme_classic(base_family = "Arial") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + guides(fill = "none")
+```

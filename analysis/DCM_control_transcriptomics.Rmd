@@ -1,0 +1,372 @@
+---
+title: "DCM versus controls: cell abundance and gene expression"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  workflowr::wflow_html:
+    code_folding: none
+editor_options:
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 400, fig.retina = 1, 
+    fig.align = "center", dev = "png", dev.args = list(type = "cairo", family = "Arial"))
+library(here)
+current_file <- "DCM_control_transcriptomics"
+output_dir_data <- here::here("output", current_file)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
+set.seed(20240606)
+```
+
+```{r libraries}
+library(Seurat)
+library(qs2)
+library(Matrix)
+library(edgeR)
+library(limma)
+library(speckle)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(grid)
+BiocParallel::register(BiocParallel::SerialParam())
+O <- output_dir_data
+DCM_RV <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+```
+
+## Differential expression
+
+```{r model_functions}
+group_design <- function(metadata, samples) {
+    stopifnot(!anyDuplicated(metadata$Sample), !anyDuplicated(samples), all(samples %in% metadata$Sample))
+    d <- metadata[match(samples, metadata$Sample), , drop = FALSE]
+    stopifnot(identical(as.character(d$Sample), as.character(samples)), all(d$Group %in% c("HC", "DCM")))
+    d$Group <- factor(d$Group, levels = c("HC", "DCM"))
+    stopifnot(all(table(d$Group) >= 3), all(is.finite(d$Age_years)))
+    design <- model.matrix(~Group + Age_years, data = d)
+    stopifnot(qr(design)$rank == ncol(design), nrow(design) > ncol(design))
+    rownames(design) <- d$Sample
+    list(metadata = d, design = design)
+}
+fit_group <- function(counts, metadata) {
+    stopifnot(all(counts >= 0), all(counts == round(counts)))
+    keep_samples <- colSums(counts) > 50000
+    s <- colnames(counts)[keep_samples]
+    s <- s[s %in% metadata$Sample[is.finite(metadata$Age_years)]]
+    a <- group_design(metadata, s)
+    y <- edgeR::DGEList(counts[, s, drop = FALSE])
+    keep <- edgeR::filterByExpr(y)
+    stopifnot(any(keep))
+    y <- y[keep, , keep.lib.sizes = FALSE]
+    y <- edgeR::normLibSizes(y)
+    y <- edgeR::estimateDisp(y, a$design)
+    fit <- edgeR::glmQLFit(y, a$design, robust = TRUE)
+    test <- edgeR::glmQLFTest(fit, coef = "GroupDCM")
+    z <- edgeR::topTags(test, n = Inf)$table
+    z$gene <- rownames(z)
+    z <- z[, c("gene", setdiff(names(z), "gene"))]
+    list(results = z, design = a$design, metadata = a$metadata, pseudobulk = y, excluded_samples = setdiff(colnames(counts), 
+        s))
+}
+```
+
+```{r expression_and_abundance}
+md <- DCM_RV[[]]
+metadata <- unique(md[, c("Sample", "Group", "Age_years")])
+stopifnot(!anyDuplicated(metadata$Sample))
+write.csv(metadata, file.path(O, "A_donor_metadata.csv"), row.names = FALSE)
+cts <- GetAssayData(DCM_RV, assay = "RNA", slot = "counts")
+lineages <- unique(as.character(md$cell_type))
+summary <- list()
+eligibility <- list()
+for (ct in lineages) {
+    cells <- which(as.character(md$cell_type) == ct)
+    n <- table(md$Sample[cells])
+    samples <- names(n)
+    design_sum <- sparseMatrix(i = seq_along(cells), j = match(md$Sample[cells], samples), x = 1, dims = c(length(cells), 
+        length(samples)), dimnames = list(colnames(cts)[cells], samples))
+    pb <- cts[, cells, drop = FALSE] %*% design_sum
+    detection <- Matrix::rowMeans(cts[, cells, drop = FALSE] > 0) * 100
+    pb <- pb[detection > 1, , drop = FALSE]
+    id <- gsub(" ", "_", ct, fixed = TRUE)
+    percent <- data.frame(gene = names(detection), percentCells = as.numeric(detection))
+    write.csv(percent, file.path(O, paste0("A_", id, "_percent_stats.csv")), row.names = FALSE)
+    eligible <- samples[colSums(pb) > 50000 & is.finite(metadata$Age_years[match(samples, metadata$Sample)])]
+    eligible_metadata <- metadata[match(eligible, metadata$Sample), , drop = FALSE]
+    group_n <- table(factor(eligible_metadata$Group, levels = c("HC", "DCM")))
+    eligibility[[ct]] <- data.frame(cell_type = ct, Sample = samples, n_nuclei = as.integer(n[samples]), pseudobulk_counts = as.numeric(colSums(pb)), 
+        eligible = samples %in% eligible)
+    if (any(group_n < 3)) {
+        summary[[ct]] <- data.frame(cell_type = ct, n_HC = group_n[1], n_DCM = group_n[2], tested_genes = NA_integer_, 
+            up = NA_integer_, down = NA_integer_, status = "not estimable: <3 eligible donors in a group")
+        next
+    }
+    fit <- fit_group(pb, metadata)
+    z <- fit$results
+    z$percentCells <- percent$percentCells[match(z$gene, percent$gene)]
+    write.csv(z, file.path(O, paste0("A_", id, "_DE_DCM_vs_HC.csv")), row.names = FALSE)
+    write.csv(fit$design, file.path(O, paste0("A_", id, "_design.csv")))
+    saveRDS(fit$pseudobulk, file.path(O, paste0("A_", id, "_pseudobulk.rds")))
+    sig <- z$FDR < 0.05 & abs(z$logFC) > 0.5
+    summary[[ct]] <- data.frame(cell_type = ct, n_HC = group_n[1], n_DCM = group_n[2], tested_genes = nrow(z), 
+        up = sum(sig & z$logFC > 0), down = sum(sig & z$logFC < 0), status = "completed")
+}
+write.csv(bind_rows(summary), file.path(O, "A_DE_summary.csv"), row.names = FALSE)
+write.csv(bind_rows(eligibility), file.path(O, "A_DE_donor_eligibility.csv"), row.names = FALSE)
+props <- speckle::getTransformedProps(md$cell_type, md$Sample, transform = "logit")
+samples <- colnames(props$TransformedProps)
+samples <- samples[is.finite(metadata$Age_years[match(samples, metadata$Sample)])]
+a <- group_design(metadata, samples)
+fit <- limma::eBayes(limma::lmFit(props$TransformedProps[, samples, drop = FALSE], a$design), robust = TRUE)
+da <- limma::topTable(fit, coef = "GroupDCM", number = Inf, adjust.method = "BH")
+da$cell_type <- rownames(da)
+write.csv(da, file.path(O, "A_DA_DCM_vs_HC.csv"), row.names = FALSE)
+write.csv(a$design, file.path(O, "A_DA_design.csv"))
+```
+
+## Cell-type abundance
+
+```{r abundance, fig.width=12, fig.height=6}
+nuclei <- table(md$Sample, md$cell_type)
+proportions <- as.data.frame(as.table(sweep(nuclei, 1, rowSums(nuclei), "/")))
+names(proportions) <- c("Sample", "cell_type", "Proportion")
+proportions$Group <- factor(metadata$Group[match(proportions$Sample, metadata$Sample)], levels = c("HC", "DCM"))
+cell_order <- names(sort(colMeans(sweep(nuclei, 1, rowSums(nuclei), "/")), decreasing = TRUE))
+proportions$cell_type <- factor(proportions$cell_type, levels = cell_order)
+annotations <- proportions %>% group_by(cell_type) %>% summarise(y = max(Proportion) + 0.035, .groups = "drop")
+annotations$FDR <- da$adj.P.Val[match(annotations$cell_type, da$cell_type)]
+annotations$label <- ifelse(annotations$FDR < 0.001, "FDR < 0.001", paste0("FDR\n", formatC(annotations$FDR, format = "f", 
+    digits = 3)))
+p <- ggplot(proportions, aes(cell_type, Proportion, fill = Group)) + geom_boxplot(width = 0.64, outlier.shape = NA, 
+    linewidth = 0.25, position = position_dodge(0.72)) + geom_point(position = position_jitterdodge(jitter.width = 0.11, 
+    dodge.width = 0.72, seed = 123), size = 1, alpha = 0.65, colour = "#333333") + geom_segment(data = annotations, 
+    aes(x = as.numeric(cell_type) - 0.18, xend = as.numeric(cell_type) + 0.18, y = y, yend = y), inherit.aes = FALSE, 
+    linewidth = 0.25) + geom_text(data = annotations, aes(cell_type, y + 0.012, label = label), inherit.aes = FALSE, 
+    vjust = 0, size = 14/ggplot2::.pt, fontface = "bold", family = "Arial") + scale_fill_manual(values = c(HC = "#D9D9D9", 
+    DCM = "#AD6557")) + scale_y_continuous(limits = c(0, 0.69), expand = expansion(mult = 0)) + labs(x = NULL, 
+    y = "Fraction of all retained nuclei") + theme_classic(base_family = "Arial") + theme(axis.text.x = element_text(angle = 35, 
+    hjust = 1, face = "bold", size = 15, colour = "black"), axis.text.y = element_text(size = 14, colour = "black"), 
+    axis.title.y = element_text(size = 18), legend.position = "inside", legend.position.inside = c(0.88, 0.9), 
+    legend.direction = "horizontal", legend.title = element_blank(), legend.text = element_text(size = 17), plot.margin = margin(8, 12, 8, 35))
+p
+write.csv(proportions, file.path(O, "Donor_proportions.csv"), row.names = FALSE)
+ggsave(file.path(output_dir_figs, "Cell_type_abundance.pdf"), p, width = 12, height = 6, device = cairo_pdf)
+```
+
+## Differentially expressed genes
+
+```{r DEG_counts, fig.width=4.5, fig.height=3.5}
+de_summary <- bind_rows(summary)
+ct_order <- cell_order[cell_order %in% de_summary$cell_type[de_summary$status == "completed"] & cell_order != "Mesothelial cells"]
+counts <- as.matrix(de_summary[match(ct_order, de_summary$cell_type), c("up", "down")])
+rownames(counts) <- ct_order
+signed <- sweep(counts, 2, c(1, -1), "*")
+limit <- max(counts)
+colfun <- circlize::colorRamp2(c(-limit, 0, limit), c("#004C8C", "#F2F2F2", "#A63A2A"))
+grid.newpage()
+pushViewport(viewport(x = 0.42, y = 0.27, width = 0.44, height = 0.66, just = c("left", "bottom")))
+for (i in seq_len(nrow(counts))) for (j in 1:2) {
+    grid.rect(x = (j - 0.5)/2, y = 1 - (i - 0.5)/nrow(counts), width = 0.5, height = 1/nrow(counts), gp = gpar(fill = colfun(signed[i, 
+        j]), col = "white", lwd = 0.7))
+    grid.text(counts[i, j], x = (j - 0.5)/2, y = 1 - (i - 0.5)/nrow(counts), gp = gpar(fontfamily = "Arial", fontsize = 8.5, 
+        col = if (counts[i, j] > limit * 0.65) 
+            "white"
+        else "black"))
+}
+grid.text(ct_order, x = unit(-0.04, "in"), y = 1 - (seq_len(nrow(counts)) - 0.5)/nrow(counts), just = "right", 
+    gp = gpar(fontfamily = "Arial", fontsize = 9))
+grid.text(c("Up in DCM", "Down in DCM"), x = c(0.25, 0.75), y = unit(-0.04, "in"), just = "top", gp = gpar(fontfamily = "Arial", 
+    fontsize = 9))
+popViewport()
+legend <- ComplexHeatmap::Legend(col_fun = colfun, title = "Number of genes", at = c(-2000, -1000, 0, 1000, 2000), 
+    labels = c("2k", "1k", "0", "1k", "2k"), direction = "horizontal", title_position = "topcenter", legend_width = unit(1.665, 
+        "in"), legend_height = unit(0.0875, "in"), labels_gp = gpar(fontfamily = "Arial", fontsize = 8), title_gp = gpar(fontfamily = "Arial", 
+        fontsize = 9, fontface = "plain"))
+ComplexHeatmap::draw(legend, x = unit(0.635, "npc"), y = unit(0.13, "npc"))
+```
+
+## Expression volcano plots
+
+```{r volcano_plots, fig.width=3, fig.height=4.5}
+library(EnhancedVolcano)
+library(ggplot2)
+for (f in list.files(O, pattern = "^A_.*_DE_DCM_vs_HC[.]csv$", full.names = TRUE)) {
+    z <- read.csv(f)
+    keyvals <- rep("grey", nrow(z))
+    names(keyvals) <- rep("Not significant", nrow(z))
+    up <- z$logFC > 0.5 & z$FDR < 0.05
+    down <- z$logFC < -0.5 & z$FDR < 0.05
+    keyvals[up] <- "#A63A2A"
+    names(keyvals)[up] <- "Higher in DCM"
+    keyvals[down] <- "#004C8C"
+    names(keyvals)[down] <- "Higher in HC"
+    title <- gsub("_", " ", sub("^A_", "", sub("_DE_DCM_vs_HC.csv$", "", basename(f))))
+    title <- paste(strwrap(title, width = 18), collapse = "\n")
+    p <- EnhancedVolcano(z, lab = z$gene, x = "logFC", y = "FDR", labSize = 0, pointSize = 0.5, FCcutoff = 0.5, 
+        pCutoff = 0.05, colCustom = keyvals, colAlpha = 1, drawConnectors = FALSE, subtitle = NULL, title = title, 
+        caption = paste("Genes tested:", nrow(z)), captionLabSize = 9, ylab = bquote(-Log[10] ~ FDR), titleLabSize = 16, 
+        axisLabSize = 12) + theme(text = element_text(family = "Arial"), legend.position = "none")
+    print(p)
+}
+```
+
+## Gene Ontology enrichment
+
+```{r GO_enrichment}
+objects <- list()
+simplified <- list()
+ranked_genes <- list()
+for (ct in de_summary$cell_type[de_summary$status == "completed"]) {
+    id <- gsub(" ", "_", ct, fixed = TRUE)
+    de <- read.csv(file.path(O, paste0("A_", id, "_DE_DCM_vs_HC.csv")))
+    de$metric <- de$logFC * -log10(pmax(de$PValue, .Machine$double.xmin))
+    mapping <- bitr(de$gene, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+    ranked <- merge(de, mapping, by.x = "gene", by.y = "SYMBOL", sort = FALSE)
+    ranked <- ranked[order(-abs(ranked$metric), ranked$gene, ranked$ENTREZID), ]
+    ranked <- ranked[!duplicated(ranked$ENTREZID), ]
+    ranked <- ranked[order(-ranked$metric, ranked$ENTREZID), ]
+    ranks <- setNames(ranked$metric, ranked$ENTREZID)
+    ranked_genes[[ct]] <- ranked
+    checkpoint <- here::here("data", "processed", "DCM_control_GSEA", paste0("A_", id, "_GSEA_GO.rds"))
+    set.seed(20240606)
+    if (file.exists(checkpoint)) {
+        go <- readRDS(checkpoint)
+        stopifnot(isTRUE(all.equal(go@geneList, ranks, tolerance = 1e-12)))
+    }
+    else {
+        go <- gseGO(geneList = ranks, OrgDb = org.Hs.eg.db, ont = "ALL", keyType = "ENTREZID", minGSSize = 10, 
+            nPermSimple = if (ct == "Cardiomyocytes") 
+                100000L
+            else 1000000L, eps = if (ct == "Cardiomyocytes") 
+                1e-10
+            else 0, pvalueCutoff = 1, pAdjustMethod = "BH", BPPARAM = BiocParallel::SerialParam(), verbose = FALSE)
+    }
+    objects[[ct]] <- go
+    significant <- go
+    significant@result <- go@result %>% filter(is.finite(p.adjust), p.adjust < 0.05, is.finite(NES))
+    if (nrow(significant@result) == 0) 
+        next
+    simplified[[ct]] <- if (nrow(significant@result) == 1) 
+        significant
+    else clusterProfiler::simplify(significant, cutoff = 0.6, by = "p.adjust", select_fun = min, measure = "Wang")
+}
+saveRDS(objects, file.path(O, "GO_enrichment.rds"))
+saveRDS(simplified, file.path(O, "GO_simplified.rds"))
+selected_terms <- bind_rows(lapply(names(simplified), function(ct) {
+    x <- simplified[[ct]]@result
+    bind_rows(x %>% filter(NES > 0) %>% arrange(desc(NES)) %>% slice_head(n = 4), x %>% filter(NES < 0) %>% arrange(NES) %>% 
+        slice_head(n = 4)) %>% mutate(cell_type = ct)
+}))
+selected_terms$score <- -log10(pmax(selected_terms$pvalue, .Machine$double.xmin)) * sign(selected_terms$NES)
+write.csv(selected_terms, file.path(O, "Selected_GO_terms.csv"), row.names = FALSE)
+```
+
+## Selected Gene Ontology terms
+
+```{r GO_summary, fig.width=14.8, fig.height=7.4}
+columns <- list(c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Pericytes"), c("Macrophages", "Lymphocytes", 
+    "Smooth muscle cells", "Endocardial cells"))
+colour_limit <- 6.7126
+colfun <- circlize::colorRamp2(c(-colour_limit, 0, colour_limit), c("#004C8C", "white", "#A63A2A"))
+wrap <- function(x, n) vapply(x, function(s) paste(strwrap(gsub("_", " ", s), width = n), collapse = "\n"), character(1))
+grid.newpage()
+for (column in 1:2) {
+    groups <- lapply(columns[[column]], function(ct) {
+        x <- selected_terms %>% filter(cell_type == ct) %>% arrange(desc(NES))
+        x$label <- wrap(x$Description, 43)
+        x$step <- (lengths(strsplit(x$label, "\n"))) * 0.72 + 0.28
+        x
+    })
+    scale <- (0.82 - 0.022 * (length(groups) - 1))/sum(vapply(groups, function(x) sum(x$step) + 0.4, numeric(1)))
+    top <- 0.96
+    for (i in seq_along(groups)) {
+        x <- groups[[i]]
+        total <- sum(x$step)
+        height <- (total + 0.4) * scale
+        pushViewport(viewport(x = 0.285 + (column - 1) * 0.5, y = top - height, width = 0.195, height = height, 
+            just = c("left", "bottom"), xscale = c(-2.26, 2.1051), yscale = c(total + 0.2, -0.2)))
+        grid.rect(gp = gpar(fill = "white", col = "#BBBBBB", lwd = 0.6))
+        for (tick in -2:2) grid.lines(x = unit(c(tick, tick), "native"), y = c(0, 1), gp = gpar(col = "#DDDDDD", 
+            lwd = 0.5))
+        y <- cumsum(x$step) - x$step/2
+        grid.rect(x = unit(x$NES/2, "native"), y = unit(y, "native"), width = unit(abs(x$NES), "native"), height = unit(0.58, 
+            "native"), gp = gpar(fill = colfun(x$score), col = NA))
+        grid.text(x$label, x = unit(-0.055, "in"), y = unit(y, "native"), just = "right", gp = gpar(fontfamily = "Arial", 
+            fontsize = 10.2))
+        if (i == length(groups)) {
+            grid.xaxis(at = -2:2, gp = gpar(fontfamily = "Arial", fontsize = 10))
+            grid.text("Normalized enrichment score (NES)", y = unit(-0.29, "in"), gp = gpar(fontfamily = "Arial", 
+                fontsize = 11))
+        }
+        popViewport()
+        grid.text(wrap(columns[[column]][i], 12), x = 0.017 + (column - 1) * 0.5, y = top - height/2, rot = 90, 
+            gp = gpar(fontfamily = "Arial", fontsize = 11.5, fontface = "bold"))
+        top <- top - height - 0.022
+    }
+}
+legend <- ComplexHeatmap::Legend(col_fun = colfun, title = "−log10(P) × sign(NES)", direction = "horizontal", 
+    title_position = "topcenter", legend_width = unit(2.96, "in"), legend_height = unit(0.111, "in"), labels_gp = gpar(fontfamily = "Arial", 
+        fontsize = 9), title_gp = gpar(fontfamily = "Arial", fontsize = 10, fontface = "plain"))
+ComplexHeatmap::draw(legend, x = unit(0.5, "npc"), y = unit(0.06, "npc"))
+```
+
+## Enrichment by cell type
+
+```{r GO_by_cell_type, fig.width=9, fig.height=10, dpi=300}
+for (ct in names(simplified)) {
+    x <- simplified[[ct]]@result
+    x <- bind_rows(x %>% filter(NES > 0) %>% arrange(desc(NES)) %>% slice_head(n = 20), x %>% filter(NES < 0) %>% 
+        arrange(NES) %>% slice_head(n = 20))
+    x$term <- factor(x$ID, levels = x$ID[order(x$NES)])
+    p <- ggplot(x, aes(term, NES, fill = NES)) + geom_col(width = 0.9) + coord_flip() + scale_x_discrete(labels = setNames(wrap(x$Description, 
+        45), x$ID)) + scale_fill_gradient2(low = "#004C8C", mid = "white", high = "#A63A2A") + labs(x = NULL, y = "Normalized enrichment score (NES)", 
+        title = ct) + theme_bw(base_size = 11, base_family = "Arial") + theme(legend.position = "none", panel.grid.minor = element_blank())
+    print(p)
+}
+```
+
+## Enrichment maps
+
+```{r GO_networks, fig.width=14, fig.height=11, dpi=200}
+for (ct in names(objects)) for (direction in c("Higher in DCM", "Higher in HC")) {
+    go <- objects[[ct]]
+    selected <- go@result %>% filter(is.finite(p.adjust), p.adjust < 0.05, if (direction == "Higher in DCM") 
+        NES > 0
+    else NES < 0) %>% arrange(p.adjust, desc(abs(NES))) %>% slice_head(n = 100)
+    if (nrow(selected) < 2) 
+        next
+    go@result <- selected
+    set.seed(20240606)
+    go <- pairwise_termsim(go, showCategory = nrow(selected))
+    p <- emapplot(go, showCategory=nrow(selected), node_label_size=3.5, min_edge=0.2) + labs(title=paste(ct,direction,sep=' — ')) + theme(text=element_text(family='Arial'),plot.title=element_text(size=14))
+    expand_range <- function(r) {d <- diff(r); if(d<1e-8) d <- max(abs(r),1); r+c(-1,1)*d*0.15}
+    p <- p + coord_cartesian(xlim=expand_range(range(p$data$x)),ylim=expand_range(range(p$data$y)),clip='off') + theme(aspect.ratio=NULL)
+    print(p)
+}
+```
+
+## Dataset EV3
+
+```{r Dataset_EV3}
+tables <- list(DE_summary = de_summary, Donors = metadata, Donor_proportions = proportions, Differential_abundance = da, 
+    DE_eligibility = bind_rows(eligibility))
+for (ct in de_summary$cell_type[de_summary$status == "completed"]) {
+    id <- gsub(" ", "_", ct, fixed = TRUE)
+    tables[[paste0(substr(id, 1, 27), "_DE")]] <- read.csv(file.path(O, paste0("A_", id, "_DE_DCM_vs_HC.csv")))
+}
+tables$GO_enrichment <- bind_rows(lapply(names(objects), function(ct) mutate(objects[[ct]]@result, cell_type = ct)))
+tables$Selected_GO_terms <- selected_terms
+writexl::write_xlsx(tables, here::here("output", "Datasets", "Dataset_EV3.xlsx"), format_headers = FALSE)
+```

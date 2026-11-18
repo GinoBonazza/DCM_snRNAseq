@@ -1,0 +1,142 @@
+---
+title: "Supplementary datasets"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  workflowr::wflow_html:
+    code_folding: none
+editor_options:
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 300, fig.retina = 1, 
+    fig.align = "center", dev = "png", dev.args = list(type = "cairo", family = "Arial"))
+library(here)
+current_file <- "Supplementary_datasets"
+output_dir_data <- here::here("output", current_file)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
+set.seed(20240606)
+```
+
+```{r libraries}
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(readxl)
+library(writexl)
+library(qs2)
+library(Seurat)
+select <- dplyr::select
+out <- here::here("output", "Datasets")
+```
+
+## Dataset EV1: clinical and assay metadata
+
+```{r Dataset_EV1}
+q <- readRDS(here::here("output", "Protein_quality_control", "Proteomics_QC.rds"))
+rna <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+rna_metadata <- rna[[]] %>% select(any_of(c("Sample", "Group", "Age_years", "Sex", "mPAP_mmHg", "sPAP_mmHg", "PCW_mmHg", 
+    "PVR_WU", "TAPSE_mm", "RVIT_mm", "LVEF_percent", "LVEDD_mm"))) %>% distinct()
+clinical <- bind_rows(q$clinical, rna_metadata) %>% distinct(Sample, .keep_all = TRUE)
+clinical <- clinical %>% select(any_of(c("Sample", "Group", "Age_years", "Sex", "LVEF_percent", "LVID_mm", "LVEDD_mm", 
+    "RVIT_mm", "TAPSE_mm", "RAA_cm2", "RVS_cm.s", "RVSP_mmHg", "sPAP_mmHg", "mPAP_mmHg", "PCW_mmHg", "PVR_WU", 
+    "TPG_mmHg", "CO_l.min")))
+clinical$snRNAseq <- clinical$Sample %in% unique(rna$Sample)
+clinical$Olink <- clinical$Sample %in% colnames(q$olink)
+clinical$LC_MS_MS <- clinical$Sample %in% colnames(q$ms)
+fibrosis <- read_excel(here::here("data", "Massons_quantification.xlsx"))
+names(fibrosis)[3] <- "Fibrosis_percent"
+fibrosis <- fibrosis %>% transmute(Sample = as.character(Sample), Fibrosis_percent = 100 * as.numeric(Fibrosis_percent)) %>% 
+    filter(Sample %in% clinical$Sample)
+clinical <- left_join(clinical, fibrosis, by = "Sample")
+mofa <- readRDS(here::here("output", "Integrative_analysis", "A_report_results.rds"))
+clinical$Proteomics_MOFA <- clinical$Sample %in% mofa$proteomics$scores$Sample
+clinical$Integrated_MOFA <- clinical$Sample %in% mofa$matched$scores$Sample
+clinical$RNA_nuclei <- as.integer(table(rna$Sample)[clinical$Sample])
+write_xlsx(list(Donor_metadata = clinical, Fibrosis = fibrosis), file.path(out, "Dataset_EV1.xlsx"), format_headers = FALSE)
+```
+
+## Dataset EV2: cell types and quality control
+
+```{r Dataset_EV2}
+tables <- readRDS(here::here("output", "QC_integration", "QC_results_for_EV2.rds"))
+ambient <- readRDS(here::here("output", "Ambient_RNA_correction", "SoupX_results_for_EV2.rds"))
+names(ambient) <- paste0("SoupX_", names(ambient))
+tables <- c(tables, ambient)
+tables$Final_state_counts <- read.csv(here::here("output", "Cell_state_annotation", "Final_cell_counts.csv"))
+tables$State_curation <- read.csv(here::here("output", "Cell_state_annotation", "Removed_nuclei_by_sample.csv"))
+variance_file <- here::here("output", "Transcriptomic_variation", "Variance_partitioning.xlsx")
+for(sheet in excel_sheets(variance_file)) tables[[paste0("Variance_", sheet)]] <- read_excel(variance_file, sheet=sheet)
+names(tables) <- substr(names(tables), 1, 31)
+write_xlsx(tables, file.path(out, "Dataset_EV2.xlsx"), format_headers = FALSE)
+```
+
+## Dataset EV4: clinical transcriptomic associations
+
+```{r Dataset_EV4}
+tables <- readRDS(here::here("output", "Clinical_transcriptomic_associations", "Clinical_results_for_EV4.rds"))
+for (n in c("Cell_type_counts", "Cell_type_proportions")) tables[[n]] <- tables[[n]] %>% select(cell_type = clusters, 
+    Sample = sample, Value = Freq)
+mpap <- readRDS(here::here("output", "Pulmonary_pressure_associations", "mPAP_results_for_EV4.rds"))
+tables <- c(tables, mpap)
+names(tables) <- substr(names(tables), 1, 31)
+stopifnot(!anyDuplicated(names(tables)), all(vapply(tables, nrow, integer(1)) < 1048576))
+write_xlsx(tables, file.path(out, "Dataset_EV4.xlsx"), format_headers = FALSE)
+```
+
+
+## Dataset EV5: additional programme results
+
+```{r Dataset_EV5}
+file <- file.path(out, "Dataset_EV5.xlsx")
+tables <- setNames(lapply(excel_sheets(file), function(sheet) as.data.frame(read_excel(file, sheet = sheet))), 
+    excel_sheets(file))
+programmes <- readRDS(here::here("output", "Pulmonary_pressure_associations", "Programme_results_for_EV5.rds"))
+names(programmes) <- c("Within_DCM_scores", "Within_DCM_statistics", "Derived_memberships")
+tables[names(programmes)] <- programmes
+write_xlsx(tables, file, format_headers = FALSE)
+```
+
+## Dataset EV6: cell states
+
+```{r Dataset_EV6}
+lineages <- c(CM = "Cardiomyocytes", FB = "Fibroblasts", EC = "Endothelial_cells", MC = "Mural_cells", MP = "Macrophages", 
+    LC = "Lymphocytes")
+tables <- list()
+for (tag in names(lineages)) {
+    directory <- here::here("output", paste0(lineages[[tag]], "_cell_states"))
+    x <- readRDS(file.path(directory, "Cell_state_results_for_EV6.rds"))
+    object <- qs2::qs_read(file.path(directory, "Cell_states.qs2"), nthreads = 2)
+    for (assay in c("tfsulm", "pathwaysmlm")) {
+        scores <- t(GetAssayData(object, assay = assay, slot = "data"))
+        means <- rowsum(scores, group = object$cell_state)/as.numeric(table(object$cell_state)[rownames(rowsum(scores, 
+            group = object$cell_state))])
+        x[[if (assay == "tfsulm") 
+            "TF_activity"
+        else "Pathway_activity"]] <- rownames_to_column(as.data.frame(means), "cell_state")
+    }
+    names(x) <- paste0(tag, "_", names(x))
+    tables <- c(tables, x)
+}
+names(tables) <- substr(names(tables), 1, 31)
+stopifnot(!anyDuplicated(names(tables)))
+write_xlsx(tables, file.path(out, "Dataset_EV6.xlsx"), format_headers = FALSE)
+```
+
+## Workbook inventory
+
+```{r workbook_inventory}
+files <- file.path(out, paste0("Dataset_EV", 1:11, ".xlsx"))
+stopifnot(all(file.exists(files)))
+inventory <- bind_rows(lapply(files, function(f) data.frame(Dataset = basename(f), Sheet = excel_sheets(f), Size_MB = round(file.info(f)$size/1e+06, 
+    2))))
+write.csv(inventory, file.path(output_dir_data, "Dataset_inventory.csv"), row.names = FALSE)
+knitr::kable(inventory)
+```

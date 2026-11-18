@@ -1,0 +1,495 @@
+---
+title: "Cell–cell communication associated with mPAP"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  workflowr::wflow_html:
+    code_folding: none
+editor_options:
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 300, fig.retina = 1, 
+    fig.align = "center", dev = "png", dev.args = list(type = "cairo", family = "Arial"))
+library(here)
+current_file <- "Cell_communication"
+output_dir_data <- here::here("output", current_file)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
+set.seed(20240606)
+```
+
+```{r libraries}
+library(Seurat)
+library(qs2)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(purrr)
+library(SingleCellExperiment)
+library(RColorBrewer)
+library(nichenetr)
+library(multinichenetr)
+library(muscat)
+library(circlize)
+library(igraph)
+library(patchwork)
+select <- dplyr::select
+filter <- dplyr::filter
+theme_set(theme_classic(base_family = "Arial"))
+```
+
+## read DCM RV
+
+```{r read_DCM_RV, eval=TRUE}
+DCM_RV <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+DCM_RV <- subset(DCM_RV, subset = Group == "DCM")
+DefaultAssay(DCM_RV) <- "RNA"
+```
+
+## define groups
+
+```{r define_groups, eval=TRUE}
+DCM_RV@meta.data <- DCM_RV@meta.data %>% mutate(Group_CCC = case_when(!is.na(mPAP_mmHg) & mPAP_mmHg >= 35 ~ "mPAP35_hi", 
+    !is.na(mPAP_mmHg) & mPAP_mmHg < 35 ~ "mPAP35_lo", is.na(mPAP_mmHg) ~ "no_mPAP_data", TRUE ~ NA_character_))
+DCM_RV@meta.data$cell_type_2 <- make.names(DCM_RV@meta.data$cell_type)
+DCM_RV@meta.data %>% dplyr::select(Group_CCC, Sample) %>% distinct() %>% dplyr::count(Group_CCC)
+```
+
+## multinichenet networks
+
+```{r multinichenet_networks, eval=TRUE}
+organism = "human"
+lr_network_all = readRDS(here::here("data", "processed", "resources", "A_lr_network_human_allInfo_30112033.rds")) %>% 
+    mutate(ligand = convert_alias_to_symbols(ligand, organism = organism), receptor = convert_alias_to_symbols(receptor, 
+        organism = organism))
+lr_network_all = lr_network_all %>% mutate(ligand = make.names(ligand), receptor = make.names(receptor))
+lr_network = lr_network_all %>% distinct(ligand, receptor)
+ligand_target_matrix = readRDS(here::here("data", "processed", "resources", "A_ligand_target_matrix_nsga2r_final.rds"))
+colnames(ligand_target_matrix) = colnames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = organism) %>% 
+    make.names()
+rownames(ligand_target_matrix) = rownames(ligand_target_matrix) %>% convert_alias_to_symbols(organism = organism) %>% 
+    make.names()
+lr_network = lr_network %>% filter(ligand %in% colnames(ligand_target_matrix))
+ligand_target_matrix = ligand_target_matrix[, lr_network$ligand %>% unique()]
+```
+
+## prepare sce
+
+```{r prepare_sce, eval=TRUE}
+sce <- Seurat::as.SingleCellExperiment(DCM_RV, assay = "RNA")
+sce = alias_to_symbol_SCE(sce, "human") %>% makenames_SCE()
+sce = scuttle::logNormCounts(sce)
+```
+
+## multinichenet parameters
+
+```{r multinichenet_parameters, eval=TRUE}
+group_id = "Group_CCC"
+sample_id = "Sample"
+celltype_id = "cell_type_2"
+covariates = "Age_years"
+batches = NA
+contrasts_oi = c("'mPAP35_hi-mPAP35_lo','mPAP35_lo-mPAP35_hi'")
+contrast_tbl = tibble(contrast = c("mPAP35_hi-mPAP35_lo", "mPAP35_lo-mPAP35_hi"), group = c("mPAP35_hi", "mPAP35_lo"))
+conditions_keep = c("mPAP35_lo", "mPAP35_hi")
+min_cells = 50
+min_sample_prop = 0.5
+fraction_cutoff = 0.05
+logFC_threshold = 0.5
+p_val_threshold = 0.05
+p_val_adj = FALSE
+top_n_target = 250
+```
+
+## multinichenet analysis
+
+```{r multinichenet_analysis, eval=TRUE}
+checkpoint <- here::here("data", "processed", "MultinicheNet.qs2")
+if (file.exists(checkpoint)) {
+    multinichenet_output <- qs2::qs_read(checkpoint, nthreads = 2)
+} else {
+    senders_oi = SummarizedExperiment::colData(sce)[, celltype_id] %>% unique()
+    receivers_oi = SummarizedExperiment::colData(sce)[, celltype_id] %>% unique()
+    sce = sce[, SummarizedExperiment::colData(sce)[, celltype_id] %in% c(senders_oi, receivers_oi)]
+    sce = sce[, SummarizedExperiment::colData(sce)[, group_id] %in% conditions_keep]
+    abundance_info = get_abundance_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, 
+        min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, batches = batches)
+    abundance_df_summarized = abundance_info$abundance_data %>% dplyr::mutate(keep = as.logical(keep)) %>% dplyr::group_by(group_id, 
+        celltype_id) %>% dplyr::summarise(samples_present = sum((keep)))
+    celltypes_absent_one_condition = abundance_df_summarized %>% dplyr::filter(samples_present == 0) %>% pull(celltype_id) %>% 
+        unique()
+    celltypes_present_one_condition = abundance_df_summarized %>% dplyr::filter(samples_present >= 2) %>% pull(celltype_id) %>% 
+        unique()
+    condition_specific_celltypes = intersect(celltypes_absent_one_condition, celltypes_present_one_condition)
+    total_nr_conditions = SummarizedExperiment::colData(sce)[, group_id] %>% unique() %>% length()
+    absent_celltypes = abundance_df_summarized %>% dplyr::filter(samples_present < 2) %>% dplyr::group_by(celltype_id) %>% 
+        dplyr::count() %>% dplyr::filter(n == total_nr_conditions) %>% pull(celltype_id)
+    analyse_condition_specific_celltypes = FALSE
+    if (analyse_condition_specific_celltypes == TRUE) {
+        senders_oi = senders_oi %>% setdiff(absent_celltypes)
+        receivers_oi = receivers_oi %>% setdiff(absent_celltypes)
+    }
+    else {
+        senders_oi = senders_oi %>% setdiff(union(absent_celltypes, condition_specific_celltypes))
+        receivers_oi = receivers_oi %>% setdiff(union(absent_celltypes, condition_specific_celltypes))
+    }
+    sce = sce[, SummarizedExperiment::colData(sce)[, celltype_id] %in% c(senders_oi, receivers_oi)]
+    frq_list = get_frac_exprs(sce = sce, sample_id = sample_id, celltype_id = celltype_id, group_id = group_id, 
+        batches = batches, min_cells = min_cells, fraction_cutoff = fraction_cutoff, min_sample_prop = min_sample_prop)
+    genes_oi = frq_list$expressed_df %>% filter(expressed == TRUE) %>% pull(gene) %>% unique()
+    sce = sce[genes_oi, ]
+    abundance_expression_info = process_abundance_expression_info(sce = sce, sample_id = sample_id, group_id = group_id, 
+        celltype_id = celltype_id, min_cells = min_cells, senders_oi = senders_oi, receivers_oi = receivers_oi, 
+        lr_network = lr_network, batches = batches, frq_list = frq_list, abundance_info = abundance_info)
+    DE_info = get_DE_info(sce = sce, sample_id = sample_id, group_id = group_id, celltype_id = celltype_id, batches = batches, 
+        covariates = covariates, contrasts_oi = contrasts_oi, min_cells = min_cells, expressed_df = frq_list$expressed_df)
+    empirical_pval = FALSE
+    if (empirical_pval == TRUE) {
+        DE_info_emp = get_empirical_pvals(DE_info$celltype_de$de_output_tidy)
+        celltype_de = DE_info_emp$de_output_tidy_emp %>% select(-p_val, -p_adj) %>% rename(p_val = p_emp, p_adj = p_adj_emp)
+    }
+    else {
+        celltype_de = DE_info$celltype_de$de_output_tidy
+    }
+    sender_receiver_de = combine_sender_receiver_de(sender_de = celltype_de, receiver_de = celltype_de, senders_oi = senders_oi, 
+        receivers_oi = receivers_oi, lr_network = lr_network)
+    verbose = TRUE
+    cores_system = 2
+    n.cores = min(cores_system, celltype_de$cluster_id %>% unique() %>% length())
+    ligand_activities_targets_DEgenes = suppressMessages(suppressWarnings(get_ligand_activities_targets_DEgenes(receiver_de = celltype_de, 
+        receivers_oi = intersect(receivers_oi, celltype_de$cluster_id %>% unique()), ligand_target_matrix = ligand_target_matrix, 
+        logFC_threshold = logFC_threshold, p_val_threshold = p_val_threshold, p_val_adj = p_val_adj, top_n_target = top_n_target, 
+        verbose = verbose, n.cores = n.cores)))
+    ligand_activity_down = FALSE
+    sender_receiver_tbl = sender_receiver_de %>% distinct(sender, receiver)
+    metadata_combined = SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
+    grouping_tbl = metadata_combined[, c(sample_id, group_id)] %>% tibble::as_tibble() %>% distinct()
+    colnames(grouping_tbl) = c("sample", "group")
+    prioritization_tables = suppressMessages(generate_prioritization_tables(sender_receiver_info = abundance_expression_info$sender_receiver_info, 
+        sender_receiver_de = sender_receiver_de, ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes, 
+        contrast_tbl = contrast_tbl, sender_receiver_tbl = sender_receiver_tbl, grouping_tbl = grouping_tbl, scenario = "regular", 
+        fraction_cutoff = fraction_cutoff, abundance_data_receiver = abundance_expression_info$abundance_data_receiver, 
+        abundance_data_sender = abundance_expression_info$abundance_data_sender, ligand_activity_down = ligand_activity_down))
+    lr_target_prior_cor = lr_target_prior_cor_inference(receivers_oi = prioritization_tables$group_prioritization_tbl$receiver %>% 
+        unique(), abundance_expression_info = abundance_expression_info, celltype_de = celltype_de, grouping_tbl = grouping_tbl, 
+        prioritization_tables = prioritization_tables, ligand_target_matrix = ligand_target_matrix, logFC_threshold = logFC_threshold, 
+        p_val_threshold = p_val_threshold, p_val_adj = p_val_adj)
+    multinichenet_output = list(celltype_info = abundance_expression_info$celltype_info, celltype_de = celltype_de, 
+        sender_receiver_info = abundance_expression_info$sender_receiver_info, sender_receiver_de = sender_receiver_de, 
+        ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes, prioritization_tables = prioritization_tables, 
+        grouping_tbl = grouping_tbl, lr_target_prior_cor = lr_target_prior_cor)
+    multinichenet_output = make_lite_output(multinichenet_output)
+    qs2::qs_save(multinichenet_output, here::here(output_dir_data, "multinichenet_output_clean.qs2"), nthreads = 2)
+}
+qs2::qs_save(multinichenet_output, file.path(output_dir_data, "MultinicheNet.qs2"), nthreads = 2)
+```
+
+## read multinichenet output
+
+```{r read_multinichenet_output, eval=TRUE}
+multinichenet_output <- qs2::qs_read(file.path(output_dir_data, "MultinicheNet.qs2"), nthreads = 2)
+```
+
+## top LR interactions
+
+```{r top_LR_interactions, eval=TRUE}
+prioritized_tbl_oi_all = get_top_n_lr_pairs(multinichenet_output$prioritization_tables, top_n = 50, rank_per_group = FALSE)
+prioritized_tbl_oi_hi_50 = prioritized_tbl_oi_all %>% filter(group == "mPAP35_hi")
+prioritized_tbl_oi_lo_50 = prioritized_tbl_oi_all %>% filter(group == "mPAP35_lo")
+celltype_cols <- c(Cardiomyocytes = "#D8576B", Endothelial.cells = "#EE8424", Fibroblasts = "#D2AE2B", Macrophages = "#7AA641", 
+    Neuronal.cells = "#5ABF9A", Pericytes = "#3FA7B5", Smooth.muscle.cells = "#4C78A8", T.lymphocytes = "#9C6ADE")
+names(celltype_cols)[names(celltype_cols) == "T.lymphocytes"] <- "Lymphocytes"
+stopifnot(celltype_cols[["Lymphocytes"]] == "#9C6ADE", all(union(prioritized_tbl_oi_all$sender, prioritized_tbl_oi_all$receiver) %in% 
+    names(celltype_cols)))
+```
+
+## custom circos function
+
+```{r custom_circos_function, eval=TRUE}
+make_circos_group_comparison_custom <- function(prioritized_tbl_oi, colors_sender, colors_receiver) {
+    requireNamespace("dplyr")
+    requireNamespace("ggplot2")
+    requireNamespace("circlize")
+    prioritized_tbl_oi = prioritized_tbl_oi %>% dplyr::ungroup()
+    grid_col_tbl_ligand = tibble::tibble(sender = colors_sender %>% names(), color_ligand_type = colors_sender)
+    grid_col_tbl_receptor = tibble::tibble(receiver = colors_receiver %>% names(), color_receptor_type = colors_receiver)
+    groups_oi = prioritized_tbl_oi$group %>% unique()
+    all_plots = groups_oi %>% lapply(function(group_oi) {
+        title = group_oi
+        circos_links_oi = prioritized_tbl_oi %>% dplyr::filter(group == group_oi)
+        circos_links = circos_links_oi %>% dplyr::rename(weight = prioritization_score)
+        df = circos_links
+        ligand.uni = unique(df$ligand)
+        for (i in 1:length(ligand.uni)) {
+            df.i = df[df$ligand == ligand.uni[i], ]
+            sender.uni = unique(df.i$sender)
+            for (j in 1:length(sender.uni)) {
+                df.i.j = df.i[df.i$sender == sender.uni[j], ]
+                df.i.j$ligand = paste0(df.i.j$ligand, paste(rep(" ", j - 1), collapse = ""))
+                df$ligand[df$id %in% df.i.j$id] = df.i.j$ligand
+            }
+        }
+        receptor.uni = unique(df$receptor)
+        for (i in 1:length(receptor.uni)) {
+            df.i = df[df$receptor == receptor.uni[i], ]
+            receiver.uni = unique(df.i$receiver)
+            for (j in 1:length(receiver.uni)) {
+                df.i.j = df.i[df.i$receiver == receiver.uni[j], ]
+                df.i.j$receptor = paste0(df.i.j$receptor, paste(rep(" ", j - 1), collapse = ""))
+                df$receptor[df$id %in% df.i.j$id] = df.i.j$receptor
+            }
+        }
+        intersecting_ligands_receptors = generics::intersect(unique(df$ligand), unique(df$receptor))
+        while (length(intersecting_ligands_receptors) > 0) {
+            df_unique = df %>% dplyr::filter(!receptor %in% intersecting_ligands_receptors)
+            df_duplicated = df %>% dplyr::filter(receptor %in% intersecting_ligands_receptors)
+            df_duplicated = df_duplicated %>% dplyr::mutate(receptor = paste(" ", receptor, sep = ""))
+            df = dplyr::bind_rows(df_unique, df_duplicated)
+            intersecting_ligands_receptors = generics::intersect(unique(df$ligand), unique(df$receptor))
+        }
+        circos_links = df
+        circos_links = circos_links %>% dplyr::inner_join(grid_col_tbl_ligand) %>% dplyr::inner_join(grid_col_tbl_receptor)
+        links_circle = circos_links %>% dplyr::distinct(ligand, receptor, weight)
+        ligand_color = circos_links %>% dplyr::distinct(ligand, color_ligand_type)
+        grid_ligand_color = ligand_color$color_ligand_type %>% magrittr::set_names(ligand_color$ligand)
+        receptor_color = circos_links %>% dplyr::distinct(receptor, color_receptor_type)
+        grid_receptor_color = receptor_color$color_receptor_type %>% magrittr::set_names(receptor_color$receptor)
+        grid_col = c(grid_ligand_color, grid_receptor_color)
+        transparency = circos_links %>% dplyr::mutate(weight = (weight - min(weight))/(max(weight) - min(weight))) %>% 
+            dplyr::mutate(transparency = 1 - weight) %>% .$transparency
+        ligand_order = circos_links$sender %>% unique() %>% sort() %>% lapply(function(sender_oi) {
+            ligands = circos_links %>% dplyr::filter(sender == sender_oi) %>% dplyr::arrange(ligand) %>% dplyr::distinct(ligand)
+        }) %>% unlist()
+        receptor_order = circos_links$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi) {
+            receptors = circos_links %>% dplyr::filter(receiver == receiver_oi) %>% dplyr::arrange(receptor) %>% 
+                dplyr::distinct(receptor)
+        }) %>% unlist()
+        order = c(ligand_order, receptor_order)
+        width_same_cell_same_ligand_type = 0.275
+        width_different_cell = 3
+        width_ligand_receptor = 9
+        width_same_cell_same_receptor_type = 0.275
+        sender_gaps = circos_links$sender %>% unique() %>% sort() %>% lapply(function(sender_oi) {
+            sector = rep(width_same_cell_same_ligand_type, times = (circos_links %>% dplyr::filter(sender == sender_oi) %>% 
+                dplyr::distinct(ligand) %>% nrow()) - 1)
+            gap = width_different_cell
+            return(c(sector, gap))
+        }) %>% unlist()
+        sender_gaps = sender_gaps[-length(sender_gaps)]
+        receiver_gaps = circos_links$receiver %>% unique() %>% sort() %>% lapply(function(receiver_oi) {
+            sector = rep(width_same_cell_same_receptor_type, times = (circos_links %>% dplyr::filter(receiver == 
+                receiver_oi) %>% dplyr::distinct(receptor) %>% nrow()) - 1)
+            gap = width_different_cell
+            return(c(sector, gap))
+        }) %>% unlist()
+        receiver_gaps = receiver_gaps[-length(receiver_gaps)]
+        gaps = c(sender_gaps, width_ligand_receptor, receiver_gaps, width_ligand_receptor)
+        if (length(gaps) != length(union(circos_links$ligand, circos_links$receptor) %>% unique())) {
+            warning("Specified gaps have different length than combined total of ligands and receptors - This is probably due to duplicates in ligand-receptor names")
+        }
+        links_circle$weight[links_circle$weight == 0] = 0.01
+        graphics::par(mar = c(1, 1, 4, 1))
+        circlize::circos.clear()
+        circlize::circos.par(gap.degree = gaps, canvas.xlim = c(-1.7, 1.7), canvas.ylim = c(-1.7, 1.7))
+        circlize::chordDiagram(links_circle, directional = 1, order = order, link.sort = TRUE, link.decreasing = TRUE, 
+            grid.col = grid_col, transparency = transparency, diffHeight = 0.0075, direction.type = c("diffHeight", 
+                "arrows"), link.visible = links_circle$weight > 0.01, annotationTrack = "grid", preAllocateTracks = list(track.height = 0.175), 
+            grid.border = "gray35", link.arr.length = 0.05, link.arr.type = "big.arrow", link.lwd = 1.25, link.lty = 1, 
+            link.border = "gray35", reduce = 0, scale = TRUE)
+        circlize::circos.track(track.index = 1, panel.fun = function(x, y) {
+            circlize::circos.text(circlize::CELL_META$xcenter, circlize::CELL_META$ylim[1], circlize::CELL_META$sector.index, 
+                facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5), cex = 0.8)
+        }, bg.border = NA)
+        graphics::text(x = 0, y = 1.32, labels = title, cex = 1.3, font = 2)
+        p_circos = grDevices::recordPlot()
+        return(p_circos)
+    })
+    names(all_plots) = groups_oi
+    graphics::plot(NULL, xaxt = "n", yaxt = "n", bty = "n", ylab = "", xlab = "", xlim = 0:1, ylim = 0:1)
+    legend = ComplexHeatmap::Legend(at = prioritized_tbl_oi$receiver %>% unique() %>% sort(), type = "grid", legend_gp = grid::gpar(fill = colors_receiver[prioritized_tbl_oi$receiver %>% 
+        unique() %>% sort()]), labels_gp = grid::gpar(fontsize = 11), title_gp = grid::gpar(fontsize = 13, fontface = "bold"), 
+        grid_height = grid::unit(5, "mm"), grid_width = grid::unit(5, "mm"), gap = grid::unit(2, "mm"), title_position = "topleft", 
+        title = "Receiver")
+    ComplexHeatmap::draw(legend, just = c("left", "bottom"))
+    legend = ComplexHeatmap::Legend(at = prioritized_tbl_oi$sender %>% unique() %>% sort(), type = "grid", legend_gp = grid::gpar(fill = colors_sender[prioritized_tbl_oi$sender %>% 
+        unique() %>% sort()]), labels_gp = grid::gpar(fontsize = 11), title_gp = grid::gpar(fontsize = 13, fontface = "bold"), 
+        grid_height = grid::unit(5, "mm"), grid_width = grid::unit(5, "mm"), gap = grid::unit(2, "mm"), title_position = "topleft", 
+        title = "Sender")
+    ComplexHeatmap::draw(legend, just = c("left", "top"))
+    p_legend = grDevices::recordPlot()
+    all_plots$legend = p_legend
+    return(all_plots)
+}
+```
+
+## chord diagrams
+
+```{r chord_diagrams,fig.width=6,fig.height=6,eval=TRUE}
+prioritized_tbl_oi = multinichenet_output$prioritization_tables$group_prioritization_tbl %>% filter(id %in% prioritized_tbl_oi_all$id) %>% 
+    distinct(id, sender, receiver, ligand, receptor, group) %>% left_join(prioritized_tbl_oi_all)
+prioritized_tbl_oi$prioritization_score[is.na(prioritized_tbl_oi$prioritization_score)] = 0
+prioritized_tbl_oi$group <- dplyr::recode(prioritized_tbl_oi$group, mPAP35_hi = "mPAP ≥ 35", mPAP35_lo = "mPAP < 35")
+senders_receivers <- union(unique(prioritized_tbl_oi$sender), unique(prioritized_tbl_oi$receiver)) %>% sort()
+colors_sender <- celltype_cols[senders_receivers]
+colors_receiver <- celltype_cols[senders_receivers]
+circos_list <- make_circos_group_comparison_custom(prioritized_tbl_oi, colors_sender, colors_receiver)
+circos_list[["mPAP ≥ 35"]]
+circos_list[["mPAP < 35"]]
+circos_list$legend
+```
+
+## bubble plot settings
+
+```{r bubble_plot_settings, eval=TRUE}
+bubble_widths_plot <- c(6, 3.4, 3.4, 2.2)
+bubble_row_height <- 0.28
+bubble_base_height <- 4.2
+n_interactions_hi <- prioritized_tbl_oi_hi_50 %>% distinct(sender, receiver, ligand, receptor) %>% nrow()
+n_interactions_lo <- prioritized_tbl_oi_lo_50 %>% distinct(sender, receiver, ligand, receptor) %>% nrow()
+bubble_height_hi <- bubble_base_height + n_interactions_hi * bubble_row_height
+bubble_height_lo <- bubble_base_height + n_interactions_lo * bubble_row_height
+n_interactions_hi
+n_interactions_lo
+bubble_height_hi
+bubble_height_lo
+```
+
+## mPAP hi bubble
+
+```{r mPAP_hi_bubble, fig.width=20.5, fig.height=17.08, eval=TRUE}
+plot_oi_hi <- make_sample_lr_prod_activity_plots_Omnipath(multinichenet_output$prioritization_tables, prioritized_tbl_oi_hi_50 %>% 
+    inner_join(lr_network_all), widths = bubble_widths_plot)
+p1_hi <- plot_oi_hi[[1]]
+p2_hi <- plot_oi_hi[[2]]
+p3_hi <- plot_oi_hi[[3]]
+p4_hi <- plot_oi_hi[[4]]
+p1_hi$data$group <- factor(dplyr::recode(as.character(p1_hi$data$group), mPAP35_hi = "mPAP ≥ 35", mPAP35_lo = "mPAP < 35"), 
+    levels = c("mPAP ≥ 35", "mPAP < 35"))
+p2_hi$data$group <- factor(dplyr::recode(as.character(p2_hi$data$group), mPAP35_hi = "mPAP ≥ 35", mPAP35_lo = "mPAP < 35"), 
+    levels = c("mPAP ≥ 35", "mPAP < 35"))
+p3_hi$data$group <- factor(dplyr::recode(as.character(p3_hi$data$group), mPAP35_hi = "mPAP ≥ 35", mPAP35_lo = "mPAP < 35"), 
+    levels = c("mPAP ≥ 35", "mPAP < 35"))
+p1_hi <- p1_hi + theme(axis.text.y = element_text(face = "bold.italic", size = 15, family = "Arial"), axis.text.x.top = element_text(size = 12, 
+    angle = 45, hjust = 0, vjust = 0, margin = margin(b = 2), family = "Arial"), strip.text.x.top = element_text(size = 16, 
+    face = "bold", family = "Arial"), strip.text.y.left = element_text(size = 16, face = "bold", family = "Arial"), 
+    panel.spacing.y = grid::unit(0.18, "lines")) + guides(color = guide_colorbar(direction = "vertical", title.position = "top", 
+    barheight = grid::unit(25, "mm"), barwidth = grid::unit(4, "mm")), size = guide_legend(direction = "vertical", 
+    title.position = "top", ncol = 1))
+p2_hi <- p2_hi + theme(axis.text.y = element_blank(), axis.text.x.top = element_text(size = 12, angle = 45, hjust = 0, 
+    vjust = 0, margin = margin(b = 2), family = "Arial"), strip.text.x = element_text(size = 16, face = "bold", 
+    family = "Arial"), panel.spacing.y = grid::unit(0.18, "lines")) + guides(fill = guide_colorbar(direction = "vertical", 
+    title.position = "top", barheight = grid::unit(25, "mm"), barwidth = grid::unit(4, "mm")))
+p3_hi <- p3_hi + theme(axis.text.x.top = element_text(size = 12, angle = 45, hjust = 0, vjust = 0, margin = margin(b = 2), 
+    family = "Arial"), strip.text.x = element_text(size = 16, face = "bold", family = "Arial"), panel.spacing.y = grid::unit(0.18, 
+    "lines")) + guides(color = guide_colorbar(direction = "vertical", title.position = "top", barheight = grid::unit(25, 
+    "mm"), barwidth = grid::unit(4, "mm")), size = guide_legend(direction = "vertical", title.position = "top", 
+    ncol = 1))
+p4_hi <- p4_hi + theme(axis.text.x.top = element_text(size = 12, angle = 45, hjust = 0, vjust = 0, margin = margin(b = 2), 
+    family = "Arial"), strip.text.x = element_text(size = 16, face = "bold", family = "Arial"), panel.spacing.y = grid::unit(0.18, 
+    "lines")) + guides(size = guide_legend(direction = "vertical", title.position = "top", ncol = 1))
+plot_hi <- patchwork::wrap_plots(p1_hi, p2_hi, p3_hi, p4_hi, nrow = 1, widths = bubble_widths_plot, guides = "collect") & 
+    theme(legend.position = "bottom", legend.box = "horizontal", legend.box.just = "left", legend.title = element_text(size = 10, 
+        face = "bold", family = "Arial"), legend.text = element_text(size = 9, family = "Arial"), legend.spacing.x = grid::unit(0.6, 
+        "cm"), legend.spacing.y = grid::unit(0.15, "cm"), legend.box.spacing = grid::unit(0.3, "cm"), plot.margin = margin(t = 5, 
+        r = 40, b = 5, l = 1))
+plot_hi
+```
+
+## mPAP lo bubble
+
+```{r mPAP_lo_bubble, fig.width=20.5, fig.height=5.6, eval=TRUE}
+plot_oi_lo <- make_sample_lr_prod_activity_plots_Omnipath(multinichenet_output$prioritization_tables, prioritized_tbl_oi_lo_50 %>% 
+    inner_join(lr_network_all), widths = bubble_widths_plot)
+p1_lo <- plot_oi_lo[[1]]
+p2_lo <- plot_oi_lo[[2]]
+p3_lo <- plot_oi_lo[[3]]
+p4_lo <- plot_oi_lo[[4]]
+p1_lo$data$group <- factor(dplyr::recode(as.character(p1_lo$data$group), mPAP35_hi = "mPAP ≥ 35", mPAP35_lo = "mPAP < 35"), 
+    levels = c("mPAP ≥ 35", "mPAP < 35"))
+p2_lo$data$group <- factor(dplyr::recode(as.character(p2_lo$data$group), mPAP35_hi = "mPAP ≥ 35", mPAP35_lo = "mPAP < 35"), 
+    levels = c("mPAP ≥ 35", "mPAP < 35"))
+p3_lo$data$group <- factor(dplyr::recode(as.character(p3_lo$data$group), mPAP35_hi = "mPAP ≥ 35", mPAP35_lo = "mPAP < 35"), 
+    levels = c("mPAP ≥ 35", "mPAP < 35"))
+p1_lo <- p1_lo + theme(axis.text.y = element_text(face = "bold.italic", size = 15, family = "Arial"), axis.text.x.top = element_text(size = 12, 
+    angle = 45, hjust = 0, vjust = 0, margin = margin(b = 2), family = "Arial"), strip.text.x.top = element_text(size = 16, 
+    face = "bold", family = "Arial"), strip.text.y.left = element_text(size = 16, face = "bold", family = "Arial"), 
+    panel.spacing.y = grid::unit(0.18, "lines")) + guides(color = guide_colorbar(direction = "vertical", title.position = "top", 
+    barheight = grid::unit(25, "mm"), barwidth = grid::unit(4, "mm")), size = guide_legend(direction = "vertical", 
+    title.position = "top", ncol = 1))
+p2_lo <- p2_lo + theme(axis.text.y = element_blank(), axis.text.x.top = element_text(size = 12, angle = 45, hjust = 0, 
+    vjust = 0, margin = margin(b = 2), family = "Arial"), strip.text.x = element_text(size = 16, face = "bold", 
+    family = "Arial"), panel.spacing.y = grid::unit(0.18, "lines")) + guides(fill = guide_colorbar(direction = "vertical", 
+    title.position = "top", barheight = grid::unit(25, "mm"), barwidth = grid::unit(4, "mm")))
+p3_lo <- p3_lo + theme(axis.text.x.top = element_text(size = 12, angle = 45, hjust = 0, vjust = 0, margin = margin(b = 2), 
+    family = "Arial"), strip.text.x = element_text(size = 16, face = "bold", family = "Arial"), panel.spacing.y = grid::unit(0.18, 
+    "lines")) + guides(color = guide_colorbar(direction = "vertical", title.position = "top", barheight = grid::unit(25, 
+    "mm"), barwidth = grid::unit(4, "mm")), size = guide_legend(direction = "vertical", title.position = "top", 
+    ncol = 1))
+p4_lo <- p4_lo + theme(axis.text.x.top = element_text(size = 12, angle = 45, hjust = 0, vjust = 0, margin = margin(b = 2), 
+    family = "Arial"), strip.text.x = element_text(size = 16, face = "bold", family = "Arial"), panel.spacing.y = grid::unit(0.18, 
+    "lines")) + guides(size = guide_legend(direction = "vertical", title.position = "top", ncol = 1))
+plot_lo <- patchwork::wrap_plots(p1_lo, p2_lo, p3_lo, p4_lo, nrow = 1, widths = bubble_widths_plot, guides = "collect") & 
+    theme(legend.position = "bottom", legend.box = "horizontal", legend.box.just = "left", legend.title = element_text(size = 10, 
+        face = "bold", family = "Arial"), legend.text = element_text(size = 9, family = "Arial"), legend.spacing.x = grid::unit(0.6, 
+        "cm"), legend.spacing.y = grid::unit(0.15, "cm"), legend.box.spacing = grid::unit(0.3, "cm"), plot.margin = margin(t = 5, 
+        r = 40, b = 5, l = 1))
+plot_lo
+```
+
+## mPAP hi network
+
+```{r mPAP_hi_network, eval=TRUE}
+group_oi = "mPAP35_hi"
+lr_target_prior_cor_filtered = multinichenet_output$lr_target_prior_cor %>% inner_join(multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% 
+    distinct(ligand, target, direction_regulation, contrast)) %>% inner_join(contrast_tbl) %>% filter(group == 
+    group_oi)
+lr_target_prior_cor_filtered_up = lr_target_prior_cor_filtered %>% filter(direction_regulation == "up") %>% filter((rank_of_target < 
+    top_n_target) & (pearson > 0.33))
+lr_target_prior_cor_filtered_down = lr_target_prior_cor_filtered %>% filter(direction_regulation == "down") %>% 
+    filter((rank_of_target < top_n_target) & (pearson < -0.33))
+lr_target_prior_cor_filtered = bind_rows(lr_target_prior_cor_filtered_up, lr_target_prior_cor_filtered_down)
+lr_target_df = lr_target_prior_cor_filtered %>% distinct(group, sender, receiver, ligand, receptor, id, target, 
+    direction_regulation)
+network = infer_intercellular_regulatory_network(lr_target_df, prioritized_tbl_oi_hi_50)
+```
+
+## mPAP hi network plot
+
+```{r mPAP_hi_network_plot,fig.width=10,fig.height=6,eval=TRUE}
+network_plot_data <- network
+network_plot_data$links$group <- dplyr::recode(as.character(network_plot_data$links$group), mPAP35_hi = "mPAP ≥ 35")
+network_graph <- visualize_network(network_plot_data, celltype_cols)
+network_graph$plot$layers[[1]]$aes_params$edge_width <- 1.2
+network_graph$plot$layers[[1]]$geom_params$arrow <- grid::arrow(angle = 30, length = grid::unit(4, "mm"), ends = "last", 
+    type = "open")
+network_graph$plot$layers[[2]]$aes_params$size <- 4.1
+network_graph$plot$layers[[2]]$geom_params$label.padding <- grid::unit(0.18, "lines")
+network_graph$plot$layers[[2]]$geom_params$label.r <- grid::unit(0.1, "lines")
+network_plot <- network_graph$plot + scale_x_continuous(expand = expansion(mult = c(0.16, 0.16))) + scale_y_continuous(expand = expansion(mult = c(0.16, 
+    0.16))) + theme(strip.text = element_text(size = 17, face = "bold", colour = "white", margin = margin(t = 4, 
+    b = 4), family = "Arial"), legend.title = element_text(size = 13, face = "bold", family = "Arial"), legend.text = element_text(size = 11, 
+    family = "Arial"), legend.key.height = grid::unit(0.55, "cm"), legend.key.width = grid::unit(0.45, "cm"), legend.spacing.y = grid::unit(0.15, 
+    "cm"), plot.margin = margin(t = 5, r = 8, b = 5, l = 8))
+network_plot
+A_node_layers <- ggplot2::ggplot_build(network_graph$plot)$data
+A_node_fills <- toupper(unlist(lapply(A_node_layers, function(d) as.character(d$fill))))
+stopifnot(any(grepl("^#9C6ADE", A_node_fills)))
+```
+
+## Supplementary data export
+
+```{r Supplementary_data_export, eval=TRUE}
+ligand_target_activity_supp <- multinichenet_output$ligand_activities_targets_DEgenes$ligand_activities %>% inner_join(contrast_tbl)
+writexl::write_xlsx(list(Prioritized_LR_all = multinichenet_output$prioritization_tables$group_prioritization_tbl, 
+    Top50_LR_mPAP_hi = prioritized_tbl_oi_hi_50, Top50_LR_mPAP_lo = prioritized_tbl_oi_lo_50, Ligand_target_activity = ligand_target_activity_supp, 
+    LR_target_correlations = lr_target_prior_cor_filtered, Network_links = network$links, Network_nodes = network$nodes, 
+    Network_LR_interactions = network$prioritized_lr_interactions), here::here("output", "Datasets", "Dataset_EV8.xlsx"))
+```

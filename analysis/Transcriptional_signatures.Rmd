@@ -1,0 +1,457 @@
+---
+title: "Gene programmes and pulmonary-pressure signatures"
+author: "GinoBonazza (ginoandrea.bonazza@usz.ch)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  workflowr::wflow_html:
+    code_folding: none
+editor_options:
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 600, fig.retina = 1, 
+    fig.align = "center", dev = "png", dev.args = list(type = "cairo", family = "Arial"))
+library(here)
+current_file <- "Transcriptional_signatures"
+output_dir_data <- here::here("output", current_file)
+output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
+set.seed(20240606)
+```
+
+```{r libraries}
+library(Seurat)
+library(qs2)
+library(Matrix)
+library(edgeR)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+library(sandwich)
+library(tibble)
+library(pheatmap)
+library(scales)
+select <- dplyr::select
+filter <- dplyr::filter
+O <- output_dir_data
+H <- here::here("output", "DCM_control_transcriptomics")
+D <- here::here("output", "Clinical_transcriptomic_associations")
+read <- function(f) read.csv(f, stringsAsFactors = FALSE, check.names = FALSE)
+out <- function(d, n) write.csv(d, file.path(O, paste0(n, ".csv")), row.names = FALSE, na = "")
+```
+
+## Donor-level expression and fixed gene sets
+
+```{r expression_and_scores}
+md <- read(file.path(H, "A_donor_metadata.csv"))
+cl <- read(file.path(D, "A_clinical_donor_metadata.csv"))
+md$mPAP_mmHg <- cl$mPAP_mmHg[match(md$Sample, cl$Sample)]
+stopifnot(nrow(md) == 29, sum(md$Group == "HC") == 8, sum(is.finite(md$mPAP_mmHg)) == 18)
+out(md, "donors")
+x <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+cm <- x[[]]
+counts <- GetAssayData(x, assay = "RNA", slot = "counts")
+stopifnot(ncol(counts) == 190794L)
+types <- unique(as.character(cm$cell_type))
+types <- c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", "Macrophages", "Pericytes", "Smooth muscle cells", 
+    "Lymphocytes", "Neuronal cells", "Endocardial cells", setdiff(types, c("Cardiomyocytes", "Fibroblasts", "Endothelial cells", 
+        "Macrophages", "Pericytes", "Smooth muscle cells", "Lymphocytes", "Neuronal cells", "Endocardial cells")))
+pcs <- list()
+summ <- list()
+bins <- list()
+corr <- list()
+scores <- list()
+coverage <- list()
+effect_tables <- list()
+pcgenes <- list()
+scoregenes <- list()
+loo_inputs <- list()
+programmes <- list()
+program_stats <- list()
+frozen <- read(here::here("data", "processed", "resources", "A_submitted_918_programme_memberships.csv"))
+stopifnot(nrow(frozen) == 918L, length(unique(frozen$Program)) == 5)
+for (ct in types) {
+    id <- gsub(" ", "_", ct, fixed = TRUE)
+    di <- id
+    at <- which(as.character(cm$cell_type) == ct)
+    ns <- table(factor(cm$Sample[at], levels = md$Sample))
+    a <- Matrix::sparseMatrix(i = seq_along(at), j = match(cm$Sample[at], md$Sample), x = 1, dims = c(length(at), 
+        nrow(md)))
+    pb <- as.matrix(counts[, at, drop = FALSE] %*% a)
+    dimnames(pb) <- list(rownames(counts), md$Sample)
+    have <- colSums(pb) > 0
+    nn <- md[have, , drop = FALSE]
+    pp <- pb[, have, drop = FALSE]
+    hf <- file.path(H, paste0("A_", id, "_DE_DCM_vs_HC.csv"))
+    df <- file.path(D, paste0(di, "_DE_Results_mPAP_mmHg.csv"))
+    hz <- if (file.exists(hf)) 
+        read(hf)
+    else NULL
+    dz <- if (file.exists(df)) 
+        read(df)
+    else NULL
+    if (!is.null(hz)) {
+        hp <- file.path(H, paste0("A_", id, "_pseudobulk.rds"))
+        yy <- readRDS(hp)
+        stopifnot(all(yy$counts == pb[rownames(yy), colnames(yy), drop = FALSE]))
+        stopifnot(setequal(hz$gene, rownames(yy)))
+    }
+    genes <- union(hz$gene, dz$gene)
+    method <- "Union of genes tested in HC/DCM or mPAP DE; not significant DEGs"
+    if (length(genes) < 2) {
+        detect <- Matrix::rowMeans(counts[, at, drop = FALSE] > 0) > 0.01
+        y0 <- DGEList(pp[detect, , drop = FALSE])
+        genes <- rownames(y0)[filterByExpr(y0)]
+        method <- "No estimable DE gene universe: expression-filtered all-donor genes (>1% nuclei + filterByExpr)"
+    }
+    stopifnot(length(genes) > 1, all(genes %in% rownames(pb)))
+    y <- normLibSizes(DGEList(pp[genes, , drop = FALSE]))
+    expr <- cpm(y, log = TRUE, prior.count = 2)
+    variable <- apply(expr, 1, sd) > 0
+    expr <- expr[variable, , drop = FALSE]
+    stopifnot(all(is.finite(expr)))
+    pc <- prcomp(t(expr), center = TRUE, scale. = FALSE)
+    frac <- pc$sdev^2/sum(pc$sdev^2)
+    pcs[[ct]] <- data.frame(cell_type = ct, Sample = nn$Sample, Group = nn$Group, mPAP = nn$mPAP_mmHg, PC1 = pc$x[, 
+        1], PC2 = pc$x[, 2], PC1_percent = 100 * frac[1], PC2_percent = 100 * frac[2], n_nuclei = as.integer(ns[nn$Sample]), 
+        raw_counts = colSums(pp), low_depth = colSums(pp) <= 50000)
+    pcgenes[[ct]] <- data.frame(cell_type = ct, gene = rownames(expr), HC_DCM_tested = rownames(expr) %in% hz$gene, 
+        mPAP_tested = rownames(expr) %in% dz$gene)
+    summ[[ct]] <- data.frame(cell_type = ct, n_donors = nrow(nn), n_HC = sum(nn$Group == "HC"), n_DCM = sum(nn$Group == 
+        "DCM"), n_mPAP = sum(is.finite(nn$mPAP_mmHg)), PCA_genes = nrow(expr), HC_genes = length(hz$gene), mPAP_genes = length(dz$gene), 
+        common_DE_genes = length(intersect(hz$gene, dz$gene)), gene_method = method, low_depth_donors = sum(colSums(pp) <= 
+            50000), absent_donors = paste(md$Sample[!have], collapse = ";"))
+    if (!is.null(hz) && !is.null(dz)) {
+        zz <- merge(hz[, c("gene", "logFC", "FDR")], dz[, c("gene", "logFC", "FDR")], by = "gene", suffixes = c("_HC", 
+            "_mPAP"))
+        stopifnot(!anyDuplicated(zz$gene))
+        zz$cell_type <- ct
+        zz$HC_DEG <- zz$FDR_HC < 0.05 & abs(zz$logFC_HC) > 0.5
+        zz$mPAP_DEG <- zz$FDR_mPAP < 0.05 & abs(zz$logFC_mPAP) > 0.5
+        effect_tables[[ct]] <- zz
+        for (scope in c("All common tested genes", "mPAP DEGs")) {
+            z <- if (scope == "mPAP DEGs") 
+                zz[zz$mPAP_DEG, , drop = FALSE]
+            else zz
+            for (methodr in c("spearman", "pearson")) {
+                r <- if (nrow(z) >= 3 && sd(z$logFC_HC) > 0 && sd(z$logFC_mPAP) > 0) 
+                  cor(z$logFC_HC, z$logFC_mPAP, method = methodr)
+                else NA_real_
+                corr[[paste(ct, scope, methodr)]] <- data.frame(cell_type = ct, scope = scope, method = methodr, 
+                  n_genes = nrow(z), correlation = r, sign_concordance = if (nrow(z) > 0) 
+                    mean(sign(z$logFC_HC) == sign(z$logFC_mPAP))
+                  else NA_real_)
+            }
+        }
+        for (catg in c("Neither", "HC only", "mPAP only", "Both")) {
+            gcat <- ifelse(zz$HC_DEG, ifelse(zz$mPAP_DEG, "Both", "HC only"), ifelse(zz$mPAP_DEG, "mPAP only", 
+                "Neither"))
+            z <- zz[gcat == catg, , drop = FALSE]
+            if (nrow(z) == 0) 
+                next
+            limx <- max(abs(zz$logFC_HC))
+            limy <- max(abs(zz$logFC_mPAP))
+            n <- 100L
+            xi <- pmin(n - 1L, pmax(0L, floor((z$logFC_HC + limx)/(2 * limx) * n)))
+            yi <- pmin(n - 1L, pmax(0L, floor((z$logFC_mPAP + limy)/(2 * limy) * n)))
+            tb <- as.data.frame(table(paste(xi, yi, sep = ":")), stringsAsFactors = FALSE)
+            ij <- do.call(rbind, strsplit(as.character(tb$Var1), ":", fixed = TRUE))
+            bins[[paste(ct, catg)]] <- data.frame(cell_type = ct, category = catg, x = -limx + (as.integer(ij[, 
+                1]) + 0.5)/n * 2 * limx, y = -limy + (as.integer(ij[, 2]) + 0.5)/n * 2 * limy, n = tb$Freq)
+        }
+        for (direction in c("Up", "Down")) {
+            sg <- dz$gene[dz$FDR < 0.05 & if (direction == "Up") 
+                dz$logFC > 0.5
+            else dz$logFC < -0.5]
+            sg <- intersect(sg, rownames(expr))
+            coverage[[paste(ct, direction)]] <- data.frame(cell_type = ct, direction = direction, n_DEGs = sum(dz$FDR < 
+                0.05 & if (direction == "Up") dz$logFC > 0.5 else dz$logFC < -0.5), n_scored = length(sg))
+            if (length(sg) > 0) {
+                ss <- colMeans(t(scale(t(expr[sg, , drop = FALSE]))))
+                scores[[paste(ct, direction)]] <- data.frame(cell_type = ct, direction = direction, nn, Score = as.numeric(ss), 
+                  genes = length(sg))
+                scoregenes[[paste(ct, direction)]] <- data.frame(cell_type = ct, direction = direction, gene = sg)
+            }
+        }
+    }
+    if (ct == "Cardiomyocytes") {
+        for (def in "Submitted918") {
+            membership <- frozen
+            for (pr in unique(membership$Program)) {
+                allg <- unique(membership$gene[membership$Program == pr])
+                sg <- intersect(allg, rownames(expr))
+                stopifnot(length(sg) > 0)
+                ss <- colMeans(t(scale(t(expr[sg, , drop = FALSE]))))
+                programmes[[paste(def, pr)]] <- data.frame(definition = def, Program = pr, nn, Score = as.numeric(ss), 
+                  n_genes = length(sg), defined_genes = length(allg))
+            }
+        }
+        out(data.frame(gene = rownames(expr), expr, check.names = FALSE), "CM_logCPM")
+    }
+}
+out(bind_rows(pcs), "PCA_coordinates")
+out(bind_rows(summ), "cell_type_summary")
+out(bind_rows(corr), "effect_correlations")
+out(bind_rows(bins), "effect_bins")
+out(bind_rows(scores), "DEG_scores")
+out(bind_rows(coverage), "DEG_score_coverage")
+out(bind_rows(programmes), "CM_programme_scores")
+out(bind_rows(effect_tables), "all_gene_effects")
+out(bind_rows(pcgenes), "PCA_gene_universes")
+out(bind_rows(scoregenes), "DEG_score_memberships")
+```
+
+## Cardiomyocyte programme comparisons
+
+```{r programme_models}
+ps <- bind_rows(programmes)
+for (def in unique(ps$definition)) for (pr in unique(ps$Program)) {
+    d <- ps[ps$definition == def & ps$Program == pr, , drop = FALSE]
+    comparisons <- list(DCM_vs_HC = list(groups = c("HC", "DCM"), select = rep(TRUE, nrow(d)), label = ifelse(d$Group == 
+        "HC", "HC", "DCM")), DCM_lt35_vs_HC = list(groups = c("HC", "Low"), select = d$Group == "HC" | is.finite(d$mPAP_mmHg), 
+        label = ifelse(d$Group == "HC", "HC", ifelse(d$mPAP_mmHg < 35, "Low", "High"))), DCM_ge35_vs_HC = list(groups = c("HC", 
+        "High"), select = d$Group == "HC" | is.finite(d$mPAP_mmHg), label = ifelse(d$Group == "HC", "HC", ifelse(d$mPAP_mmHg < 
+        35, "Low", "High"))), DCM_ge35_vs_lt35 = list(groups = c("Low", "High"), select = is.finite(d$mPAP_mmHg), 
+        label = ifelse(d$mPAP_mmHg < 35, "Low", "High")), DCM_PH_vs_HC = list(groups = c("HC", "PH"), select = d$Group == 
+        "HC" | (!is.na(d$mPAP_mmHg) & d$mPAP_mmHg > 20), label = ifelse(d$Group == "HC", "HC", "PH")))
+    for (n in names(comparisons)) {
+        cc <- comparisons[[n]]
+        dd <- d[which(cc$select & cc$label %in% cc$groups), , drop = FALSE]
+        dd$G <- factor(cc$label[which(cc$select & cc$label %in% cc$groups)], levels = cc$groups)
+        fit <- lm(Score ~ G + Age_years, data = dd)
+        su <- summary(fit)$coefficients
+        ci <- confint(fit)[2, ]
+        program_stats[[paste(def, pr, n)]] <- data.frame(definition = def, Program = pr, contrast = n, n_reference = sum(dd$G == 
+            cc$groups[1]), n_comparison = sum(dd$G == cc$groups[2]), beta = su[2, 1], SE = su[2, 2], CI_low = ci[1], 
+            CI_high = ci[2], PValue = su[2, 4])
+    }
+}
+st <- bind_rows(program_stats)
+st$FDR <- NA_real_
+for (def in unique(st$definition)) {
+    ii <- st$definition == def
+    st$FDR[ii] <- p.adjust(st$PValue[ii], "BH")
+}
+out(st, "CM_programme_all_comparisons")
+programme_statistics <- st %>% filter(contrast %in% c("DCM_lt35_vs_HC", "DCM_ge35_vs_HC", "DCM_ge35_vs_lt35")) %>% 
+    mutate(FDR = p.adjust(PValue, "BH"))
+out(programme_statistics, "CM_programme_statistics")
+```
+
+## Fixed mPAP signatures
+
+```{r signature_models}
+signature_scores <- bind_rows(scores) %>% filter(cell_type != "Endocardial cells")
+signature_statistics <- signature_scores %>% group_by(cell_type, direction) %>% group_modify(function(d, key) {
+    d$Group <- factor(d$Group, levels = c("HC", "DCM"))
+    fit <- lm(Score ~ Group + Age_years, data = d)
+    estimate <- coef(fit)["GroupDCM"]
+    se <- sqrt(sandwich::vcovHC(fit, type = "HC3")["GroupDCM", "GroupDCM"])
+    df <- df.residual(fit)
+    data.frame(n_genes = unique(d$genes), n_HC = sum(d$Group == "HC"), n_DCM = sum(d$Group == "DCM"), beta = estimate, 
+        SE_HC3 = se, CI95_lower = estimate - qt(0.975, df) * se, CI95_upper = estimate + qt(0.975, df) * se, PValue = 2 * 
+            pt(-abs(estimate/se), df))
+}) %>% ungroup() %>% mutate(FDR = p.adjust(PValue, "BH"))
+stopifnot(nrow(signature_statistics) == 14, nrow(signature_scores) == 406, nrow(programme_statistics) == 15)
+out(signature_statistics, "Signature_statistics")
+out(signature_scores, "Signature_scores")
+```
+
+```{r score_plot_function}
+score_boxes <- function(values,labels,colours,comparisons,title,small=FALSE) {
+ v <- unlist(values);lo <- min(v);hi <- max(v);span <- max(hi-lo,.25)
+ shown <- comparisons[is.finite(comparisons$FDR)&comparisons$FDR<.1,,drop=FALSE]
+ upper <- if(small) .30+.30*nrow(shown) else if(nrow(shown)) .29 else .13
+ boxplot(values,outline=FALSE,col=colours,names=FALSE,axes=FALSE,ylim=c(lo-.12*span,hi+upper*span),xlim=c(.45,length(values)+.55),boxwex=.49,lwd=if(small).45 else .7,xaxs='i',yaxs='i')
+ set.seed(101)
+ for(i in seq_along(values)) points(i+runif(length(values[[i]]),-.095,.095),values[[i]],pch=21,bg=colours[i],col='#444444',cex=if(small).5 else .6,lwd=.3)
+ axis(1,at=seq_along(values),labels=paste0(labels,'\n(n=',lengths(values),')'),tick=FALSE,cex.axis=if(small)1 else .9,line=-.45)
+ axis(2,at=pretty(c(lo,hi),n=3),las=1,cex.axis=if(small).9 else .9,lwd=.5,tcl=-.2,mgp=c(1,.3,0));box(bty='l',lwd=.5)
+ if(nrow(shown)) for(k in seq_len(nrow(shown))) {
+  y <- hi+span*(if(small).18+.30*(k-1) else .15);a<-shown$a[k];b<-shown$b[k]
+  lines(c(a,a,b,b),c(y-.025*span,y,y,y-.025*span),lwd=.5)
+  text((a+b)/2,y+.005*span,formatC(shown$FDR[k],digits=2,format='g'),cex=1,pos=3,offset=0)
+ }
+ u <- par('usr');dy <- diff(u[3:4]);dx <- diff(u[1:2])
+ if(small) {
+  rect(u[1],u[4]+.025*dy,u[2],u[4]+.405*dy,xpd=NA,col='white',border='black',lwd=.4)
+  text(mean(u[1:2]),u[4]+.215*dy,title,cex=if(startsWith(title,'Sarcomere')) .98 else 1.1,font=2,xpd=NA)
+ } else {
+  w <- max(strwidth(strsplit(title,'\n',fixed=TRUE)[[1]],font=2))+dx*.1
+  h <- strheight(title,font=2)+dy*.06;y <- u[4]+dy*.13+h/2
+  rect(mean(u[1:2])-w/2,y-h/2,mean(u[1:2])+w/2,y+h/2,xpd=NA,col='white',border='black',lwd=.6)
+  text(mean(u[1:2]),y,title,font=2,xpd=NA)
+ }
+}
+```
+
+## Five cardiomyocyte programmes
+
+```{r programme_scores_plot, fig.width=3.4, fig.height=2.4, dpi=1200}
+programmes_order <- unique(ps$Program)
+titles <- c('Cytoskeleton and sarcomere remodeling'='Sarcomere and\ncytoskeleton\nremodeling','Autophagy'='Autophagy','Adrenergic signaling'='Adrenergic\nsignaling','Glucose metabolism'='Glucose\nmetabolism','Vesicle transport'='Vesicle trafficking')
+w <- .90/(3+2*.48);h <- .68/(2+1.02)
+for(i in seq_along(programmes_order)) {
+ pr <- programmes_order[i];d <- ps[ps$Program==pr,];s <- programme_statistics[programme_statistics$Program==pr,]
+ x <- .09+((i-1)%%3)*w*1.48;y <- .82-h-floor((i-1)/3)*h*2.02
+ par(fig=c(x,x+w,y,y+h),mar=rep(0,4),oma=rep(0,4),family='Arial',ps=5,cex=1,new=i>1)
+ vals <- list(d$Score[d$Group=='HC'],d$Score[which(d$Group=='DCM'&d$mPAP_mmHg<35)],d$Score[which(d$Group=='DCM'&d$mPAP_mmHg>=35)])
+ cmp <- data.frame(a=c(1,2,1),b=c(2,3,3),FDR=s$FDR[match(c('DCM_lt35_vs_HC','DCM_ge35_vs_lt35','DCM_ge35_vs_HC'),s$contrast)])
+ score_boxes(vals,c('HC','DCM\n<35','DCM\n≥35'),c('#80B1D3','#F5D1CB','#C75D54'),cmp,titles[pr],small=TRUE)
+ mtext('Mean gene z-score',2,line=1.35,cex=1)
+}
+```
+
+## mPAP-up and mPAP-down signatures
+
+```{r signature_scores_plot, fig.width=8.4, fig.height=9.6, dpi=400}
+cell_order <- unique(signature_scores$cell_type[signature_scores$direction=='Down'])
+w <- .845/(4+3*.55);h <- .86/(4+3*.85);first <- TRUE
+for(direction in c('Up','Down')) for(j in seq_along(cell_order)) {
+ ct <- cell_order[j];d <- signature_scores[signature_scores$cell_type==ct & signature_scores$direction==direction,]
+ if(!nrow(d)) next
+ col <- (j-1)%%4;row <- floor((j-1)/4)+if(direction=='Down')2 else 0
+ x <- .14+col*w*1.55;y <- .94-h-row*h*1.85
+ par(fig=c(x,x+w,y,y+h),mar=rep(0,4),oma=rep(0,4),family='Arial',ps=10,cex=1,new=!first);first <- FALSE
+ q <- signature_statistics$FDR[signature_statistics$cell_type==ct & signature_statistics$direction==direction]
+ score_boxes(list(d$Score[d$Group=='HC'],d$Score[d$Group=='DCM']),c('HC','DCM'),c('#80B1D3','#EFA39A'),data.frame(a=1,b=2,FDR=q),if(ct=='Smooth muscle cells')'Smooth muscle\ncells' else ct)
+ if(col==0) mtext('Mean gene z-score',2,line=1.8,cex=1)
+}
+par(fig=c(0,1,0,1),mar=rep(0,4),new=TRUE);plot.new();plot.window(c(0,1),c(0,1),xaxs='i',yaxs='i')
+text(.025,.94-h*1.425,'mPAP-up signatures',srt=90,font=2,cex=1.2)
+text(.025,.94-h*5.125,'mPAP-down signatures',srt=90,font=2,cex=1.2)
+```
+
+## Expression across donors
+
+```{r donor_PCA, fig.width=12, fig.height=9}
+pca_data <- bind_rows(pcs)
+ggplot(pca_data, aes(PC1, PC2, colour = Group)) + geom_point(size = 2) + facet_wrap(~cell_type, scales = "free", 
+    ncol = 4) + scale_colour_manual(values = c(HC = "#80B1D3", DCM = "#EFA39A")) + theme_classic(base_family = "Arial")
+```
+
+## DCM–control and mPAP effects
+
+```{r effect_comparisons, fig.width=12, fig.height=10}
+effects <- bind_rows(effect_tables)
+ggplot(effects, aes(logFC_HC, logFC_mPAP, colour = interaction(HC_DEG, mPAP_DEG))) + geom_point(size = 0.2, alpha = 0.4) + 
+    facet_wrap(~cell_type, scales = "free", ncol = 3) + theme_classic(base_family = "Arial") + labs(x = "DCM versus control log2 fold change", 
+    y = "mPAP-associated log2 fold change", colour = "DCM–control / mPAP DEG")
+```
+
+## Shared upregulated genes
+
+```{r shared_gene_enrichment}
+mapping <- read.csv(here::here("data", "processed", "shared_expression", "symbol_Entrez_mapping.csv"))
+mapping$ENTREZID <- as.character(mapping$ENTREZID)
+databases <- readRDS(here::here("data", "processed", "shared_expression", "database_snapshot.rds"))[c("GO_BP", 
+    "KEGG")]
+shared_genes <- list()
+enrichment <- list()
+for (ct in unique(effects$cell_type)) {
+    d <- effects[effects$cell_type == ct, ]
+    for (cut in c(0.05, 0.1)) {
+        selected <- d$gene[d$FDR_HC < cut & d$FDR_mPAP < cut & d$logFC_HC > 0 & d$logFC_mPAP > 0]
+        shared_genes[[paste(ct, cut)]] <- data.frame(cell_type = rep(ct, length(selected)), gene_FDR = rep(cut, 
+            length(selected)), gene = selected)
+        universe <- unique(mapping$ENTREZID[mapping$SYMBOL %in% d$gene])
+        query <- unique(mapping$ENTREZID[mapping$SYMBOL %in% selected])
+        for (database in names(databases)) {
+            db <- databases[[database]]
+            background <- intersect(universe, unique(unlist(db$sets)))
+            qq <- intersect(query, background)
+            sets <- lapply(db$sets, intersect, y = background)
+            sets <- sets[lengths(sets) >= 10 & lengths(sets) <= 500]
+            K <- lengths(sets)
+            N <- length(background)
+            n <- length(qq)
+            k <- vapply(sets, function(gs) length(intersect(gs, qq)), integer(1))
+            p <- if (n == 0) 
+                rep(1, length(k))
+            else phyper(k - 1, K, N - K, n, lower.tail = FALSE)
+            tab <- data.frame(cell_type = ct, gene_FDR = cut, database = database, ID = names(sets), Description = unname(db$names[names(sets)]), 
+                Count = unname(k), term_background = unname(K), query_size = n, background_size = N, PValue = unname(p), 
+                FDR = p.adjust(p, "BH"), genes = vapply(sets, function(gs) paste(sort(unique(mapping$SYMBOL[mapping$ENTREZID %in% 
+                  intersect(gs, qq)])), collapse = ";"), character(1)))
+            enrichment[[paste(ct, cut, database)]] <- tab
+        }
+    }
+}
+shared_genes <- bind_rows(shared_genes)
+enrichment <- bind_rows(enrichment)
+saveRDS(enrichment, file.path(O, "Shared_gene_ORA_all_terms.rds"))
+```
+
+```{r shared_enrichment_plot, fig.width=10, fig.height=7}
+enriched <- enrichment %>% filter(gene_FDR == 0.05, FDR < 0.05, Count >= 2)
+if (nrow(enriched) > 0) print(ggplot(enriched, aes(-log10(FDR), reorder(Description, -log10(FDR)), size = Count, 
+    colour = database)) + geom_point() + facet_wrap(~cell_type, scales = "free_y") + theme_classic(base_family = "Arial") + 
+    labs(x = expression(-log[10](FDR)), y = NULL))
+```
+
+## Cardiomyocyte endocytosis genes
+
+```{r endocytosis_heatmap, fig.width=7.6, fig.height=3.8, dpi=600}
+term <- enrichment %>% filter(cell_type == "Cardiomyocytes", gene_FDR == 0.05, database == "KEGG", ID == "hsa04144")
+genes <- sort(strsplit(term$genes, ";", fixed = TRUE)[[1]])
+expression <- read.csv(file.path(O, "CM_logCPM.csv"), row.names = 1, check.names = FALSE)
+d <- md[order(md$Group != "HC", ifelse(md$Group == "HC", 0, md$mPAP_mmHg), md$Sample, na.last = TRUE), ]
+mat <- t(scale(t(as.matrix(expression[genes, d$Sample, drop = FALSE]))))
+write.csv(mat, file.path(O, "Endocytosis_zscores.csv"))
+write.csv(d, file.path(O, "Endocytosis_donors.csv"), row.names = FALSE)
+colours <- colorRampPalette(c("#2166AC", "white", "#B2182B"))(256)
+pressure <- colorRampPalette(c("#F2D4CF", "#AF3C32"))(256)
+zcolour <- matrix(colours[pmax(1, pmin(256, round((mat + 3)/6 * 255) + 1))], nrow = nrow(mat))
+grid::grid.newpage()
+grid::grid.raster(zcolour, x = 0.49, y = 0.48, width = 0.66, height = 0.5, interpolate = FALSE)
+text <- function(label, x, y, size = 11, ...) grid::grid.text(label, x = x, y = y, gp = grid::gpar(fontfamily = "Arial", 
+    fontsize = size), ...)
+for (i in seq_along(genes)) text(genes[i], 0.15, 0.73 - (i - 0.5) * 0.5/length(genes), just = "right")
+for (i in seq_len(nrow(d))) text(d$Sample[i], 0.16 + (i - 0.5) * 0.66/nrow(d), 0.215, size = 8.5, rot = 90, just = "right")
+group_colours <- ifelse(d$Group == "HC", "#004C8C", "#A63A2A")
+pressure_colours <- ifelse(is.na(d$mPAP_mmHg), "#D9D9D9", pressure[pmax(1, pmin(256, round((d$mPAP_mmHg - 19)/29 * 
+    255) + 1))])
+for (bar in c("Group", "mPAP")) {
+    y <- if (bar == "Group") 
+        0.8025
+    else 0.7525
+    grid::grid.raster(matrix(if (bar == "Group") 
+        group_colours
+    else pressure_colours, nrow = 1), x = 0.49, y = y, width = 0.66, height = 0.035, interpolate = FALSE)
+    text(bar, 0.15, y, size = 9, just = "right")
+}
+for (x in c(8, 26)) grid::grid.lines(x = rep(0.16 + x/29 * 0.66, 2), y = c(0.23, 0.82), gp = grid::gpar(col = "white", 
+    lwd = 3))
+text("HC", 0.16 + 0.66 * 4/29, 0.845, size = 10)
+text("DCM: increasing mPAP", 0.16 + 0.66 * 17/29, 0.845, size = 10)
+text("NA", 0.16 + 0.66 * 27.5/29, 0.845, size = 10)
+text("Cardiomyocytes · Endocytosis", 0.04, 0.95, size = 14, just = "left")
+fold <- term$Count/term$query_size/(term$term_background/term$background_size)
+text(paste0(length(genes), " shared-up genes · ", formatC(fold, digits = 2, format = "f"), "-fold enrichment · FDR = ", 
+    formatC(term$FDR, digits = 3, format = "f")), 0.04, 0.89, size = 11, just = "left")
+grid::grid.raster(matrix(rev(colours), ncol = 1), x = 0.8685, y = 0.38, width = 0.017, height = 0.2, interpolate = FALSE)
+text("Gene\nz-score", 0.86, 0.54, size = 10, just = "left")
+for (i in 0:2) text(c("-3", "0", "3")[i + 1], 0.89, 0.28 + i * 0.1, size = 10, just = "left")
+grid::grid.raster(matrix(rev(pressure), ncol = 1), x = 0.8685, y = 0.665, width = 0.017, height = 0.13, interpolate = FALSE)
+text("mPAP\n(mmHg)", 0.86, 0.805, size = 10, just = "left")
+for (v in c(19, 35, 48)) text(v, 0.89, 0.6 + (v - 19)/29 * 0.13, size = 10, just = "left")
+```
+
+## Dataset EV5
+
+```{r Dataset_EV5}
+Dataset_EV5 <- list(Programme_memberships = frozen, Programme_scores = ps, Programme_comparisons = programme_statistics, 
+    Programme_other_comparisons = st[!st$contrast %in% programme_statistics$contrast, ], Signature_memberships = bind_rows(scoregenes), 
+    Signature_scores = signature_scores, Signature_statistics = signature_statistics, Signature_coverage = bind_rows(coverage), 
+    Shared_upregulated_genes = shared_genes, Shared_gene_enrichment = enrichment[enrichment$Count > 0, ], PCA_coordinates = bind_rows(pcs), 
+    PCA_genes = bind_rows(pcgenes), Effect_comparisons = bind_rows(effect_tables), Effect_correlations = bind_rows(corr))
+saveRDS(Dataset_EV5, file.path(O, "Dataset_EV5_tables.rds"))
+writexl::write_xlsx(Dataset_EV5, here::here("output", "Datasets", "Dataset_EV5.xlsx"), format_headers = FALSE)
+```
