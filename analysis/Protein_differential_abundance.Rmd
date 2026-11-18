@@ -422,8 +422,7 @@ for (key in names(a$results)) {
         dpi = 600, device = if (ext == "pdf") 
             grDevices::cairo_pdf
         else "png")
-    cat("<img style=\"width:100%;height:auto\" src=\"data:image/png;base64,", base64enc::base64encode(paste0(output_dir_figs, 
-        "/", key, "__volcano.png")), "\"/>\n", sep = "")
+    cat("<img style=\"width:100%;height:auto\" src=\"", file.path("figure", paste0(current_file, ".Rmd"), paste0(key, "__volcano.png")), "\"/>\n", sep = "")
     top <- head(t[order(t$FDR, t$P.Value), c("feature", "logFC", "P.Value", "FDR", "n_observed")], 15)
     top[2:4] <- lapply(top[2:4], fmt)
     cat("\nTop 15 proteins ranked by FDR (not a significance-filtered table)\n\n")
@@ -458,8 +457,8 @@ for (key in names(a$results)) {
         else "png")
     f <- file.path(T, paste0(key, "__GO_plot_v3.svg"))
     ggsave(f, p, width = 10, height = goheight, device = svglite::svglite)
-    cat("<img alt=\"", key, " GO GSEA\" style=\"width:100%;height:auto\" src=\"data:image/svg+xml;base64,", base64enc::base64encode(f), 
-        "\"/>\n", sep = "")
+    file.copy(f, file.path(output_dir_figs, paste0(key, "__GO_GSEA.svg")), overwrite=TRUE)
+    cat("<img alt=\"", key, " GO GSEA\" style=\"width:100%;height:auto\" src=\"", file.path("figure", paste0(current_file, ".Rmd"), paste0(key, "__GO_GSEA.svg")), "\"/>\n", sep = "")
     gt <- z[, c("ID", "Description", "NES", "p.adjust", "setSize")]
     names(gt)[4] <- "FDR"
     gt$NES <- fmt(gt$NES)
