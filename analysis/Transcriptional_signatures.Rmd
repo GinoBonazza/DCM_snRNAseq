@@ -449,8 +449,8 @@ for (v in c(19, 35, 48)) text(v, 0.89, 0.6 + (v - 19)/29 * 0.13, size = 10, just
 
 ```{r Dataset_EV5}
 Dataset_EV5 <- list(Programme_memberships = frozen, Programme_scores = ps, Programme_comparisons = programme_statistics, 
-    Programme_other_comparisons = st[!st$contrast %in% programme_statistics$contrast, ], Signature_memberships = bind_rows(scoregenes), 
-    Signature_scores = signature_scores, Signature_statistics = signature_statistics, Signature_coverage = bind_rows(coverage), 
+    Programme_other_comparisons = st[!st$contrast %in% programme_statistics$contrast, ], Signature_memberships = bind_rows(scoregenes) %>% filter(cell_type %in% signature_statistics$cell_type), 
+    Signature_scores = signature_scores, Signature_statistics = signature_statistics, Signature_coverage = bind_rows(coverage) %>% filter(cell_type %in% signature_statistics$cell_type), 
     Shared_upregulated_genes = shared_genes, Shared_gene_enrichment = enrichment[enrichment$Count > 0, ], PCA_coordinates = bind_rows(pcs), 
     PCA_genes = bind_rows(pcgenes), Effect_comparisons = bind_rows(effect_tables), Effect_correlations = bind_rows(corr))
 saveRDS(Dataset_EV5, file.path(O, "Dataset_EV5_tables.rds"))
