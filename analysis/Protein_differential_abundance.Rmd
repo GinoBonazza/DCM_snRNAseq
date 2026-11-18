@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}

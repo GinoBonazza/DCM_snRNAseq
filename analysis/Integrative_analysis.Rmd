@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries_and_paths}
@@ -139,7 +153,7 @@ proteomics_data <- list(Olink = olink_mofa[, proteomics_samples, drop = FALSE], 
 lapply(proteomics_data, dim)
 saveRDS(proteomics_data, proteomics_input_file)
 stopifnot(all(c("HC", "DCM") %in% as.character(clin_all$Group[match(colnames(proteomics_data[[1]]), clin_all$Sample)])))
-DCM_RV <- qs2::qs_read(seurat_file, nthreads = n_qs_threads)
+DCM_RV <- set_donor_age(qs2::qs_read(seurat_file, nthreads = n_qs_threads))
 DefaultAssay(DCM_RV) <- "RNA"
 DCM_RV$pseudobulk <- "Pseudobulk"
 dcm_cells <- colnames(DCM_RV)[DCM_RV$Sample %in% clin_all$Sample]
@@ -305,7 +319,7 @@ for (nm in c("proteomics", "matched")) {
 library(broom)
 meta <- readRDS(file.path(O, "A_metadata.rds"))
 clin <- meta$clin_all
-fib <- readxl::read_excel(here::here("data/Massons_quantification.xlsx"))
+fib <- set_donor_age(readxl::read_excel(here::here("data/Massons_quantification.xlsx")))
 if (!"Fibrosis_percent" %in% names(fib)) names(fib)[3] <- "Fibrosis_percent"
 fib <- fib %>% transmute(Sample = as.character(Sample), Fibrosis_percent = as.numeric(Fibrosis_percent)) %>% distinct(Sample, 
     .keep_all = TRUE)

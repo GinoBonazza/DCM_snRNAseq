@@ -10,4 +10,4 @@ Small frozen inputs are versioned here: curation decisions, marker tables, the e
 
 The proteomics analysis includes PK79. Reactome analyses and the PK79-excluded sensitivity analysis are omitted. Existing DCM-only reports and the original homepage are retained unchanged.
 
-EV1 includes assay-specific age covariates. Several controls have different age values in the existing RNA and proteomics inputs; both are retained exactly as used in their respective models.
+All reports use data/Donor_ages.csv: one nearest-whole-year age per donor, with CZD7 explicitly set to 38. EV1 contains one Age_years column. Raw source metadata are preserved; the visible set_donor_age function applies the common age before analysis. Age-adjusted models and their downstream results are refitted. Age-independent expression, clustering, marker, network and activity checkpoints retain their existing validation gates.

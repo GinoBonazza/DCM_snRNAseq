@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}
@@ -49,7 +63,7 @@ theme_set(theme_classic(base_family = "Arial"))
 ## read DCM RV
 
 ```{r read_DCM_RV, eval=TRUE}
-DCM_RV <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+DCM_RV <- set_donor_age(qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2))
 DCM_RV <- subset(DCM_RV, subset = Group == "DCM")
 DefaultAssay(DCM_RV) <- "RNA"
 ```
@@ -113,9 +127,7 @@ top_n_target = 250
 
 ```{r multinichenet_analysis, eval=TRUE}
 checkpoint <- here::here("data", "processed", "MultinicheNet.qs2")
-if (file.exists(checkpoint)) {
-    multinichenet_output <- qs2::qs_read(checkpoint, nthreads = 2)
-} else {
+{
     senders_oi = SummarizedExperiment::colData(sce)[, celltype_id] %>% unique()
     receivers_oi = SummarizedExperiment::colData(sce)[, celltype_id] %>% unique()
     sce = sce[, SummarizedExperiment::colData(sce)[, celltype_id] %in% c(senders_oi, receivers_oi)]
@@ -195,7 +207,7 @@ qs2::qs_save(multinichenet_output, file.path(output_dir_data, "MultinicheNet.qs2
 ## read multinichenet output
 
 ```{r read_multinichenet_output, eval=TRUE}
-multinichenet_output <- qs2::qs_read(file.path(output_dir_data, "MultinicheNet.qs2"), nthreads = 2)
+multinichenet_output <- set_donor_age(qs2::qs_read(file.path(output_dir_data, "MultinicheNet.qs2"), nthreads = 2))
 ```
 
 ## top LR interactions

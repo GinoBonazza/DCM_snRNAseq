@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}
@@ -62,9 +76,9 @@ input_dir <- here::here("data", "processed", "CM")
 ```{r integration}
 checkpoint <- file.path(input_dir, "baseline.qs2")
 if (file.exists(checkpoint)) {
-    CM <- qs2::qs_read(checkpoint, nthreads = 2)
+    CM <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
 } else {
-    CM <- qs2::qs_read(here::here("data", "processed", "RNA_quality_control.qs2"), nthreads = 2)
+    CM <- set_donor_age(qs2::qs_read(here::here("data", "processed", "RNA_quality_control.qs2"), nthreads = 2))
     CM <- subset(CM, subset = cell_type == "Cardiomyocytes")
     CM <- SplitObject(CM, split.by = "Sample")
     for (i in 1:length(CM)) {
@@ -164,7 +178,7 @@ CM <- subset(CM, cells = colnames(CM)[!as.character(CM[["SCT_snn_res.0.2"]][, 1]
 checkpoint <- file.path(input_dir, "annotated.qs2")
 if (file.exists(checkpoint)) {
     retained_cells <- colnames(CM)
-    CM <- qs2::qs_read(checkpoint, nthreads = 2)
+    CM <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
     stopifnot(setequal(colnames(CM), retained_cells))
 } else {
     state_names <- c(`0` = "CM–unassigned", `1` = "CM–LINC02388", `2` = "CM–MIR646HG", `3` = "Stress-associated CM", 
@@ -449,7 +463,7 @@ write.csv(CM_proportions, file = here::here(output_dir_data, "CM_Proportions.csv
 activity_scores <- function(object, assay, network, method, minsize = 10, weight = "mor") {
     checkpoint <- file.path(input_dir, "activities.qs2")
     if (file.exists(checkpoint)) {
-        previous <- qs2::qs_read(checkpoint, nthreads = 2)
+        previous <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
         same <- setequal(colnames(object), colnames(previous)) && identical(rownames(object[["RNA"]]), rownames(previous[["RNA"]]))
         if (same) 
             same <- isTRUE(all.equal(GetAssayData(object, assay = "RNA", slot = "data"), GetAssayData(previous, 

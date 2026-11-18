@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}
@@ -37,15 +51,15 @@ library(tibble)
 ## Combine cell states
 
 ```{r annotation}
-rna <- qs2::qs_read(here::here("data", "processed", "RNA_quality_control.qs2"), nthreads = 2)
+rna <- set_donor_age(qs2::qs_read(here::here("data", "processed", "RNA_quality_control.qs2"), nthreads = 2))
 lineages <- c(CM = "Cardiomyocytes", FB = "Fibroblasts", EC = "Endothelial cells", MC = "Mural cells", MP = "Macrophages", 
     LC = "Lymphocytes")
 states <- list()
 retained <- list()
 before <- list()
 for (tag in names(lineages)) {
-    object <- qs2::qs_read(here::here("data", "processed", tag, "annotated.qs2"), nthreads = 2)
-    initial <- qs2::qs_read(here::here("data", "processed", tag, "baseline.qs2"), nthreads = 2)
+    object <- set_donor_age(qs2::qs_read(here::here("data", "processed", tag, "annotated.qs2"), nthreads = 2))
+    initial <- set_donor_age(qs2::qs_read(here::here("data", "processed", tag, "baseline.qs2"), nthreads = 2))
     before[[tag]] <- colnames(initial)
     retained[[tag]] <- colnames(object)
     states[[tag]] <- data.frame(cell = colnames(object), cell_state = as.character(object$cell_state), Sample = object$Sample, 
@@ -57,7 +71,7 @@ removed <- setdiff(unlist(before, use.names = FALSE), unlist(retained, use.names
 removal_summary <- rna[[]][removed, , drop = FALSE] %>% count(Group, cell_type, Sample, name = "Removed_nuclei")
 rna <- subset(rna, cells = setdiff(colnames(rna), removed))
 rna$cell_state <- annotation$cell_state[match(colnames(rna), annotation$cell)]
-expected <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+expected <- set_donor_age(qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2))
 stopifnot(setequal(colnames(rna), colnames(expected)))
 stopifnot(identical(as.character(rna$cell_state), as.character(expected$cell_state[match(colnames(rna), colnames(expected))])))
 stopifnot(isTRUE(all.equal(GetAssayData(rna, assay = "RNA", slot = "counts"), GetAssayData(expected, assay = "RNA", 

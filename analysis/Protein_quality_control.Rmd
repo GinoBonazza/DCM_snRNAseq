@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}
@@ -314,14 +328,14 @@ olink_sample_file <- here::here("data/OLINK/Samples_RV_Olink.xlsx")
 olink_quant_file <- here::here("data/OLINK/quant.xls")
 ms_file <- here::here("data/Mass_spec/20260319_MS_DIA_report_2uniquepeptides.csv")
 ms_zero_is_missing <- TRUE
-clinical_all <- readxl::read_excel(clinical_file) %>% dplyr::select(-dplyr::matches("^Unnamed"), -dplyr::all_of(paste0("Sample_", 
+clinical_all <- set_donor_age(readxl::read_excel(clinical_file)) %>% dplyr::select(-dplyr::matches("^Unnamed"), -dplyr::all_of(paste0("Sample_", 
     "age_days"))) %>% dplyr::mutate(Sample = normalise_sample_id(Sample), Group = trimws(as.character(Group)), 
     Age_years = as.numeric(Age_years)) %>% dplyr::filter(!is.na(Sample), nzchar(Sample)) %>% dplyr::distinct(Sample, 
     .keep_all = TRUE)
 clinical_non_control <- clinical_all %>% dplyr::filter(Group %in% c("DCM", "HC")) %>% dplyr::mutate(Group = factor(Group, 
     levels = c("DCM", "HC")))
 clinical_all %>% dplyr::count(Group, name = "number_samples")
-olink_sample_metadata <- readxl::read_excel(olink_sample_file) %>% dplyr::select(-dplyr::matches("^Unnamed")) %>% 
+olink_sample_metadata <- set_donor_age(readxl::read_excel(olink_sample_file)) %>% dplyr::select(-dplyr::matches("^Unnamed")) %>% 
     dplyr::mutate(Sample = normalise_sample_id(Sample), BCA_mg_ml = as.numeric(BCA_mg_ml), Batch = factor(Batch)) %>% 
     dplyr::distinct(Sample, .keep_all = TRUE)
 olink_raw <- read.delim(olink_quant_file, sep = "\t", check.names = FALSE)

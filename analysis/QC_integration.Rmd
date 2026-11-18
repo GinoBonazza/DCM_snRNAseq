@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}
@@ -55,7 +69,7 @@ future::plan(future::sequential)
 ```{r input_counts}
 checkpoint <- file.path(input_dir, "preQC.qs2")
 if (file.exists(checkpoint)) {
-    DCM_RV_preQC <- qs2::qs_read(checkpoint, nthreads = 2)
+    DCM_RV_preQC <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
 } else {
     set.seed(12345)
     cell_bender_merged <- Read_CellBender_h5_Multi_File(merge = TRUE, data_dir = here::here("data", "Cellbender_output"), 
@@ -89,7 +103,7 @@ if (file.exists(checkpoint)) {
     DCM_RV_preQC[["percent.mt"]] <- PercentageFeatureSet(DCM_RV_preQC, pattern = "^MT-")
     DCM_RV_preQC[["percent.rp"]] <- PercentageFeatureSet(DCM_RV_preQC, pattern = "^RP[SL]")
     DCM_RV_preQC$Sample <- DCM_RV_preQC$orig.ident
-    Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_30.xlsx"))
+    Clinical_data <- set_donor_age(read_excel(here::here("data", "DCM_Clinical_data_30.xlsx")))
     add_metadata <- left_join(DCM_RV_preQC[["Sample"]], Clinical_data)
     row.names(add_metadata) <- row.names(DCM_RV_preQC[[]])
     DCM_RV_preQC <- AddMetaData(DCM_RV_preQC, metadata = add_metadata)
@@ -284,7 +298,7 @@ gc()
 ```{r normalization}
 checkpoint <- file.path(input_dir, "not_integrated.qs2")
 if (file.exists(checkpoint)) {
-    DCM_RV <- qs2::qs_read(checkpoint, nthreads = 2)
+    DCM_RV <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
 } else {
     set.seed(20240606)
     DCM_RV <- SplitObject(DCM_RV, split.by = "Sample")
@@ -324,7 +338,7 @@ DimPlot(DCM_RV, reduction = "umap", shuffle = T, group.by = c("SCT_snn_res.0.1",
 ```{r integration}
 checkpoint <- file.path(input_dir, "initial_integrated.qs2")
 if (file.exists(checkpoint)) {
-    DCM_RV <- qs2::qs_read(checkpoint, nthreads = 2)
+    DCM_RV <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
 } else {
     DCM_RV <- RunHarmony(DCM_RV, assay.use = "SCT", group.by.vars = "Sample", dims.use = 1:50, plot_convergence = TRUE, 
         .options = harmony_options(max.iter.cluster = 100, ))
@@ -388,7 +402,7 @@ decisions <- read.csv(file.path(input_dir, "initial_cluster_decisions.csv"), col
 knitr::kable(decisions)
 checkpoint <- file.path(input_dir, "final_integrated.qs2")
 if (file.exists(checkpoint)) {
-    DCM_RV <- qs2::qs_read(checkpoint, nthreads = 2)
+    DCM_RV <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
 } else {
     cells <- colnames(DCM_RV)[as.character(DCM_RV$SCT_snn_res.0.2) %in% decisions$cluster[as.logical(decisions$keep)]]
     DCM_RV <- subset(DCM_RV, cells = cells)
@@ -461,7 +475,7 @@ DimPlot(DCM_RV, reduction = "umap", shuffle = T, group.by = "Phase")
 annotation <- read.csv(file.path(input_dir, "annotation_decisions.csv"), colClasses = c(cluster = "character"))
 checkpoint <- file.path(input_dir, "annotated.qs2")
 if (file.exists(checkpoint)) {
-    DCM_RV <- qs2::qs_read(checkpoint, nthreads = 2)
+    DCM_RV <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
 } else {
     DCM_RV$cell_type <- factor(annotation$cell_type[match(as.character(DCM_RV$SCT_snn_res.0.2), annotation$cluster)], 
         levels = unique(annotation$cell_type))
@@ -611,7 +625,7 @@ DimPlot(DCM_RV, group.by = "cell_type", reduction = "umap", cols = cell_type_col
 
 ```{r Dataset_EV2}
 counts <- as.data.frame.matrix(table(DCM_RV$cell_type, DCM_RV$Sample))
-final <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+final <- set_donor_age(qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2))
 final_counts <- as.data.frame.matrix(table(final$cell_type, final$Sample))
 tables <- list(Cell_type_markers = Markers, Cell_counts_broad = rownames_to_column(counts, "Cell_type"), Cell_counts_final = rownames_to_column(final_counts, 
     "Cell_type"), Cluster_curation = decisions, Annotation = annotation, Pre_QC = rownames_to_column(stage_counts$Pre_QC, 

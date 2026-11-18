@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}
@@ -48,7 +62,7 @@ for (i in seq_len(nrow(manifest))) {
     r$cellranger <- here::here(r$cellranger)
     checkpoint <- file.path(input_dir, paste0("A_fresh_ambient_profile_", s, ".qs2"))
     if (file.exists(checkpoint)) {
-        p <- qs2::qs_read(checkpoint, nthreads = 1)
+        p <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 1))
     }
     else {
         raw <- Read10X_h5(r$raw)
@@ -78,12 +92,12 @@ for (i in seq_len(nrow(manifest))) {
 for (i in seq_len(nrow(m))) {
     s <- m$Sample[i]
     set.seed(20240606 + i)
-    a <- qs_read(file.path(input_dir, paste0("A_SoupX_input_", s, ".qs2")), nthreads = 1)
+    a <- set_donor_age(qs_read(file.path(input_dir, paste0("A_SoupX_input_", s, ".qs2")), nthreads = 1))
     x <- a$counts
     mm <- a$meta
     stopifnot(identical(colnames(x), as.character(mm$cell)))
     colnames(x) <- mm$barcode
-    p <- qs_read(file.path(O, paste0("A_fresh_ambient_profile_", s, ".qs2")), nthreads = 1)
+    p <- set_donor_age(qs_read(file.path(O, paste0("A_fresh_ambient_profile_", s, ".qs2")), nthreads = 1))
     prof <- p$profile[match(rownames(x), names(p$profile))]
     prof[is.na(prof)] <- 0
     stopifnot(all(prof >= 0), sum(prof) > 0)
@@ -187,14 +201,14 @@ for (i in seq_len(nrow(m))) {
 ## Corrected RNA object
 
 ```{r combine_samples}
-orig <- qs2::qs_read(here::here("data", "processed", "QC", "annotated_RNA.qs2"), nthreads = 2)
+orig <- set_donor_age(qs2::qs_read(here::here("data", "processed", "QC", "annotated_RNA.qs2"), nthreads = 2))
 xs <- list()
 mds <- list()
 qc <- list()
 gene_qc <- list()
 corrections <- list()
 for (s in m$Sample) {
-    a <- qs_read(file.path(O, paste0("Corrected_", s, ".qs2")), nthreads = 1)
+    a <- set_donor_age(qs_read(file.path(O, paste0("Corrected_", s, ".qs2")), nthreads = 1))
     stopifnot(identical(colnames(a$counts), as.character(a$meta$cell)), all(a$counts@x >= 0), all(a$counts@x == 
         round(a$counts@x)), all(is.finite(a$rho)), all(a$rho >= 0), all(a$rho < 1))
     if (length(xs)) 
@@ -230,7 +244,7 @@ tab$UMI_fraction_removed <- 1 - tab$after_UMI/tab$before_UMI
 write.csv(tab, file.path(O, "A_SoupX_validation_by_donor_lineage.csv"), row.names = FALSE)
 write.csv(bind_rows(gene_qc), file.path(O, "A_SoupX_validation_by_donor_lineage_gene.csv"), row.names = FALSE)
 write.csv(bind_rows(corrections), file.path(O, "A_SoupX_correction_by_donor.csv"), row.names = FALSE)
-expected <- qs2::qs_read(here::here("data", "processed", "RNA_quality_control.qs2"), nthreads = 2)
+expected <- set_donor_age(qs2::qs_read(here::here("data", "processed", "RNA_quality_control.qs2"), nthreads = 2))
 stopifnot(isTRUE(all.equal(GetAssayData(out, assay = "RNA", slot = "counts"), GetAssayData(expected, assay = "RNA", 
     slot = "counts"), tolerance = 0)))
 rm(expected, orig, x, xs)

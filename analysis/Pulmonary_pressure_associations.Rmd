@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}
@@ -120,9 +134,9 @@ emapplot <- function(...) {
 ## read CM
 
 ```{r read_CM, eval=TRUE}
-DCM_RV <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+DCM_RV <- set_donor_age(qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2))
 DCM_RV <- subset(DCM_RV, Group == "DCM")
-CM <- qs2::qs_read(here::here("data", "processed", "CM", "annotated.qs2"), nthreads = 2)
+CM <- set_donor_age(qs2::qs_read(here::here("data", "processed", "CM", "annotated.qs2"), nthreads = 2))
 CM <- subset(CM, Group == "DCM")
 DefaultAssay(CM) <- "RNA"
 Idents(CM) <- "cell_state"
@@ -131,7 +145,7 @@ Idents(CM) <- "cell_state"
 ## update clinical metadata
 
 ```{r update_clinical_metadata, eval=TRUE}
-Clinical_data <- read_excel(here::here("data", "DCM_Clinical_data_22.xlsx"))
+Clinical_data <- set_donor_age(read_excel(here::here("data", "DCM_Clinical_data_22.xlsx")))
 add_metadata <- DCM_RV[[]] %>% dplyr::select(Sample) %>% left_join(Clinical_data, by = "Sample")
 row.names(add_metadata) <- row.names(DCM_RV[[]])
 cols_to_overwrite <- setdiff(colnames(Clinical_data), "Sample")
@@ -1220,7 +1234,7 @@ pheatmap::pheatmap(name = " ", angle_col = "45", sample_acts_mat, breaks = my_br
 activity_scores <- function(object, assay, network, method, minsize = 10, weight = "mor") {
     checkpoint <- file.path(checkpoint_dir, "CM_activities.qs2")
     if (file.exists(checkpoint)) {
-        previous <- qs2::qs_read(checkpoint, nthreads = 2)
+        previous <- set_donor_age(qs2::qs_read(checkpoint, nthreads = 2))
         same <- setequal(colnames(object), colnames(previous)) && identical(rownames(object[["RNA"]]), rownames(previous[["RNA"]]))
         if (same) 
             same <- isTRUE(all.equal(GetAssayData(object, assay = "RNA", slot = "data"), GetAssayData(previous, 

@@ -21,8 +21,22 @@ output_dir_figs <- here::here("docs", "figure", paste0(current_file, ".Rmd"))
 dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
 dir.create(here::here("output", "Datasets"), recursive = TRUE, showWarnings = FALSE)
-knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, "/"))
 set.seed(20240606)
+
+# One rounded age per donor is shared by RNA and proteomics analyses.
+donor_ages <- read.csv(here::here("data", "Donor_ages.csv"), stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(donor_ages$Sample), donor_ages$Age_years[donor_ages$Sample == "CZD7"] == 38)
+set_donor_age <- function(x) {
+    is_seurat <- inherits(x, "Seurat")
+    md <- if (is_seurat) x[[]] else x
+    if (is.data.frame(md) && all(c("Sample", "Age_years") %in% names(md))) {
+        j <- match(trimws(as.character(md$Sample)), donor_ages$Sample)
+        present <- !is.na(md$Sample) & nzchar(trimws(as.character(md$Sample)))
+        stopifnot(!anyNA(j[present]))
+        x$Age_years <- donor_ages$Age_years[j]
+    }
+    x
+}
 ```
 
 ```{r libraries}
@@ -41,7 +55,7 @@ out <- here::here("output", "Datasets")
 
 ```{r Dataset_EV1}
 q <- readRDS(here::here("output", "Protein_quality_control", "Proteomics_QC.rds"))
-rna <- qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2)
+rna <- set_donor_age(qs2::qs_read(here::here("data", "processed", "RV_cell_states_RNA.qs2"), nthreads = 2))
 rna_metadata <- rna[[]] %>% select(any_of(c("Sample", "Group", "Age_years", "Sex", "mPAP_mmHg", "sPAP_mmHg", "PCW_mmHg", 
     "PVR_WU", "TAPSE_mm", "RVIT_mm", "LVEF_percent", "LVEDD_mm"))) %>% distinct()
 clinical <- bind_rows(q$clinical, rna_metadata) %>% distinct(Sample, .keep_all = TRUE)
@@ -50,13 +64,11 @@ clinical <- clinical %>% select(any_of(c("Sample", "Group", "Age_years", "Sex", 
     "TPG_mmHg", "CO_l.min")))
 batches <- rna[[]] %>% select(any_of(c("Sample", "Batch_processing", "Batch_sequencing"))) %>% group_by(Sample) %>% summarise(across(everything(), ~paste(unique(as.character(.x)), collapse="; ")), .groups="drop")
 clinical <- left_join(clinical, batches, by="Sample")
-rna_ages <- rna[[]] %>% select(Sample, Age_years) %>% distinct() %>% rename(Age_years_snRNAseq=Age_years)
-clinical$Age_years_proteomics <- clinical$Age_years
-clinical <- left_join(clinical, rna_ages, by="Sample")
+stopifnot(identical(as.numeric(clinical$Age_years), as.numeric(donor_ages$Age_years[match(clinical$Sample, donor_ages$Sample)])))
 clinical$snRNAseq <- clinical$Sample %in% unique(rna$Sample)
 clinical$Olink <- clinical$Sample %in% colnames(q$olink)
 clinical$LC_MS_MS <- clinical$Sample %in% colnames(q$ms)
-fibrosis <- read_excel(here::here("data", "Massons_quantification.xlsx"))
+fibrosis <- set_donor_age(read_excel(here::here("data", "Massons_quantification.xlsx")))
 names(fibrosis)[3] <- "Fibrosis_percent"
 fibrosis <- fibrosis %>% transmute(Sample = as.character(Sample), Fibrosis_percent = 100 * as.numeric(Fibrosis_percent)) %>% 
     filter(Sample %in% clinical$Sample)
@@ -78,7 +90,7 @@ tables <- c(tables, ambient)
 tables$Final_state_counts <- read.csv(here::here("output", "Cell_state_annotation", "Final_cell_counts.csv"))
 tables$State_curation <- read.csv(here::here("output", "Cell_state_annotation", "Removed_nuclei_by_sample.csv"))
 variance_file <- here::here("output", "Transcriptomic_variation", "Variance_partitioning.xlsx")
-for(sheet in excel_sheets(variance_file)) tables[[paste0("Variance_", sheet)]] <- read_excel(variance_file, sheet=sheet)
+for(sheet in excel_sheets(variance_file)) tables[[paste0("Variance_", sheet)]] <- set_donor_age(read_excel(variance_file, sheet=sheet))
 names(tables) <- substr(names(tables), 1, 31)
 write_xlsx(tables, file.path(out, "Dataset_EV2.xlsx"), format_headers = FALSE)
 ```
@@ -101,7 +113,7 @@ write_xlsx(tables, file.path(out, "Dataset_EV4.xlsx"), format_headers = FALSE)
 
 ```{r Dataset_EV5}
 file <- file.path(out, "Dataset_EV5.xlsx")
-tables <- setNames(lapply(excel_sheets(file), function(sheet) as.data.frame(read_excel(file, sheet = sheet))), 
+tables <- setNames(lapply(excel_sheets(file), function(sheet) as.data.frame(set_donor_age(read_excel(file, sheet = sheet)))), 
     excel_sheets(file))
 programmes <- readRDS(here::here("output", "Pulmonary_pressure_associations", "Programme_results_for_EV5.rds"))
 names(programmes) <- c("Within_DCM_scores", "Within_DCM_statistics", "Derived_memberships")
@@ -118,7 +130,7 @@ tables <- list()
 for (tag in names(lineages)) {
     directory <- here::here("output", paste0(lineages[[tag]], "_cell_states"))
     x <- readRDS(file.path(directory, "Cell_state_results_for_EV6.rds"))
-    object <- qs2::qs_read(file.path(directory, "Cell_states.qs2"), nthreads = 2)
+    object <- set_donor_age(qs2::qs_read(file.path(directory, "Cell_states.qs2"), nthreads = 2))
     for (assay in c("tfsulm", "pathwaysmlm")) {
         scores <- t(GetAssayData(object, assay = assay, slot = "data"))
         means <- rowsum(scores, group = object$cell_state)/as.numeric(table(object$cell_state)[rownames(rowsum(scores, 
