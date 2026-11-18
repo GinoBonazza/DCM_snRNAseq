@@ -272,7 +272,8 @@ score_boxes <- function(values,labels,colours,comparisons,title,small=FALSE) {
  boxplot(values,outline=FALSE,col=colours,names=FALSE,axes=FALSE,ylim=c(lo-.12*span,hi+upper*span),xlim=c(.45,length(values)+.55),boxwex=.49,lwd=if(small).45 else .7,xaxs='i',yaxs='i')
  set.seed(101)
  for(i in seq_along(values)) points(i+runif(length(values[[i]]),-.095,.095),values[[i]],pch=21,bg=colours[i],col='#444444',cex=if(small).5 else .6,lwd=.3)
- axis(1,at=seq_along(values),labels=paste0(labels,'\n(n=',lengths(values),')'),tick=FALSE,cex.axis=if(small)1 else .9,line=-.45)
+ u <- par('usr')
+ text(seq_along(values),u[3]-.10*diff(u[3:4]),paste0(labels,'\n(n=',lengths(values),')'),adj=c(.5,1),xpd=NA,cex=if(small)1 else .9)
  axis(2,at=pretty(c(lo,hi),n=3),las=1,cex.axis=if(small).9 else .9,lwd=.5,tcl=-.2,mgp=c(1,.3,0));box(bty='l',lwd=.5)
  if(nrow(shown)) for(k in seq_len(nrow(shown))) {
   y <- hi+span*(if(small).18+.30*(k-1) else .15);a<-shown$a[k];b<-shown$b[k]
@@ -282,7 +283,7 @@ score_boxes <- function(values,labels,colours,comparisons,title,small=FALSE) {
  u <- par('usr');dy <- diff(u[3:4]);dx <- diff(u[1:2])
  if(small) {
   rect(u[1],u[4]+.025*dy,u[2],u[4]+.405*dy,xpd=NA,col='white',border='black',lwd=.4)
-  text(mean(u[1:2]),u[4]+.215*dy,title,cex=if(startsWith(title,'Sarcomere')) .98 else 1.1,font=2,xpd=NA)
+  text(mean(u[1:2]),u[4]+.215*dy,title,cex=if(startsWith(title,'Sarcomere')) .90 else 1.1,font=2,xpd=NA)
  } else {
   w <- max(strwidth(strsplit(title,'\n',fixed=TRUE)[[1]],font=2))+dx*.1
   h <- strheight(title,font=2)+dy*.06;y <- u[4]+dy*.13+h/2
@@ -305,7 +306,7 @@ for(i in seq_along(programmes_order)) {
  vals <- list(d$Score[d$Group=='HC'],d$Score[which(d$Group=='DCM'&d$mPAP_mmHg<35)],d$Score[which(d$Group=='DCM'&d$mPAP_mmHg>=35)])
  cmp <- data.frame(a=c(1,2,1),b=c(2,3,3),FDR=s$FDR[match(c('DCM_lt35_vs_HC','DCM_ge35_vs_lt35','DCM_ge35_vs_HC'),s$contrast)])
  score_boxes(vals,c('HC','DCM\n<35','DCM\n≥35'),c('#80B1D3','#F5D1CB','#C75D54'),cmp,titles[pr],small=TRUE)
- mtext('Mean gene z-score',2,line=1.35,cex=1)
+ u <- par('usr');text(u[1]-.25*diff(u[1:2]),mean(u[3:4]),'Mean gene z-score',srt=90,xpd=NA,cex=1)
 }
 ```
 
