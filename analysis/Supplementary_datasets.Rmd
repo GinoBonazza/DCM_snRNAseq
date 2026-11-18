@@ -90,7 +90,7 @@ tables <- c(tables, ambient)
 tables$Final_state_counts <- read.csv(here::here("output", "Cell_state_annotation", "Final_cell_counts.csv"))
 tables$State_curation <- read.csv(here::here("output", "Cell_state_annotation", "Removed_nuclei_by_sample.csv"))
 variance_file <- here::here("output", "Transcriptomic_variation", "Variance_partitioning.xlsx")
-for(sheet in excel_sheets(variance_file)) tables[[paste0("Variance_", sheet)]] <- set_donor_age(read_excel(variance_file, sheet=sheet))
+for(sheet in excel_sheets(variance_file)) tables[[paste0("Variance_", sheet)]] <- read_excel(variance_file, sheet=sheet)
 names(tables) <- substr(names(tables), 1, 31)
 write_xlsx(tables, file.path(out, "Dataset_EV2.xlsx"), format_headers = FALSE)
 ```
@@ -113,7 +113,7 @@ write_xlsx(tables, file.path(out, "Dataset_EV4.xlsx"), format_headers = FALSE)
 
 ```{r Dataset_EV5}
 file <- file.path(out, "Dataset_EV5.xlsx")
-tables <- setNames(lapply(excel_sheets(file), function(sheet) as.data.frame(set_donor_age(read_excel(file, sheet = sheet)))), 
+tables <- setNames(lapply(excel_sheets(file), function(sheet) as.data.frame(read_excel(file, sheet = sheet))), 
     excel_sheets(file))
 programmes <- readRDS(here::here("output", "Pulmonary_pressure_associations", "Programme_results_for_EV5.rds"))
 names(programmes) <- c("Within_DCM_scores", "Within_DCM_statistics", "Derived_memberships")
