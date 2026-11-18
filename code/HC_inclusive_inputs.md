@@ -9,3 +9,5 @@ The analysis uses R 4.5.2, Seurat 4.4.0 and the project package environment. Pat
 Small frozen inputs are versioned here: curation decisions, marker tables, the exact heatmap cell order, gene memberships, gene-ID mappings, enrichment objects and activity networks. RNA matrices, raw assay files, the NicheNet ligand–target matrix and large fitted-object checkpoints must be supplied separately. `code/HC_inclusive_frozen_inputs.csv` lists the versioned frozen inputs and checksums.
 
 The proteomics analysis includes PK79. Reactome analyses and the PK79-excluded sensitivity analysis are omitted. Existing DCM-only reports and the original homepage are retained unchanged.
+
+EV1 includes assay-specific age covariates. Several controls have different age values in the existing RNA and proteomics inputs; both are retained exactly as used in their respective models.

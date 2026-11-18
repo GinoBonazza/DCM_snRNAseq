@@ -50,6 +50,9 @@ clinical <- clinical %>% select(any_of(c("Sample", "Group", "Age_years", "Sex", 
     "TPG_mmHg", "CO_l.min")))
 batches <- rna[[]] %>% select(any_of(c("Sample", "Batch_processing", "Batch_sequencing"))) %>% group_by(Sample) %>% summarise(across(everything(), ~paste(unique(as.character(.x)), collapse="; ")), .groups="drop")
 clinical <- left_join(clinical, batches, by="Sample")
+rna_ages <- rna[[]] %>% select(Sample, Age_years) %>% distinct() %>% rename(Age_years_snRNAseq=Age_years)
+clinical$Age_years_proteomics <- clinical$Age_years
+clinical <- left_join(clinical, rna_ages, by="Sample")
 clinical$snRNAseq <- clinical$Sample %in% unique(rna$Sample)
 clinical$Olink <- clinical$Sample %in% colnames(q$olink)
 clinical$LC_MS_MS <- clinical$Sample %in% colnames(q$ms)
