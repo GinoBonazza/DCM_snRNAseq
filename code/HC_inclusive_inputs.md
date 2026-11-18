@@ -11,3 +11,5 @@ Small frozen inputs are versioned here: curation decisions, marker tables, the e
 The proteomics analysis includes PK79. Reactome analyses and the PK79-excluded sensitivity analysis are omitted. Existing DCM-only reports and the original homepage are retained unchanged.
 
 All reports use data/Donor_ages.csv: one nearest-whole-year age per donor, with CZD7 explicitly set to 38. EV1 contains one Age_years column. Raw source metadata are preserved; the visible set_donor_age function applies the common age before analysis. Age-adjusted models and their downstream results are refitted. Age-independent expression, clustering, marker, network and activity checkpoints retain their existing validation gates.
+
+HC/DCM Gene Ontology enrichment is recomputed from the corrected ranks. Pre-correction `data/processed/DCM_control_GSEA/` objects are not consumed or included in this delivery. Existing repository copies remain protected.
