@@ -1,0 +1,4490 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Mural cells: cell states</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.js"></script>
+<link href="site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.5/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.5/reactable.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="Fibrosis_hypertrophy.html">Fibrosis and hypertrophy</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="HC_clustering.html">Clustering with healthy controls</a>
+    </li>
+    <li>
+      <a href="Comparison_LV.html">Comparison to LV datasets</a>
+    </li>
+    <li>
+      <a href="Biomarkers_selection.html">Biomarkers selection</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Mural cells: cell states</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">18 November, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-11-18
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>Mural_cells_cell_states/</code>
+<span class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed4b8eb1443c4351150e0c106a45675850f739f78targetblankd4b8eb1a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d4b8eb1443c4351150e0c106a45675850f739f78" target="_blank">d4b8eb1</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed4b8eb1443c4351150e0c106a45675850f739f78targetblankd4b8eb1a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d4b8eb1443c4351150e0c106a45675850f739f78" target="_blank">d4b8eb1</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    output/Datasets/
+    Ignored:    output/Mural_cells_cell_states/
+
+Untracked files:
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output
+    Untracked:  data/Cellranger_output
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/DCM_Clinical_data_30_261012.xlsx
+    Untracked:  data/DCM_Clinical_data_83.xlsx
+    Untracked:  data/HMEC_RNAseq
+    Untracked:  data/Heart_datasets
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK
+    Untracked:  data/OLINK_LVAD
+    Untracked:  data/Published_datasets
+    Untracked:  data/Raw
+    Untracked:  data/SSc-PAH
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/processed/CM/activities.qs2
+    Untracked:  data/processed/CM/annotated.qs2
+    Untracked:  data/processed/CM/baseline.qs2
+    Untracked:  data/processed/EC/activities.qs2
+    Untracked:  data/processed/EC/annotated.qs2
+    Untracked:  data/processed/EC/baseline.qs2
+    Untracked:  data/processed/FB/activities.qs2
+    Untracked:  data/processed/FB/annotated.qs2
+    Untracked:  data/processed/FB/baseline.qs2
+    Untracked:  data/processed/LC/PC10.qs2
+    Untracked:  data/processed/LC/PC20.qs2
+    Untracked:  data/processed/LC/PC30.qs2
+    Untracked:  data/processed/LC/activities.qs2
+    Untracked:  data/processed/LC/annotated.qs2
+    Untracked:  data/processed/LC/baseline.qs2
+    Untracked:  data/processed/MC/activities.qs2
+    Untracked:  data/processed/MC/annotated.qs2
+    Untracked:  data/processed/MC/baseline.qs2
+    Untracked:  data/processed/MP/PC10.qs2
+    Untracked:  data/processed/MP/PC20.qs2
+    Untracked:  data/processed/MP/PC30.qs2
+    Untracked:  data/processed/MP/activities.qs2
+    Untracked:  data/processed/MP/annotated.qs2
+    Untracked:  data/processed/MP/baseline.qs2
+    Untracked:  data/processed/MultinicheNet.qs2
+    Untracked:  data/processed/QC/annotated.qs2
+    Untracked:  data/processed/QC/annotated_RNA.qs2
+    Untracked:  data/processed/QC/doublet_metadata.csv
+    Untracked:  data/processed/QC/final_integrated.qs2
+    Untracked:  data/processed/QC/initial_integrated.qs2
+    Untracked:  data/processed/QC/not_integrated.qs2
+    Untracked:  data/processed/QC/preQC.qs2
+    Untracked:  data/processed/RNA_quality_control.qs2
+    Untracked:  data/processed/RV_cell_states_RNA.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD13.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD15.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD16.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD4.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD5.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD6.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD7.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD9.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P3.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P5.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P8.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK153.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK213.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK229.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK323.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK337.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK345.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK357.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK369.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK375.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK385.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK401.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK403.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK415.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK437.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK439.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK441.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK461.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK463.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD13.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD15.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD16.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD4.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD5.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD6.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD7.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD9.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P3.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P5.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P8.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK153.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK213.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK229.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK323.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK337.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK345.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK357.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK369.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK375.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK385.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK401.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK403.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK415.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK437.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK439.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK441.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK461.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK463.qs2
+    Untracked:  data/processed/mPAP/CM_GSEA_Reactome_mPAP.rds
+    Untracked:  data/processed/mPAP/CM_ORA_REACTOME_mPAP_down.rds
+    Untracked:  data/processed/mPAP/CM_ORA_REACTOME_mPAP_up.rds
+    Untracked:  data/processed/mPAP/CM_activities.qs2
+    Untracked:  data/processed/resources/A_activity_API_compatibility.json
+    Untracked:  data/processed/resources/A_activity_network_manifest.json
+    Untracked:  data/processed/resources/A_final_resource_manifest.json
+    Untracked:  data/processed/resources/A_ligand_target_matrix_nsga2r_final.rds
+    Untracked:  data/processed/resources/A_resources_sessionInfo.txt
+    Untracked:  data/processed/resources/A_submitted_programme_provenance.json
+    Untracked:  data/refdata-gex-GRCh38-2020-A
+    Untracked:  output/Ambient_RNA_correction
+    Untracked:  output/Cardiomyocytes_cell_states
+    Untracked:  output/Cell_communication
+    Untracked:  output/Cell_state_annotation
+    Untracked:  output/Clinical_transcriptomic_associations
+    Untracked:  output/DCM_control_transcriptomics
+    Untracked:  output/Endothelial_cells_cell_states
+    Untracked:  output/Fibroblasts_cell_states
+    Untracked:  output/Fibrosis_associations
+    Untracked:  output/Integrative_analysis
+    Untracked:  output/Lymphocytes_cell_states
+    Untracked:  output/Macrophages_cell_states
+    Untracked:  output/Protein_differential_abundance
+    Untracked:  output/Protein_quality_control
+    Untracked:  output/Pulmonary_pressure_associations
+    Untracked:  output/QC_integration
+    Untracked:  output/Supplementary_datasets
+    Untracked:  output/Transcriptional_signatures
+    Untracked:  output/Transcriptomic_variation
+
+Unstaged changes:
+    Deleted:    .gitattributes
+    Deleted:    README.md
+    Deleted:    output/README.md
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/Mural_cells_cell_states.Rmd</code>) and HTML
+(<code>docs/Mural_cells_cell_states.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/analysis/Mural_cells_cell_states.Rmd" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Document assay-specific age covariates in donor metadata
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/d4b8eb1443c4351150e0c106a45675850f739f78/docs/Mural_cells_cell_states.html" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Document assay-specific age covariates in donor metadata
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/analysis/Mural_cells_cell_states.Rmd" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Include RNA processing and sequencing batches in EV1
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/Mural_cells_cell_states.html" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Include RNA processing and sequencing batches in EV1
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/analysis/Mural_cells_cell_states.Rmd" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Align signature membership exports with the tested cell types
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/Mural_cells_cell_states.html" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Align signature membership exports with the tested cell types
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/analysis/Mural_cells_cell_states.Rmd" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Refine compact programme panel labels
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/Mural_cells_cell_states.html" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Refine compact programme panel labels
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/analysis/Mural_cells_cell_states.Rmd" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Add HC-inclusive analysis scripts and frozen reproducibility inputs
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/Mural_cells_cell_states.html" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Add HC-inclusive analysis scripts and frozen reproducibility inputs
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/analysis/Mural_cells_cell_states.Rmd" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+<td>
+MXRA5 coexpression analysis
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/d136073823de03a4d23429fae2eb314862b8af4f/docs/Mural_cells_cell_states.html" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+<td>
+MXRA5 coexpression analysis
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r"><code>knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 300, fig.retina = 1, 
+    fig.align = &quot;center&quot;, dev = &quot;png&quot;, dev.args = list(type = &quot;cairo&quot;, family = &quot;Arial&quot;))
+library(here)</code></pre>
+<pre><code>here() starts at /scratch/gbonaz/A_publication_20261118/isolated_builds/Mural_cells_cell_states</code></pre>
+<pre class="r"><code>current_file &lt;- &quot;Mural_cells_cell_states&quot;
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here(&quot;output&quot;, &quot;Datasets&quot;), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, &quot;/&quot;))
+set.seed(20240606)</code></pre>
+<pre class="r"><code>library(Seurat)
+library(qs2)
+library(harmony)
+library(clustree)
+library(scCustomize)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(patchwork)
+library(scales)
+library(Matrix)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(speckle)
+library(limma)
+library(reactable)
+library(decoupleR)
+library(pheatmap)
+library(RColorBrewer)
+library(readxl)
+library(ggrepel)
+select &lt;- dplyr::select
+filter &lt;- dplyr::filter
+count &lt;- dplyr::count
+BiocParallel::register(BiocParallel::SerialParam())
+theme_set(theme_classic(base_family = &quot;Arial&quot;))
+input_dir &lt;- here::here(&quot;data&quot;, &quot;processed&quot;, &quot;MC&quot;)</code></pre>
+</div>
+<div id="integration-and-clustering" class="section level2">
+<h2>Integration and clustering</h2>
+<pre class="r"><code>checkpoint &lt;- file.path(input_dir, &quot;baseline.qs2&quot;)
+if (file.exists(checkpoint)) {
+    MC &lt;- qs2::qs_read(checkpoint, nthreads = 2)
+} else {
+    MC &lt;- qs2::qs_read(here::here(&quot;data&quot;, &quot;processed&quot;, &quot;RNA_quality_control.qs2&quot;), nthreads = 2)
+    MC &lt;- subset(MC, subset = cell_type %in% c(&quot;Pericytes&quot;, &quot;Smooth muscle cells&quot;))
+    MC &lt;- SplitObject(MC, split.by = &quot;Sample&quot;)
+    for (i in 1:length(MC)) {
+        MC[[i]] &lt;- SCTransform(MC[[i]], vst.flavor = &quot;v2&quot;, vars.to.regress = &quot;percent.mt&quot;, return.only.var.genes = TRUE, 
+            variable.features.n = 2000)
+    }
+    features &lt;- SelectIntegrationFeatures(object.list = MC, nfeatures = 2000)
+    MC &lt;- merge(x = MC[[1]], y = MC[2:length(MC)], merge.data = TRUE)
+    VariableFeatures(MC) &lt;- features
+    MC &lt;- RunPCA(MC, npcs = 30)
+    MC &lt;- RunHarmony(MC, assay.use = &quot;SCT&quot;, group.by.vars = &quot;Sample&quot;, dims.use = 1:30, plot_convergence = TRUE, 
+        .options = harmony_options(max.iter.cluster = 100, ))
+    DefaultAssay(MC) &lt;- &quot;SCT&quot;
+    MC &lt;- RunUMAP(MC, dims = 1:30, reduction = &quot;harmony&quot;)
+    MC &lt;- FindNeighbors(MC, dims = 1:30, reduction = &quot;harmony&quot;)
+    MC &lt;- FindClusters(MC, resolution = seq(0.1, 0.8, by = 0.1))
+}
+DefaultAssay(MC) &lt;- &quot;RNA&quot;
+Idents(MC) &lt;- &quot;SCT_snn_res.0.3&quot;</code></pre>
+</div>
+<div id="elbow-mc" class="section level2">
+<h2>Elbow MC</h2>
+<pre class="r"><code>ElbowPlot(MC, ndims = 30)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Elbow_MC-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Elbow_MC-1">
+Past versions of Elbow_MC-1.png
+</button>
+</p>
+<div id="fig-Elbow_MC-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Elbow_MC-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Elbow_MC-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Elbow_MC-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Elbow_MC-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Elbow_MC-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Elbow_MC-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="clustree-mc" class="section level2">
+<h2>Clustree MC</h2>
+<pre class="r"><code>clustree::clustree(MC@meta.data[, grep(&quot;SCT_snn_res&quot;, colnames(MC@meta.data))], prefix = &quot;SCT_snn_res.&quot;)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Clustree_MC-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Clustree_MC-1">
+Past versions of Clustree_MC-1.png
+</button>
+</p>
+<div id="fig-Clustree_MC-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Clustree_MC-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Clustree_MC-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Clustree_MC-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Clustree_MC-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Clustree_MC-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Clustree_MC-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="umaps-mc" class="section level2">
+<h2>UMAPs MC</h2>
+<pre class="r"><code>DimPlot(MC, reduction = &quot;umap&quot;, shuffle = T, group.by = c(&quot;SCT_snn_res.0.3&quot;, &quot;Sample&quot;, &quot;Batch_processing&quot;, &quot;cell_type&quot;), 
+    ncol = 2)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/UMAPs_MC-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-UMAPs_MC-1">
+Past versions of UMAPs_MC-1.png
+</button>
+</p>
+<div id="fig-UMAPs_MC-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/UMAPs_MC-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/UMAPs_MC-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/UMAPs_MC-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/UMAPs_MC-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/UMAPs_MC-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/UMAPs_MC-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="findallmarkers" class="section level2">
+<h2>FindAllMarkers</h2>
+<pre class="r"><code>DefaultAssay(MC) &lt;- &quot;RNA&quot;
+MC &lt;- NormalizeData(MC)
+checkpoint &lt;- file.path(input_dir, &quot;baseline_markers.csv&quot;)
+Markers &lt;- if (file.exists(checkpoint)) read.csv(checkpoint) else FindAllMarkers(MC, only.pos = TRUE, min.pct = 0.1, 
+    logfc.threshold = 0.25)
+Markers_top10 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 10, wt = avg_log2FC))
+Markers_top3 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 3, wt = avg_log2FC))</code></pre>
+</div>
+<div id="heatmap-mc" class="section level2">
+<h2>Heatmap MC</h2>
+<pre class="r"><code>heatmap_cols &lt;- colorRampPalette(RColorBrewer::brewer.pal(9, &quot;RdBu&quot;))(256)
+heatmap_cols &lt;- rev(heatmap_cols[1:256])
+Heatmap &lt;- DoHeatmap(MC, label = FALSE, draw.line = F, features = Markers_top10$gene, assay = &quot;SCT&quot;) + scale_fill_gradientn(colours = heatmap_cols) + 
+    theme(axis.text.y = element_text(size = 5, family = &quot;Arial&quot;)) + theme(plot.margin = unit(c(0.1, 0, 0, 0), &quot;inches&quot;))
+Heatmap</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Heatmap_MC-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Heatmap_MC-1">
+Past versions of Heatmap_MC-1.png
+</button>
+</p>
+<div id="fig-Heatmap_MC-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_MC-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_MC-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_MC-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_MC-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_MC-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_MC-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="cell-type-cols" class="section level2">
+<h2>cell type cols</h2>
+<pre class="r"><code>cell_type_cols &lt;- c(&quot;#d05050&quot;, &quot;#33A02C&quot;, &quot;#1F78B4&quot;, &quot;#CAB2D6&quot;, &quot;#FF7F00&quot;, &quot;#B2DF8A&quot;, &quot;#B15928&quot;, &quot;#FFD000&quot;, &quot;#FA95C0&quot;, 
+    &quot;#FDBF6F&quot;, &quot;#6A3D9A&quot;, &quot;#7aCDF9&quot;, &quot;#E6E600&quot;)</code></pre>
+</div>
+<div id="qc-vlnplots-mc" class="section level2">
+<h2>QC VlnPlots MC</h2>
+<pre class="r"><code>VlnPlot_scCustom(MC, features = c(&quot;nCount_RNA&quot;, &quot;nFeature_RNA&quot;, &quot;percent.mt&quot;, &quot;percent.rp&quot;), num_columns = 2, pt.size = 0, 
+    colors_use = cell_type_cols) + theme(axis.title.x = element_blank())</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_MC-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-QC_VlnPlots_MC-1">
+Past versions of QC_VlnPlots_MC-1.png
+</button>
+</p>
+<div id="fig-QC_VlnPlots_MC-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_MC-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_MC-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_MC-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_MC-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_MC-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_MC-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="qc-vlnplots-2" class="section level2">
+<h2>QC VlnPlots 2</h2>
+<pre class="r"><code>VlnPlot_scCustom(MC, features = c(&quot;RYR2&quot;, &quot;TTN&quot;, &quot;VWF&quot;, &quot;scDblFinder.score&quot;), assay = &quot;RNA&quot;, num_columns = 2, pt.size = 0, 
+    colors_use = cell_type_cols) + theme(axis.title.x = element_blank())</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_2-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-QC_VlnPlots_2-1">
+Past versions of QC_VlnPlots_2-1.png
+</button>
+</p>
+<div id="fig-QC_VlnPlots_2-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_2-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_2-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_2-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_2-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_2-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_2-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="qc-vlnplots-3" class="section level2">
+<h2>QC VlnPlots 3</h2>
+<pre class="r"><code>VlnPlot(MC, features = intersect(c(&quot;TNNT2&quot;, &quot;MYH7&quot;, &quot;COL1A1&quot;, &quot;DCN&quot;, &quot;PECAM1&quot;, &quot;VWF&quot;, &quot;RGS5&quot;, &quot;ACTA2&quot;, &quot;LST1&quot;, 
+    &quot;F13A1&quot;, &quot;CD3D&quot;, &quot;MS4A1&quot;), rownames(MC)), group.by = &quot;SCT_snn_res.0.3&quot;, pt.size = 0, ncol = 4)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_3-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-QC_VlnPlots_3-1">
+Past versions of QC_VlnPlots_3-1.png
+</button>
+</p>
+<div id="fig-QC_VlnPlots_3-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_3-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_3-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_3-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_3-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_3-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_3-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="qc-vlnplots-4" class="section level2">
+<h2>QC VlnPlots 4</h2>
+<pre class="r"><code>VlnPlot(MC, features = intersect(c(&quot;TNNT2&quot;, &quot;MYH7&quot;, &quot;COL1A1&quot;, &quot;DCN&quot;, &quot;PECAM1&quot;, &quot;VWF&quot;, &quot;RGS5&quot;, &quot;ACTA2&quot;, &quot;LST1&quot;, 
+    &quot;F13A1&quot;, &quot;CD3D&quot;, &quot;MS4A1&quot;), rownames(MC)), group.by = &quot;SCT_snn_res.0.3&quot;, pt.size = 0, ncol = 4)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_4-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-QC_VlnPlots_4-1">
+Past versions of QC_VlnPlots_4-1.png
+</button>
+</p>
+<div id="fig-QC_VlnPlots_4-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_4-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_4-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_4-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_4-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_4-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/QC_VlnPlots_4-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="mc-contamination" class="section level2">
+<h2>MC contamination</h2>
+<pre class="r"><code>removed_clusters &lt;- c(&quot;7&quot;)
+MC &lt;- subset(MC, cells = colnames(MC)[!as.character(MC[[&quot;SCT_snn_res.0.3&quot;]][, 1]) %in% removed_clusters])
+checkpoint &lt;- file.path(input_dir, &quot;annotated.qs2&quot;)
+if (file.exists(checkpoint)) {
+    retained_cells &lt;- colnames(MC)
+    MC &lt;- qs2::qs_read(checkpoint, nthreads = 2)
+    stopifnot(setequal(colnames(MC), retained_cells))
+} else {
+    state_names &lt;- c(`0` = &quot;Pericytes–PDE1C&quot;, `1` = &quot;Pericytes–LAMA2&quot;, `2` = &quot;SMC-like pericytes&quot;, `3` = &quot;Pericytes–NDUFA4L2&quot;, 
+        `4` = &quot;Smooth muscle cells&quot;, `5` = &quot;Remodelling mural cells–SERPINE1&quot;, `6` = &quot;Remodelling mural cells–SAMD4A&quot;)
+    MC$cell_state &lt;- factor(state_names[as.character(MC[[&quot;SCT_snn_res.0.3&quot;]][, 1])], levels = unname(state_names))
+}
+DefaultAssay(MC) &lt;- &quot;RNA&quot;
+Idents(MC) &lt;- &quot;cell_state&quot;
+knitr::kable(as.data.frame(table(MC$cell_state)))</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Var1</th>
+<th align="right">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Pericytes–PDE1C</td>
+<td align="right">10006</td>
+</tr>
+<tr class="even">
+<td align="left">Pericytes–LAMA2</td>
+<td align="right">2522</td>
+</tr>
+<tr class="odd">
+<td align="left">SMC-like pericytes</td>
+<td align="right">2483</td>
+</tr>
+<tr class="even">
+<td align="left">Pericytes–NDUFA4L2</td>
+<td align="right">2379</td>
+</tr>
+<tr class="odd">
+<td align="left">Smooth muscle cells</td>
+<td align="right">2035</td>
+</tr>
+<tr class="even">
+<td align="left">Remodelling mural cells–SERPINE1</td>
+<td align="right">861</td>
+</tr>
+<tr class="odd">
+<td align="left">Remodelling mural cells–SAMD4A</td>
+<td align="right">519</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="findallmarkers-cell-state" class="section level2">
+<h2>FindAllMarkers cell state</h2>
+<pre class="r"><code>DefaultAssay(MC) &lt;- &quot;RNA&quot;
+checkpoint &lt;- file.path(input_dir, &quot;markers.csv&quot;)
+Markers &lt;- if (file.exists(checkpoint)) read.csv(checkpoint) else FindAllMarkers(MC, only.pos = TRUE, min.pct = 0.1, 
+    logfc.threshold = 0.25)
+Markers_top10 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 10, wt = avg_log2FC))
+Markers_top3 &lt;- as.data.frame(Markers %&gt;% group_by(cluster) %&gt;% top_n(n = 3, wt = avg_log2FC))
+write.csv(Markers, file.path(output_dir_data, &quot;Markers.csv&quot;), row.names = FALSE)</code></pre>
+</div>
+<div id="section" class="section level2">
+<h2></h2>
+<pre class="r"><code>DefaultAssay(MC) &lt;- &quot;RNA&quot;
+MC &lt;- NormalizeData(MC)
+MC &lt;- ScaleData(MC)</code></pre>
+</div>
+<div id="heatmap-cell-state" class="section level2">
+<h2>Heatmap cell state</h2>
+<pre class="r"><code>cells &lt;- read.csv(file.path(input_dir, &quot;heatmap_cells.csv&quot;))$cell
+MC &lt;- NormalizeData(MC)
+MC &lt;- ScaleData(MC)
+p &lt;- DoHeatmap(MC, features = unique(Markers_top10$gene), cells = cells, assay = &quot;RNA&quot;, group.by = &quot;cell_state&quot;, 
+    label = TRUE, draw.lines = FALSE, size = 4, angle = 70, hjust = 0, combine = FALSE)[[1]]
+cols &lt;- rev(colorRampPalette(RColorBrewer::brewer.pal(9, &quot;RdBu&quot;))(256))
+p &lt;- p + scale_fill_gradientn(colours = cols) + theme(text = element_text(family = &quot;Arial&quot;, size = 12), legend.title = element_text(size = 11), 
+    legend.text = element_text(size = 9)) + guides(fill = guide_colorbar(barwidth = 0.65, barheight = 3), colour = &quot;none&quot;)
+text_layer &lt;- which(vapply(p$layers, function(x) inherits(x$geom, &quot;GeomText&quot;), logical(1)))
+labels &lt;- p$layers[[text_layer]]$data
+bar &lt;- p$layers[[which(vapply(p$layers, function(x) inherits(x$geom, &quot;GeomRasterAnn&quot;), logical(1)))]]$geom_params
+top &lt;- bar$ymax
+labels$label &lt;- as.character(labels$group)
+labels$label &lt;- sub(&quot;Activated FB–POSTN/FAP&quot;, &quot;Activated FB–\nPOSTN/FAP&quot;, labels$label, fixed = TRUE)
+labels$x &lt;- as.numeric(labels$label.x.pos)
+gap &lt;- bar$xmax * 0.19/(10 - 1.25)
+for (i in rev(seq_len(nrow(labels) - 1))) labels$x[i] &lt;- min(labels$x[i], labels$x[i + 1] - gap)
+labels$y &lt;- top + 0.65
+label_width &lt;- max(vapply(strsplit(labels$label, &quot;\n&quot;), function(s) max(grid::convertWidth(grid::stringWidth(s), 
+    &quot;in&quot;, valueOnly = TRUE)), numeric(1)))
+top_margin &lt;- ceiling(label_width * sin(70 * pi/180) * 72 * 4.2 * 72.27/25.4/12 + 22)
+gene_size &lt;- min(8, max(5.3, (8 - top_margin/72 - 0.22) * 72/length(unique(p$data$Feature)) * 0.95))
+p$layers &lt;- p$layers[-text_layer]
+p &lt;- p + coord_cartesian(ylim = c(0.4, top + 0.25), clip = &quot;off&quot;, expand = FALSE) + geom_segment(data = labels[abs(labels$x - 
+    labels$label.x.pos) &gt; 1, ], aes(x = label.x.pos, xend = x, y = top, yend = y), inherit.aes = FALSE, linewidth = 0.25, 
+    colour = &quot;grey35&quot;) + geom_text(data = labels, aes(x = x, y = y, label = label), inherit.aes = FALSE, angle = 70, 
+    hjust = 0, vjust = 0.5, size = 4.2, family = &quot;Arial&quot;) + theme(axis.text.y = element_text(size = gene_size, 
+    family = &quot;Arial&quot;), plot.margin = margin(top_margin, 10, 4, 3))
+p</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Heatmap_cell_state-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Heatmap_cell_state-1">
+Past versions of Heatmap_cell_state-1.png
+</button>
+</p>
+<div id="fig-Heatmap_cell_state-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_cell_state-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_cell_state-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_cell_state-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_cell_state-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_cell_state-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Heatmap_cell_state-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="umap-cell-type-2" class="section level2">
+<h2>UMAP cell type 2</h2>
+<pre class="r"><code>p &lt;- DimPlot(MC, group.by = &quot;cell_state&quot;, reduction = &quot;umap&quot;, cols = cell_type_cols, label = FALSE, shuffle = T, 
+    pt.size = 0.1) + NoLegend() + theme(axis.text = element_text(size = 8, face = &quot;bold&quot;, family = &quot;Arial&quot;), axis.title = element_text(size = 12, 
+    face = &quot;bold&quot;, family = &quot;Arial&quot;), plot.title = element_blank())
+LabelClusters(p, id = &quot;cell_state&quot;, fontface = &quot;bold&quot;, size = 7, repel = TRUE)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/UMAP_cell_type_2-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-UMAP_cell_type_2-1">
+Past versions of UMAP_cell_type_2-1.png
+</button>
+</p>
+<div id="fig-UMAP_cell_type_2-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/UMAP_cell_type_2-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/UMAP_cell_type_2-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/UMAP_cell_type_2-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/UMAP_cell_type_2-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/UMAP_cell_type_2-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/UMAP_cell_type_2-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="dotplot-markers" class="section level2">
+<h2>DotPlot markers</h2>
+<pre class="r"><code>Idents(MC) &lt;- factor(Idents(MC), levels = rev(levels(Idents(MC))))
+p &lt;- DotPlot_scCustom(MC, features = unique(Markers_top3$gene), x_lab_rotate = TRUE)
+p + theme(axis.text.x = element_text(size = 12, angle = 60, vjust = 1, hjust = 1, family = &quot;Arial&quot;), axis.text.y = element_text(size = 15, 
+    family = &quot;Arial&quot;))</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/DotPlot_markers-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-DotPlot_markers-1">
+Past versions of DotPlot_markers-1.png
+</button>
+</p>
+<div id="fig-DotPlot_markers-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/DotPlot_markers-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/DotPlot_markers-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/DotPlot_markers-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/DotPlot_markers-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/DotPlot_markers-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/DotPlot_markers-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>Idents(MC) &lt;- MC$cell_state</code></pre>
+</div>
+<div id="vlnplot-markers-mc" class="section level2">
+<h2>VlnPlot markers MC</h2>
+<pre class="r"><code>VlnPlot_scCustom(MC, features = c(&quot;PDE1C&quot;, &quot;LAMA2&quot;, &quot;MYH11&quot;, &quot;CTNNA3&quot;, &quot;FABP4&quot;, &quot;CLSTN2&quot;, &quot;SAMD4A&quot;), num_columns = 4, 
+    colors_use = cell_type_cols, pt.size = 0)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/VlnPlot_markers_MC-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-VlnPlot_markers_MC-1">
+Past versions of VlnPlot_markers_MC-1.png
+</button>
+</p>
+<div id="fig-VlnPlot_markers_MC-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/VlnPlot_markers_MC-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/VlnPlot_markers_MC-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/VlnPlot_markers_MC-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/VlnPlot_markers_MC-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/VlnPlot_markers_MC-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/VlnPlot_markers_MC-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="featplot-markers-mc" class="section level2">
+<h2>FeatPlot markers MC</h2>
+<pre class="r"><code>DefaultAssay(MC) &lt;- &quot;RNA&quot;
+FeaturePlot_scCustom(MC, features = c(&quot;PDE1C&quot;, &quot;LAMA2&quot;, &quot;CTNNA3&quot;, &quot;NDUFA4L2&quot;, &quot;MYH11&quot;, &quot;SERPINE1&quot;, &quot;SAMD4A&quot;), num_columns = 7, 
+    order = TRUE) &amp; theme(text = element_text(family = &quot;Arial&quot;))</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_MC-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-FeatPlot_markers_MC-1">
+Past versions of FeatPlot_markers_MC-1.png
+</button>
+</p>
+<div id="fig-FeatPlot_markers_MC-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_MC-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_MC-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_MC-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_MC-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_MC-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_MC-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="featplot-markers-myomc" class="section level2">
+<h2>FeatPlot markers myoMC</h2>
+<pre class="r"><code>FeaturePlot_scCustom(MC, features = c(&quot;PDE1C&quot;, &quot;LAMA2&quot;, &quot;MYH11&quot;, &quot;CTNNA3&quot;, &quot;FABP4&quot;, &quot;CLSTN2&quot;, &quot;SAMD4A&quot;), num_columns = 4, 
+    order = T)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_myoMC-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-FeatPlot_markers_myoMC-1">
+Past versions of FeatPlot_markers_myoMC-1.png
+</button>
+</p>
+<div id="fig-FeatPlot_markers_myoMC-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_myoMC-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_myoMC-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_myoMC-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_myoMC-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_myoMC-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/FeatPlot_markers_myoMC-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="barplot-mc-sample" class="section level2">
+<h2>Barplot MC Sample</h2>
+<pre class="r"><code>props &lt;- getTransformedProps(MC$cell_state, MC$Sample, transform = &quot;logit&quot;)
+par(mar = c(7, 5, 1, 22), xpd = TRUE)
+barplot(props$Proportions, legend = FALSE, ylab = &quot;Proportions&quot;, col = cell_type_cols, cex.names = 2, las = 2, 
+    font.lab = 2, font.axis = 2, cex.axis = 1.2, cex.lab = 2)
+legend(&quot;topright&quot;, inset = c(-0.35, 0.1), legend = rownames(props$Proportions), fill = cell_type_cols, bty = &quot;n&quot;, 
+    cex = 2)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Barplot_MC_Sample-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Barplot_MC_Sample-1">
+Past versions of Barplot_MC_Sample-1.png
+</button>
+</p>
+<div id="fig-Barplot_MC_Sample-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Barplot_MC_Sample-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Barplot_MC_Sample-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Barplot_MC_Sample-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Barplot_MC_Sample-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Barplot_MC_Sample-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Barplot_MC_Sample-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="bitr" class="section level2">
+<h2>bitr</h2>
+<pre class="r"><code>df &lt;- Markers[, 7:6]
+dfsample &lt;- split(df$gene, df$cluster)
+length(dfsample)</code></pre>
+<pre><code>[1] 7</code></pre>
+<pre class="r"><code>dfsample &lt;- lapply(dfsample, function(x) {
+    bitr(x, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = &quot;org.Hs.eg.db&quot;)
+})
+genelist &lt;- lapply(dfsample, function(x) x$ENTREZID)
+gene_counts &lt;- rowSums(MC@assays$RNA@counts &gt; 0)
+universe_genes &lt;- names(gene_counts[gene_counts &gt;= 3])
+universe_entrez &lt;- bitr(universe_genes, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db)$ENTREZID
+stopifnot(setequal(names(genelist), unique(as.character(Markers$cluster))))
+write.csv(data.frame(cell_state = names(genelist), marker_symbols = vapply(names(genelist), function(st) length(unique(Markers$gene[as.character(Markers$cluster) == 
+    st])), integer(1)), mapped_ENTREZ = vapply(genelist, function(gs) length(unique(gs)), integer(1))), file.path(output_dir_data, 
+    &quot;A_enrichment_state_gene_mapping.csv&quot;), row.names = FALSE)</code></pre>
+</div>
+<div id="enrichment-functions" class="section level2">
+<h2>Enrichment functions</h2>
+<pre class="r"><code>state_enrichment &lt;- function(label, recipe) {
+    for (f in list.files(file.path(input_dir, &quot;enrichment_checkpoints&quot;), pattern = &quot;[.]rds$&quot;, full.names = TRUE)) {
+        x &lt;- readRDS(f)
+        if (grepl(paste0(label, &quot; &lt;-&quot;), x$recipe, fixed = TRUE)) {
+            old &lt;- x$value@geneClusters
+            same &lt;- setequal(names(old), names(genelist)) &amp;&amp; all(vapply(names(genelist), function(n) setequal(old[[n]], 
+                genelist[[n]]), logical(1)))
+            if (same) 
+                return(x$value)
+        }
+    }
+    eval(substitute(recipe), envir = parent.frame())
+}</code></pre>
+</div>
+<div id="pathways-go" class="section level2">
+<h2>Pathways GO</h2>
+<pre class="r"><code>GO &lt;- state_enrichment(&quot;GO&quot;, {
+    GO &lt;- compareCluster(geneCluster = genelist, fun = &quot;enrichGO&quot;, ont = &quot;ALL&quot;, OrgDb = &quot;org.Hs.eg.db&quot;, universe = universe_entrez)
+    GO &lt;- gsfilter(GO, by = &quot;Count&quot;, min = 3)
+    GO
+})
+dotplot(GO, label_format = 50, title = &quot;GO - Over-representation analysis&quot;) + theme(axis.text.x = element_text(angle = 45, 
+    hjust = 1, vjust = 1, family = &quot;Arial&quot;), axis.text.y = element_text(lineheight = 0.5, family = &quot;Arial&quot;))</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Pathways_GO-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Pathways_GO-1">
+Past versions of Pathways_GO-1.png
+</button>
+</p>
+<div id="fig-Pathways_GO-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="pathways-go-simplified" class="section level2">
+<h2>Pathways GO simplified</h2>
+<pre class="r"><code>GO_simplified &lt;- state_enrichment(&quot;GO_simplified&quot;, {
+    GO &lt;- state_enrichment(&quot;GO&quot;, {
+        GO_simplified &lt;- clusterProfiler::simplify(GO, cutoff = 0.5, by = &quot;p.adjust&quot;, select_fun = min, measure = &quot;Wang&quot;, 
+            semData = NULL)
+        GO
+    })
+    GO_simplified
+})
+dotplot(GO_simplified, label_format = 60, title = &quot;GO - Over-representation analysis&quot;) + theme(axis.text.x = element_text(angle = 45, 
+    hjust = 1, vjust = 1, family = &quot;Arial&quot;), axis.text.y = element_text(lineheight = 0.5, family = &quot;Arial&quot;))</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Pathways_GO_simplified-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Pathways_GO_simplified-1">
+Past versions of Pathways_GO_simplified-1.png
+</button>
+</p>
+<div id="fig-Pathways_GO_simplified-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO_simplified-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO_simplified-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO_simplified-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO_simplified-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO_simplified-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Pathways_GO_simplified-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="pathways-kegg" class="section level2">
+<h2>Pathways KEGG</h2>
+<pre class="r"><code>KEGG &lt;- state_enrichment(&quot;KEGG&quot;, {
+    db &lt;- readRDS(here::here(&quot;data&quot;, &quot;processed&quot;, &quot;shared_expression&quot;, &quot;database_snapshot.rds&quot;))$KEGG
+    term_gene &lt;- stack(db$sets)[, 2:1]
+    names(term_gene) &lt;- c(&quot;term&quot;, &quot;gene&quot;)
+    term_name &lt;- data.frame(term = names(db$names), name = unname(db$names))
+    KEGG &lt;- compareCluster(geneCluster = genelist, fun = &quot;enricher&quot;, TERM2GENE = term_gene, TERM2NAME = term_name, 
+        universe = universe_entrez)
+    KEGG &lt;- gsfilter(KEGG, by = &quot;Count&quot;, min = 3)
+    KEGG
+})
+dotplot(KEGG, label_format = 40, title = &quot;KEGG Pathways&quot;) + theme(axis.text.x = element_text(angle = 45, hjust = 1, 
+    vjust = 1, family = &quot;Arial&quot;))</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Pathways_KEGG-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Pathways_KEGG-1">
+Past versions of Pathways_KEGG-1.png
+</button>
+</p>
+<div id="fig-Pathways_KEGG-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Pathways_KEGG-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Pathways_KEGG-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Pathways_KEGG-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Pathways_KEGG-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Pathways_KEGG-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Pathways_KEGG-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="metadata" class="section level2">
+<h2>metadata</h2>
+<pre class="r"><code>metadata &lt;- MC@meta.data %&gt;% dplyr::select(Sample, Batch_processing, Batch_sequencing, Age_years, Sex, Group, mPAP_mmHg, 
+    sPAP_mmHg, PCW_mmHg, PVR_WU, TAPSE_mm, RVIT_mm, LVEF_percent, LVEDD_mm) %&gt;% unique() %&gt;% dplyr::arrange(match(Sample, 
+    names(table(MC$Sample))))
+rownames(metadata) &lt;- metadata$Sample
+all.equal(metadata$Sample, names(table(MC$Sample)))</code></pre>
+<pre><code>[1] TRUE</code></pre>
+<pre class="r"><code>reactable(metadata, filterable = TRUE, searchable = TRUE, showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-f9dffde5896ab47ada5d" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-f9dffde5896ab47ada5d">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["CZD13","CZD15","CZD16","CZD4","CZD5","CZD6","CZD7","CZD9","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Sample":["CZD13","CZD15","CZD16","CZD4","CZD5","CZD6","CZD7","CZD9","P3","P5","P8","PK153","PK213","PK229","PK323","PK337","PK345","PK357","PK369","PK375","PK385","PK401","PK403","PK415","PK437","PK439","PK441","PK461","PK463"],"Batch_processing":["Batch9","Batch9","Batch9","Batch8","Batch8","Batch8","Batch8","Batch9","Batch6","Batch7","Batch6","Batch7","Batch6","Batch6","Batch7","Batch1","Batch1","Batch1","Batch2","Batch2","Batch2","Batch3","Batch2","Batch3","Batch3","Batch4","Batch5","Batch4","Batch5"],"Batch_sequencing":["Batch8_seq","Batch8_seq","Batch8_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch7_seq","Batch8_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch6_seq","Batch5_seq","Batch5_seq","Batch6_seq","Batch1_seq","Batch1_seq","Batch1_seq","Batch2_seq","Batch2_seq","Batch2_seq","Batch3_seq","Batch3_seq","Batch3_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq","Batch4_seq"],"Age_years":[42,54,49,46,55,33,37,47,19,36,37,28,49,49,45,32,29,61,56,53,58,41,61,41,52,66,16,57,40],"Sex":["M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M","M"],"Group":["HC","HC","HC","HC","HC","HC","HC","HC","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM","DCM"],"mPAP_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",25,26,27,33,22,30,41,43,39,36,21,29,43,30,"NA",29,19,"NA",34,48],"sPAP_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",35,37,41,48,33,38,51,56,54,51,31,45,55,44,"NA",42,26,"NA",41,58],"PCW_mmHg":["NA","NA","NA","NA","NA","NA","NA","NA","NA",22,20,23,20,15,18,32,35,31,25,9,20,"NA",21,"NA",17,10,"NA",28,33],"PVR_WU":["NA","NA","NA","NA","NA","NA","NA","NA","NA",0.68,1.5,1.27,4.8,1.39,2.2,3.67,2.55,3.26,3.38,2.05,2.42,5.8,2.5,"NA",2.4,2.37,"NA",2.27,3.9],"TAPSE_mm":["NA","NA","NA","NA","NA","NA","NA","NA",13,9,13,24,9,20,12,16,17,15,15,20,17,18,15,12,22,19,7,19,15],"RVIT_mm":["NA","NA","NA","NA","NA","NA","NA","NA",39,41,45,28,54,30,39,43,49,48,58,33,60,40,47,37,41,46,60,45,57],"LVEF_percent":["NA","NA","NA","NA","NA","NA","NA","NA",10,15,10,18,10,30,15,16,15,15,15,18,10,35,6,20,20,23,20,15,17],"LVEDD_mm":["NA","NA","NA","NA","NA","NA","NA","NA",76,80,98,72,92,69,75,67,88,71,74,82,84,58,83,63,89,69,58,98,81]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"Sample","name":"Sample","type":"character"},{"id":"Batch_processing","name":"Batch_processing","type":"character"},{"id":"Batch_sequencing","name":"Batch_sequencing","type":"character"},{"id":"Age_years","name":"Age_years","type":"numeric"},{"id":"Sex","name":"Sex","type":"character"},{"id":"Group","name":"Group","type":"character"},{"id":"mPAP_mmHg","name":"mPAP_mmHg","type":"numeric"},{"id":"sPAP_mmHg","name":"sPAP_mmHg","type":"numeric"},{"id":"PCW_mmHg","name":"PCW_mmHg","type":"numeric"},{"id":"PVR_WU","name":"PVR_WU","type":"numeric"},{"id":"TAPSE_mm","name":"TAPSE_mm","type":"numeric"},{"id":"RVIT_mm","name":"RVIT_mm","type":"numeric"},{"id":"LVEF_percent","name":"LVEF_percent","type":"numeric"},{"id":"LVEDD_mm","name":"LVEDD_mm","type":"numeric"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"c5740f11b821492ad92097664d7d5904"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>metadata_DCM &lt;- metadata %&gt;% dplyr::filter(Group == &quot;DCM&quot;)
+metadata &lt;- metadata_DCM</code></pre>
+</div>
+<div id="speckle-all" class="section level2">
+<h2>Speckle all</h2>
+<pre class="r"><code>differential_abundance &lt;- data.frame()
+props &lt;- getTransformedProps(MC$cell_state, MC$Sample, transform = &quot;logit&quot;)
+for (i in 7:(length(metadata_DCM))) {
+    metadata_subset &lt;- metadata_DCM[complete.cases(metadata_DCM[[i]], metadata_DCM$Age_years), ]
+    props_subset &lt;- props
+    props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+    props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+    props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+    metadata_subset &lt;- metadata_subset %&gt;% arrange(Sample, colnames(props_subset$Proportions))
+    design &lt;- model.matrix(~metadata_subset[[i]] + metadata_subset[[&quot;Age_years&quot;]])
+    fit &lt;- lmFit(props_subset$TransformedProps, design)
+    fit &lt;- eBayes(fit, robust = TRUE)
+    differential_abundance_temp &lt;- topTable(fit, n = Inf, coef = 2)
+    differential_abundance_temp$metadata &lt;- colnames(metadata_subset[i])
+    differential_abundance_temp$cell_state &lt;- rownames(differential_abundance_temp)
+    differential_abundance &lt;- rbind(differential_abundance, differential_abundance_temp)
+}
+rm(metadata_subset, props_subset, design, fit, differential_abundance_temp)
+rownames(differential_abundance) &lt;- NULL
+differential_abundance &lt;- dplyr::arrange(differential_abundance, adj.P.Val)
+write.csv(differential_abundance, file = here::here(output_dir_data, &quot;MC_Differential_Abundance.csv&quot;), row.names = F)
+reactable(differential_abundance, filterable = TRUE, searchable = TRUE, showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-2807d56c1ec5c4a21bcf" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-2807d56c1ec5c4a21bcf">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"logFC":[-0.0303900968712478,0.0298597976790046,-0.027055985775941,-0.0181316524791952,0.0193952410285025,0.00684006251171419,0.0104873591425305,-0.0174381238276089,-0.168197939216641,-0.0266300888029152,0.0384802114232805,-0.0486102850101362,0.0654061725097889,-0.107410959822355,-0.0206454977067718,-0.0119416304457837,0.0828894750211153,-0.0158167292721147,-0.0152022441315865,0.0166957730611059,-0.0185374831581661,0.00820732577912731,0.00574144721236268,-0.0379848662026656,0.0127564724160601,0.0134443404076644,-0.00368278153860458,0.00393873615733796,0.00604753860239215,0.00433912625517993,0.00476208205331763,-0.0052602370227946,-0.0176222144950111,0.00837707824695676,0.00396365624773146,-0.00238111275742751,-0.00136507112883485,0.00171769528749565,0.0015974653639571,0.000690270367798495,0.00750017279264444,0.0065644845049942,-0.00593452355792552,-0.00375492756586482,0.00258355971460129,0.000332991125199713,-0.014938419977373,0.00659950606295933,0.010597904393287,-0.00552882558329373,0.00162228993916537,-0.00227688435539078,0.000415040405030761,0.001181894487658,0.000879942077449455,0.00020906093446369],"AveExpr":[-2.24113537685887,-2.21856818295551,-2.16542166214625,-0.135418290956638,-3.35590383276279,-1.95853291081167,-2.0640853318823,-3.7127017802296,-2.16542166214625,-2.16542166214625,-0.135418290956638,-2.21856818295551,-1.97087891146279,-3.49674755718843,-2.0640853318823,-1.95853291081167,-2.33047539826686,-3.35590383276279,-3.7127017802296,-2.24113537685887,-2.0640853318823,-2.24113537685887,-0.135418290956638,-3.80574080444822,-0.0657914931056613,-1.97848663632243,-3.35590383276279,-3.7127017802296,-0.0657914931056613,-1.97087891146279,-1.97848663632243,-3.49674755718843,-2.21856818295551,-0.135418290956638,-1.95853291081167,-3.35590383276279,-2.24113537685887,-3.7127017802296,-2.33047539826686,-3.80574080444822,-1.97087891146279,-0.0657914931056613,-3.49674755718843,-3.80574080444822,-2.33047539826686,-1.97848663632243,-2.15279870695933,-0.0951887655734479,-3.79980773777112,-2.30701673474533,-1.97581608524456,-1.94984207959356,-3.46578065804363,-1.95853291081167,-2.0640853318823,-2.21856818295551],"t":[-3.2473167421928,2.62301247898498,-2.63526356512127,-2.07486949907683,1.55726612890657,1.30501335189753,1.27056056454905,-1.2475114660081,-2.24243884020374,-2.18274066872382,1.93659709472943,-1.77325196638852,1.5868117817958,-1.38915429514386,-1.10102364375782,-0.992221401248518,0.967657204461137,-1.54012243725356,-1.32820301668521,0.658996551334539,-1.64437563327218,0.889687191563541,0.733419037885835,-0.355417221251819,0.243343462827887,0.192155169113797,-0.124829554974872,0.12113269488613,0.813627503886083,0.68888103015553,0.48038816745711,-0.45970611762967,-0.993981400637467,0.634497932139669,0.518312804355409,-0.130563216224375,-0.0862521604211687,0.0854774416974278,0.128635502262842,0.0455892782457874,1.07320974153467,0.778506227706875,-0.455004698718048,-0.21742408950396,0.18248832033825,0.0293445847728963,-0.927964990332771,0.682884455391028,0.511693723778728,-0.327970490868725,0.18508992555329,-0.169747855962107,0.0276889500849503,0.254139885080751,0.123629366014607,0.019481301752871],"P.Value":[0.00366944833586825,0.015472605732273,0.0159715130418728,0.049803640458062,0.133565962558488,0.205269149675389,0.217054387076136,0.225224789112662,0.0368473245181676,0.041466263902952,0.0658164730812035,0.0901101994312568,0.128785626953375,0.180589689840518,0.282852979864163,0.331937415884513,0.345172852069711,0.137601256972231,0.197545199448549,0.516774581393263,0.114353228925601,0.383131385514616,0.470943426183466,0.7261276042262,0.81030419124141,0.849625806599445,0.90179838455945,0.90469158648363,0.425558407036148,0.498910811478718,0.636228923974843,0.650746915402809,0.331069230091636,0.532317246734122,0.609428323537329,0.897310645092607,0.93204832239264,0.932657106426403,0.898946854563706,0.964095385923108,0.29627549354181,0.4456126600307,0.654129598871774,0.830136070782635,0.857082830335396,0.976887940681382,0.36535918963586,0.50313096279863,0.614910782946388,0.746611662300491,0.855169803560305,0.867048361037205,0.978206340141462,0.801716151164087,0.902716274233326,0.984630410237738],"adj.P.Val":[0.0256861383510777,0.0541541200629553,0.11180059129311,0.116208494402145,0.225224789112662,0.225224789112662,0.225224789112662,0.225224789112662,0.257931271627173,0.290263847320664,0.315385698009399,0.315385698009399,0.421375942961208,0.421375942961208,0.580890477797898,0.580890477797898,0.604052491121994,0.691408198069921,0.691408198069921,0.723484413950568,0.800472602479206,0.824150995821066,0.824150995821066,0.849625806599445,0.849625806599445,0.849625806599445,0.90469158648363,0.90469158648363,0.911045681563933,0.911045681563933,0.911045681563933,0.911045681563933,0.932657106426403,0.932657106426403,0.932657106426403,0.932657106426403,0.932657106426403,0.932657106426403,0.964095385923108,0.964095385923108,0.976887940681382,0.976887940681382,0.976887940681382,0.976887940681382,0.976887940681382,0.976887940681382,0.978206340141462,0.978206340141462,0.978206340141462,0.978206340141462,0.978206340141462,0.978206340141462,0.978206340141462,0.984630410237738,0.984630410237738,0.984630410237738],"B":[-2.59203567482268,-3.95471812427035,-3.88901462404586,-5.02037662470983,-5.86662363448864,-6.20908486440197,-6.25189159778948,-6.27997729772025,-3.576918903222,-4.64584675522492,-4.48786379279672,-4.74943080297496,-4.37164852214928,-4.57482883497568,-5.62983629377473,-5.73863615254856,-4.9346288079894,-6.00596707741225,-6.29477077858662,-6.00621019291419,-5.36018188159899,-6.77249022654586,-6.90040430351292,-5.24483319392419,-5.27125396331968,-5.28005621942756,-6.21445647179584,-6.2149132140475,-6.64536569141891,-6.74024628051848,-6.86498826573692,-6.87500309040833,-6.17391195073845,-6.46576097260547,-6.5336267802356,-6.66224244985701,-6.66718322618544,-6.66725166147467,-6.97587893032611,-6.98341206808286,-6.2777912469236,-6.54918700974721,-6.75239797658926,-6.83492135247346,-6.84217070353952,-6.8590237410992,-6.23694548919102,-6.43454920857722,-6.53855558110351,-6.61777703422724,-6.655656496343,-6.65847559548441,-6.67301315270617,-7.14297216203859,-7.16853549827317,-7.17627470742894],"metadata":["RVIT_mm","RVIT_mm","sPAP_mmHg","RVIT_mm","RVIT_mm","RVIT_mm","RVIT_mm","RVIT_mm","PVR_WU","mPAP_mmHg","TAPSE_mm","TAPSE_mm","PVR_WU","PVR_WU","TAPSE_mm","TAPSE_mm","PVR_WU","LVEDD_mm","LVEDD_mm","TAPSE_mm","LVEF_percent","LVEDD_mm","LVEDD_mm","PVR_WU","PVR_WU","PVR_WU","TAPSE_mm","TAPSE_mm","sPAP_mmHg","sPAP_mmHg","sPAP_mmHg","sPAP_mmHg","LVEF_percent","LVEF_percent","LVEF_percent","LVEF_percent","LVEF_percent","LVEF_percent","sPAP_mmHg","sPAP_mmHg","mPAP_mmHg","mPAP_mmHg","mPAP_mmHg","mPAP_mmHg","mPAP_mmHg","mPAP_mmHg","PCW_mmHg","PCW_mmHg","PCW_mmHg","PCW_mmHg","PCW_mmHg","PCW_mmHg","PCW_mmHg","LVEDD_mm","LVEDD_mm","LVEDD_mm"],"cell_state":["Pericytes–NDUFA4L2","Smooth muscle cells","Pericytes–NDUFA4L2","Pericytes–PDE1C","Remodelling mural cells–SERPINE1","SMC-like pericytes","Pericytes–LAMA2","Remodelling mural cells–SAMD4A","Pericytes–NDUFA4L2","Pericytes–NDUFA4L2","Pericytes–PDE1C","Smooth muscle cells","SMC-like pericytes","Remodelling mural cells–SERPINE1","Pericytes–LAMA2","SMC-like pericytes","Smooth muscle cells","Remodelling mural cells–SERPINE1","Remodelling mural cells–SAMD4A","Pericytes–NDUFA4L2","Pericytes–LAMA2","Pericytes–NDUFA4L2","Pericytes–PDE1C","Remodelling mural cells–SAMD4A","Pericytes–PDE1C","Pericytes–LAMA2","Remodelling mural cells–SERPINE1","Remodelling mural cells–SAMD4A","Pericytes–PDE1C","SMC-like pericytes","Pericytes–LAMA2","Remodelling mural cells–SERPINE1","Smooth muscle cells","Pericytes–PDE1C","SMC-like pericytes","Remodelling mural cells–SERPINE1","Pericytes–NDUFA4L2","Remodelling mural cells–SAMD4A","Smooth muscle cells","Remodelling mural cells–SAMD4A","SMC-like pericytes","Pericytes–PDE1C","Remodelling mural cells–SERPINE1","Remodelling mural cells–SAMD4A","Smooth muscle cells","Pericytes–LAMA2","Pericytes–NDUFA4L2","Pericytes–PDE1C","Remodelling mural cells–SAMD4A","Smooth muscle cells","SMC-like pericytes","Pericytes–LAMA2","Remodelling mural cells–SERPINE1","SMC-like pericytes","Pericytes–LAMA2","Smooth muscle cells"]},"columns":[{"id":"logFC","name":"logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"P.Value","name":"P.Value","type":"numeric"},{"id":"adj.P.Val","name":"adj.P.Val","type":"numeric"},{"id":"B","name":"B","type":"numeric"},{"id":"metadata","name":"metadata","type":"character"},{"id":"cell_state","name":"cell_state","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"cca92d86c78a43a5e9d66d8fb7e73bb5"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="speckle-mpap-mmhg" class="section level2">
+<h2>Speckle mPAP mmHg</h2>
+<pre class="r"><code>metadata_subset &lt;- metadata[complete.cases(metadata[[&quot;mPAP_mmHg&quot;]]), ]
+props_subset &lt;- props
+props_subset$Counts &lt;- props$Counts[, metadata_subset$Sample, drop = FALSE]
+props_subset$TransformedProps &lt;- props$TransformedProps[, metadata_subset$Sample, drop = FALSE]
+props_subset$Proportions &lt;- props$Proportions[, metadata_subset$Sample, drop = FALSE]
+metadata_subset &lt;- metadata_subset %&gt;% arrange(Sample, colnames(props_subset$Proportions))
+design &lt;- model.matrix(~metadata_subset$mPAP_mmHg + metadata_subset$Age_years)
+fit.prop &lt;- lmFit(props_subset$Proportions, design)
+par(mfrow = c(2, 4), mar = c(5, 5, 3, 1))
+for (i in seq_len(nrow(props_subset$Proportions))) {
+    plot(metadata_subset$mPAP_mmHg, props_subset$Proportions[i, ], main = rownames(props_subset$Proportions)[i], 
+        pch = 16, cex = 2, ylab = &quot;Proportions&quot;, xlab = &quot;mPAP_mmHg&quot;, cex.lab = 2, cex.axis = 1.5, cex.main = 2.5)
+    abline(a = fit.prop$coefficients[i, 1], b = fit.prop$coefficients[i, 2], col = 4, lwd = 1)
+}
+rm(metadata_subset, props_subset, design, fit.prop)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Speckle_mPAP_mmHg-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Speckle_mPAP_mmHg-1">
+Past versions of Speckle_mPAP_mmHg-1.png
+</button>
+</p>
+<div id="fig-Speckle_mPAP_mmHg-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Speckle_mPAP_mmHg-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Speckle_mPAP_mmHg-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Speckle_mPAP_mmHg-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Speckle_mPAP_mmHg-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Speckle_mPAP_mmHg-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Speckle_mPAP_mmHg-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="mc-proportions" class="section level2">
+<h2>MC proportions</h2>
+<pre class="r"><code>MC_proportions &lt;- as.data.frame(props$Proportions) %&gt;% pivot_wider(names_from = clusters, values_from = Freq)
+write.csv(MC_proportions, file = here::here(output_dir_data, &quot;MC_Proportions.csv&quot;), row.names = F)</code></pre>
+</div>
+<div id="activity-inference" class="section level2">
+<h2>Activity inference</h2>
+<pre class="r"><code>activity_scores &lt;- function(object, assay, network, method, minsize = 10, weight = &quot;mor&quot;) {
+    checkpoint &lt;- file.path(input_dir, &quot;activities.qs2&quot;)
+    if (file.exists(checkpoint)) {
+        previous &lt;- qs2::qs_read(checkpoint, nthreads = 2)
+        same &lt;- setequal(colnames(object), colnames(previous)) &amp;&amp; identical(rownames(object[[&quot;RNA&quot;]]), rownames(previous[[&quot;RNA&quot;]]))
+        if (same) 
+            same &lt;- isTRUE(all.equal(GetAssayData(object, assay = &quot;RNA&quot;, slot = &quot;data&quot;), GetAssayData(previous, 
+                assay = &quot;RNA&quot;, slot = &quot;data&quot;)[, colnames(object), drop = FALSE], tolerance = 0))
+        if (same &amp;&amp; assay %in% names(previous@assays)) 
+            return(subset(previous[[assay]], cells = colnames(object)))
+    }
+    expression &lt;- GetAssayData(object, assay = &quot;RNA&quot;, slot = &quot;data&quot;)
+    batches &lt;- split(seq_len(ncol(expression)), ceiling(seq_len(ncol(expression))/1000))
+    fit &lt;- get(paste0(&quot;run_&quot;, method), asNamespace(&quot;decoupleR&quot;))
+    scores &lt;- bind_rows(lapply(batches, function(cells) fit(mat = as.matrix(expression[, cells, drop = FALSE]), 
+        network = network, .source = &quot;source&quot;, .target = &quot;target&quot;, .mor = weight, minsize = minsize, center = FALSE, 
+        sparse = FALSE, na.rm = FALSE)))
+    scores &lt;- scores %&gt;% pivot_wider(id_cols = source, names_from = condition, values_from = score) %&gt;% column_to_rownames(&quot;source&quot;)
+    object[[assay]] &lt;- CreateAssayObject(scores)
+    DefaultAssay(object) &lt;- assay
+    object &lt;- ScaleData(object)
+    object[[assay]]@data &lt;- object[[assay]]@scale.data
+    object[[assay]]
+}</code></pre>
+</div>
+<div id="net" class="section level2">
+<h2>net</h2>
+<pre class="r"><code>checkpoint &lt;- here::here(&quot;data&quot;, &quot;processed&quot;, &quot;resources&quot;, &quot;A_collectri_human_splitFALSE.rds&quot;)
+net &lt;- if (file.exists(checkpoint)) readRDS(checkpoint) else decoupleR::get_collectri(organism = &quot;human&quot;, split_complexes = FALSE)</code></pre>
+</div>
+<div id="percent-stats" class="section level2">
+<h2>percent stats</h2>
+<pre class="r"><code>expr_matrix &lt;- GetAssayData(object = MC, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+non_zero_cells &lt;- rowSums(expr_matrix &gt; 0)
+total_cells &lt;- ncol(expr_matrix)
+percent_cells &lt;- (non_zero_cells/total_cells) * 100
+percent_stats &lt;- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)</code></pre>
+</div>
+<div id="filter-percent-stats" class="section level2">
+<h2>filter percent stats</h2>
+<pre class="r"><code>net &lt;- net %&gt;% dplyr::filter(source %in% filter(percent_stats, percentCells &gt; 1)$gene)</code></pre>
+</div>
+<div id="tf-cols" class="section level2">
+<h2>TF cols</h2>
+<pre class="r"><code>TF_cols &lt;- rev(colorRampPalette(RColorBrewer::brewer.pal(5, &quot;BrBG&quot;))(101))</code></pre>
+</div>
+<div id="tf-tfsulm" class="section level2">
+<h2>TF tfsulm</h2>
+<pre class="r"><code>MC[[&quot;tfsulm&quot;]] &lt;- activity_scores(MC, &quot;tfsulm&quot;, net, &quot;ulm&quot;, minsize = 10, weight = &quot;mor&quot;)
+DefaultAssay(MC) &lt;- &quot;RNA&quot;</code></pre>
+</div>
+<div id="tf-heatmap-cluster-10" class="section level2">
+<h2>TF heatmap cluster 10</h2>
+<pre class="r"><code>n_tfs &lt;- 10
+df &lt;- t(as.matrix(MC@assays$tfsulm@data)) %&gt;% as.data.frame() %&gt;% dplyr::mutate(cluster = Seurat::Idents(MC)) %&gt;% 
+    tidyr::pivot_longer(cols = -cluster, names_to = &quot;source&quot;, values_to = &quot;score&quot;) %&gt;% dplyr::group_by(cluster, 
+    source) %&gt;% dplyr::summarise(mean = mean(score))
+tfs &lt;- df %&gt;% dplyr::group_by(source) %&gt;% dplyr::summarise(std = stats::sd(mean)) %&gt;% dplyr::arrange(-abs(std)) %&gt;% 
+    head(n_tfs) %&gt;% dplyr::pull(source)
+top_acts_mat &lt;- df %&gt;% dplyr::filter(source %in% tfs) %&gt;% tidyr::pivot_wider(id_cols = &quot;cluster&quot;, names_from = &quot;source&quot;, 
+    values_from = &quot;mean&quot;) %&gt;% tibble::column_to_rownames(&quot;cluster&quot;) %&gt;% as.matrix()
+my_breaks &lt;- c(seq(-2, 0, length.out = ceiling(101/2) + 1), seq(0.05, 2, length.out = floor(101/2)))
+pheatmap::pheatmap(mat = top_acts_mat, color = TF_cols, border_color = &quot;white&quot;, breaks = my_breaks, cellwidth = 15, 
+    cellheight = 15, treeheight_row = 20, treeheight_col = 20)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_10-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-TF_heatmap_cluster_10-1">
+Past versions of TF_heatmap_cluster_10-1.png
+</button>
+</p>
+<div id="fig-TF_heatmap_cluster_10-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_10-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_10-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_10-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_10-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_10-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_10-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="tf-heatmap-cluster-20" class="section level2">
+<h2>TF heatmap cluster 20</h2>
+<pre class="r"><code>n_tfs &lt;- 20
+df &lt;- t(as.matrix(MC@assays$tfsulm@data)) %&gt;% as.data.frame() %&gt;% dplyr::mutate(cluster = Seurat::Idents(MC)) %&gt;% 
+    tidyr::pivot_longer(cols = -cluster, names_to = &quot;source&quot;, values_to = &quot;score&quot;) %&gt;% dplyr::group_by(cluster, 
+    source) %&gt;% dplyr::summarise(mean = mean(score))
+tfs &lt;- df %&gt;% dplyr::group_by(source) %&gt;% dplyr::summarise(std = stats::sd(mean)) %&gt;% dplyr::arrange(-abs(std)) %&gt;% 
+    head(n_tfs) %&gt;% dplyr::pull(source)
+top_acts_mat &lt;- df %&gt;% dplyr::filter(source %in% tfs) %&gt;% tidyr::pivot_wider(id_cols = &quot;cluster&quot;, names_from = &quot;source&quot;, 
+    values_from = &quot;mean&quot;) %&gt;% tibble::column_to_rownames(&quot;cluster&quot;) %&gt;% as.matrix()
+my_breaks &lt;- c(seq(-2, 0, length.out = ceiling(100/2) + 1), seq(0.05, 2, length.out = floor(100/2)))
+pheatmap::pheatmap(mat = top_acts_mat, color = TF_cols, border_color = &quot;white&quot;, breaks = my_breaks, cellwidth = 15, 
+    cellheight = 15, treeheight_row = 20, treeheight_col = 20)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_20-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-TF_heatmap_cluster_20-1">
+Past versions of TF_heatmap_cluster_20-1.png
+</button>
+</p>
+<div id="fig-TF_heatmap_cluster_20-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_20-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_20-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_20-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_20-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_20-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/TF_heatmap_cluster_20-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="tf-feat-smad3" class="section level2">
+<h2>TF Feat SMAD3</h2>
+<pre class="r"><code>Seurat::DefaultAssay(MC) &lt;- &quot;tfsulm&quot;
+p1 &lt;- Seurat::DimPlot(MC, reduction = &quot;umap&quot;, label = TRUE, pt.size = 0.1) + Seurat::NoLegend() + ggplot2::ggtitle(&quot;Cell states&quot;)
+p2 &lt;- Seurat::FeaturePlot(MC, features = c(&quot;SMAD3&quot;), pt.size = 0.1, order = T) + ggplot2::scale_colour_gradient2(low = TF_cols[1], 
+    high = TF_cols[101], mid = &quot;white&quot;) + ggplot2::ggtitle(&quot;SMAD3 activity&quot;)
+DefaultAssay(object = MC) &lt;- &quot;RNA&quot;
+p3 &lt;- FeaturePlot_scCustom(MC, features = c(&quot;SMAD3&quot;), pt.size = 0.1) + ggplot2::ggtitle(&quot;SMAD3 expression&quot;)
+Seurat::DefaultAssay(MC) &lt;- &quot;tfsulm&quot;
+p &lt;- p1 | p2 | p3
+p</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD3-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-TF_Feat_SMAD3-1">
+Past versions of TF_Feat_SMAD3-1.png
+</button>
+</p>
+<div id="fig-TF_Feat_SMAD3-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD3-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD3-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD3-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD3-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD3-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD3-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="tf-feat-smad2" class="section level2">
+<h2>TF Feat SMAD2</h2>
+<pre class="r"><code>Seurat::DefaultAssay(MC) &lt;- &quot;tfsulm&quot;
+p1 &lt;- Seurat::DimPlot(MC, reduction = &quot;umap&quot;, label = TRUE, pt.size = 0.1) + Seurat::NoLegend() + ggplot2::ggtitle(&quot;Cell states&quot;)
+p2 &lt;- Seurat::FeaturePlot(MC, features = c(&quot;SMAD2&quot;), pt.size = 0.1, order = T) + ggplot2::scale_colour_gradient2(low = TF_cols[1], 
+    high = TF_cols[101], mid = &quot;white&quot;) + ggplot2::ggtitle(&quot;SMAD2 activity&quot;)
+DefaultAssay(object = MC) &lt;- &quot;RNA&quot;
+p3 &lt;- FeaturePlot_scCustom(MC, features = c(&quot;SMAD2&quot;), pt.size = 0.1) + ggplot2::ggtitle(&quot;SMAD2 expression&quot;)
+Seurat::DefaultAssay(MC) &lt;- &quot;tfsulm&quot;
+p &lt;- p1 | p2 | p3
+p</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD2-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-TF_Feat_SMAD2-1">
+Past versions of TF_Feat_SMAD2-1.png
+</button>
+</p>
+<div id="fig-TF_Feat_SMAD2-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD2-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD2-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD2-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD2-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD2-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/TF_Feat_SMAD2-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="net-pathway" class="section level2">
+<h2>net pathway</h2>
+<pre class="r"><code>checkpoint &lt;- here::here(&quot;data&quot;, &quot;processed&quot;, &quot;resources&quot;, &quot;A_progeny_human_top100000.rds&quot;)
+net_path &lt;- if (file.exists(checkpoint)) readRDS(checkpoint) else decoupleR::get_progeny(organism = &quot;human&quot;, top = 1e+05)</code></pre>
+</div>
+<div id="pathway-cols" class="section level2">
+<h2>Pathway cols</h2>
+<pre class="r"><code>Pathway_cols &lt;- colorRampPalette(c(&quot;#28A2EB&quot;, &quot;white&quot;, &quot;#FEC233&quot;))(101)</code></pre>
+</div>
+<div id="pathway-pathwaysmlm" class="section level2">
+<h2>Pathway pathwaysmlm</h2>
+<pre class="r"><code>MC[[&quot;pathwaysmlm&quot;]] &lt;- activity_scores(MC, &quot;pathwaysmlm&quot;, net_path, &quot;mlm&quot;, minsize = 10, weight = &quot;weight&quot;)
+DefaultAssay(MC) &lt;- &quot;RNA&quot;</code></pre>
+</div>
+<div id="pathway-feat-hypoxia" class="section level2">
+<h2>Pathway Feat Hypoxia</h2>
+<pre class="r"><code>Seurat::DefaultAssay(object = MC) &lt;- &quot;pathwaysmlm&quot;
+p1 &lt;- Seurat::DimPlot(MC, reduction = &quot;umap&quot;, label = TRUE, pt.size = 0.11) + Seurat::NoLegend() + ggplot2::ggtitle(&quot;Cell states&quot;)
+p2 &lt;- Seurat::FeaturePlot(MC, features = c(&quot;Hypoxia&quot;), pt.size = 0.1, order = T) + ggplot2::scale_colour_gradientn(colors = Pathway_cols) + 
+    ggplot2::ggtitle(&quot;Hypoxia activity&quot;)
+p &lt;- p1 | p2
+p</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Pathway_Feat_Hypoxia-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Pathway_Feat_Hypoxia-1">
+Past versions of Pathway_Feat_Hypoxia-1.png
+</button>
+</p>
+<div id="fig-Pathway_Feat_Hypoxia-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_Hypoxia-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_Hypoxia-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_Hypoxia-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_Hypoxia-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_Hypoxia-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_Hypoxia-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="pathway-feat-tgfb" class="section level2">
+<h2>Pathway Feat TGFb</h2>
+<pre class="r"><code>Seurat::DefaultAssay(object = MC) &lt;- &quot;pathwaysmlm&quot;
+p1 &lt;- Seurat::DimPlot(MC, reduction = &quot;umap&quot;, label = TRUE, pt.size = 0.11) + Seurat::NoLegend() + ggplot2::ggtitle(&quot;Cell states&quot;)
+p2 &lt;- Seurat::FeaturePlot(MC, features = c(&quot;TGFb&quot;), pt.size = 0.1, order = T) + ggplot2::scale_colour_gradientn(colors = Pathway_cols) + 
+    ggplot2::ggtitle(&quot;TGFb activity&quot;)
+p &lt;- p1 | p2
+p</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Pathway_Feat_TGFb-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Pathway_Feat_TGFb-1">
+Past versions of Pathway_Feat_TGFb-1.png
+</button>
+</p>
+<div id="fig-Pathway_Feat_TGFb-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_TGFb-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_TGFb-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_TGFb-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_TGFb-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_TGFb-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Pathway_Feat_TGFb-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="pathway-heatmap-cluster" class="section level2">
+<h2>Pathway heatmap cluster</h2>
+<pre class="r"><code>df_pathway &lt;- t(as.matrix(MC@assays$pathwaysmlm@data)) %&gt;% as.data.frame() %&gt;% dplyr::mutate(cluster = Seurat::Idents(MC)) %&gt;% 
+    tidyr::pivot_longer(cols = -cluster, names_to = &quot;source&quot;, values_to = &quot;score&quot;) %&gt;% dplyr::group_by(cluster, 
+    source) %&gt;% dplyr::summarise(mean = mean(score))
+top_acts_mat &lt;- df_pathway %&gt;% tidyr::pivot_wider(id_cols = &quot;cluster&quot;, names_from = &quot;source&quot;, values_from = &quot;mean&quot;) %&gt;% 
+    tibble::column_to_rownames(var = &quot;cluster&quot;) %&gt;% as.matrix()
+my_breaks &lt;- c(seq(-1.25, 0, length.out = ceiling(101/2) + 1), seq(0.05, 1.25, length.out = floor(101/2)))
+pheatmap::pheatmap(mat = top_acts_mat, color = Pathway_cols, border_color = &quot;white&quot;, breaks = my_breaks, cellwidth = 20, 
+    cellheight = 20, treeheight_row = 20, treeheight_col = 20)</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/Pathway_heatmap_cluster-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Pathway_heatmap_cluster-1">
+Past versions of Pathway_heatmap_cluster-1.png
+</button>
+</p>
+<div id="fig-Pathway_heatmap_cluster-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/Pathway_heatmap_cluster-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/Pathway_heatmap_cluster-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/Pathway_heatmap_cluster-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/Pathway_heatmap_cluster-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/Pathway_heatmap_cluster-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/Pathway_heatmap_cluster-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="mc-cell-states.csv" class="section level2">
+<h2>MC cell states.csv</h2>
+<pre class="r"><code>cell_states &lt;- data.frame(cell = colnames(MC), cell_state = MC$cell_state)
+write.csv(cell_states, here::here(output_dir_data, &quot;MC_cell_states.csv&quot;), row.names = FALSE)</code></pre>
+</div>
+<div id="supplementary-data-export" class="section level2">
+<h2>Supplementary data export</h2>
+<pre class="r"><code>tables &lt;- list(Markers = Markers, Counts = as.data.frame.matrix(table(MC$cell_state, MC$Sample)) %&gt;% rownames_to_column(&quot;cell_state&quot;), 
+    Proportions = as.data.frame.matrix(prop.table(table(MC$cell_state, MC$Sample), 2)) %&gt;% rownames_to_column(&quot;cell_state&quot;), 
+    Clinical_abundance = differential_abundance, GO = as.data.frame(GO), GO_simplified = as.data.frame(GO_simplified), 
+    KEGG = as.data.frame(KEGG))
+saveRDS(tables, file.path(output_dir_data, &quot;Cell_state_results_for_EV6.rds&quot;))
+qs2::qs_save(MC, file.path(output_dir_data, &quot;Cell_states.qs2&quot;), nthreads = 2)</code></pre>
+</div>
+<div id="dcm-versus-controls" class="section level2">
+<h2>DCM versus controls</h2>
+<pre class="r"><code>metadata &lt;- unique(MC[[]][, c(&quot;Sample&quot;, &quot;Group&quot;, &quot;Age_years&quot;)])
+metadata &lt;- metadata[is.finite(metadata$Age_years), ]
+metadata$Group &lt;- factor(metadata$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))
+props &lt;- getTransformedProps(MC$cell_state, MC$Sample, transform = &quot;logit&quot;)
+design &lt;- model.matrix(~Group + Age_years, metadata)
+fit &lt;- eBayes(lmFit(props$TransformedProps[, metadata$Sample, drop = FALSE], design), robust = TRUE)
+group_abundance &lt;- topTable(fit, coef = &quot;GroupDCM&quot;, number = Inf, adjust.method = &quot;BH&quot;) %&gt;% rownames_to_column(&quot;cell_state&quot;)
+proportions &lt;- as.data.frame(as.table(props$Proportions))
+names(proportions) &lt;- c(&quot;cell_state&quot;, &quot;Sample&quot;, &quot;Proportion&quot;)
+proportions &lt;- proportions[proportions$Sample %in% metadata$Sample, ]
+proportions$Group &lt;- metadata$Group[match(proportions$Sample, metadata$Sample)]
+proportions$cell_state &lt;- factor(proportions$cell_state, levels = levels(MC$cell_state))
+annotations &lt;- proportions %&gt;% group_by(cell_state) %&gt;% summarise(y = max(Proportion) + 0.035, .groups = &quot;drop&quot;)
+annotations$FDR &lt;- group_abundance$adj.P.Val[match(annotations$cell_state, group_abundance$cell_state)]
+annotations$label &lt;- ifelse(annotations$FDR &lt; 0.001, &quot;FDR &lt; 0.001&quot;, paste0(&quot;FDR\n&quot;, formatC(annotations$FDR, format = &quot;f&quot;, 
+    digits = 3)))
+tables$Group_abundance &lt;- group_abundance
+tables$Donor_proportions &lt;- proportions
+saveRDS(tables, file.path(output_dir_data, &quot;Cell_state_results_for_EV6.rds&quot;))</code></pre>
+<pre class="r"><code>p &lt;- ggplot(proportions, aes(cell_state, Proportion, fill = Group)) + geom_boxplot(outlier.shape = NA, alpha = 0.8, 
+    width = 0.7, position = position_dodge(0.75)) + geom_point(position = position_jitterdodge(jitter.width = 0.12, 
+    dodge.width = 0.75, seed = 123), size = 0.8, alpha = 0.7, shape = 16) + geom_segment(data = annotations, aes(x = as.numeric(cell_state) - 
+    0.18, xend = as.numeric(cell_state) + 0.18, y = y, yend = y), inherit.aes = FALSE, linewidth = 0.4) + geom_text(data = annotations, 
+    aes(cell_state, y + 0.045, label = label), inherit.aes = FALSE, size = 6, fontface = &quot;bold&quot;, family = &quot;Arial&quot;, 
+    vjust = 0, lineheight = 0.9) + scale_fill_manual(values = c(HC = &quot;grey85&quot;, DCM = &quot;#A63A2A&quot;), drop = FALSE) + 
+    scale_x_discrete(labels = function(x) vapply(x, function(s) paste(strwrap(s, width = 20), collapse = &quot;\n&quot;), 
+        character(1))) + coord_cartesian(ylim = c(0, max(annotations$y) + 0.18), clip = &quot;off&quot;) + labs(x = NULL, 
+    y = &quot;Fraction of\nMural cells nuclei&quot;) + theme_classic(base_family = &quot;Arial&quot;, base_size = 20) + theme(axis.text.x = element_text(angle = 30, 
+    hjust = 1, vjust = 1, size = 20, face = &quot;bold&quot;, colour = &quot;black&quot;), axis.text.y = element_text(size = 20, face = &quot;bold&quot;, 
+    colour = &quot;black&quot;), axis.title = element_text(size = 22, face = &quot;bold&quot;), legend.title = element_blank(), legend.text = element_text(size = 20), 
+    plot.margin = margin(12, 20, 12, 60))
+p</code></pre>
+<img src="figure/Mural_cells_cell_states.Rmd/group_abundance_plot-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-group_abundance_plot-1">
+Past versions of group_abundance_plot-1.png
+</button>
+</p>
+<div id="fig-group_abundance_plot-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Mural_cells_cell_states.Rmd/group_abundance_plot-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Mural_cells_cell_states.Rmd/group_abundance_plot-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Mural_cells_cell_states.Rmd/group_abundance_plot-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Mural_cells_cell_states.Rmd/group_abundance_plot-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Mural_cells_cell_states.Rmd/group_abundance_plot-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Mural_cells_cell_states.Rmd/group_abundance_plot-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats4    stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] ggrepel_0.9.6          readxl_1.4.5           RColorBrewer_1.1-3    
+ [4] pheatmap_1.0.13        decoupleR_2.16.0       reactable_0.4.5       
+ [7] limma_3.66.0           speckle_1.10.0         enrichplot_1.30.4     
+[10] org.Hs.eg.db_3.22.0    AnnotationDbi_1.72.0   IRanges_2.44.0        
+[13] S4Vectors_0.48.0       Biobase_2.70.0         BiocGenerics_0.56.0   
+[16] generics_0.1.4         clusterProfiler_4.18.2 Matrix_1.6-5          
+[19] scales_1.4.0           patchwork_1.3.2        tibble_3.3.0          
+[22] tidyr_1.3.2            dplyr_1.2.1            scCustomize_3.2.2     
+[25] clustree_0.5.1         ggraph_2.2.2           ggplot2_4.0.1         
+[28] harmony_1.2.4          Rcpp_1.1.0             qs2_0.1.7             
+[31] SeuratObject_5.0.2     Seurat_4.4.0           here_1.0.2            
+
+loaded via a namespace (and not attached):
+  [1] fs_2.1.0                    matrixStats_1.5.0          
+  [3] spatstat.sparse_3.1-0       lubridate_1.9.4            
+  [5] httr_1.4.7                  backports_1.5.0            
+  [7] tools_4.5.2                 sctransform_0.4.2          
+  [9] R6_2.6.1                    lazyeval_0.2.2             
+ [11] uwot_0.2.4                  withr_3.0.2                
+ [13] sp_2.2-0                    gridExtra_2.3              
+ [15] progressr_0.18.0            cli_3.6.6                  
+ [17] spatstat.explore_3.6-0      scatterpie_0.2.6           
+ [19] labeling_0.4.3              sass_0.4.10                
+ [21] S7_0.2.1                    spatstat.data_3.1-9        
+ [23] ggridges_0.5.7              pbapply_1.7-4              
+ [25] systemfonts_1.3.1           yulab.utils_0.2.2          
+ [27] gson_0.1.0                  DOSE_4.4.0                 
+ [29] R.utils_2.13.0              parallelly_1.45.1          
+ [31] RSQLite_2.4.5               gridGraphics_0.5-1         
+ [33] shape_1.4.6.1               crosstalk_1.2.2            
+ [35] ica_1.0-3                   spatstat.random_3.4-3      
+ [37] GO.db_3.22.0                ggbeeswarm_0.7.3           
+ [39] abind_1.4-8                 R.methodsS3_1.8.2          
+ [41] lifecycle_1.0.5             edgeR_4.8.0                
+ [43] whisker_0.4.1               yaml_2.3.11                
+ [45] snakecase_0.11.1            SummarizedExperiment_1.40.0
+ [47] SparseArray_1.10.4          qvalue_2.42.0              
+ [49] Rtsne_0.17                  paletteer_1.6.0            
+ [51] grid_4.5.2                  blob_1.2.4                 
+ [53] promises_1.5.0              crayon_1.5.3               
+ [55] miniUI_0.1.2                ggtangle_0.0.9             
+ [57] lattice_0.22-7              cowplot_1.2.0              
+ [59] KEGGREST_1.50.0             pillar_1.11.1              
+ [61] knitr_1.50                  GenomicRanges_1.62.0       
+ [63] fgsea_1.36.0                future.apply_1.20.0        
+ [65] codetools_0.2-20            fastmatch_1.1-6            
+ [67] leiden_0.4.3.1              glue_1.8.0                 
+ [69] ggiraph_0.9.2               fontLiberation_0.1.0       
+ [71] ggfun_0.2.0                 spatstat.univar_3.1-5      
+ [73] data.table_1.17.8           treeio_1.34.0              
+ [75] vctrs_0.7.3                 png_0.1-8                  
+ [77] spam_2.11-1                 cellranger_1.1.0           
+ [79] gtable_0.3.6                reactR_0.6.1               
+ [81] rematch2_2.1.2              cachem_1.1.0               
+ [83] xfun_0.56                   S4Arrays_1.10.1            
+ [85] mime_0.13                   tidygraph_1.3.1            
+ [87] Seqinfo_1.0.0               survival_3.8-3             
+ [89] SingleCellExperiment_1.32.0 statmod_1.5.1              
+ [91] fitdistrplus_1.2-4          ROCR_1.0-11                
+ [93] nlme_3.1-168                ggtree_4.0.1               
+ [95] bit64_4.6.0-1               fontquiver_0.2.1           
+ [97] RcppAnnoy_0.0.22            rprojroot_2.1.1            
+ [99] bslib_0.9.0                 irlba_2.3.5.1              
+[101] vipor_0.4.7                 KernSmooth_2.23-26         
+[103] otel_0.2.0                  colorspace_2.1-2           
+[105] DBI_1.2.3                   ggrastr_1.0.2              
+[107] tidyselect_1.2.1            bit_4.6.0                  
+[109] compiler_4.5.2              git2r_0.36.2               
+[111] DelayedArray_0.36.0         fontBitstreamVera_0.1.1    
+[113] plotly_4.11.0               stringfish_0.18.0          
+[115] checkmate_2.3.3             lmtest_0.9-40              
+[117] rappdirs_0.3.3              stringr_1.6.0              
+[119] digest_0.6.39               goftest_1.2-3              
+[121] spatstat.utils_3.2-0        rmarkdown_2.30             
+[123] XVector_0.50.0              htmltools_0.5.9            
+[125] pkgconfig_2.0.3             MatrixGenerics_1.22.0      
+[127] fastmap_1.2.0               rlang_1.2.0                
+[129] GlobalOptions_0.1.3         htmlwidgets_1.6.4          
+[131] shiny_1.12.0                farver_2.1.2               
+[133] jquerylib_0.1.4             zoo_1.8-14                 
+[135] jsonlite_2.0.0              BiocParallel_1.44.0        
+[137] GOSemSim_2.36.0             R.oo_1.27.1                
+[139] magrittr_2.0.4              ggplotify_0.1.3            
+[141] dotCall64_1.2               ape_5.8-1                  
+[143] ggnewscale_0.5.2            viridis_0.6.5              
+[145] gdtools_0.4.4               reticulate_1.44.1          
+[147] stringi_1.8.7               MASS_7.3-65                
+[149] plyr_1.8.9                  parallel_4.5.2             
+[151] listenv_0.10.0              forcats_1.0.1              
+[153] deldir_2.0-4                Biostrings_2.78.0          
+[155] graphlayouts_1.2.2          splines_4.5.2              
+[157] tensor_1.5.1                circlize_0.4.16            
+[159] locfit_1.5-9.12             igraph_2.2.1               
+[161] spatstat.geom_3.6-1         reshape2_1.4.5             
+[163] evaluate_1.0.5              RcppParallel_5.1.11-1      
+[165] ggprism_1.0.7               tweenr_2.0.3               
+[167] httpuv_1.6.16               RANN_2.6.2                 
+[169] purrr_1.2.0                 polyclip_1.10-7            
+[171] future_1.68.0               scattermore_1.2            
+[173] ggforce_0.5.0               janitor_2.2.1              
+[175] xtable_1.8-4                tidytree_0.4.6             
+[177] tidydr_0.0.6                later_1.4.4                
+[179] viridisLite_0.4.2           aplot_0.2.9                
+[181] memoise_2.0.1               beeswarm_0.4.0             
+[183] cluster_2.1.8.3             workflowr_1.7.2            
+[185] timechange_0.3.0            globals_0.18.0             </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,2426 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Fibrosis-associated fibroblast abundance and expression</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+<script src="site_libs/reactwidget-2.0.0/react-tools.js"></script>
+<link href="site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/reactable-0.4.5/reactable.css" rel="stylesheet" />
+<script src="site_libs/reactable-binding-0.4.5/reactable.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="Fibrosis_hypertrophy.html">Fibrosis and hypertrophy</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="HC_clustering.html">Clustering with healthy controls</a>
+    </li>
+    <li>
+      <a href="Comparison_LV.html">Comparison to LV datasets</a>
+    </li>
+    <li>
+      <a href="Biomarkers_selection.html">Biomarkers selection</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Fibrosis-associated fibroblast abundance
+and expression</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">18 November, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-11-18
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>project/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed4b8eb1443c4351150e0c106a45675850f739f78targetblankd4b8eb1a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d4b8eb1443c4351150e0c106a45675850f739f78" target="_blank">d4b8eb1</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed4b8eb1443c4351150e0c106a45675850f739f78targetblankd4b8eb1a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d4b8eb1443c4351150e0c106a45675850f739f78" target="_blank">d4b8eb1</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    logs/
+
+Untracked files:
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output
+    Untracked:  data/Cellranger_output
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/DCM_Clinical_data_30_261012.xlsx
+    Untracked:  data/DCM_Clinical_data_83.xlsx
+    Untracked:  data/HMEC_RNAseq
+    Untracked:  data/Heart_datasets
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK
+    Untracked:  data/OLINK_LVAD
+    Untracked:  data/Published_datasets
+    Untracked:  data/Raw
+    Untracked:  data/SSc-PAH
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/processed/CM/activities.qs2
+    Untracked:  data/processed/CM/annotated.qs2
+    Untracked:  data/processed/CM/baseline.qs2
+    Untracked:  data/processed/EC/activities.qs2
+    Untracked:  data/processed/EC/annotated.qs2
+    Untracked:  data/processed/EC/baseline.qs2
+    Untracked:  data/processed/FB/activities.qs2
+    Untracked:  data/processed/FB/annotated.qs2
+    Untracked:  data/processed/FB/baseline.qs2
+    Untracked:  data/processed/LC/PC10.qs2
+    Untracked:  data/processed/LC/PC20.qs2
+    Untracked:  data/processed/LC/PC30.qs2
+    Untracked:  data/processed/LC/activities.qs2
+    Untracked:  data/processed/LC/annotated.qs2
+    Untracked:  data/processed/LC/baseline.qs2
+    Untracked:  data/processed/MC/activities.qs2
+    Untracked:  data/processed/MC/annotated.qs2
+    Untracked:  data/processed/MC/baseline.qs2
+    Untracked:  data/processed/MP/PC10.qs2
+    Untracked:  data/processed/MP/PC20.qs2
+    Untracked:  data/processed/MP/PC30.qs2
+    Untracked:  data/processed/MP/activities.qs2
+    Untracked:  data/processed/MP/annotated.qs2
+    Untracked:  data/processed/MP/baseline.qs2
+    Untracked:  data/processed/MultinicheNet.qs2
+    Untracked:  data/processed/QC/annotated.qs2
+    Untracked:  data/processed/QC/annotated_RNA.qs2
+    Untracked:  data/processed/QC/doublet_metadata.csv
+    Untracked:  data/processed/QC/final_integrated.qs2
+    Untracked:  data/processed/QC/initial_integrated.qs2
+    Untracked:  data/processed/QC/not_integrated.qs2
+    Untracked:  data/processed/QC/preQC.qs2
+    Untracked:  data/processed/RNA_quality_control.qs2
+    Untracked:  data/processed/RV_cell_states_RNA.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD13.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD15.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD16.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD4.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD5.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD6.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD7.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD9.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P3.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P5.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P8.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK153.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK213.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK229.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK323.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK337.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK345.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK357.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK369.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK375.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK385.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK401.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK403.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK415.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK437.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK439.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK441.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK461.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK463.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD13.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD15.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD16.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD4.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD5.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD6.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD7.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD9.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P3.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P5.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P8.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK153.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK213.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK229.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK323.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK337.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK345.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK357.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK369.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK375.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK385.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK401.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK403.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK415.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK437.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK439.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK441.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK461.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK463.qs2
+    Untracked:  data/processed/mPAP/CM_GSEA_Reactome_mPAP.rds
+    Untracked:  data/processed/mPAP/CM_ORA_REACTOME_mPAP_down.rds
+    Untracked:  data/processed/mPAP/CM_ORA_REACTOME_mPAP_up.rds
+    Untracked:  data/processed/mPAP/CM_activities.qs2
+    Untracked:  data/processed/resources/A_activity_API_compatibility.json
+    Untracked:  data/processed/resources/A_activity_network_manifest.json
+    Untracked:  data/processed/resources/A_final_resource_manifest.json
+    Untracked:  data/processed/resources/A_ligand_target_matrix_nsga2r_final.rds
+    Untracked:  data/processed/resources/A_resources_sessionInfo.txt
+    Untracked:  data/processed/resources/A_submitted_programme_provenance.json
+    Untracked:  data/refdata-gex-GRCh38-2020-A
+    Untracked:  omnipathr-log/
+    Untracked:  output/Ambient_RNA_correction/
+    Untracked:  output/Cardiomyocytes_cell_states/
+    Untracked:  output/Cell_communication/
+    Untracked:  output/Cell_state_annotation/
+    Untracked:  output/Clinical_transcriptomic_associations/
+    Untracked:  output/DCM_control_transcriptomics/
+    Untracked:  output/Datasets/
+    Untracked:  output/Endothelial_cells_cell_states/
+    Untracked:  output/Fibroblasts_cell_states/
+    Untracked:  output/Fibrosis_associations/
+    Untracked:  output/Integrative_analysis/
+    Untracked:  output/Lymphocytes_cell_states/
+    Untracked:  output/Macrophages_cell_states/
+    Untracked:  output/Mural_cells_cell_states/
+    Untracked:  output/Protein_differential_abundance/
+    Untracked:  output/Protein_quality_control/
+    Untracked:  output/Pulmonary_pressure_associations/
+    Untracked:  output/QC_integration/
+    Untracked:  output/Supplementary_datasets/
+    Untracked:  output/Transcriptional_signatures/
+    Untracked:  output/Transcriptomic_variation/
+
+Unstaged changes:
+    Deleted:    output/README.md
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown (<code>analysis/Fibrosis_associations.Rmd</code>)
+and HTML (<code>docs/Fibrosis_associations.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/analysis/Fibrosis_associations.Rmd" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Document assay-specific age covariates in donor metadata
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/d4b8eb1443c4351150e0c106a45675850f739f78/docs/Fibrosis_associations.html" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Document assay-specific age covariates in donor metadata
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/analysis/Fibrosis_associations.Rmd" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Include RNA processing and sequencing batches in EV1
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/Fibrosis_associations.html" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Include RNA processing and sequencing batches in EV1
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/analysis/Fibrosis_associations.Rmd" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Align signature membership exports with the tested cell types
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/Fibrosis_associations.html" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Align signature membership exports with the tested cell types
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/analysis/Fibrosis_associations.Rmd" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Refine compact programme panel labels
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/Fibrosis_associations.html" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Refine compact programme panel labels
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/analysis/Fibrosis_associations.Rmd" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Add HC-inclusive analysis scripts and frozen reproducibility inputs
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/Fibrosis_associations.html" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Add HC-inclusive analysis scripts and frozen reproducibility inputs
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/analysis/Fibrosis_associations.Rmd" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+<td>
+MXRA5 coexpression analysis
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/d136073823de03a4d23429fae2eb314862b8af4f/docs/Fibrosis_associations.html" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+<td>
+MXRA5 coexpression analysis
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r"><code>knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 300, fig.retina = 1, 
+    fig.align = &quot;center&quot;, dev = &quot;png&quot;, dev.args = list(type = &quot;cairo&quot;, family = &quot;Arial&quot;))
+library(here)</code></pre>
+<pre><code>here() starts at /scratch/gbonaz/A_publication_20261118/project</code></pre>
+<pre class="r"><code>current_file &lt;- &quot;Fibrosis_associations&quot;
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here(&quot;output&quot;, &quot;Datasets&quot;), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, &quot;/&quot;))
+set.seed(20240606)</code></pre>
+<pre class="r"><code>library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(readxl)
+library(readr)
+library(patchwork)
+library(scales)
+library(Seurat)
+library(Matrix)
+library(speckle)
+library(limma)
+library(edgeR)
+library(EnhancedVolcano)
+library(ComplexHeatmap)
+library(reactable)
+library(cowplot)
+library(qs2)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(stringr)
+select &lt;- dplyr::select
+filter &lt;- dplyr::filter
+BiocParallel::register(BiocParallel::SerialParam())
+theme_set(theme_classic(base_family = &quot;Arial&quot;))</code></pre>
+</div>
+<div id="read-dcm-rv" class="section level2">
+<h2>read DCM RV</h2>
+<pre class="r"><code>DCM_RV &lt;- qs2::qs_read(here::here(&quot;data&quot;, &quot;processed&quot;, &quot;RV_cell_states_RNA.qs2&quot;), nthreads = 2)
+DCM_RV &lt;- subset(DCM_RV, subset = Group == &quot;DCM&quot;)
+DefaultAssay(DCM_RV) &lt;- &quot;RNA&quot;</code></pre>
+</div>
+<div id="add-fibrosis" class="section level2">
+<h2>add fibrosis</h2>
+<pre class="r"><code>Fibrosis_data &lt;- read_excel(here::here(&quot;data&quot;, &quot;Massons_quantification.xlsx&quot;))
+colnames(Fibrosis_data)[3] &lt;- &quot;Fibrosis_percent&quot;
+Fibrosis_data &lt;- Fibrosis_data %&gt;% dplyr::filter(Sample %in% unique(DCM_RV$Sample))
+add_metadata &lt;- left_join(DCM_RV[[&quot;Sample&quot;]], dplyr::select(Fibrosis_data, c(&quot;Sample&quot;, &quot;Fibrosis_percent&quot;)))
+row.names(add_metadata) &lt;- row.names(DCM_RV[[]])
+DCM_RV &lt;- AddMetaData(DCM_RV, metadata = add_metadata)
+rm(add_metadata)
+FB &lt;- subset(DCM_RV, cell_type == &quot;Fibroblasts&quot;)
+FB$cell_state &lt;- factor(FB$cell_state, levels = unique(FB$cell_state))</code></pre>
+</div>
+<div id="speckle-all" class="section level2">
+<h2>Speckle all</h2>
+<pre class="r"><code>metadata &lt;- DCM_RV@meta.data %&gt;% dplyr::select(Sample, Group, Age_years, Fibrosis_percent) %&gt;% unique()
+metadata$Fibrosis_percent &lt;- metadata$Fibrosis_percent * 100
+metadata_DCM &lt;- dplyr::filter(metadata, Group == &quot;DCM&quot;, !is.na(Fibrosis_percent), !is.na(Age_years))
+differential_abundance &lt;- data.frame()
+props &lt;- getTransformedProps(DCM_RV$cell_type, DCM_RV$Sample, transform = &quot;logit&quot;)
+props$Counts &lt;- props$Counts[, metadata_DCM$Sample, drop = FALSE]
+props$TransformedProps &lt;- props$TransformedProps[, metadata_DCM$Sample, drop = FALSE]
+props$Proportions &lt;- props$Proportions[, metadata_DCM$Sample, drop = FALSE]
+metadata_DCM &lt;- metadata_DCM %&gt;% dplyr::slice(match(colnames(props$Proportions), Sample))
+stopifnot(all(metadata_DCM$Sample == colnames(props$Proportions)))
+design &lt;- model.matrix(~metadata_DCM[[&quot;Fibrosis_percent&quot;]] + metadata_DCM[[&quot;Age_years&quot;]])
+fit &lt;- lmFit(props$TransformedProps, design)
+fit &lt;- eBayes(fit, robust = TRUE)
+differential_abundance &lt;- topTable(fit, n = Inf, coef = 2)
+differential_abundance$cell_state &lt;- rownames(differential_abundance)
+rm(props, fit)
+write.csv(differential_abundance, file = here::here(output_dir_data, &quot;Differential_Abundance_Fibrosis_all.csv&quot;), 
+    quote = F, row.names = F)
+reactable(differential_abundance, filterable = TRUE, searchable = TRUE, showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-f843a680a1fcd62a0dd1" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-f843a680a1fcd62a0dd1">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["Cardiomyocytes","Smooth muscle cells","Endocardial cells","Lymphatic cells","Endothelial cells","Lymphocytes","Neuronal cells","Adipocytes","Mast cells","Fibroblasts","Mesothelial cells","Macrophages","Pericytes"],"logFC":[-0.032427069909484,0.0237618678890067,0.0575555604561134,0.0322673201213008,0.0154138795202752,0.020763601553101,0.0137014156841105,0.0377550617042639,-0.0183342651030344,-0.00601627351733138,-0.0102464071878377,0.0022815084869218,0.0016778151538682],"AveExpr":[-0.942948347666948,-3.984428580901,-5.18422852369851,-5.87607382556813,-1.24508814129738,-3.93684328312195,-4.47925683642298,-6.6350257940818,-6.06414642180196,-1.31255813523087,-9.05556554474081,-2.50758829724489,-2.29839117295832],"t":[-3.45896375989031,2.64822750744933,2.53239371589874,2.08436076780603,1.72465495791334,1.60454888952666,1.40434041262334,1.10499648322633,-0.73416503564597,-0.671910179722635,-0.556349934923419,0.214672569616456,0.153217773100819],"P.Value":[0.00233345502744557,0.0149893156887389,0.0195206910562417,0.0495396333600143,0.0991918798252722,0.123439124946028,0.174749241397449,0.28187143653108,0.471103755437973,0.508922784506572,0.583951459833557,0.83208126860672,0.879680593229075],"adj.P.Val":[0.0303349153567924,0.0845896612437141,0.0845896612437141,0.161003808420047,0.257898887545708,0.26745143738306,0.324534305452405,0.458041084363005,0.661599619858544,0.661599619858544,0.690124452530568,0.879680593229075,0.879680593229075],"B":[-1.86860214013002,-3.62703820808047,-3.86651826787567,-4.71122122849383,-5.31265123711456,-5.49492631298402,-5.77551227090276,-6.1357264726459,-6.47385428192663,-6.5182337750533,-6.59010761299833,-6.7251953012084,-6.73685583549764],"cell_state":["Cardiomyocytes","Smooth muscle cells","Endocardial cells","Lymphatic cells","Endothelial cells","Lymphocytes","Neuronal cells","Adipocytes","Mast cells","Fibroblasts","Mesothelial cells","Macrophages","Pericytes"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"P.Value","name":"P.Value","type":"numeric"},{"id":"adj.P.Val","name":"adj.P.Val","type":"numeric"},{"id":"B","name":"B","type":"numeric"},{"id":"cell_state","name":"cell_state","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"075f6983520915f31c18f2ea226fb1e0"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>stopifnot(all(metadata_DCM$Group == &quot;DCM&quot;), !anyDuplicated(metadata_DCM$Sample))
+write.csv(metadata_DCM, file.path(output_dir_data, &quot;A_clinical_donor_metadata.csv&quot;), row.names = FALSE)</code></pre>
+</div>
+<div id="speckle-fb" class="section level2">
+<h2>Speckle fb</h2>
+<pre class="r"><code>differential_abundance &lt;- data.frame()
+props &lt;- getTransformedProps(FB$cell_state, FB$Sample, transform = &quot;logit&quot;)
+props$Counts &lt;- props$Counts[, metadata_DCM$Sample, drop = FALSE]
+props$TransformedProps &lt;- props$TransformedProps[, metadata_DCM$Sample, drop = FALSE]
+props$Proportions &lt;- props$Proportions[, metadata_DCM$Sample, drop = FALSE]
+metadata_DCM &lt;- metadata_DCM %&gt;% dplyr::slice(match(colnames(props$Proportions), Sample))
+stopifnot(all(metadata_DCM$Sample == colnames(props$Proportions)))
+design &lt;- model.matrix(~metadata_DCM[[&quot;Fibrosis_percent&quot;]] + metadata_DCM[[&quot;Age_years&quot;]])
+fit &lt;- lmFit(props$TransformedProps, design)
+fit &lt;- eBayes(fit, robust = TRUE)
+differential_abundance &lt;- topTable(fit, n = Inf, coef = 2)
+differential_abundance$cell_state &lt;- rownames(differential_abundance)
+differential_abundance_fibrosis_fb &lt;- differential_abundance
+metadata_DCM &lt;- metadata_DCM %&gt;% dplyr::slice(match(colnames(props$Proportions), Sample))
+par(mfrow = c(2, 3), mar = c(3.5, 4.4, 2.8, 0.6), pty = &quot;s&quot;, family = &quot;Arial&quot;, cex = 1, mgp = c(2.8, 0.65, 0))
+x &lt;- metadata_DCM$Fibrosis_percent
+age0 &lt;- mean(metadata_DCM$Age_years, na.rm = TRUE)
+xseq &lt;- seq(min(x), max(x), length.out = 100)
+for (i in seq_len(nrow(props$Proportions))) {
+    title &lt;- rownames(props$Proportions)[i]
+    if (grepl(&quot;Activated&quot;, title)) 
+        title &lt;- &quot;Activated FB–\nPOSTN/FAP&quot;
+    plot(x, props$Proportions[i, ], main = title, pch = 16, cex = 1.3, ylab = &quot;Proportions&quot;, xlab = &quot;&quot;, cex.lab = 1.3, 
+        cex.axis = 1.05, cex.main = 1.5, las = 1)
+    eta &lt;- fit$coefficients[i, 1] + fit$coefficients[i, 2] * xseq + fit$coefficients[i, 3] * age0
+    lines(xseq, plogis(eta), col = &quot;#00A0FF&quot;, lwd = 2)
+    mtext(&quot;Fibrotic area (%)&quot;, side = 1, line = 2.3, cex = 1.3)
+}</code></pre>
+<img src="figure/Fibrosis_associations.Rmd/State_abundance-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-State_abundance-1">
+Past versions of State_abundance-1.png
+</button>
+</p>
+<div id="fig-State_abundance-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Fibrosis_associations.Rmd/State_abundance-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Fibrosis_associations.Rmd/State_abundance-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Fibrosis_associations.Rmd/State_abundance-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Fibrosis_associations.Rmd/State_abundance-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Fibrosis_associations.Rmd/State_abundance-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Fibrosis_associations.Rmd/State_abundance-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>write.csv(differential_abundance, file = here::here(output_dir_data, &quot;Differential_Abundance_Fibrosis_fb.csv&quot;), 
+    quote = F, row.names = F)
+reactable(differential_abundance, filterable = TRUE, searchable = TRUE, showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-ba32e0541469b5ed4906" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-ba32e0541469b5ed4906">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["FB–GPC6","FB–ACSM3","Activated FB–POSTN/FAP","FB–PCOLCE2","FB–KAZN","FB–AL035446.2"],"logFC":[0.0328944572556958,-0.0150838359312824,0.00650248930178514,-0.00400548069655957,0.00191914965055539,0.000166293896398578],"AveExpr":[-3.121121852439,-0.384368765657433,-1.87984146751415,-1.77161067207164,-1.50923044430913,-2.54763318130444],"t":[4.58775471586755,-3.17098512565352,1.1218002490602,-0.637096120517086,0.327020371075985,0.0285881537565483],"P.Value":[6.36705052177135e-05,0.00330704402029291,0.270168870959893,0.52852565378334,0.745749812079144,0.977367921578891],"adj.P.Val":[0.000382023031306281,0.00992113206087872,0.540337741919786,0.792788480675011,0.894899774494973,0.977367921578891],"B":[0.883737599023101,-2.94570310054846,-6.80922316050056,-7.23619026321549,-7.38854228034389,-7.44296362835823],"cell_state":["FB–GPC6","FB–ACSM3","Activated FB–POSTN/FAP","FB–PCOLCE2","FB–KAZN","FB–AL035446.2"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"P.Value","name":"P.Value","type":"numeric"},{"id":"adj.P.Val","name":"adj.P.Val","type":"numeric"},{"id":"B","name":"B","type":"numeric"},{"id":"cell_state","name":"cell_state","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"024cbd3518b49ff6b88a1d39cfb5e8ba"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="fibrosis-associations" class="section level2">
+<h2>Fibrosis associations</h2>
+<pre class="r"><code>par(mfrow = c(3, 2), mar = c(5, 5, 3, 1))
+x &lt;- metadata_DCM$Fibrosis_percent
+age0 &lt;- mean(metadata_DCM$Age_years, na.rm = TRUE)
+for (i in seq_len(nrow(props$Proportions))) {
+    y &lt;- props$Proportions[i, ]
+    plot(x, y, main = rownames(props$Proportions)[i], pch = 16, cex = 2, ylab = &quot;Proportions&quot;, xlab = &quot;Fibrotic area (%)&quot;, 
+        cex.lab = 2, cex.axis = 1.5, cex.main = 2.5)
+    xseq &lt;- seq(min(x, na.rm = TRUE), max(x, na.rm = TRUE), length.out = 100)
+    eta &lt;- fit$coefficients[i, 1] + fit$coefficients[i, 2] * xseq + fit$coefficients[i, 3] * age0
+    lines(xseq, plogis(eta), col = 4, lwd = 2)
+}</code></pre>
+<img src="figure/Fibrosis_associations.Rmd/analysis_8-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-analysis_8-1">
+Past versions of analysis_8-1.png
+</button>
+</p>
+<div id="fig-analysis_8-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Fibrosis_associations.Rmd/analysis_8-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Fibrosis_associations.Rmd/analysis_8-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Fibrosis_associations.Rmd/analysis_8-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Fibrosis_associations.Rmd/analysis_8-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Fibrosis_associations.Rmd/analysis_8-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Fibrosis_associations.Rmd/analysis_8-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="de-fibrosis" class="section level2">
+<h2>DE fibrosis</h2>
+<pre class="r"><code>DefaultAssay(FB) &lt;- &quot;RNA&quot;
+data &lt;- subset(FB, Group == &quot;DCM&quot;)
+expr_matrix &lt;- GetAssayData(object = data, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+non_zero_cells &lt;- rowSums(expr_matrix &gt; 0)
+total_cells &lt;- ncol(expr_matrix)
+percent_cells &lt;- (non_zero_cells/total_cells) * 100
+percent_stats &lt;- data.frame(gene = rownames(expr_matrix), percentCells = percent_cells)
+keep_genes &lt;- rownames(dplyr::filter(percent_stats, percentCells &gt; 1))
+data &lt;- data[which(rownames(data) %in% keep_genes), ]
+rm(keep_genes, non_zero_cells, expr_matrix, total_cells, percent_cells)
+pseudocounts &lt;- Seurat2PB(data, sample = &quot;Sample&quot;, cluster = &quot;cell_type&quot;)
+colnames(pseudocounts) &lt;- pseudocounts$samples$sample
+metadata_DCM &lt;- metadata_DCM %&gt;% dplyr::filter(Sample %in% pseudocounts$samples$sample)
+pseudocounts &lt;- pseudocounts[, match(metadata_DCM$Sample, pseudocounts$samples$sample)]
+stopifnot(all(metadata_DCM$Sample == pseudocounts$samples$sample))
+keep_samples &lt;- pseudocounts$samples$lib.size &gt; 50000
+pseudocounts &lt;- pseudocounts[, keep_samples]
+metadata_DCM &lt;- metadata_DCM %&gt;% dplyr::slice(match(pseudocounts$samples$sample, Sample))
+stopifnot(all(metadata_DCM$Sample == pseudocounts$samples$sample))
+keep_genes &lt;- filterByExpr(pseudocounts)
+pseudocounts &lt;- pseudocounts[keep_genes, ]
+rm(keep_samples, keep_genes, data)
+pseudocounts &lt;- normLibSizes(pseudocounts)
+design &lt;- model.matrix(~metadata_DCM[[&quot;Fibrosis_percent&quot;]] + metadata_DCM[[&quot;Age_years&quot;]])
+design[, 2] &lt;- rescale(design[, 2])
+pseudocounts &lt;- estimateDisp(pseudocounts, design, robust = TRUE)
+fit &lt;- glmQLFit(pseudocounts, design, robust = TRUE)
+fit &lt;- glmQLFTest(fit, coef = 2)
+results_DE_fibrosis &lt;- topTags(fit, n = Inf)$table
+results_DE_fibrosis &lt;- merge(results_DE_fibrosis, percent_stats[, c(&quot;gene&quot;, &quot;percentCells&quot;)], by = &quot;gene&quot;, all.x = FALSE)
+results_DE_fibrosis$up_down &lt;- ifelse(results_DE_fibrosis$logFC &gt; 0 &amp; results_DE_fibrosis$FDR &lt; 0.05, &quot;Increased&quot;, 
+    ifelse(results_DE_fibrosis$logFC &lt; 0 &amp; results_DE_fibrosis$FDR &lt; 0.05, &quot;Decreased&quot;, &quot;Not significant&quot;))
+signif_DE_fibrosis &lt;- results_DE_fibrosis %&gt;% dplyr::filter(FDR &lt; 0.05) %&gt;% dplyr::arrange(FDR)
+results_DE_fibrosis_all &lt;- results_DE_fibrosis</code></pre>
+</div>
+<div id="reorder-go-by-pvalue" class="section level2">
+<h2>reorder GO by pvalue</h2>
+<pre class="r"><code>reorder_GO_by_pvalue &lt;- function(enrichGO_result) {
+    go_results &lt;- enrichGO_result@result
+    go_results_sorted &lt;- go_results[order(go_results$p.adjust), ]
+    enrichGO_result@result &lt;- go_results_sorted
+    return(enrichGO_result)
+}</code></pre>
+</div>
+<div id="classify-terms" class="section level2">
+<h2>classify terms</h2>
+<pre class="r"><code>classify_terms &lt;- function(df) {
+    df$sign &lt;- ifelse(df$NES &gt; 0, &quot;activated&quot;, &quot;suppressed&quot;)
+    return(df)
+}</code></pre>
+</div>
+<div id="gsea-all" class="section level2">
+<h2>GSEA all</h2>
+<pre class="r"><code>results_DE_fibrosis$metric &lt;- results_DE_fibrosis$logFC * -log10(results_DE_fibrosis$PValue)
+entrezid &lt;- bitr(results_DE_fibrosis$gene, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = &quot;org.Hs.eg.db&quot;, drop = TRUE)
+results_DE_fibrosis &lt;- merge(results_DE_fibrosis, entrezid, by.x = &quot;gene&quot;, by.y = &quot;SYMBOL&quot;)
+results_DE_fibrosis &lt;- results_DE_fibrosis[!duplicated(results_DE_fibrosis$metric), ]
+genelist &lt;- results_DE_fibrosis$metric
+names(genelist) &lt;- results_DE_fibrosis$ENTREZID
+genelist &lt;- genelist[order(genelist, decreasing = T)]
+checkpoint &lt;- here::here(&quot;data&quot;, &quot;processed&quot;, &quot;Fibrosis_GSEA.rds&quot;)
+if (file.exists(checkpoint)) {
+    GSEA_fibrosis &lt;- readRDS(checkpoint)
+    stopifnot(isTRUE(all.equal(GSEA_fibrosis@geneList, genelist, tolerance = 1e-12)))
+} else {
+    GSEA_fibrosis &lt;- gseGO(geneList = genelist, OrgDb = org.Hs.eg.db, ont = &quot;ALL&quot;, keyType = &quot;ENTREZID&quot;, nPermSimple = 10000, 
+        minGSSize = 10, eps = 0)
+}
+GSEA_fibrosis &lt;- reorder_GO_by_pvalue(GSEA_fibrosis)
+saveRDS(GSEA_fibrosis, here::here(output_dir_data, &quot;GSEA_GO_Fibrosis.rds&quot;))</code></pre>
+</div>
+<div id="gsea-fibrosis" class="section level2">
+<h2>GSEA fibrosis</h2>
+<pre class="r"><code>GSEA_simplified &lt;- clusterProfiler::simplify(GSEA_fibrosis, cutoff = 0.6, by = &quot;p.adjust&quot;, select_fun = min, measure = &quot;Wang&quot;, 
+    semData = NULL)
+GSEA_simplified &lt;- reorder_GO_by_pvalue(GSEA_simplified)
+dotplot(GSEA_simplified, showCategory = 8, split = &quot;.sign&quot;, title = paste0(&quot;Fibroblasts&quot;, &quot;\nGO Enrichment Analysis&quot;, 
+    &quot;\nFibrosis-associated genes&quot;), label_format = 50, font.size = 12) + theme(plot.title = element_text(face = &quot;bold&quot;, 
+    size = 18, hjust = 0.5, family = &quot;Arial&quot;), axis.text.y = element_text(face = &quot;bold&quot;, family = &quot;Arial&quot;), strip.text = element_text(face = &quot;bold&quot;, 
+    size = 18, family = &quot;Arial&quot;)) + facet_grid(. ~ .sign)</code></pre>
+<img src="figure/Fibrosis_associations.Rmd/GSEA_fibrosis-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GSEA_fibrosis-1">
+Past versions of GSEA_fibrosis-1.png
+</button>
+</p>
+<div id="fig-GSEA_fibrosis-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="gsea-fibrosis-emapplot" class="section level2">
+<h2>GSEA fibrosis emapplot</h2>
+<pre class="r"><code>GSEA_simplified@result &lt;- classify_terms(GSEA_simplified@result)
+activated_terms &lt;- subset(GSEA_simplified@result, sign == &quot;activated&quot;)
+suppressed_terms &lt;- subset(GSEA_simplified@result, sign == &quot;suppressed&quot;)
+GSEA_activated &lt;- GSEA_simplified
+GSEA_activated@result &lt;- activated_terms
+GSEA_activated &lt;- pairwise_termsim(GSEA_activated)
+GSEA_suppressed &lt;- GSEA_simplified
+GSEA_suppressed@result &lt;- suppressed_terms
+GSEA_suppressed &lt;- pairwise_termsim(GSEA_suppressed)
+p1 &lt;- emapplot(GSEA_activated, showCategory = 100, node_label_size = 2.5, min_edge = 0.15) + ggtitle(&quot;Activated Terms&quot;) + 
+    theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5, family = &quot;Arial&quot;))
+p2 &lt;- emapplot(GSEA_suppressed, showCategory = 100, node_label_size = 2.5, min_edge = 0.15) + ggtitle(&quot;Suppressed Terms&quot;) + 
+    theme(plot.title = element_text(face = &quot;bold&quot;, size = 18, hjust = 0.5, family = &quot;Arial&quot;))
+expand_range &lt;- function(r) {
+    d &lt;- diff(r)
+    if (d &lt; 1e-08) 
+        d &lt;- max(abs(r), 1)
+    r + c(-1, 1) * d * 0.15
+}
+p1 &lt;- p1 + coord_cartesian(xlim = expand_range(range(p1$data$x)), ylim = expand_range(range(p1$data$y)), clip = &quot;off&quot;) + 
+    theme(aspect.ratio = NULL)
+p2 &lt;- p2 + coord_cartesian(xlim = expand_range(range(p2$data$x)), ylim = expand_range(range(p2$data$y)), clip = &quot;off&quot;) + 
+    theme(aspect.ratio = NULL)
+combined_plot &lt;- p1 | p2
+print(combined_plot)</code></pre>
+<img src="figure/Fibrosis_associations.Rmd/GSEA_fibrosis_emapplot-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GSEA_fibrosis_emapplot-1">
+Past versions of GSEA_fibrosis_emapplot-1.png
+</button>
+</p>
+<div id="fig-GSEA_fibrosis_emapplot-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis_emapplot-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis_emapplot-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis_emapplot-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis_emapplot-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis_emapplot-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Fibrosis_associations.Rmd/GSEA_fibrosis_emapplot-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>rm(GSEA_simplified, activated_terms, suppressed_terms, GSEA_activated, GSEA_suppressed, p1, p2)</code></pre>
+</div>
+<div id="fibrosis-associations-1" class="section level2">
+<h2>Fibrosis associations</h2>
+<pre class="r"><code>top10_genes &lt;- signif_DE_fibrosis %&gt;% dplyr::arrange(FDR) %&gt;% dplyr::slice_head(n = 10) %&gt;% dplyr::pull(gene)
+counts &lt;- edgeR::cpm(pseudocounts, log = TRUE)
+df_plot &lt;- as.data.frame(t(counts[top10_genes, , drop = FALSE])) %&gt;% tibble::rownames_to_column(&quot;Sample&quot;) %&gt;% dplyr::mutate(Fibrosis = metadata_DCM$Fibrosis_percent[match(Sample, 
+    metadata_DCM$Sample)]) %&gt;% tidyr::pivot_longer(cols = dplyr::all_of(top10_genes), names_to = &quot;gene&quot;, values_to = &quot;expr&quot;)
+ggplot(df_plot, aes(x = Fibrosis, y = expr)) + geom_point() + facet_wrap(~gene, scales = &quot;free_y&quot;) + theme_minimal(base_family = &quot;Arial&quot;) + 
+    labs(x = &quot;Fibrosis (%)&quot;, y = &quot;Expression (logCPM)&quot;)</code></pre>
+<img src="figure/Fibrosis_associations.Rmd/analysis_15-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-analysis_15-1">
+Past versions of analysis_15-1.png
+</button>
+</p>
+<div id="fig-analysis_15-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Fibrosis_associations.Rmd/analysis_15-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Fibrosis_associations.Rmd/analysis_15-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Fibrosis_associations.Rmd/analysis_15-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Fibrosis_associations.Rmd/analysis_15-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Fibrosis_associations.Rmd/analysis_15-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Fibrosis_associations.Rmd/analysis_15-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="fibrosis-associations-2" class="section level2">
+<h2>Fibrosis associations</h2>
+<pre class="r"><code>top_n_pos &lt;- 8
+top_n_neg &lt;- 8
+padj_cutoff &lt;- 0.05
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(stringr)
+library(scales)
+wrap_3lines &lt;- function(x, width = 45) {
+    vapply(x, function(s) {
+        s &lt;- str_squish(as.character(s))
+        if (nchar(s) &lt;= width) 
+            return(s)
+        words &lt;- str_split(s, &quot;\\s+&quot;)[[1]]
+        if (length(words) &lt;= 1) 
+            return(s)
+        lines &lt;- c(&quot;&quot;, &quot;&quot;, &quot;&quot;)
+        li &lt;- 1
+        for (w in words) {
+            cand &lt;- if (lines[li] == &quot;&quot;) 
+                w
+            else paste(lines[li], w)
+            if (nchar(cand) &lt;= width) {
+                lines[li] &lt;- cand
+            }
+            else if (li &lt; 3) {
+                li &lt;- li + 1
+                lines[li] &lt;- w
+            }
+            else {
+                lines[li] &lt;- paste0(substr(lines[li], 1, max(1, width - 1)), &quot;…&quot;)
+                break
+            }
+        }
+        if (nchar(lines[3]) &gt; width) {
+            lines[3] &lt;- paste0(substr(lines[3], 1, width - 1), &quot;…&quot;)
+        }
+        paste(lines[lines != &quot;&quot;], collapse = &quot;\n&quot;)
+    }, FUN.VALUE = character(1))
+}
+obj &lt;- GSEA_fibrosis
+if (is.null(obj) || nrow(obj@result) == 0) {
+    message(&quot;GSEA_fibrosis is empty.&quot;)
+} else {
+    obj_simpl &lt;- clusterProfiler::simplify(obj, cutoff = 0.6, by = &quot;p.adjust&quot;, select_fun = min, measure = &quot;Wang&quot;, 
+        semData = NULL)
+    res &lt;- obj_simpl@result %&gt;% as_tibble() %&gt;% filter(!is.na(NES), !is.na(p.adjust)) %&gt;% filter(p.adjust &lt; padj_cutoff)
+    if (nrow(res) == 0) {
+        message(&quot;No significant terms (p.adjust &lt; &quot;, padj_cutoff, &quot;) found.&quot;)
+    }
+    else {
+        pos &lt;- res %&gt;% filter(NES &gt; 0) %&gt;% arrange(desc(NES)) %&gt;% slice_head(n = top_n_pos)
+        neg &lt;- res %&gt;% filter(NES &lt; 0) %&gt;% arrange(NES) %&gt;% slice_head(n = top_n_neg)
+        df_gsea &lt;- bind_rows(pos, neg) %&gt;% mutate(p_for_color = if (&quot;pvalue&quot; %in% colnames(.)) 
+            pvalue
+        else p.adjust, score = -log10(p_for_color) * sign(NES), Description_wrapped = wrap_3lines(Description, 
+            width = 41))
+        L &lt;- unname(quantile(abs(df_gsea$score), probs = 0.8, na.rm = TRUE))
+        if (!is.finite(L) || L == 0) 
+            L &lt;- max(abs(df_gsea$score), na.rm = TRUE)
+        ggplot(df_gsea, aes(x = reorder(Description_wrapped, NES), y = NES, fill = score)) + geom_col(width = 0.9) + 
+            coord_flip() + scale_fill_gradient2(low = &quot;#004C8C&quot;, mid = &quot;white&quot;, high = &quot;#A63A2A&quot;, midpoint = 0, 
+            limits = c(-L, L), oob = scales::squish, name = expression(-log[10](p) %*% sign(NES))) + labs(x = NULL, 
+            y = &quot;Normalized enrichment score (NES)&quot;) + theme_bw(base_size = 10, base_family = &quot;Arial&quot;) + theme(text = element_text(color = &quot;black&quot;, 
+            family = &quot;Arial&quot;), axis.text = element_text(color = &quot;black&quot;, family = &quot;Arial&quot;), axis.title = element_text(color = &quot;black&quot;, 
+            size = 14, family = &quot;Arial&quot;), axis.text.y = element_text(size = 10.2, color = &quot;black&quot;, lineheight = 0.6, 
+            family = &quot;Arial&quot;), plot.title = element_blank(), panel.grid.minor = element_blank(), legend.position = &quot;bottom&quot;, 
+            legend.direction = &quot;horizontal&quot;, legend.title = element_text(size = 9, family = &quot;Arial&quot;), legend.text = element_text(size = 9, 
+                family = &quot;Arial&quot;)) + guides(fill = guide_colorbar(barwidth = unit(6, &quot;cm&quot;), barheight = unit(0.3, 
+            &quot;cm&quot;), title.position = &quot;top&quot;, title.hjust = 0.5))
+    }
+}</code></pre>
+<img src="figure/Fibrosis_associations.Rmd/GO_summary-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_summary-1">
+Past versions of GO_summary-1.png
+</button>
+</p>
+<div id="fig-GO_summary-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Fibrosis_associations.Rmd/GO_summary-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Fibrosis_associations.Rmd/GO_summary-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Fibrosis_associations.Rmd/GO_summary-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Fibrosis_associations.Rmd/GO_summary-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Fibrosis_associations.Rmd/GO_summary-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Fibrosis_associations.Rmd/GO_summary-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="fibrosis-associations-3" class="section level2">
+<h2>Fibrosis associations</h2>
+<pre class="r"><code>metadata_mpap &lt;- FB@meta.data %&gt;% dplyr::select(Sample, Group, Age_years, mPAP_mmHg) %&gt;% unique()
+metadata_DCM_mpap &lt;- metadata_mpap %&gt;% dplyr::filter(Group == &quot;DCM&quot;, !is.na(mPAP_mmHg), mPAP_mmHg &gt; 0, !is.na(Age_years))
+props_mpap &lt;- getTransformedProps(FB$cell_state, FB$Sample, transform = &quot;logit&quot;)
+props_mpap$Counts &lt;- props_mpap$Counts[, metadata_DCM_mpap$Sample, drop = FALSE]
+props_mpap$TransformedProps &lt;- props_mpap$TransformedProps[, metadata_DCM_mpap$Sample, drop = FALSE]
+props_mpap$Proportions &lt;- props_mpap$Proportions[, metadata_DCM_mpap$Sample, drop = FALSE]
+metadata_DCM_mpap &lt;- metadata_DCM_mpap %&gt;% dplyr::slice(match(colnames(props_mpap$Proportions), Sample))
+stopifnot(all(metadata_DCM_mpap$Sample == colnames(props_mpap$Proportions)))
+design_mpap &lt;- model.matrix(~metadata_DCM_mpap[[&quot;mPAP_mmHg&quot;]] + metadata_DCM_mpap[[&quot;Age_years&quot;]])
+fit_mpap &lt;- limma::lmFit(props_mpap$TransformedProps, design_mpap)
+fit_mpap &lt;- limma::eBayes(fit_mpap, robust = TRUE)
+differential_abundance_mpap_fb &lt;- limma::topTable(fit_mpap, n = Inf, coef = 2)
+differential_abundance_mpap_fb$cell_state &lt;- rownames(differential_abundance_mpap_fb)
+write.csv(differential_abundance_mpap_fb, file = here::here(output_dir_data, &quot;Differential_Abundance_mPAP_fb.csv&quot;), 
+    quote = FALSE, row.names = FALSE)
+n_states &lt;- nrow(props_mpap$Proportions)
+par(mfrow = c(2, 3), mar = c(5, 5, 3, 1))
+x &lt;- metadata_DCM_mpap$mPAP_mmHg
+age0 &lt;- mean(metadata_DCM_mpap$Age_years, na.rm = TRUE)
+for (i in seq_len(n_states)) {
+    y &lt;- props_mpap$Proportions[i, ]
+    plot(x, y, main = rownames(props_mpap$Proportions)[i], pch = 16, cex = 2, ylab = &quot;Proportion&quot;, xlab = &quot;mPAP (mmHg)&quot;, 
+        cex.lab = 2, cex.axis = 1.5, cex.main = 2.2)
+    xseq &lt;- seq(min(x, na.rm = TRUE), max(x, na.rm = TRUE), length.out = 100)
+    eta &lt;- fit_mpap$coefficients[i, 1] + fit_mpap$coefficients[i, 2] * xseq + fit_mpap$coefficients[i, 3] * age0
+    lines(xseq, plogis(eta), col = 4, lwd = 2)
+}</code></pre>
+<img src="figure/Fibrosis_associations.Rmd/analysis_17-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-analysis_17-1">
+Past versions of analysis_17-1.png
+</button>
+</p>
+<div id="fig-analysis_17-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Fibrosis_associations.Rmd/analysis_17-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Fibrosis_associations.Rmd/analysis_17-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Fibrosis_associations.Rmd/analysis_17-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Fibrosis_associations.Rmd/analysis_17-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Fibrosis_associations.Rmd/analysis_17-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Fibrosis_associations.Rmd/analysis_17-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>reactable(differential_abundance_mpap_fb, filterable = TRUE, searchable = TRUE, showPageSizeOptions = TRUE)</code></pre>
+<div class="reactable html-widget html-fill-item" id="htmlwidget-484ed42468d86de4a421" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-484ed42468d86de4a421">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["FB–KAZN","FB–PCOLCE2","Activated FB–POSTN/FAP","FB–ACSM3","FB–AL035446.2","FB–GPC6"],"logFC":[0.00866811812934481,-0.00639023131216571,-0.00325286793251668,-0.00168997341428223,-0.000968101783689615,0.000246600469878277],"AveExpr":[-1.51844627760786,-1.73039460428639,-1.92992155571626,-0.360334839126754,-2.48144298718324,-3.19157246574199],"t":[1.01775426156443,-0.686036867593229,-0.381317481058259,-0.226410206352224,-0.117056188747284,0.0234158461997008],"P.Value":[0.316242481647614,0.497510227291424,0.705426313311289,0.82228726383536,0.907529262321171,0.98146042207893],"adj.P.Val":[0.98146042207893,0.98146042207893,0.98146042207893,0.98146042207893,0.98146042207893,0.98146042207893],"B":[-6.52746742105498,-6.80998924724855,-6.97477252655009,-7.02277477203787,-7.04196481504734,-7.04869067387238],"cell_state":["FB–KAZN","FB–PCOLCE2","Activated FB–POSTN/FAP","FB–ACSM3","FB–AL035446.2","FB–GPC6"]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"logFC","name":"logFC","type":"numeric"},{"id":"AveExpr","name":"AveExpr","type":"numeric"},{"id":"t","name":"t","type":"numeric"},{"id":"P.Value","name":"P.Value","type":"numeric"},{"id":"adj.P.Val","name":"adj.P.Val","type":"numeric"},{"id":"B","name":"B","type":"numeric"},{"id":"cell_state","name":"cell_state","type":"character"}],"filterable":true,"searchable":true,"showPageSizeOptions":true,"dataKey":"953e2ef6a8781adc5ac2d33be04b07f5"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>rm(props_mpap, fit_mpap)</code></pre>
+</div>
+<div id="fibrosis-associations-4" class="section level2">
+<h2>Fibrosis associations</h2>
+<pre class="r"><code>mpap_fibrosis_df &lt;- DCM_RV@meta.data %&gt;% dplyr::select(Sample, Group, Age_years, mPAP_mmHg, Fibrosis_percent) %&gt;% 
+    dplyr::distinct() %&gt;% dplyr::filter(Group == &quot;DCM&quot;, !is.na(mPAP_mmHg), mPAP_mmHg &gt; 0, !is.na(Fibrosis_percent)) %&gt;% 
+    dplyr::mutate(Fibrosis_percent = Fibrosis_percent * 100)
+cor_test_mpap_fibrosis &lt;- cor.test(mpap_fibrosis_df$mPAP_mmHg, mpap_fibrosis_df$Fibrosis_percent, method = &quot;pearson&quot;)
+r_val &lt;- round(unname(cor_test_mpap_fibrosis$estimate), 2)
+p_val &lt;- signif(cor_test_mpap_fibrosis$p.value, 2)
+ggplot(mpap_fibrosis_df, aes(x = mPAP_mmHg, y = Fibrosis_percent)) + geom_point(size = 2.6, alpha = 0.9) + geom_smooth(method = &quot;lm&quot;, 
+    se = TRUE, linewidth = 0.6, color = &quot;black&quot;) + annotate(&quot;text&quot;, x = Inf, y = Inf, label = paste0(&quot;r = &quot;, r_val, 
+    &quot;\np = &quot;, p_val, &quot;\nn = &quot;, nrow(mpap_fibrosis_df)), hjust = 1.15, vjust = 1.2, size = 4, family = &quot;Arial&quot;) + 
+    labs(x = &quot;mPAP (mmHg)&quot;, y = &quot;Fibrotic area (%)&quot;) + theme_classic(base_size = 13, base_family = &quot;Arial&quot;) + theme(axis.text = element_text(color = &quot;black&quot;, 
+    family = &quot;Arial&quot;), axis.title = element_text(color = &quot;black&quot;, family = &quot;Arial&quot;))</code></pre>
+<img src="figure/Fibrosis_associations.Rmd/analysis_18-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-analysis_18-1">
+Past versions of analysis_18-1.png
+</button>
+</p>
+<div id="fig-analysis_18-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Fibrosis_associations.Rmd/analysis_18-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Fibrosis_associations.Rmd/analysis_18-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Fibrosis_associations.Rmd/analysis_18-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Fibrosis_associations.Rmd/analysis_18-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Fibrosis_associations.Rmd/analysis_18-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Fibrosis_associations.Rmd/analysis_18-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="supplementary-data-export" class="section level2">
+<h2>Supplementary data export</h2>
+<pre class="r"><code>fibrosis_values_supp &lt;- Fibrosis_data %&gt;% dplyr::select(Sample, Fibrosis_percent) %&gt;% dplyr::mutate(Fibrosis_percent = Fibrosis_percent * 
+    100)
+writexl::write_xlsx(list(Fibrosis_values = fibrosis_values_supp, FB_fibrosis_abundance = differential_abundance_fibrosis_fb, 
+    Fibrosis_DE = results_DE_fibrosis_all, Fibrosis_GSEA_GO = GSEA_fibrosis@result, FB_mPAP_abundance = differential_abundance_mpap_fb), 
+    here::here(&quot;output&quot;, &quot;Datasets&quot;, &quot;Dataset_EV7.xlsx&quot;))</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats4    grid      stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] stringr_1.6.0          enrichplot_1.30.4      org.Hs.eg.db_3.22.0   
+ [4] AnnotationDbi_1.72.0   IRanges_2.44.0         S4Vectors_0.48.0      
+ [7] Biobase_2.70.0         BiocGenerics_0.56.0    generics_0.1.4        
+[10] clusterProfiler_4.18.2 qs2_0.1.7              cowplot_1.2.0         
+[13] reactable_0.4.5        ComplexHeatmap_2.26.0  EnhancedVolcano_1.29.1
+[16] ggrepel_0.9.6          edgeR_4.8.0            limma_3.66.0          
+[19] speckle_1.10.0         Matrix_1.6-5           SeuratObject_5.0.2    
+[22] Seurat_4.4.0           scales_1.4.0           patchwork_1.3.2       
+[25] readr_2.1.6            readxl_1.4.5           ggplot2_4.0.1         
+[28] tibble_3.3.0           tidyr_1.3.2            dplyr_1.2.1           
+[31] here_1.0.2            
+
+loaded via a namespace (and not attached):
+  [1] fs_2.1.0                    matrixStats_1.5.0          
+  [3] spatstat.sparse_3.1-0       httr_1.4.7                 
+  [5] RColorBrewer_1.1-3          doParallel_1.0.17          
+  [7] tools_4.5.2                 sctransform_0.4.2          
+  [9] R6_2.6.1                    mgcv_1.9-3                 
+ [11] lazyeval_0.2.2              uwot_0.2.4                 
+ [13] GetoptLong_1.1.0            withr_3.0.2                
+ [15] sp_2.2-0                    gridExtra_2.3              
+ [17] progressr_0.18.0            cli_3.6.6                  
+ [19] spatstat.explore_3.6-0      scatterpie_0.2.6           
+ [21] labeling_0.4.3              sass_0.4.10                
+ [23] S7_0.2.1                    spatstat.data_3.1-9        
+ [25] ggridges_0.5.7              pbapply_1.7-4              
+ [27] systemfonts_1.3.1           yulab.utils_0.2.2          
+ [29] gson_0.1.0                  DOSE_4.4.0                 
+ [31] R.utils_2.13.0              parallelly_1.45.1          
+ [33] RSQLite_2.4.5               gridGraphics_0.5-1         
+ [35] shape_1.4.6.1               crosstalk_1.2.2            
+ [37] ica_1.0-3                   spatstat.random_3.4-3      
+ [39] GO.db_3.22.0                abind_1.4-8                
+ [41] R.methodsS3_1.8.2           lifecycle_1.0.5            
+ [43] whisker_0.4.1               yaml_2.3.11                
+ [45] SummarizedExperiment_1.40.0 qvalue_2.42.0              
+ [47] SparseArray_1.10.4          Rtsne_0.17                 
+ [49] blob_1.2.4                  promises_1.5.0             
+ [51] crayon_1.5.3                miniUI_0.1.2               
+ [53] ggtangle_0.0.9              lattice_0.22-7             
+ [55] KEGGREST_1.50.0             pillar_1.11.1              
+ [57] knitr_1.50                  fgsea_1.36.0               
+ [59] GenomicRanges_1.62.0        rjson_0.2.23               
+ [61] future.apply_1.20.0         codetools_0.2-20           
+ [63] fastmatch_1.1-6             leiden_0.4.3.1             
+ [65] glue_1.8.0                  ggiraph_0.9.2              
+ [67] fontLiberation_0.1.0        ggfun_0.2.0                
+ [69] spatstat.univar_3.1-5       data.table_1.17.8          
+ [71] treeio_1.34.0               vctrs_0.7.3                
+ [73] png_0.1-8                   spam_2.11-1                
+ [75] cellranger_1.1.0            gtable_0.3.6               
+ [77] reactR_0.6.1                cachem_1.1.0               
+ [79] xfun_0.56                   S4Arrays_1.10.1            
+ [81] mime_0.13                   Seqinfo_1.0.0              
+ [83] survival_3.8-3              SingleCellExperiment_1.32.0
+ [85] iterators_1.0.14            statmod_1.5.1              
+ [87] fitdistrplus_1.2-4          ROCR_1.0-11                
+ [89] nlme_3.1-168                ggtree_4.0.1               
+ [91] fontquiver_0.2.1            bit64_4.6.0-1              
+ [93] RcppAnnoy_0.0.22            rprojroot_2.1.1            
+ [95] bslib_0.9.0                 irlba_2.3.5.1              
+ [97] KernSmooth_2.23-26          otel_0.2.0                 
+ [99] colorspace_2.1-2            DBI_1.2.3                  
+[101] tidyselect_1.2.1            bit_4.6.0                  
+[103] compiler_4.5.2              git2r_0.36.2               
+[105] fontBitstreamVera_0.1.1     DelayedArray_0.36.0        
+[107] plotly_4.11.0               stringfish_0.18.0          
+[109] lmtest_0.9-40               rappdirs_0.3.3             
+[111] digest_0.6.39               goftest_1.2-3              
+[113] spatstat.utils_3.2-0        rmarkdown_2.30             
+[115] XVector_0.50.0              htmltools_0.5.9            
+[117] pkgconfig_2.0.3             MatrixGenerics_1.22.0      
+[119] fastmap_1.2.0               rlang_1.2.0                
+[121] GlobalOptions_0.1.3         htmlwidgets_1.6.4          
+[123] shiny_1.12.0                farver_2.1.2               
+[125] jquerylib_0.1.4             zoo_1.8-14                 
+[127] jsonlite_2.0.0              BiocParallel_1.44.0        
+[129] GOSemSim_2.36.0             R.oo_1.27.1                
+[131] magrittr_2.0.4              ggplotify_0.1.3            
+[133] dotCall64_1.2               Rcpp_1.1.0                 
+[135] ape_5.8-1                   ggnewscale_0.5.2           
+[137] gdtools_0.4.4               reticulate_1.44.1          
+[139] stringi_1.8.7               MASS_7.3-65                
+[141] plyr_1.8.9                  parallel_4.5.2             
+[143] listenv_0.10.0              deldir_2.0-4               
+[145] Biostrings_2.78.0           splines_4.5.2              
+[147] tensor_1.5.1                hms_1.1.4                  
+[149] circlize_0.4.16             locfit_1.5-9.12            
+[151] igraph_2.2.1                spatstat.geom_3.6-1        
+[153] reshape2_1.4.5              evaluate_1.0.5             
+[155] RcppParallel_5.1.11-1       tweenr_2.0.3               
+[157] tzdb_0.5.0                  foreach_1.5.2              
+[159] httpuv_1.6.16               RANN_2.6.2                 
+[161] purrr_1.2.0                 polyclip_1.10-7            
+[163] future_1.68.0               clue_0.3-66                
+[165] scattermore_1.2             ggforce_0.5.0              
+[167] xtable_1.8-4                tidytree_0.4.6             
+[169] tidydr_0.0.6                later_1.4.4                
+[171] viridisLite_0.4.2           aplot_0.2.9                
+[173] memoise_2.0.1               writexl_2.0.0              
+[175] cluster_2.1.8.3             workflowr_1.7.2            
+[177] globals_0.18.0             </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

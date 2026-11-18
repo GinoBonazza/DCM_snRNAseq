@@ -1,0 +1,5081 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>DCM versus controls: cell abundance and gene expression</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="Fibrosis_hypertrophy.html">Fibrosis and hypertrophy</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="HC_clustering.html">Clustering with healthy controls</a>
+    </li>
+    <li>
+      <a href="Comparison_LV.html">Comparison to LV datasets</a>
+    </li>
+    <li>
+      <a href="Biomarkers_selection.html">Biomarkers selection</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DCM versus controls: cell abundance and
+gene expression</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">18 November, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-11-18
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>project/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed4b8eb1443c4351150e0c106a45675850f739f78targetblankd4b8eb1a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d4b8eb1443c4351150e0c106a45675850f739f78" target="_blank">d4b8eb1</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed4b8eb1443c4351150e0c106a45675850f739f78targetblankd4b8eb1a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d4b8eb1443c4351150e0c106a45675850f739f78" target="_blank">d4b8eb1</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    logs/
+
+Untracked files:
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output
+    Untracked:  data/Cellranger_output
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/DCM_Clinical_data_30_261012.xlsx
+    Untracked:  data/DCM_Clinical_data_83.xlsx
+    Untracked:  data/HMEC_RNAseq
+    Untracked:  data/Heart_datasets
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK
+    Untracked:  data/OLINK_LVAD
+    Untracked:  data/Published_datasets
+    Untracked:  data/Raw
+    Untracked:  data/SSc-PAH
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/processed/CM/activities.qs2
+    Untracked:  data/processed/CM/annotated.qs2
+    Untracked:  data/processed/CM/baseline.qs2
+    Untracked:  data/processed/EC/activities.qs2
+    Untracked:  data/processed/EC/annotated.qs2
+    Untracked:  data/processed/EC/baseline.qs2
+    Untracked:  data/processed/FB/activities.qs2
+    Untracked:  data/processed/FB/annotated.qs2
+    Untracked:  data/processed/FB/baseline.qs2
+    Untracked:  data/processed/LC/PC10.qs2
+    Untracked:  data/processed/LC/PC20.qs2
+    Untracked:  data/processed/LC/PC30.qs2
+    Untracked:  data/processed/LC/activities.qs2
+    Untracked:  data/processed/LC/annotated.qs2
+    Untracked:  data/processed/LC/baseline.qs2
+    Untracked:  data/processed/MC/activities.qs2
+    Untracked:  data/processed/MC/annotated.qs2
+    Untracked:  data/processed/MC/baseline.qs2
+    Untracked:  data/processed/MP/PC10.qs2
+    Untracked:  data/processed/MP/PC20.qs2
+    Untracked:  data/processed/MP/PC30.qs2
+    Untracked:  data/processed/MP/activities.qs2
+    Untracked:  data/processed/MP/annotated.qs2
+    Untracked:  data/processed/MP/baseline.qs2
+    Untracked:  data/processed/MultinicheNet.qs2
+    Untracked:  data/processed/QC/annotated.qs2
+    Untracked:  data/processed/QC/annotated_RNA.qs2
+    Untracked:  data/processed/QC/doublet_metadata.csv
+    Untracked:  data/processed/QC/final_integrated.qs2
+    Untracked:  data/processed/QC/initial_integrated.qs2
+    Untracked:  data/processed/QC/not_integrated.qs2
+    Untracked:  data/processed/QC/preQC.qs2
+    Untracked:  data/processed/RNA_quality_control.qs2
+    Untracked:  data/processed/RV_cell_states_RNA.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD13.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD15.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD16.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD4.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD5.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD6.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD7.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD9.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P3.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P5.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P8.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK153.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK213.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK229.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK323.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK337.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK345.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK357.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK369.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK375.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK385.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK401.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK403.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK415.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK437.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK439.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK441.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK461.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK463.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD13.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD15.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD16.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD4.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD5.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD6.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD7.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD9.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P3.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P5.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P8.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK153.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK213.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK229.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK323.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK337.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK345.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK357.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK369.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK375.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK385.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK401.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK403.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK415.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK437.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK439.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK441.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK461.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK463.qs2
+    Untracked:  data/processed/mPAP/CM_GSEA_Reactome_mPAP.rds
+    Untracked:  data/processed/mPAP/CM_ORA_REACTOME_mPAP_down.rds
+    Untracked:  data/processed/mPAP/CM_ORA_REACTOME_mPAP_up.rds
+    Untracked:  data/processed/mPAP/CM_activities.qs2
+    Untracked:  data/processed/resources/A_activity_API_compatibility.json
+    Untracked:  data/processed/resources/A_activity_network_manifest.json
+    Untracked:  data/processed/resources/A_final_resource_manifest.json
+    Untracked:  data/processed/resources/A_ligand_target_matrix_nsga2r_final.rds
+    Untracked:  data/processed/resources/A_resources_sessionInfo.txt
+    Untracked:  data/processed/resources/A_submitted_programme_provenance.json
+    Untracked:  data/refdata-gex-GRCh38-2020-A
+    Untracked:  omnipathr-log/
+    Untracked:  output/Ambient_RNA_correction/
+    Untracked:  output/Cardiomyocytes_cell_states/
+    Untracked:  output/Cell_communication/
+    Untracked:  output/Cell_state_annotation/
+    Untracked:  output/Clinical_transcriptomic_associations/
+    Untracked:  output/DCM_control_transcriptomics/
+    Untracked:  output/Datasets/
+    Untracked:  output/Endothelial_cells_cell_states/
+    Untracked:  output/Fibroblasts_cell_states/
+    Untracked:  output/Fibrosis_associations/
+    Untracked:  output/Integrative_analysis/
+    Untracked:  output/Lymphocytes_cell_states/
+    Untracked:  output/Macrophages_cell_states/
+    Untracked:  output/Mural_cells_cell_states/
+    Untracked:  output/Protein_differential_abundance/
+    Untracked:  output/Protein_quality_control/
+    Untracked:  output/Pulmonary_pressure_associations/
+    Untracked:  output/QC_integration/
+    Untracked:  output/Supplementary_datasets/
+    Untracked:  output/Transcriptional_signatures/
+    Untracked:  output/Transcriptomic_variation/
+
+Unstaged changes:
+    Deleted:    output/README.md
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown
+(<code>analysis/DCM_control_transcriptomics.Rmd</code>) and HTML
+(<code>docs/DCM_control_transcriptomics.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/analysis/DCM_control_transcriptomics.Rmd" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Document assay-specific age covariates in donor metadata
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/d4b8eb1443c4351150e0c106a45675850f739f78/docs/DCM_control_transcriptomics.html" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Document assay-specific age covariates in donor metadata
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/analysis/DCM_control_transcriptomics.Rmd" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Include RNA processing and sequencing batches in EV1
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/DCM_control_transcriptomics.html" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Include RNA processing and sequencing batches in EV1
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/analysis/DCM_control_transcriptomics.Rmd" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Align signature membership exports with the tested cell types
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/DCM_control_transcriptomics.html" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Align signature membership exports with the tested cell types
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/analysis/DCM_control_transcriptomics.Rmd" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Refine compact programme panel labels
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/DCM_control_transcriptomics.html" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Refine compact programme panel labels
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/analysis/DCM_control_transcriptomics.Rmd" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Add HC-inclusive analysis scripts and frozen reproducibility inputs
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/DCM_control_transcriptomics.html" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Add HC-inclusive analysis scripts and frozen reproducibility inputs
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/analysis/DCM_control_transcriptomics.Rmd" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+<td>
+MXRA5 coexpression analysis
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/d136073823de03a4d23429fae2eb314862b8af4f/docs/DCM_control_transcriptomics.html" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+<td>
+MXRA5 coexpression analysis
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r"><code>knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 400, fig.retina = 1, 
+    fig.align = &quot;center&quot;, dev = &quot;png&quot;, dev.args = list(type = &quot;cairo&quot;, family = &quot;Arial&quot;))
+library(here)</code></pre>
+<pre><code>here() starts at /scratch/gbonaz/A_publication_20261118/project</code></pre>
+<pre class="r"><code>current_file &lt;- &quot;DCM_control_transcriptomics&quot;
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here(&quot;output&quot;, &quot;Datasets&quot;), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, &quot;/&quot;))
+set.seed(20240606)</code></pre>
+<pre class="r"><code>library(Seurat)
+library(qs2)
+library(Matrix)
+library(edgeR)
+library(limma)
+library(speckle)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(grid)
+BiocParallel::register(BiocParallel::SerialParam())
+O &lt;- output_dir_data
+DCM_RV &lt;- qs2::qs_read(here::here(&quot;data&quot;, &quot;processed&quot;, &quot;RV_cell_states_RNA.qs2&quot;), nthreads = 2)</code></pre>
+</div>
+<div id="differential-expression" class="section level2">
+<h2>Differential expression</h2>
+<pre class="r"><code>group_design &lt;- function(metadata, samples) {
+    stopifnot(!anyDuplicated(metadata$Sample), !anyDuplicated(samples), all(samples %in% metadata$Sample))
+    d &lt;- metadata[match(samples, metadata$Sample), , drop = FALSE]
+    stopifnot(identical(as.character(d$Sample), as.character(samples)), all(d$Group %in% c(&quot;HC&quot;, &quot;DCM&quot;)))
+    d$Group &lt;- factor(d$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))
+    stopifnot(all(table(d$Group) &gt;= 3), all(is.finite(d$Age_years)))
+    design &lt;- model.matrix(~Group + Age_years, data = d)
+    stopifnot(qr(design)$rank == ncol(design), nrow(design) &gt; ncol(design))
+    rownames(design) &lt;- d$Sample
+    list(metadata = d, design = design)
+}
+fit_group &lt;- function(counts, metadata) {
+    stopifnot(all(counts &gt;= 0), all(counts == round(counts)))
+    keep_samples &lt;- colSums(counts) &gt; 50000
+    s &lt;- colnames(counts)[keep_samples]
+    s &lt;- s[s %in% metadata$Sample[is.finite(metadata$Age_years)]]
+    a &lt;- group_design(metadata, s)
+    y &lt;- edgeR::DGEList(counts[, s, drop = FALSE])
+    keep &lt;- edgeR::filterByExpr(y)
+    stopifnot(any(keep))
+    y &lt;- y[keep, , keep.lib.sizes = FALSE]
+    y &lt;- edgeR::normLibSizes(y)
+    y &lt;- edgeR::estimateDisp(y, a$design)
+    fit &lt;- edgeR::glmQLFit(y, a$design, robust = TRUE)
+    test &lt;- edgeR::glmQLFTest(fit, coef = &quot;GroupDCM&quot;)
+    z &lt;- edgeR::topTags(test, n = Inf)$table
+    z$gene &lt;- rownames(z)
+    z &lt;- z[, c(&quot;gene&quot;, setdiff(names(z), &quot;gene&quot;))]
+    list(results = z, design = a$design, metadata = a$metadata, pseudobulk = y, excluded_samples = setdiff(colnames(counts), 
+        s))
+}</code></pre>
+<pre class="r"><code>md &lt;- DCM_RV[[]]
+metadata &lt;- unique(md[, c(&quot;Sample&quot;, &quot;Group&quot;, &quot;Age_years&quot;)])
+stopifnot(!anyDuplicated(metadata$Sample))
+write.csv(metadata, file.path(O, &quot;A_donor_metadata.csv&quot;), row.names = FALSE)
+cts &lt;- GetAssayData(DCM_RV, assay = &quot;RNA&quot;, slot = &quot;counts&quot;)
+lineages &lt;- unique(as.character(md$cell_type))
+summary &lt;- list()
+eligibility &lt;- list()
+for (ct in lineages) {
+    cells &lt;- which(as.character(md$cell_type) == ct)
+    n &lt;- table(md$Sample[cells])
+    samples &lt;- names(n)
+    design_sum &lt;- sparseMatrix(i = seq_along(cells), j = match(md$Sample[cells], samples), x = 1, dims = c(length(cells), 
+        length(samples)), dimnames = list(colnames(cts)[cells], samples))
+    pb &lt;- cts[, cells, drop = FALSE] %*% design_sum
+    detection &lt;- Matrix::rowMeans(cts[, cells, drop = FALSE] &gt; 0) * 100
+    pb &lt;- pb[detection &gt; 1, , drop = FALSE]
+    id &lt;- gsub(&quot; &quot;, &quot;_&quot;, ct, fixed = TRUE)
+    percent &lt;- data.frame(gene = names(detection), percentCells = as.numeric(detection))
+    write.csv(percent, file.path(O, paste0(&quot;A_&quot;, id, &quot;_percent_stats.csv&quot;)), row.names = FALSE)
+    eligible &lt;- samples[colSums(pb) &gt; 50000 &amp; is.finite(metadata$Age_years[match(samples, metadata$Sample)])]
+    eligible_metadata &lt;- metadata[match(eligible, metadata$Sample), , drop = FALSE]
+    group_n &lt;- table(factor(eligible_metadata$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;)))
+    eligibility[[ct]] &lt;- data.frame(cell_type = ct, Sample = samples, n_nuclei = as.integer(n[samples]), pseudobulk_counts = as.numeric(colSums(pb)), 
+        eligible = samples %in% eligible)
+    if (any(group_n &lt; 3)) {
+        summary[[ct]] &lt;- data.frame(cell_type = ct, n_HC = group_n[1], n_DCM = group_n[2], tested_genes = NA_integer_, 
+            up = NA_integer_, down = NA_integer_, status = &quot;not estimable: &lt;3 eligible donors in a group&quot;)
+        next
+    }
+    fit &lt;- fit_group(pb, metadata)
+    z &lt;- fit$results
+    z$percentCells &lt;- percent$percentCells[match(z$gene, percent$gene)]
+    write.csv(z, file.path(O, paste0(&quot;A_&quot;, id, &quot;_DE_DCM_vs_HC.csv&quot;)), row.names = FALSE)
+    write.csv(fit$design, file.path(O, paste0(&quot;A_&quot;, id, &quot;_design.csv&quot;)))
+    saveRDS(fit$pseudobulk, file.path(O, paste0(&quot;A_&quot;, id, &quot;_pseudobulk.rds&quot;)))
+    sig &lt;- z$FDR &lt; 0.05 &amp; abs(z$logFC) &gt; 0.5
+    summary[[ct]] &lt;- data.frame(cell_type = ct, n_HC = group_n[1], n_DCM = group_n[2], tested_genes = nrow(z), 
+        up = sum(sig &amp; z$logFC &gt; 0), down = sum(sig &amp; z$logFC &lt; 0), status = &quot;completed&quot;)
+}
+write.csv(bind_rows(summary), file.path(O, &quot;A_DE_summary.csv&quot;), row.names = FALSE)
+write.csv(bind_rows(eligibility), file.path(O, &quot;A_DE_donor_eligibility.csv&quot;), row.names = FALSE)
+props &lt;- speckle::getTransformedProps(md$cell_type, md$Sample, transform = &quot;logit&quot;)
+samples &lt;- colnames(props$TransformedProps)
+samples &lt;- samples[is.finite(metadata$Age_years[match(samples, metadata$Sample)])]
+a &lt;- group_design(metadata, samples)
+fit &lt;- limma::eBayes(limma::lmFit(props$TransformedProps[, samples, drop = FALSE], a$design), robust = TRUE)
+da &lt;- limma::topTable(fit, coef = &quot;GroupDCM&quot;, number = Inf, adjust.method = &quot;BH&quot;)
+da$cell_type &lt;- rownames(da)
+write.csv(da, file.path(O, &quot;A_DA_DCM_vs_HC.csv&quot;), row.names = FALSE)
+write.csv(a$design, file.path(O, &quot;A_DA_design.csv&quot;))</code></pre>
+</div>
+<div id="cell-type-abundance" class="section level2">
+<h2>Cell-type abundance</h2>
+<pre class="r"><code>nuclei &lt;- table(md$Sample, md$cell_type)
+proportions &lt;- as.data.frame(as.table(sweep(nuclei, 1, rowSums(nuclei), &quot;/&quot;)))
+names(proportions) &lt;- c(&quot;Sample&quot;, &quot;cell_type&quot;, &quot;Proportion&quot;)
+proportions$Group &lt;- factor(metadata$Group[match(proportions$Sample, metadata$Sample)], levels = c(&quot;HC&quot;, &quot;DCM&quot;))
+cell_order &lt;- names(sort(colMeans(sweep(nuclei, 1, rowSums(nuclei), &quot;/&quot;)), decreasing = TRUE))
+proportions$cell_type &lt;- factor(proportions$cell_type, levels = cell_order)
+annotations &lt;- proportions %&gt;% group_by(cell_type) %&gt;% summarise(y = max(Proportion) + 0.035, .groups = &quot;drop&quot;)
+annotations$FDR &lt;- da$adj.P.Val[match(annotations$cell_type, da$cell_type)]
+annotations$label &lt;- ifelse(annotations$FDR &lt; 0.001, &quot;FDR &lt; 0.001&quot;, paste0(&quot;FDR\n&quot;, formatC(annotations$FDR, format = &quot;f&quot;, 
+    digits = 3)))
+p &lt;- ggplot(proportions, aes(cell_type, Proportion, fill = Group)) + geom_boxplot(width = 0.64, outlier.shape = NA, 
+    linewidth = 0.25, position = position_dodge(0.72)) + geom_point(position = position_jitterdodge(jitter.width = 0.11, 
+    dodge.width = 0.72, seed = 123), size = 1, alpha = 0.65, colour = &quot;#333333&quot;) + geom_segment(data = annotations, 
+    aes(x = as.numeric(cell_type) - 0.18, xend = as.numeric(cell_type) + 0.18, y = y, yend = y), inherit.aes = FALSE, 
+    linewidth = 0.25) + geom_text(data = annotations, aes(cell_type, y + 0.012, label = label), inherit.aes = FALSE, 
+    vjust = 0, size = 14/ggplot2::.pt, fontface = &quot;bold&quot;, family = &quot;Arial&quot;) + scale_fill_manual(values = c(HC = &quot;#D9D9D9&quot;, 
+    DCM = &quot;#AD6557&quot;)) + scale_y_continuous(limits = c(0, 0.69), expand = expansion(mult = 0)) + labs(x = NULL, 
+    y = &quot;Fraction of all retained nuclei&quot;) + theme_classic(base_family = &quot;Arial&quot;) + theme(axis.text.x = element_text(angle = 35, 
+    hjust = 1, face = &quot;bold&quot;, size = 15, colour = &quot;black&quot;), axis.text.y = element_text(size = 14, colour = &quot;black&quot;), 
+    axis.title.y = element_text(size = 18), legend.position = &quot;inside&quot;, legend.position.inside = c(0.88, 0.9), 
+    legend.direction = &quot;horizontal&quot;, legend.title = element_blank(), legend.text = element_text(size = 17), plot.margin = margin(8, 12, 8, 35))
+p</code></pre>
+<img src="figure/DCM_control_transcriptomics.Rmd/abundance-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-abundance-1">
+Past versions of abundance-1.png
+</button>
+</p>
+<div id="fig-abundance-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/abundance-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/abundance-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/abundance-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/abundance-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/abundance-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/abundance-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>write.csv(proportions, file.path(O, &quot;Donor_proportions.csv&quot;), row.names = FALSE)
+ggsave(file.path(output_dir_figs, &quot;Cell_type_abundance.pdf&quot;), p, width = 12, height = 6, device = cairo_pdf)</code></pre>
+</div>
+<div id="differentially-expressed-genes" class="section level2">
+<h2>Differentially expressed genes</h2>
+<pre class="r"><code>de_summary &lt;- bind_rows(summary)
+ct_order &lt;- cell_order[cell_order %in% de_summary$cell_type[de_summary$status == &quot;completed&quot;] &amp; cell_order != &quot;Mesothelial cells&quot;]
+counts &lt;- as.matrix(de_summary[match(ct_order, de_summary$cell_type), c(&quot;up&quot;, &quot;down&quot;)])
+rownames(counts) &lt;- ct_order
+signed &lt;- sweep(counts, 2, c(1, -1), &quot;*&quot;)
+limit &lt;- max(counts)
+colfun &lt;- circlize::colorRamp2(c(-limit, 0, limit), c(&quot;#004C8C&quot;, &quot;#F2F2F2&quot;, &quot;#A63A2A&quot;))
+grid.newpage()
+pushViewport(viewport(x = 0.42, y = 0.27, width = 0.44, height = 0.66, just = c(&quot;left&quot;, &quot;bottom&quot;)))
+for (i in seq_len(nrow(counts))) for (j in 1:2) {
+    grid.rect(x = (j - 0.5)/2, y = 1 - (i - 0.5)/nrow(counts), width = 0.5, height = 1/nrow(counts), gp = gpar(fill = colfun(signed[i, 
+        j]), col = &quot;white&quot;, lwd = 0.7))
+    grid.text(counts[i, j], x = (j - 0.5)/2, y = 1 - (i - 0.5)/nrow(counts), gp = gpar(fontfamily = &quot;Arial&quot;, fontsize = 8.5, 
+        col = if (counts[i, j] &gt; limit * 0.65) 
+            &quot;white&quot;
+        else &quot;black&quot;))
+}
+grid.text(ct_order, x = unit(-0.04, &quot;in&quot;), y = 1 - (seq_len(nrow(counts)) - 0.5)/nrow(counts), just = &quot;right&quot;, 
+    gp = gpar(fontfamily = &quot;Arial&quot;, fontsize = 9))
+grid.text(c(&quot;Up in DCM&quot;, &quot;Down in DCM&quot;), x = c(0.25, 0.75), y = unit(-0.04, &quot;in&quot;), just = &quot;top&quot;, gp = gpar(fontfamily = &quot;Arial&quot;, 
+    fontsize = 9))
+popViewport()
+legend &lt;- ComplexHeatmap::Legend(col_fun = colfun, title = &quot;Number of genes&quot;, at = c(-2000, -1000, 0, 1000, 2000), 
+    labels = c(&quot;2k&quot;, &quot;1k&quot;, &quot;0&quot;, &quot;1k&quot;, &quot;2k&quot;), direction = &quot;horizontal&quot;, title_position = &quot;topcenter&quot;, legend_width = unit(1.665, 
+        &quot;in&quot;), legend_height = unit(0.0875, &quot;in&quot;), labels_gp = gpar(fontfamily = &quot;Arial&quot;, fontsize = 8), title_gp = gpar(fontfamily = &quot;Arial&quot;, 
+        fontsize = 9, fontface = &quot;plain&quot;))
+ComplexHeatmap::draw(legend, x = unit(0.635, &quot;npc&quot;), y = unit(0.13, &quot;npc&quot;))</code></pre>
+<img src="figure/DCM_control_transcriptomics.Rmd/DEG_counts-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-DEG_counts-1">
+Past versions of DEG_counts-1.png
+</button>
+</p>
+<div id="fig-DEG_counts-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/DEG_counts-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/DEG_counts-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/DEG_counts-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/DEG_counts-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/DEG_counts-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/DEG_counts-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="expression-volcano-plots" class="section level2">
+<h2>Expression volcano plots</h2>
+<pre class="r"><code>library(EnhancedVolcano)
+library(ggplot2)
+for (f in list.files(O, pattern = &quot;^A_.*_DE_DCM_vs_HC[.]csv$&quot;, full.names = TRUE)) {
+    z &lt;- read.csv(f)
+    keyvals &lt;- rep(&quot;grey&quot;, nrow(z))
+    names(keyvals) &lt;- rep(&quot;Not significant&quot;, nrow(z))
+    up &lt;- z$logFC &gt; 0.5 &amp; z$FDR &lt; 0.05
+    down &lt;- z$logFC &lt; -0.5 &amp; z$FDR &lt; 0.05
+    keyvals[up] &lt;- &quot;#A63A2A&quot;
+    names(keyvals)[up] &lt;- &quot;Higher in DCM&quot;
+    keyvals[down] &lt;- &quot;#004C8C&quot;
+    names(keyvals)[down] &lt;- &quot;Higher in HC&quot;
+    title &lt;- gsub(&quot;_&quot;, &quot; &quot;, sub(&quot;^A_&quot;, &quot;&quot;, sub(&quot;_DE_DCM_vs_HC.csv$&quot;, &quot;&quot;, basename(f))))
+    title &lt;- paste(strwrap(title, width = 18), collapse = &quot;\n&quot;)
+    p &lt;- EnhancedVolcano(z, lab = z$gene, x = &quot;logFC&quot;, y = &quot;FDR&quot;, labSize = 0, pointSize = 0.5, FCcutoff = 0.5, 
+        pCutoff = 0.05, colCustom = keyvals, colAlpha = 1, drawConnectors = FALSE, subtitle = NULL, title = title, 
+        caption = paste(&quot;Genes tested:&quot;, nrow(z)), captionLabSize = 9, ylab = bquote(-Log[10] ~ FDR), titleLabSize = 16, 
+        axisLabSize = 12) + theme(text = element_text(family = &quot;Arial&quot;), legend.position = &quot;none&quot;)
+    print(p)
+}</code></pre>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-1">
+Past versions of volcano_plots-1.png
+</button>
+</p>
+<div id="fig-volcano_plots-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-2.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-2">
+Past versions of volcano_plots-2.png
+</button>
+</p>
+<div id="fig-volcano_plots-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-2.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-2.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-2.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-2.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-2.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-2.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-3.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-3">
+Past versions of volcano_plots-3.png
+</button>
+</p>
+<div id="fig-volcano_plots-3" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-3.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-3.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-3.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-3.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-3.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-3.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-4.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-4">
+Past versions of volcano_plots-4.png
+</button>
+</p>
+<div id="fig-volcano_plots-4" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-4.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-4.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-4.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-4.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-4.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-4.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-5.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-5">
+Past versions of volcano_plots-5.png
+</button>
+</p>
+<div id="fig-volcano_plots-5" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-5.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-5.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-5.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-5.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-5.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-5.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-6.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-6">
+Past versions of volcano_plots-6.png
+</button>
+</p>
+<div id="fig-volcano_plots-6" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-6.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-6.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-6.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-6.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-6.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-6.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-7.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-7">
+Past versions of volcano_plots-7.png
+</button>
+</p>
+<div id="fig-volcano_plots-7" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-7.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-7.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-7.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-7.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-7.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-7.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-8.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-8">
+Past versions of volcano_plots-8.png
+</button>
+</p>
+<div id="fig-volcano_plots-8" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-8.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-8.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-8.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-8.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-8.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-8.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-9.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-9">
+Past versions of volcano_plots-9.png
+</button>
+</p>
+<div id="fig-volcano_plots-9" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-9.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-9.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-9.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-9.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-9.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-9.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-10.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-10">
+Past versions of volcano_plots-10.png
+</button>
+</p>
+<div id="fig-volcano_plots-10" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-10.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-10.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-10.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-10.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-10.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-10.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-11.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-11">
+Past versions of volcano_plots-11.png
+</button>
+</p>
+<div id="fig-volcano_plots-11" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-11.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-11.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-11.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-11.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-11.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-11.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/volcano_plots-12.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-volcano_plots-12">
+Past versions of volcano_plots-12.png
+</button>
+</p>
+<div id="fig-volcano_plots-12" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-12.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-12.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-12.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-12.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-12.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/volcano_plots-12.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="gene-ontology-enrichment" class="section level2">
+<h2>Gene Ontology enrichment</h2>
+<pre class="r"><code>objects &lt;- list()
+simplified &lt;- list()
+ranked_genes &lt;- list()
+for (ct in de_summary$cell_type[de_summary$status == &quot;completed&quot;]) {
+    id &lt;- gsub(&quot; &quot;, &quot;_&quot;, ct, fixed = TRUE)
+    de &lt;- read.csv(file.path(O, paste0(&quot;A_&quot;, id, &quot;_DE_DCM_vs_HC.csv&quot;)))
+    de$metric &lt;- de$logFC * -log10(pmax(de$PValue, .Machine$double.xmin))
+    mapping &lt;- bitr(de$gene, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db)
+    ranked &lt;- merge(de, mapping, by.x = &quot;gene&quot;, by.y = &quot;SYMBOL&quot;, sort = FALSE)
+    ranked &lt;- ranked[order(-abs(ranked$metric), ranked$gene, ranked$ENTREZID), ]
+    ranked &lt;- ranked[!duplicated(ranked$ENTREZID), ]
+    ranked &lt;- ranked[order(-ranked$metric, ranked$ENTREZID), ]
+    ranks &lt;- setNames(ranked$metric, ranked$ENTREZID)
+    ranked_genes[[ct]] &lt;- ranked
+    checkpoint &lt;- here::here(&quot;data&quot;, &quot;processed&quot;, &quot;DCM_control_GSEA&quot;, paste0(&quot;A_&quot;, id, &quot;_GSEA_GO.rds&quot;))
+    set.seed(20240606)
+    if (file.exists(checkpoint)) {
+        go &lt;- readRDS(checkpoint)
+        stopifnot(isTRUE(all.equal(go@geneList, ranks, tolerance = 1e-12)))
+    }
+    else {
+        go &lt;- gseGO(geneList = ranks, OrgDb = org.Hs.eg.db, ont = &quot;ALL&quot;, keyType = &quot;ENTREZID&quot;, minGSSize = 10, 
+            nPermSimple = if (ct == &quot;Cardiomyocytes&quot;) 
+                100000L
+            else 1000000L, eps = if (ct == &quot;Cardiomyocytes&quot;) 
+                1e-10
+            else 0, pvalueCutoff = 1, pAdjustMethod = &quot;BH&quot;, BPPARAM = BiocParallel::SerialParam(), verbose = FALSE)
+    }
+    objects[[ct]] &lt;- go
+    significant &lt;- go
+    significant@result &lt;- go@result %&gt;% filter(is.finite(p.adjust), p.adjust &lt; 0.05, is.finite(NES))
+    if (nrow(significant@result) == 0) 
+        next
+    simplified[[ct]] &lt;- if (nrow(significant@result) == 1) 
+        significant
+    else clusterProfiler::simplify(significant, cutoff = 0.6, by = &quot;p.adjust&quot;, select_fun = min, measure = &quot;Wang&quot;)
+}
+saveRDS(objects, file.path(O, &quot;GO_enrichment.rds&quot;))
+saveRDS(simplified, file.path(O, &quot;GO_simplified.rds&quot;))
+selected_terms &lt;- bind_rows(lapply(names(simplified), function(ct) {
+    x &lt;- simplified[[ct]]@result
+    bind_rows(x %&gt;% filter(NES &gt; 0) %&gt;% arrange(desc(NES)) %&gt;% slice_head(n = 4), x %&gt;% filter(NES &lt; 0) %&gt;% arrange(NES) %&gt;% 
+        slice_head(n = 4)) %&gt;% mutate(cell_type = ct)
+}))
+selected_terms$score &lt;- -log10(pmax(selected_terms$pvalue, .Machine$double.xmin)) * sign(selected_terms$NES)
+write.csv(selected_terms, file.path(O, &quot;Selected_GO_terms.csv&quot;), row.names = FALSE)</code></pre>
+</div>
+<div id="selected-gene-ontology-terms" class="section level2">
+<h2>Selected Gene Ontology terms</h2>
+<pre class="r"><code>columns &lt;- list(c(&quot;Cardiomyocytes&quot;, &quot;Fibroblasts&quot;, &quot;Endothelial cells&quot;, &quot;Pericytes&quot;), c(&quot;Macrophages&quot;, &quot;Lymphocytes&quot;, 
+    &quot;Smooth muscle cells&quot;, &quot;Endocardial cells&quot;))
+colour_limit &lt;- 6.7126
+colfun &lt;- circlize::colorRamp2(c(-colour_limit, 0, colour_limit), c(&quot;#004C8C&quot;, &quot;white&quot;, &quot;#A63A2A&quot;))
+wrap &lt;- function(x, n) vapply(x, function(s) paste(strwrap(gsub(&quot;_&quot;, &quot; &quot;, s), width = n), collapse = &quot;\n&quot;), character(1))
+grid.newpage()
+for (column in 1:2) {
+    groups &lt;- lapply(columns[[column]], function(ct) {
+        x &lt;- selected_terms %&gt;% filter(cell_type == ct) %&gt;% arrange(desc(NES))
+        x$label &lt;- wrap(x$Description, 43)
+        x$step &lt;- (lengths(strsplit(x$label, &quot;\n&quot;))) * 0.72 + 0.28
+        x
+    })
+    scale &lt;- (0.82 - 0.022 * (length(groups) - 1))/sum(vapply(groups, function(x) sum(x$step) + 0.4, numeric(1)))
+    top &lt;- 0.96
+    for (i in seq_along(groups)) {
+        x &lt;- groups[[i]]
+        total &lt;- sum(x$step)
+        height &lt;- (total + 0.4) * scale
+        pushViewport(viewport(x = 0.285 + (column - 1) * 0.5, y = top - height, width = 0.195, height = height, 
+            just = c(&quot;left&quot;, &quot;bottom&quot;), xscale = c(-2.26, 2.1051), yscale = c(total + 0.2, -0.2)))
+        grid.rect(gp = gpar(fill = &quot;white&quot;, col = &quot;#BBBBBB&quot;, lwd = 0.6))
+        for (tick in -2:2) grid.lines(x = unit(c(tick, tick), &quot;native&quot;), y = c(0, 1), gp = gpar(col = &quot;#DDDDDD&quot;, 
+            lwd = 0.5))
+        y &lt;- cumsum(x$step) - x$step/2
+        grid.rect(x = unit(x$NES/2, &quot;native&quot;), y = unit(y, &quot;native&quot;), width = unit(abs(x$NES), &quot;native&quot;), height = unit(0.58, 
+            &quot;native&quot;), gp = gpar(fill = colfun(x$score), col = NA))
+        grid.text(x$label, x = unit(-0.055, &quot;in&quot;), y = unit(y, &quot;native&quot;), just = &quot;right&quot;, gp = gpar(fontfamily = &quot;Arial&quot;, 
+            fontsize = 10.2))
+        if (i == length(groups)) {
+            grid.xaxis(at = -2:2, gp = gpar(fontfamily = &quot;Arial&quot;, fontsize = 10))
+            grid.text(&quot;Normalized enrichment score (NES)&quot;, y = unit(-0.29, &quot;in&quot;), gp = gpar(fontfamily = &quot;Arial&quot;, 
+                fontsize = 11))
+        }
+        popViewport()
+        grid.text(wrap(columns[[column]][i], 12), x = 0.017 + (column - 1) * 0.5, y = top - height/2, rot = 90, 
+            gp = gpar(fontfamily = &quot;Arial&quot;, fontsize = 11.5, fontface = &quot;bold&quot;))
+        top &lt;- top - height - 0.022
+    }
+}
+legend &lt;- ComplexHeatmap::Legend(col_fun = colfun, title = &quot;−log10(P) × sign(NES)&quot;, direction = &quot;horizontal&quot;, 
+    title_position = &quot;topcenter&quot;, legend_width = unit(2.96, &quot;in&quot;), legend_height = unit(0.111, &quot;in&quot;), labels_gp = gpar(fontfamily = &quot;Arial&quot;, 
+        fontsize = 9), title_gp = gpar(fontfamily = &quot;Arial&quot;, fontsize = 10, fontface = &quot;plain&quot;))
+ComplexHeatmap::draw(legend, x = unit(0.5, &quot;npc&quot;), y = unit(0.06, &quot;npc&quot;))</code></pre>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_summary-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_summary-1">
+Past versions of GO_summary-1.png
+</button>
+</p>
+<div id="fig-GO_summary-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_summary-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_summary-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_summary-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_summary-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_summary-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_summary-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="enrichment-by-cell-type" class="section level2">
+<h2>Enrichment by cell type</h2>
+<pre class="r"><code>for (ct in names(simplified)) {
+    x &lt;- simplified[[ct]]@result
+    x &lt;- bind_rows(x %&gt;% filter(NES &gt; 0) %&gt;% arrange(desc(NES)) %&gt;% slice_head(n = 20), x %&gt;% filter(NES &lt; 0) %&gt;% 
+        arrange(NES) %&gt;% slice_head(n = 20))
+    x$term &lt;- factor(x$ID, levels = x$ID[order(x$NES)])
+    p &lt;- ggplot(x, aes(term, NES, fill = NES)) + geom_col(width = 0.9) + coord_flip() + scale_x_discrete(labels = setNames(wrap(x$Description, 
+        45), x$ID)) + scale_fill_gradient2(low = &quot;#004C8C&quot;, mid = &quot;white&quot;, high = &quot;#A63A2A&quot;) + labs(x = NULL, y = &quot;Normalized enrichment score (NES)&quot;, 
+        title = ct) + theme_bw(base_size = 11, base_family = &quot;Arial&quot;) + theme(legend.position = &quot;none&quot;, panel.grid.minor = element_blank())
+    print(p)
+}</code></pre>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_by_cell_type-1">
+Past versions of GO_by_cell_type-1.png
+</button>
+</p>
+<div id="fig-GO_by_cell_type-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-2.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_by_cell_type-2">
+Past versions of GO_by_cell_type-2.png
+</button>
+</p>
+<div id="fig-GO_by_cell_type-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-2.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-2.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-2.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-2.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-2.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-2.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-3.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_by_cell_type-3">
+Past versions of GO_by_cell_type-3.png
+</button>
+</p>
+<div id="fig-GO_by_cell_type-3" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-3.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-3.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-3.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-3.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-3.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-3.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-4.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_by_cell_type-4">
+Past versions of GO_by_cell_type-4.png
+</button>
+</p>
+<div id="fig-GO_by_cell_type-4" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-4.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-4.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-4.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-4.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-4.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-4.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-5.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_by_cell_type-5">
+Past versions of GO_by_cell_type-5.png
+</button>
+</p>
+<div id="fig-GO_by_cell_type-5" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-5.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-5.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-5.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-5.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-5.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-5.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-6.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_by_cell_type-6">
+Past versions of GO_by_cell_type-6.png
+</button>
+</p>
+<div id="fig-GO_by_cell_type-6" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-6.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-6.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-6.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-6.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-6.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-6.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-7.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_by_cell_type-7">
+Past versions of GO_by_cell_type-7.png
+</button>
+</p>
+<div id="fig-GO_by_cell_type-7" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-7.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-7.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-7.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-7.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-7.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-7.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-8.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_by_cell_type-8">
+Past versions of GO_by_cell_type-8.png
+</button>
+</p>
+<div id="fig-GO_by_cell_type-8" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-8.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-8.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-8.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-8.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-8.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_by_cell_type-8.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="enrichment-maps" class="section level2">
+<h2>Enrichment maps</h2>
+<pre class="r"><code>for (ct in names(objects)) for (direction in c(&quot;Higher in DCM&quot;, &quot;Higher in HC&quot;)) {
+    go &lt;- objects[[ct]]
+    selected &lt;- go@result %&gt;% filter(is.finite(p.adjust), p.adjust &lt; 0.05, if (direction == &quot;Higher in DCM&quot;) 
+        NES &gt; 0
+    else NES &lt; 0) %&gt;% arrange(p.adjust, desc(abs(NES))) %&gt;% slice_head(n = 100)
+    if (nrow(selected) &lt; 2) 
+        next
+    go@result &lt;- selected
+    set.seed(20240606)
+    go &lt;- pairwise_termsim(go, showCategory = nrow(selected))
+    p &lt;- emapplot(go, showCategory=nrow(selected), node_label_size=3.5, min_edge=0.2) + labs(title=paste(ct,direction,sep=&#39; — &#39;)) + theme(text=element_text(family=&#39;Arial&#39;),plot.title=element_text(size=14))
+    expand_range &lt;- function(r) {d &lt;- diff(r); if(d&lt;1e-8) d &lt;- max(abs(r),1); r+c(-1,1)*d*0.15}
+    p &lt;- p + coord_cartesian(xlim=expand_range(range(p$data$x)),ylim=expand_range(range(p$data$y)),clip=&#39;off&#39;) + theme(aspect.ratio=NULL)
+    print(p)
+}</code></pre>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-1">
+Past versions of GO_networks-1.png
+</button>
+</p>
+<div id="fig-GO_networks-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-2.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-2">
+Past versions of GO_networks-2.png
+</button>
+</p>
+<div id="fig-GO_networks-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-2.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-2.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-2.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-2.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-2.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-2.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-3.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-3">
+Past versions of GO_networks-3.png
+</button>
+</p>
+<div id="fig-GO_networks-3" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-3.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-3.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-3.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-3.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-3.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-3.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-4.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-4">
+Past versions of GO_networks-4.png
+</button>
+</p>
+<div id="fig-GO_networks-4" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-4.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-4.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-4.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-4.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-4.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-4.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-5.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-5">
+Past versions of GO_networks-5.png
+</button>
+</p>
+<div id="fig-GO_networks-5" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-5.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-5.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-5.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-5.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-5.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-5.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-6.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-6">
+Past versions of GO_networks-6.png
+</button>
+</p>
+<div id="fig-GO_networks-6" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-6.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-6.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-6.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-6.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-6.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-6.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-7.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-7">
+Past versions of GO_networks-7.png
+</button>
+</p>
+<div id="fig-GO_networks-7" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-7.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-7.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-7.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-7.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-7.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-7.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-8.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-8">
+Past versions of GO_networks-8.png
+</button>
+</p>
+<div id="fig-GO_networks-8" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-8.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-8.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-8.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-8.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-8.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-8.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-9.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-9">
+Past versions of GO_networks-9.png
+</button>
+</p>
+<div id="fig-GO_networks-9" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-9.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-9.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-9.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-9.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-9.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-9.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-10.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-10">
+Past versions of GO_networks-10.png
+</button>
+</p>
+<div id="fig-GO_networks-10" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-10.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-10.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-10.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-10.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-10.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-10.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-11.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-11">
+Past versions of GO_networks-11.png
+</button>
+</p>
+<div id="fig-GO_networks-11" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-11.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-11.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-11.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-11.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-11.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-11.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-12.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-12">
+Past versions of GO_networks-12.png
+</button>
+</p>
+<div id="fig-GO_networks-12" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-12.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-12.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-12.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-12.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-12.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-12.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/DCM_control_transcriptomics.Rmd/GO_networks-13.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-GO_networks-13">
+Past versions of GO_networks-13.png
+</button>
+</p>
+<div id="fig-GO_networks-13" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-13.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-13.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-13.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-13.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-13.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/DCM_control_transcriptomics.Rmd/GO_networks-13.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="dataset-ev3" class="section level2">
+<h2>Dataset EV3</h2>
+<pre class="r"><code>tables &lt;- list(DE_summary = de_summary, Donors = metadata, Donor_proportions = proportions, Differential_abundance = da, 
+    DE_eligibility = bind_rows(eligibility))
+for (ct in de_summary$cell_type[de_summary$status == &quot;completed&quot;]) {
+    id &lt;- gsub(&quot; &quot;, &quot;_&quot;, ct, fixed = TRUE)
+    tables[[paste0(substr(id, 1, 27), &quot;_DE&quot;)]] &lt;- read.csv(file.path(O, paste0(&quot;A_&quot;, id, &quot;_DE_DCM_vs_HC.csv&quot;)))
+}
+tables$GO_enrichment &lt;- bind_rows(lapply(names(objects), function(ct) mutate(objects[[ct]]@result, cell_type = ct)))
+tables$Selected_GO_terms &lt;- selected_terms
+writexl::write_xlsx(tables, here::here(&quot;output&quot;, &quot;Datasets&quot;, &quot;Dataset_EV3.xlsx&quot;), format_headers = FALSE)</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] enrichplot_1.30.4      org.Hs.eg.db_3.22.0    AnnotationDbi_1.72.0  
+ [4] IRanges_2.44.0         S4Vectors_0.48.0       Biobase_2.70.0        
+ [7] BiocGenerics_0.56.0    generics_0.1.4         clusterProfiler_4.18.2
+[10] EnhancedVolcano_1.29.1 ggrepel_0.9.6          ggplot2_4.0.1         
+[13] tibble_3.3.0           tidyr_1.3.2            dplyr_1.2.1           
+[16] speckle_1.10.0         edgeR_4.8.0            limma_3.66.0          
+[19] Matrix_1.6-5           qs2_0.1.7              SeuratObject_5.0.2    
+[22] Seurat_4.4.0           here_1.0.2            
+
+loaded via a namespace (and not attached):
+  [1] fs_2.1.0                    matrixStats_1.5.0          
+  [3] spatstat.sparse_3.1-0       httr_1.4.7                 
+  [5] RColorBrewer_1.1-3          doParallel_1.0.17          
+  [7] tools_4.5.2                 sctransform_0.4.2          
+  [9] R6_2.6.1                    lazyeval_0.2.2             
+ [11] uwot_0.2.4                  GetoptLong_1.1.0           
+ [13] withr_3.0.2                 sp_2.2-0                   
+ [15] gridExtra_2.3               progressr_0.18.0           
+ [17] cli_3.6.6                   spatstat.explore_3.6-0     
+ [19] scatterpie_0.2.6            labeling_0.4.3             
+ [21] sass_0.4.10                 S7_0.2.1                   
+ [23] spatstat.data_3.1-9         ggridges_0.5.7             
+ [25] pbapply_1.7-4               systemfonts_1.3.1          
+ [27] yulab.utils_0.2.2           gson_0.1.0                 
+ [29] DOSE_4.4.0                  R.utils_2.13.0             
+ [31] parallelly_1.45.1           RSQLite_2.4.5              
+ [33] gridGraphics_0.5-1          shape_1.4.6.1              
+ [35] ica_1.0-3                   spatstat.random_3.4-3      
+ [37] GO.db_3.22.0                abind_1.4-8                
+ [39] R.methodsS3_1.8.2           lifecycle_1.0.5            
+ [41] whisker_0.4.1               yaml_2.3.11                
+ [43] SummarizedExperiment_1.40.0 qvalue_2.42.0              
+ [45] SparseArray_1.10.4          Rtsne_0.17                 
+ [47] blob_1.2.4                  promises_1.5.0             
+ [49] crayon_1.5.3                miniUI_0.1.2               
+ [51] ggtangle_0.0.9              lattice_0.22-7             
+ [53] cowplot_1.2.0               KEGGREST_1.50.0            
+ [55] pillar_1.11.1               knitr_1.50                 
+ [57] ComplexHeatmap_2.26.0       fgsea_1.36.0               
+ [59] GenomicRanges_1.62.0        rjson_0.2.23               
+ [61] future.apply_1.20.0         codetools_0.2-20           
+ [63] fastmatch_1.1-6             leiden_0.4.3.1             
+ [65] glue_1.8.0                  ggiraph_0.9.2              
+ [67] ggfun_0.2.0                 spatstat.univar_3.1-5      
+ [69] fontLiberation_0.1.0        data.table_1.17.8          
+ [71] vctrs_0.7.3                 png_0.1-8                  
+ [73] treeio_1.34.0               spam_2.11-1                
+ [75] gtable_0.3.6                cachem_1.1.0               
+ [77] xfun_0.56                   S4Arrays_1.10.1            
+ [79] mime_0.13                   Seqinfo_1.0.0              
+ [81] survival_3.8-3              SingleCellExperiment_1.32.0
+ [83] iterators_1.0.14            statmod_1.5.1              
+ [85] fitdistrplus_1.2-4          ROCR_1.0-11                
+ [87] nlme_3.1-168                ggtree_4.0.1               
+ [89] bit64_4.6.0-1               fontquiver_0.2.1           
+ [91] RcppAnnoy_0.0.22            rprojroot_2.1.1            
+ [93] bslib_0.9.0                 irlba_2.3.5.1              
+ [95] KernSmooth_2.23-26          otel_0.2.0                 
+ [97] colorspace_2.1-2            DBI_1.2.3                  
+ [99] tidyselect_1.2.1            bit_4.6.0                  
+[101] compiler_4.5.2              git2r_0.36.2               
+[103] fontBitstreamVera_0.1.1     DelayedArray_0.36.0        
+[105] plotly_4.11.0               stringfish_0.18.0          
+[107] scales_1.4.0                lmtest_0.9-40              
+[109] rappdirs_0.3.3              stringr_1.6.0              
+[111] digest_0.6.39               goftest_1.2-3              
+[113] spatstat.utils_3.2-0        rmarkdown_2.30             
+[115] XVector_0.50.0              htmltools_0.5.9            
+[117] pkgconfig_2.0.3             MatrixGenerics_1.22.0      
+[119] fastmap_1.2.0               rlang_1.2.0                
+[121] GlobalOptions_0.1.3         htmlwidgets_1.6.4          
+[123] shiny_1.12.0                farver_2.1.2               
+[125] jquerylib_0.1.4             zoo_1.8-14                 
+[127] jsonlite_2.0.0              BiocParallel_1.44.0        
+[129] GOSemSim_2.36.0             R.oo_1.27.1                
+[131] magrittr_2.0.4              ggplotify_0.1.3            
+[133] dotCall64_1.2               patchwork_1.3.2            
+[135] Rcpp_1.1.0                  ape_5.8-1                  
+[137] ggnewscale_0.5.2            gdtools_0.4.4              
+[139] reticulate_1.44.1           stringi_1.8.7              
+[141] MASS_7.3-65                 plyr_1.8.9                 
+[143] parallel_4.5.2              listenv_0.10.0             
+[145] deldir_2.0-4                Biostrings_2.78.0          
+[147] splines_4.5.2               tensor_1.5.1               
+[149] circlize_0.4.16             locfit_1.5-9.12            
+[151] igraph_2.2.1                spatstat.geom_3.6-1        
+[153] reshape2_1.4.5              evaluate_1.0.5             
+[155] RcppParallel_5.1.11-1       foreach_1.5.2              
+[157] tweenr_2.0.3                httpuv_1.6.16              
+[159] RANN_2.6.2                  purrr_1.2.0                
+[161] polyclip_1.10-7             clue_0.3-66                
+[163] future_1.68.0               scattermore_1.2            
+[165] ggforce_0.5.0               xtable_1.8-4               
+[167] tidytree_0.4.6              tidydr_0.0.6               
+[169] later_1.4.4                 viridisLite_0.4.2          
+[171] aplot_0.2.9                 memoise_2.0.1              
+[173] writexl_2.0.0               cluster_2.1.8.3            
+[175] workflowr_1.7.2             globals_0.18.0             </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,4149 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GinoBonazza (ginoandrea.bonazza@usz.ch)" />
+
+
+<title>Integrative analysis of transcriptomics and proteomics</title>
+
+<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">DCM_snRNAseq</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-navicon"></span>
+     
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="QC_integration_annotation.html">QC, integration, annotation</a>
+    </li>
+    <li>
+      <a href="Cardiomyocytes_subclustering.html">Cardiomyocytes subclustering</a>
+    </li>
+    <li>
+      <a href="Fibroblasts_subclustering.html">Fibroblasts subclustering</a>
+    </li>
+    <li>
+      <a href="Endothelial_cells_subclustering.html">Endothelial cells subclustering</a>
+    </li>
+    <li>
+      <a href="Mural_cells_subclustering.html">Mural cells subclustering</a>
+    </li>
+    <li>
+      <a href="Macrophages_subclustering.html">Macrophages subclustering</a>
+    </li>
+    <li>
+      <a href="Lymphocytes_subclustering.html">Lymphocytes subclustering</a>
+    </li>
+    <li>
+      <a href="DA_DE_all_cell_types_and_parameters.html">Differential expression all cell types and parameters</a>
+    </li>
+    <li>
+      <a href="DE_mPAP.html">Differential expression mPAP</a>
+    </li>
+    <li>
+      <a href="Fibrosis_hypertrophy.html">Fibrosis and hypertrophy</a>
+    </li>
+    <li>
+      <a href="Cell_cell_communication.html">Cell-cell communication</a>
+    </li>
+    <li>
+      <a href="HC_clustering.html">Clustering with healthy controls</a>
+    </li>
+    <li>
+      <a href="Comparison_LV.html">Comparison to LV datasets</a>
+    </li>
+    <li>
+      <a href="Biomarkers_selection.html">Biomarkers selection</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/GinoBonazza/DCM_snRNAseq">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Integrative analysis of transcriptomics and
+proteomics</h1>
+<h4 class="author">GinoBonazza (<a
+href="mailto:ginoandrea.bonazza@usz.ch"
+class="email">ginoandrea.bonazza@usz.ch</a>)</h4>
+<h4 class="date">18 November, 2026</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr <span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2026-11-18
+</p>
+<p>
+<strong>Checks:</strong> <span
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>project/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
+title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.2). The <em>Checks</em> tab describes the reproducibility checks
+that were applied when the results were created. The <em>Past
+versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the
+global environment can affect the analysis in your R Markdown file in
+unknown ways. For reproduciblity it’s best to always run the code in an
+empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20240606code">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Seed:</strong>
+<code>set.seed(20240606)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20240606code"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20240606)</code> was run prior to running
+the code in the R Markdown file. Setting a seed ensures that any results
+that rely on randomness, e.g. subsampling or permutations, are
+reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Session information:</strong>
+recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package
+versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be
+confident that you successfully produced the results during this
+run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr
+project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed4b8eb1443c4351150e0c106a45675850f739f78targetblankd4b8eb1a">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d4b8eb1443c4351150e0c106a45675850f739f78" target="_blank">d4b8eb1</a>
+</a>
+</p>
+</div>
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomGinoBonazzaDCMsnRNAseqtreed4b8eb1443c4351150e0c106a45675850f739f78targetblankd4b8eb1a"
+class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development
+and connecting the code version to the results is critical for
+reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/tree/d4b8eb1443c4351150e0c106a45675850f739f78" target="_blank">d4b8eb1</a>.
+See the <em>Past versions</em> tab to see a history of the changes made
+to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for
+the analysis have been committed to Git prior to generating the results
+(you can use <code>wflow_publish</code> or
+<code>wflow_git_commit</code>). workflowr only checks the R Markdown
+file, but you know if there are other scripts or data files that it
+depends on. Below is the status of the Git repository when the results
+were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    analysis/figure/
+    Ignored:    logs/
+
+Untracked files:
+    Untracked:  data/Baza_dla_Gino_AP.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_2.xlsx
+    Untracked:  data/Baza_dla_Gino_AP_short.xlsx
+    Untracked:  data/Cellbender_output
+    Untracked:  data/Cellranger_output
+    Untracked:  data/DCM_Clinical_data_22.xlsx
+    Untracked:  data/DCM_Clinical_data_26.xlsx
+    Untracked:  data/DCM_Clinical_data_30.xlsx
+    Untracked:  data/DCM_Clinical_data_30_261012.xlsx
+    Untracked:  data/DCM_Clinical_data_83.xlsx
+    Untracked:  data/HMEC_RNAseq
+    Untracked:  data/Heart_datasets
+    Untracked:  data/Heart_specific_proteome.xlsx
+    Untracked:  data/Homo_sapiens.GRCh38.93.gtf
+    Untracked:  data/Human_plasma_proteome.xlsx
+    Untracked:  data/Mass_spec
+    Untracked:  data/Massons_quantification.xlsx
+    Untracked:  data/OLINK
+    Untracked:  data/OLINK_LVAD
+    Untracked:  data/Published_datasets
+    Untracked:  data/Raw
+    Untracked:  data/SSc-PAH
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.annotation.gtf
+    Untracked:  data/gencode.v46.chr_patch_hapl_scaff.basic.annotation.gtf
+    Untracked:  data/processed/CM/activities.qs2
+    Untracked:  data/processed/CM/annotated.qs2
+    Untracked:  data/processed/CM/baseline.qs2
+    Untracked:  data/processed/EC/activities.qs2
+    Untracked:  data/processed/EC/annotated.qs2
+    Untracked:  data/processed/EC/baseline.qs2
+    Untracked:  data/processed/FB/activities.qs2
+    Untracked:  data/processed/FB/annotated.qs2
+    Untracked:  data/processed/FB/baseline.qs2
+    Untracked:  data/processed/LC/PC10.qs2
+    Untracked:  data/processed/LC/PC20.qs2
+    Untracked:  data/processed/LC/PC30.qs2
+    Untracked:  data/processed/LC/activities.qs2
+    Untracked:  data/processed/LC/annotated.qs2
+    Untracked:  data/processed/LC/baseline.qs2
+    Untracked:  data/processed/MC/activities.qs2
+    Untracked:  data/processed/MC/annotated.qs2
+    Untracked:  data/processed/MC/baseline.qs2
+    Untracked:  data/processed/MP/PC10.qs2
+    Untracked:  data/processed/MP/PC20.qs2
+    Untracked:  data/processed/MP/PC30.qs2
+    Untracked:  data/processed/MP/activities.qs2
+    Untracked:  data/processed/MP/annotated.qs2
+    Untracked:  data/processed/MP/baseline.qs2
+    Untracked:  data/processed/MultinicheNet.qs2
+    Untracked:  data/processed/QC/annotated.qs2
+    Untracked:  data/processed/QC/annotated_RNA.qs2
+    Untracked:  data/processed/QC/doublet_metadata.csv
+    Untracked:  data/processed/QC/final_integrated.qs2
+    Untracked:  data/processed/QC/initial_integrated.qs2
+    Untracked:  data/processed/QC/not_integrated.qs2
+    Untracked:  data/processed/QC/preQC.qs2
+    Untracked:  data/processed/RNA_quality_control.qs2
+    Untracked:  data/processed/RV_cell_states_RNA.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD13.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD15.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD16.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD4.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD5.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD6.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD7.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_CZD9.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P3.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P5.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_P8.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK153.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK213.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK229.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK323.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK337.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK345.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK357.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK369.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK375.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK385.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK401.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK403.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK415.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK437.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK439.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK441.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK461.qs2
+    Untracked:  data/processed/SoupX/A_SoupX_input_PK463.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD13.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD15.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD16.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD4.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD5.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD6.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD7.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_CZD9.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P3.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P5.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_P8.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK153.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK213.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK229.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK323.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK337.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK345.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK357.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK369.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK375.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK385.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK401.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK403.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK415.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK437.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK439.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK441.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK461.qs2
+    Untracked:  data/processed/SoupX/A_fresh_ambient_profile_PK463.qs2
+    Untracked:  data/processed/mPAP/CM_GSEA_Reactome_mPAP.rds
+    Untracked:  data/processed/mPAP/CM_ORA_REACTOME_mPAP_down.rds
+    Untracked:  data/processed/mPAP/CM_ORA_REACTOME_mPAP_up.rds
+    Untracked:  data/processed/mPAP/CM_activities.qs2
+    Untracked:  data/processed/resources/A_activity_API_compatibility.json
+    Untracked:  data/processed/resources/A_activity_network_manifest.json
+    Untracked:  data/processed/resources/A_final_resource_manifest.json
+    Untracked:  data/processed/resources/A_ligand_target_matrix_nsga2r_final.rds
+    Untracked:  data/processed/resources/A_resources_sessionInfo.txt
+    Untracked:  data/processed/resources/A_submitted_programme_provenance.json
+    Untracked:  data/refdata-gex-GRCh38-2020-A
+    Untracked:  omnipathr-log/
+    Untracked:  output/Ambient_RNA_correction/
+    Untracked:  output/Cardiomyocytes_cell_states/
+    Untracked:  output/Cell_communication/
+    Untracked:  output/Cell_state_annotation/
+    Untracked:  output/Clinical_transcriptomic_associations/
+    Untracked:  output/DCM_control_transcriptomics/
+    Untracked:  output/Datasets/
+    Untracked:  output/Endothelial_cells_cell_states/
+    Untracked:  output/Fibroblasts_cell_states/
+    Untracked:  output/Fibrosis_associations/
+    Untracked:  output/Integrative_analysis/
+    Untracked:  output/Lymphocytes_cell_states/
+    Untracked:  output/Macrophages_cell_states/
+    Untracked:  output/Mural_cells_cell_states/
+    Untracked:  output/Protein_differential_abundance/
+    Untracked:  output/Protein_quality_control/
+    Untracked:  output/Pulmonary_pressure_associations/
+    Untracked:  output/QC_integration/
+    Untracked:  output/Supplementary_datasets/
+    Untracked:  output/Transcriptional_signatures/
+    Untracked:  output/Transcriptomic_variation/
+
+Unstaged changes:
+    Deleted:    output/README.md
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not
+included in this status report because it is ok for generated content to
+have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+These are the previous versions of the repository in which changes were
+made to the R Markdown (<code>analysis/Integrative_analysis.Rmd</code>)
+and HTML (<code>docs/Integrative_analysis.html</code>) files. If you’ve
+configured a remote Git repository (see <code>?wflow_git_remote</code>),
+click on the hyperlinks in the table below to view the files as they
+were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/analysis/Integrative_analysis.Rmd" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Document assay-specific age covariates in donor metadata
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/d4b8eb1443c4351150e0c106a45675850f739f78/docs/Integrative_analysis.html" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Document assay-specific age covariates in donor metadata
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/analysis/Integrative_analysis.Rmd" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Include RNA processing and sequencing batches in EV1
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/Integrative_analysis.html" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Include RNA processing and sequencing batches in EV1
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/analysis/Integrative_analysis.Rmd" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Align signature membership exports with the tested cell types
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/Integrative_analysis.html" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Align signature membership exports with the tested cell types
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/analysis/Integrative_analysis.Rmd" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Refine compact programme panel labels
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/Integrative_analysis.html" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Refine compact programme panel labels
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/analysis/Integrative_analysis.Rmd" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Add HC-inclusive analysis scripts and frozen reproducibility inputs
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/Integrative_analysis.html" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+<td>
+Add HC-inclusive analysis scripts and frozen reproducibility inputs
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/analysis/Integrative_analysis.Rmd" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+<td>
+MXRA5 coexpression analysis
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/GinoBonazza/DCM_snRNAseq/d136073823de03a4d23429fae2eb314862b8af4f/docs/Integrative_analysis.html" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+<td>
+MXRA5 coexpression analysis
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<pre class="r"><code>knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE, cache = FALSE, echo = TRUE, dpi = 600, fig.retina = 1, 
+    fig.align = &quot;center&quot;, dev = &quot;png&quot;, dev.args = list(type = &quot;cairo&quot;, family = &quot;Arial&quot;))
+library(here)</code></pre>
+<pre><code>here() starts at /scratch/gbonaz/A_publication_20261118/project</code></pre>
+<pre class="r"><code>current_file &lt;- &quot;Integrative_analysis&quot;
+output_dir_data &lt;- here::here(&quot;output&quot;, current_file)
+output_dir_figs &lt;- here::here(&quot;docs&quot;, &quot;figure&quot;, paste0(current_file, &quot;.Rmd&quot;))
+dir.create(output_dir_data, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_figs, recursive = TRUE, showWarnings = FALSE)
+dir.create(here::here(&quot;output&quot;, &quot;Datasets&quot;), recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(fig.path = paste0(output_dir_figs, &quot;/&quot;))
+set.seed(20240606)</code></pre>
+<pre class="r"><code>options(stringsAsFactors = FALSE)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(Matrix)
+library(matrixStats)
+library(Seurat)
+library(edgeR)
+library(DESeq2)
+library(SummarizedExperiment)
+library(limma)
+library(MOFA2)
+library(qs2)
+log_step &lt;- function(x) message(format(Sys.time(), &quot;%FT%T&quot;), &quot; &quot;, x)
+O &lt;- output_dir_data
+count &lt;- dplyr::count
+filter &lt;- dplyr::filter
+select &lt;- dplyr::select
+desc &lt;- dplyr::desc
+slice &lt;- dplyr::slice
+base_output_dir &lt;- O
+preprocessing_output_dir &lt;- file.path(O, &quot;preprocessed_views&quot;)
+proteomics_output_dir &lt;- file.path(O, &quot;proteomics_model&quot;)
+matched_output_dir &lt;- file.path(O, &quot;matched_three_view_model&quot;)
+for (x in c(preprocessing_output_dir, proteomics_output_dir, matched_output_dir)) dir.create(x, recursive = TRUE, 
+    showWarnings = FALSE)
+processed_proteomics_file &lt;- file.path(preprocessing_output_dir, &quot;processed_Olink_and_LCMS_views.rds&quot;)
+processed_rna_file &lt;- file.path(preprocessing_output_dir, &quot;processed_RNA_pseudobulk_view.rds&quot;)
+proteomics_input_file &lt;- file.path(proteomics_output_dir, &quot;MOFA_proteomics_input.rds&quot;)
+matched_input_file &lt;- file.path(matched_output_dir, &quot;MOFA_matched_three_view_input.rds&quot;)
+seurat_file &lt;- here::here(&quot;data&quot;, &quot;processed&quot;, &quot;RV_cell_states_RNA.qs2&quot;)
+proteomics_qc_file &lt;- here::here(&quot;output&quot;, &quot;Protein_quality_control&quot;, &quot;Proteomics_QC.rds&quot;)
+mPAP_overload_cutoff &lt;- 20
+coupling_cutoff &lt;- 0.36
+rna_min_nuclei_fraction &lt;- 0.01
+min_rna_library_size &lt;- 50000
+n_rna_features &lt;- 2000
+exclude_mitochondrial_and_ribosomal_genes &lt;- TRUE
+min_ms_observed_fraction &lt;- 0.5
+n_qs_threads &lt;- 2
+clinical_parameters &lt;- c(&quot;mPAP_mmHg&quot;, &quot;sPAP_mmHg&quot;, &quot;PCW_mmHg&quot;, &quot;PVR_WU&quot;, &quot;TAPSE_mm&quot;, &quot;RVIT_mm&quot;, &quot;LVEF_percent&quot;, 
+    &quot;LVEDD_mm&quot;)
+filtered_proteomics &lt;- readRDS(proteomics_qc_file)</code></pre>
+</div>
+<div id="model-inputs" class="section level2">
+<h2>Model inputs</h2>
+<pre class="r"><code>retained_dcm_samples &lt;- filtered_proteomics$clinical$Sample
+clin_all &lt;- filtered_proteomics$clinical %&gt;% dplyr::filter(Group %in% c(&quot;DCM&quot;, &quot;HC&quot;), Sample %in% retained_dcm_samples) %&gt;% 
+    dplyr::mutate(Sample = as.character(Sample), Age_years = as.numeric(Age_years), LVEF_percent = as.numeric(LVEF_percent), 
+        LVID_mm = as.numeric(LVID_mm), LVEDD_mm = as.numeric(LVEDD_mm), RVOT_mm = as.numeric(RVOT_mm), TAPSE_mm = as.numeric(TAPSE_mm), 
+        RVIT_mm = as.numeric(RVIT_mm), RAA_cm2 = as.numeric(RAA_cm2), RVS_cm.s = as.numeric(RVS_cm.s), RVSP_mmHg = as.numeric(RVSP_mmHg), 
+        sPAP_mmHg = as.numeric(sPAP_mmHg), mPAP_mmHg = as.numeric(mPAP_mmHg), PCW_mmHg = as.numeric(PCW_mmHg), 
+        PVR_WU = as.numeric(PVR_WU), TPG_mmHg = as.numeric(TPG_mmHg), CO_l.min = as.numeric(CO_l.min), TAPSE_sPAP = TAPSE_mm/sPAP_mmHg) %&gt;% 
+    dplyr::distinct(Sample, .keep_all = TRUE) %&gt;% dplyr::mutate(RV_group = dplyr::case_when(is.na(mPAP_mmHg) ~ 
+    NA_character_, mPAP_mmHg &lt;= mPAP_overload_cutoff ~ &quot;Not overloaded&quot;, mPAP_mmHg &gt; mPAP_overload_cutoff &amp; is.na(TAPSE_sPAP) ~ 
+    NA_character_, mPAP_mmHg &gt; mPAP_overload_cutoff &amp; TAPSE_sPAP &gt; coupling_cutoff ~ &quot;Compensated&quot;, mPAP_mmHg &gt; 
+    mPAP_overload_cutoff &amp; TAPSE_sPAP &lt;= coupling_cutoff ~ &quot;Decompensated&quot;, TRUE ~ NA_character_), RV_group = factor(RV_group, 
+    levels = c(&quot;Not overloaded&quot;, &quot;Compensated&quot;, &quot;Decompensated&quot;)), Sex = factor(Sex), Etiology = factor(Etiology))
+clin_all %&gt;% dplyr::count(RV_group, .drop = FALSE)</code></pre>
+<pre><code># A tibble: 4 × 2
+  RV_group           n
+  &lt;fct&gt;          &lt;int&gt;
+1 Not overloaded     1
+2 Compensated       11
+3 Decompensated     28
+4 &lt;NA&gt;              27</code></pre>
+<pre class="r"><code>clin_all$RV_group[clin_all$Group != &quot;DCM&quot;] &lt;- NA
+write.csv(clin_all, file.path(O, &quot;A_all_clinical_metadata.csv&quot;), row.names = FALSE)
+olink_expr &lt;- filtered_proteomics$olink
+olink_sample_meta &lt;- filtered_proteomics$olink_metadata %&gt;% dplyr::mutate(Sample = as.character(Sample), BCA_mg_ml = as.numeric(BCA_mg_ml), 
+    Batch = factor(Batch)) %&gt;% dplyr::distinct(Sample, .keep_all = TRUE)
+olink_samples &lt;- clin_all$Sample[clin_all$Sample %in% colnames(olink_expr)]
+olink_expr &lt;- olink_expr[, olink_samples, drop = FALSE]
+olink_meta &lt;- clin_all %&gt;% dplyr::inner_join(olink_sample_meta %&gt;% dplyr::select(Sample, Batch, BCA_mg_ml), by = &quot;Sample&quot;) %&gt;% 
+    dplyr::filter(Sample %in% colnames(olink_expr), !is.na(BCA_mg_ml)) %&gt;% dplyr::slice(match(colnames(olink_expr), 
+    Sample)) %&gt;% dplyr::distinct(Sample, .keep_all = TRUE)
+olink_expr &lt;- olink_expr[, olink_meta$Sample, drop = FALSE]
+olink_observed &lt;- matrixStats::rowSums2(is.finite(olink_expr))
+olink_variance_original &lt;- matrixStats::rowVars(olink_expr, na.rm = TRUE)
+keep_olink_features &lt;- olink_observed &gt;= 2 &amp; is.finite(olink_variance_original) &amp; olink_variance_original &gt; 0
+olink_expr &lt;- olink_expr[keep_olink_features, , drop = FALSE]
+dim(olink_expr)</code></pre>
+<pre><code>[1] 1034   64</code></pre>
+<pre class="r"><code>bca_covariate &lt;- matrix(as.numeric(scale(olink_meta$BCA_mg_ml)), ncol = 1, dimnames = list(olink_meta$Sample, &quot;BCA_scaled&quot;))
+olink_mofa &lt;- limma::removeBatchEffect(olink_expr, covariates = bca_covariate)
+olink_variance_corrected &lt;- matrixStats::rowVars(olink_mofa, na.rm = TRUE)
+keep_corrected_olink_features &lt;- is.finite(olink_variance_corrected) &amp; olink_variance_corrected &gt; 0
+olink_mofa &lt;- olink_mofa[keep_corrected_olink_features, , drop = FALSE]
+olink_feature_table &lt;- tibble::tibble(feature = rownames(olink_expr), variance_before_BCA_correction = matrixStats::rowVars(olink_expr, 
+    na.rm = TRUE), variance_after_BCA_correction = olink_variance_corrected, selected_for_MOFA = rownames(olink_expr) %in% 
+    rownames(olink_mofa))
+bca_correlations_before &lt;- apply(olink_expr, 1, stats::cor, y = olink_meta$BCA_mg_ml, use = &quot;pairwise.complete.obs&quot;)
+bca_correlations_after &lt;- apply(olink_mofa, 1, stats::cor, y = olink_meta$BCA_mg_ml, use = &quot;pairwise.complete.obs&quot;)
+olink_bca_correction_diagnostic &lt;- tibble::tibble(feature = names(bca_correlations_before), correlation_before = as.numeric(bca_correlations_before), 
+    correlation_after = as.numeric(bca_correlations_after[names(bca_correlations_before)]))
+write.csv(olink_feature_table, file.path(preprocessing_output_dir, &quot;Olink_feature_selection_all_proteins.csv&quot;), 
+    row.names = FALSE)
+write.csv(olink_bca_correction_diagnostic, file.path(preprocessing_output_dir, &quot;Olink_BCA_correction_diagnostic.csv&quot;), 
+    row.names = FALSE)
+dim(olink_mofa)</code></pre>
+<pre><code>[1] 1034   64</code></pre>
+<pre class="r"><code>ms_expr &lt;- filtered_proteomics$ms
+ms_samples &lt;- clin_all$Sample[clin_all$Sample %in% colnames(ms_expr)]
+ms_expr &lt;- ms_expr[, ms_samples, drop = FALSE]
+ms_observed_fraction &lt;- matrixStats::rowMeans2(is.finite(ms_expr))
+ms_variance &lt;- matrixStats::rowVars(ms_expr, na.rm = TRUE)
+keep_ms_features &lt;- ms_observed_fraction &gt;= min_ms_observed_fraction &amp; is.finite(ms_variance) &amp; ms_variance &gt; 0
+ms_mofa &lt;- ms_expr[keep_ms_features, , drop = FALSE]
+ms_feature_table &lt;- tibble::tibble(feature = rownames(ms_expr), observed_fraction = ms_observed_fraction, variance = ms_variance, 
+    selected_for_MOFA = keep_ms_features) %&gt;% dplyr::arrange(dplyr::desc(variance))
+write.csv(ms_feature_table, file.path(preprocessing_output_dir, &quot;MS_feature_selection.csv&quot;), row.names = FALSE)
+dim(ms_mofa)</code></pre>
+<pre><code>[1] 644  67</code></pre>
+<pre class="r"><code>saveRDS(list(Olink = olink_mofa, LCMS = ms_mofa, Olink_original = olink_expr, Olink_metadata = olink_meta, Olink_BCA_diagnostic = olink_bca_correction_diagnostic, 
+    QC_source_file = proteomics_qc_file), processed_proteomics_file)
+proteomics_samples &lt;- clin_all$Sample[clin_all$Sample %in% intersect(colnames(olink_mofa), colnames(ms_mofa))]
+proteomics_data &lt;- list(Olink = olink_mofa[, proteomics_samples, drop = FALSE], LCMS = ms_mofa[, proteomics_samples, 
+    drop = FALSE])
+lapply(proteomics_data, dim)</code></pre>
+<pre><code>$Olink
+[1] 1034   64
+
+$LCMS
+[1] 644  64</code></pre>
+<pre class="r"><code>saveRDS(proteomics_data, proteomics_input_file)
+stopifnot(all(c(&quot;HC&quot;, &quot;DCM&quot;) %in% as.character(clin_all$Group[match(colnames(proteomics_data[[1]]), clin_all$Sample)])))
+DCM_RV &lt;- qs2::qs_read(seurat_file, nthreads = n_qs_threads)
+DefaultAssay(DCM_RV) &lt;- &quot;RNA&quot;
+DCM_RV$pseudobulk &lt;- &quot;Pseudobulk&quot;
+dcm_cells &lt;- colnames(DCM_RV)[DCM_RV$Sample %in% clin_all$Sample]
+rna_counts &lt;- SeuratObject::LayerData(DCM_RV, assay = &quot;RNA&quot;, layer = &quot;counts&quot;)[, dcm_cells, drop = FALSE]
+n_rna_nuclei &lt;- ncol(rna_counts)
+minimum_nuclei &lt;- ceiling(rna_min_nuclei_fraction * n_rna_nuclei)
+rna_nuclei_detected &lt;- Matrix::rowSums(rna_counts &gt; 0)
+rna_detection_table &lt;- tibble::tibble(feature = rownames(rna_counts), n_nuclei_detected = as.numeric(rna_nuclei_detected), 
+    fraction_nuclei_detected = as.numeric(rna_nuclei_detected)/n_rna_nuclei, passes_1_percent_filter = n_nuclei_detected &gt;= 
+        minimum_nuclei)
+if (exclude_mitochondrial_and_ribosomal_genes) {
+    rna_detection_table &lt;- rna_detection_table %&gt;% dplyr::mutate(mitochondrial_or_ribosomal = grepl(&quot;^MT-|^RP[SL]&quot;, 
+        feature), retained_before_VST = passes_1_percent_filter &amp; !mitochondrial_or_ribosomal)
+} else {
+    rna_detection_table &lt;- rna_detection_table %&gt;% dplyr::mutate(mitochondrial_or_ribosomal = FALSE, retained_before_VST = passes_1_percent_filter)
+}
+rna_genes_for_pseudobulk &lt;- rna_detection_table %&gt;% dplyr::filter(retained_before_VST) %&gt;% dplyr::pull(feature)
+write.csv(rna_detection_table, file.path(preprocessing_output_dir, &quot;RNA_nucleus_detection_filter.csv&quot;), row.names = FALSE)
+c(nuclei = n_rna_nuclei, minimum_nuclei = minimum_nuclei, retained_genes = length(rna_genes_for_pseudobulk))</code></pre>
+<pre><code>        nuclei minimum_nuclei retained_genes 
+        190794           1908          17342 </code></pre>
+<pre class="r"><code>rna_pb &lt;- edgeR::Seurat2PB(DCM_RV, sample = &quot;Sample&quot;, cluster = &quot;pseudobulk&quot;)
+colnames(rna_pb) &lt;- rna_pb$samples$sample
+rna_samples &lt;- intersect(clin_all$Sample, colnames(rna_pb))
+rna_pb &lt;- rna_pb[, rna_samples, keep.lib.sizes = FALSE]
+keep_rna_samples &lt;- rna_pb$samples$lib.size &gt; min_rna_library_size
+rna_pb &lt;- rna_pb[, keep_rna_samples, keep.lib.sizes = FALSE]
+rna_genes_for_pseudobulk &lt;- intersect(rna_genes_for_pseudobulk, rownames(rna_pb))
+rna_pb &lt;- rna_pb[rna_genes_for_pseudobulk, , keep.lib.sizes = FALSE]
+rm(rna_counts)
+gc()</code></pre>
+<pre><code>             used    (Mb) gc trigger    (Mb)   max used    (Mb)
+Ncells   12893101   688.6   22418087  1197.3   21517055  1149.2
+Vcells 1649165146 12582.2 4701085244 35866.5 3815532063 29110.2</code></pre>
+<pre class="r"><code>dim(rna_pb)</code></pre>
+<pre><code>[1] 17342    29</code></pre>
+<pre class="r"><code>rna_count_matrix &lt;- as.matrix(rna_pb$counts)
+storage.mode(rna_count_matrix) &lt;- &quot;integer&quot;
+rna_coldata &lt;- data.frame(Sample = colnames(rna_count_matrix), row.names = colnames(rna_count_matrix))
+rna_dds &lt;- DESeq2::DESeqDataSetFromMatrix(countData = rna_count_matrix, colData = rna_coldata, design = ~1)
+rna_vst_object &lt;- DESeq2::vst(rna_dds, blind = TRUE)
+rna_vst_matrix &lt;- SummarizedExperiment::assay(rna_vst_object)
+rna_variance &lt;- matrixStats::rowVars(rna_vst_matrix)
+keep_finite_rna_variance &lt;- is.finite(rna_variance) &amp; rna_variance &gt; 0
+rna_vst_matrix &lt;- rna_vst_matrix[keep_finite_rna_variance, , drop = FALSE]
+rna_variance &lt;- rna_variance[keep_finite_rna_variance]
+rna_feature_order &lt;- order(rna_variance, decreasing = TRUE)
+rna_feature_order &lt;- head(rna_feature_order, min(n_rna_features, length(rna_feature_order)))
+rna_mofa &lt;- rna_vst_matrix[rna_feature_order, , drop = FALSE]
+rna_feature_table &lt;- tibble::tibble(feature = rownames(rna_vst_matrix), VST_variance = as.numeric(rna_variance), 
+    selected_for_MOFA = rownames(rna_vst_matrix) %in% rownames(rna_mofa)) %&gt;% dplyr::arrange(dplyr::desc(VST_variance))
+write.csv(rna_feature_table, file.path(preprocessing_output_dir, &quot;RNA_VST_feature_selection.csv&quot;), row.names = FALSE)
+saveRDS(list(RNA_pseudobulk = rna_mofa, RNA_VST_all_filtered_genes = rna_vst_matrix, feature_table = rna_feature_table), 
+    processed_rna_file)
+dim(rna_mofa)</code></pre>
+<pre><code>[1] 2000   29</code></pre>
+<pre class="r"><code>matched_samples &lt;- Reduce(intersect, list(colnames(rna_mofa), colnames(olink_mofa), colnames(ms_mofa)))
+matched_samples &lt;- clin_all$Sample[clin_all$Sample %in% matched_samples]
+matched_data &lt;- list(RNA_pseudobulk = rna_mofa[, matched_samples, drop = FALSE], Olink = olink_mofa[, matched_samples, 
+    drop = FALSE], LCMS = ms_mofa[, matched_samples, drop = FALSE])
+length(matched_samples)</code></pre>
+<pre><code>[1] 27</code></pre>
+<pre class="r"><code>lapply(matched_data, dim)</code></pre>
+<pre><code>$RNA_pseudobulk
+[1] 2000   27
+
+$Olink
+[1] 1034   27
+
+$LCMS
+[1] 644  27</code></pre>
+<pre class="r"><code>saveRDS(matched_data, matched_input_file)
+write.csv(as.data.frame(table(Sample = DCM_RV$Sample)), file.path(O, &quot;A_RNA_nuclei_per_donor.csv&quot;), row.names = FALSE)
+saveRDS(list(clin_all = clin_all, olink_sample_meta = olink_sample_meta, clinical_parameters = clinical_parameters, 
+    final_nuclei = ncol(DCM_RV)), file.path(O, &quot;A_metadata.rds&quot;))
+coverage &lt;- bind_rows(lapply(c(&quot;proteomics&quot;, &quot;matched&quot;), function(model) {
+    dat &lt;- if (model == &quot;proteomics&quot;) 
+        proteomics_data
+    else matched_data
+    tibble(Model = model, Sample = colnames(dat[[1]]))
+})) %&gt;% left_join(clin_all %&gt;% select(Sample, Group, RV_group, Age_years), by = &quot;Sample&quot;)
+write.csv(coverage, file.path(O, &quot;A_model_donors.csv&quot;), row.names = FALSE)
+print(coverage %&gt;% count(Model, Group))</code></pre>
+<pre><code># A tibble: 4 × 3
+  Model      Group     n
+  &lt;chr&gt;      &lt;fct&gt; &lt;int&gt;
+1 matched    DCM      20
+2 matched    HC        7
+3 proteomics DCM      44
+4 proteomics HC       20</code></pre>
+<pre class="r"><code>print(coverage %&gt;% count(Model, RV_group))</code></pre>
+<pre><code># A tibble: 8 × 3
+  Model      RV_group           n
+  &lt;chr&gt;      &lt;fct&gt;          &lt;int&gt;
+1 matched    Not overloaded     1
+2 matched    Compensated        6
+3 matched    Decompensated     10
+4 matched    &lt;NA&gt;              10
+5 proteomics Not overloaded     1
+6 proteomics Compensated       11
+7 proteomics Decompensated     27
+8 proteomics &lt;NA&gt;              25</code></pre>
+<pre class="r"><code>stopifnot(all(c(&quot;HC&quot;, &quot;DCM&quot;) %in% as.character(coverage$Group[coverage$Model == &quot;matched&quot;])))
+writeLines(capture.output(sessionInfo()), file.path(O, &quot;A_preparation_sessionInfo.txt&quot;))</code></pre>
+</div>
+<div id="factor-models" class="section level2">
+<h2>Factor models</h2>
+<pre class="r"><code>fit_model &lt;- function(data, K, seed, maxiter, path) {
+    if (file.exists(path)) 
+        return(MOFA2::load_model(path, sort_factors = TRUE, remove_inactive_factors = FALSE))
+    ob &lt;- MOFA2::create_mofa(data)
+    dop &lt;- MOFA2::get_default_data_options(ob)
+    dop$scale_views &lt;- TRUE
+    mop &lt;- MOFA2::get_default_model_options(ob)
+    mop$num_factors &lt;- K
+    mop$likelihoods[] &lt;- &quot;gaussian&quot;
+    top &lt;- MOFA2::get_default_training_options(ob)
+    top$maxiter &lt;- maxiter
+    top$convergence_mode &lt;- &quot;medium&quot;
+    top$freqELBO &lt;- 5
+    top$drop_factor_threshold &lt;- -1
+    top$seed &lt;- seed
+    top$verbose &lt;- FALSE
+    ob &lt;- MOFA2::prepare_mofa(ob, data_options = dop, model_options = mop, training_options = top)
+    MOFA2::run_mofa(ob, outfile = path, use_basilisk = FALSE)
+    MOFA2::load_model(path, sort_factors = TRUE, remove_inactive_factors = FALSE)
+}
+get_out &lt;- function(nm) file.path(O, if (nm == &quot;proteomics&quot;) &quot;proteomics_model&quot; else &quot;matched_three_view_model&quot;)
+get_data &lt;- function(nm) readRDS(file.path(get_out(nm), if (nm == &quot;proteomics&quot;) &quot;MOFA_proteomics_input.rds&quot; else &quot;MOFA_matched_three_view_input.rds&quot;))</code></pre>
+<pre class="r"><code>grid &lt;- expand.grid(seed = c(20260715, 20260716, 20260717), n_factors = 3:15, Model = c(&quot;proteomics&quot;, &quot;matched&quot;), 
+    stringsAsFactors = FALSE)
+for (i in seq_len(nrow(grid))) {
+    g &lt;- grid[i, ]
+    out &lt;- get_out(g$Model)
+    data &lt;- get_data(g$Model)
+    path &lt;- file.path(out, sprintf(&quot;A_tuning_K%02d_seed%d.hdf5&quot;, g$n_factors, g$seed))
+    m &lt;- fit_model(data, g$n_factors, g$seed, 5000, path)
+    rr &lt;- MOFA2::get_variance_explained(m)$r2_per_factor[[1]]
+    stopifnot(nrow(rr) == g$n_factors, all(is.finite(rr)))
+    tt &lt;- data.frame(n_factors = g$n_factors, seed = g$seed, final_ELBO = MOFA2::get_elbo(m), weakest_factor_max_view_R2 = min(apply(rr, 
+        1, max)), n_factors_any_view_R2_at_least_5 = sum(apply(rr, 1, max) &gt;= 5), model_file = path)
+    write.csv(tt, file.path(out, sprintf(&quot;A_tuning_summary_K%02d_seed%d.csv&quot;, g$n_factors, g$seed)), row.names = FALSE)
+}</code></pre>
+<pre class="r"><code>for (nm in c(&quot;proteomics&quot;, &quot;matched&quot;)) {
+    out &lt;- get_out(nm)
+    data &lt;- get_data(nm)
+    gg &lt;- grid[grid$Model == nm, ]
+    files &lt;- file.path(out, sprintf(&quot;A_tuning_summary_K%02d_seed%d.csv&quot;, gg$n_factors, gg$seed))
+    stopifnot(length(files) == 39, all(file.exists(files)))
+    tt &lt;- bind_rows(lapply(files, read.csv))
+    stopifnot(nrow(tt) == 39, !anyDuplicated(tt[, c(&quot;n_factors&quot;, &quot;seed&quot;)]), all(is.finite(tt$final_ELBO)))
+    write.csv(tt, file.path(out, &quot;A_factor_tuning_all_runs.csv&quot;), row.names = FALSE)
+    best &lt;- tt %&gt;% group_by(n_factors) %&gt;% slice_max(final_ELBO, n = 1, with_ties = FALSE) %&gt;% ungroup() %&gt;% arrange(n_factors)
+    write.csv(best, file.path(out, &quot;A_factor_tuning_best_seed_per_K.csv&quot;), row.names = FALSE)
+    low &lt;- best$weakest_factor_max_view_R2 &lt; 5
+    starts &lt;- which(vapply(seq_len(nrow(best) - 2), function(i) all(low[i:(i + 2)]), logical(1)))
+    plateau &lt;- length(starts) &gt; 0
+    upper &lt;- if (plateau) 
+        best$n_factors[starts[1]] - 1
+    else max(best$n_factors)
+    eligible &lt;- best %&gt;% filter(n_factors &lt;= upper, weakest_factor_max_view_R2 &gt;= 5) %&gt;% arrange(desc(n_factors))
+    stopifnot(nrow(eligible) &gt; 0)
+    attempts &lt;- list()
+    for (j in seq_len(nrow(eligible))) {
+        K &lt;- eligible$n_factors[j]
+        seed &lt;- eligible$seed[j]
+        path &lt;- file.path(out, paste0(&quot;A_final_refit_K&quot;, K, &quot;.hdf5&quot;))
+        m &lt;- fit_model(data, K, seed, 10000, path)
+        rr &lt;- MOFA2::get_variance_explained(m)$r2_per_factor[[1]]
+        weak &lt;- min(apply(rr, 1, max))
+        attempts[[j]] &lt;- data.frame(K = K, seed = seed, weakest_factor_max_view_R2 = weak, passes = weak &gt;= 5)
+        write.csv(bind_rows(attempts), file.path(out, &quot;A_final_refit_threshold_checks.csv&quot;), row.names = FALSE)
+        if (weak &gt;= 5) 
+            break
+    }
+    stopifnot(weak &gt;= 5)
+    file.copy(path, file.path(out, &quot;A_final_model.hdf5&quot;), overwrite = TRUE)
+    saveRDS(m, file.path(out, &quot;A_final_model.rds&quot;))
+    settings &lt;- data.frame(selected_n_factors = K, selected_seed = seed, factor_plateau_reached = plateau, weakest_factor_R2_cutoff = 5, 
+        consecutive_low_models_required = 3, tuning_min_K = 3, tuning_max_K = 15, tuning_maxiter = 5000, final_maxiter = 10000, 
+        convergence_mode = &quot;medium&quot;, variance_metric = &quot;minimum across factors of maximum per-view R2&quot;, final_weakest_factor_max_view_R2 = weak)
+    write.csv(settings, file.path(out, &quot;A_selected_model_settings.csv&quot;), row.names = FALSE)
+}</code></pre>
+</div>
+<div id="clinical-associations" class="section level2">
+<h2>Clinical associations</h2>
+<pre class="r"><code>library(broom)
+meta &lt;- readRDS(file.path(O, &quot;A_metadata.rds&quot;))
+clin &lt;- meta$clin_all
+fib &lt;- readxl::read_excel(here::here(&quot;data/Massons_quantification.xlsx&quot;))
+if (!&quot;Fibrosis_percent&quot; %in% names(fib)) names(fib)[3] &lt;- &quot;Fibrosis_percent&quot;
+fib &lt;- fib %&gt;% transmute(Sample = as.character(Sample), Fibrosis_percent = as.numeric(Fibrosis_percent)) %&gt;% distinct(Sample, 
+    .keep_all = TRUE)
+clin &lt;- left_join(clin, fib, by = &quot;Sample&quot;)
+associations &lt;- list()
+all_results &lt;- list()
+for (which_model in c(&quot;proteomics&quot;, &quot;matched&quot;)) {
+    out &lt;- file.path(O, if (which_model == &quot;proteomics&quot;) 
+        &quot;proteomics_model&quot;
+    else &quot;matched_three_view_model&quot;)
+    model &lt;- readRDS(file.path(out, &quot;A_final_model.rds&quot;))
+    z &lt;- MOFA2::get_factors(model, factors = &quot;all&quot;, as.data.frame = FALSE)[[1]]
+    scores &lt;- as.data.frame(z) %&gt;% rownames_to_column(&quot;Sample&quot;) %&gt;% pivot_longer(-Sample, names_to = &quot;Factor&quot;, 
+        values_to = &quot;Factor_value&quot;) %&gt;% left_join(clin, by = &quot;Sample&quot;)
+    r2 &lt;- MOFA2::get_variance_explained(model)$r2_per_factor[[1]]
+    r2tab &lt;- as.data.frame(r2) %&gt;% rownames_to_column(&quot;Factor&quot;) %&gt;% pivot_longer(-Factor, names_to = &quot;View&quot;, values_to = &quot;R2&quot;)
+    w &lt;- MOFA2::get_weights(model, views = &quot;all&quot;, factors = &quot;all&quot;, as.data.frame = FALSE)
+    weights &lt;- bind_rows(lapply(names(w), function(v) as.data.frame(w[[v]]) %&gt;% rownames_to_column(&quot;Feature&quot;) %&gt;% 
+        pivot_longer(-Feature, names_to = &quot;Factor&quot;, values_to = &quot;Weight&quot;) %&gt;% mutate(View = v)))
+    fits &lt;- list()
+    index &lt;- 0L
+    for (fac in colnames(z)) {
+        for (test in c(meta$clinical_parameters, &quot;DCM_vs_HC&quot;, &quot;Decomp_vs_Comp&quot;, if (which_model == &quot;matched&quot;) &quot;Fibrosis_percent&quot;)) {
+            dd &lt;- filter(scores, Factor == fac)
+            family &lt;- if (test %in% meta$clinical_parameters) 
+                &quot;Continuous clinical&quot;
+            else if (test == &quot;DCM_vs_HC&quot;) 
+                &quot;DCM versus HC&quot;
+            else if (test == &quot;Decomp_vs_Comp&quot;) 
+                &quot;Decompensated versus compensated&quot;
+            else &quot;Fibrosis&quot;
+            if (test %in% c(meta$clinical_parameters, &quot;Fibrosis_percent&quot;)) {
+                dd &lt;- dd %&gt;% filter(Group == &quot;DCM&quot;)
+                dd$x &lt;- dd[[test]]
+                term &lt;- &quot;x&quot;
+                direction &lt;- &quot;Per SD increase&quot;
+            }
+            else if (test == &quot;DCM_vs_HC&quot;) {
+                dd &lt;- dd %&gt;% filter(Group %in% c(&quot;DCM&quot;, &quot;HC&quot;))
+                dd$x &lt;- factor(dd$Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;))
+                term &lt;- &quot;xDCM&quot;
+                direction &lt;- &quot;DCM - HC&quot;
+            }
+            else {
+                dd &lt;- dd %&gt;% filter(Group == &quot;DCM&quot;, RV_group %in% c(&quot;Compensated&quot;, &quot;Decompensated&quot;))
+                dd$x &lt;- factor(dd$RV_group, levels = c(&quot;Compensated&quot;, &quot;Decompensated&quot;))
+                term &lt;- &quot;xDecompensated&quot;
+                direction &lt;- &quot;Decompensated - Compensated&quot;
+            }
+            dd &lt;- dd[complete.cases(dd[, c(&quot;Factor_value&quot;, &quot;x&quot;, &quot;Age_years&quot;, &quot;Sex&quot;)]), ]
+            dd$Sex &lt;- factor(dd$Sex, levels = c(&quot;M&quot;, &quot;F&quot;))
+            use_sex &lt;- which_model == &quot;proteomics&quot; &amp;&amp; length(unique(dd$Sex)) &gt; 1
+            form &lt;- if (use_sex) 
+                Factor_value ~ x + age_scaled + Sex
+            else Factor_value ~ x + age_scaled
+            row &lt;- tibble(Model = which_model, Factor = fac, Family = family, Test = test, Direction = direction, 
+                n = nrow(dd), n_female = sum(dd$Sex == &quot;F&quot;), n_male = sum(dd$Sex == &quot;M&quot;), Adjustment = if (use_sex) 
+                  &quot;Age + sex&quot;
+                else &quot;Age (single-sex test cohort)&quot;, n_HC = sum(dd$Group == &quot;HC&quot;), n_DCM = sum(dd$Group == &quot;DCM&quot;), 
+                n_compensated = sum(dd$RV_group == &quot;Compensated&quot;, na.rm = TRUE), n_decompensated = sum(dd$RV_group == 
+                  &quot;Decompensated&quot;, na.rm = TRUE), beta = NA_real_, SE = NA_real_, CI_low = NA_real_, CI_high = NA_real_, 
+                t = NA_real_, p_value = NA_real_, R2 = NA_real_, status = &quot;not_estimable&quot;)
+            reason &lt;- &quot;&quot;
+            if (nrow(dd) &lt; 5 || length(unique(dd$x)) &lt; 2 || length(unique(dd$Age_years)) &lt; 2) {
+                reason &lt;- &quot;Insufficient complete cases or predictor/age variation&quot;
+            }
+            else {
+                if (is.numeric(dd$x)) 
+                  dd$x &lt;- as.numeric(scale(dd$x))
+                dd$age_scaled &lt;- as.numeric(scale(dd$Age_years))
+                mm &lt;- model.matrix(form, dd)
+                if (qr(mm)$rank &lt; ncol(mm) || nrow(dd) &lt;= ncol(mm)) {
+                  reason &lt;- &quot;Rank-deficient design or no residual degrees of freedom&quot;
+                }
+                else {
+                  fit &lt;- lm(form, data = dd)
+                  co &lt;- broom::tidy(fit, conf.int = TRUE) %&gt;% filter(.data$term == !!term)
+                  stopifnot(nrow(co) == 1)
+                  row$beta &lt;- co$estimate
+                  row$SE &lt;- co$std.error
+                  row$CI_low &lt;- co$conf.low
+                  row$CI_high &lt;- co$conf.high
+                  row$t &lt;- co$statistic
+                  row$p_value &lt;- co$p.value
+                  row$R2 &lt;- summary(fit)$r.squared
+                  row$status &lt;- &quot;estimated&quot;
+                  index &lt;- index + 1L
+                  fits[[paste(fac, test, sep = &quot;__&quot;)]] &lt;- list(data = dd, fit = fit, coefficient = term)
+                }
+            }
+            row$reason &lt;- reason
+            associations[[length(associations) + 1L]] &lt;- row
+        }
+    }
+    a &lt;- bind_rows(associations) %&gt;% filter(Model == which_model) %&gt;% group_by(Model, Family) %&gt;% mutate(FDR_family_wide = p.adjust(p_value, 
+        &quot;BH&quot;)) %&gt;% ungroup() %&gt;% group_by(Model, Test) %&gt;% mutate(FDR_within_parameter = p.adjust(p_value, &quot;BH&quot;), 
+        FDR = FDR_within_parameter) %&gt;% ungroup()
+    write.csv(a, file.path(out, &quot;A_factor_associations.csv&quot;), row.names = FALSE)
+    write.csv(scores, file.path(out, &quot;A_factor_scores_and_metadata.csv&quot;), row.names = FALSE)
+    write.csv(weights, file.path(out, &quot;A_all_factor_weights.csv&quot;), row.names = FALSE)
+    write.csv(r2tab, file.path(out, &quot;A_variance_explained.csv&quot;), row.names = FALSE)
+    all_results[[which_model]] &lt;- list(model = model, scores = scores, weights = weights, r2 = r2tab, associations = a, 
+        fits = fits, tuning = read.csv(file.path(out, &quot;A_factor_tuning_best_seed_per_K.csv&quot;)), settings = read.csv(file.path(out, 
+            &quot;A_selected_model_settings.csv&quot;)))
+}
+all_associations &lt;- bind_rows(lapply(all_results, `[[`, &quot;associations&quot;))
+write.csv(all_associations, file.path(O, &quot;A_all_factor_associations.csv&quot;), row.names = FALSE)
+saveRDS(all_results, file.path(O, &quot;A_report_results.rds&quot;))
+print(all_associations %&gt;% filter(FDR &lt; 0.1) %&gt;% arrange(Model, Family, FDR))</code></pre>
+<pre><code># A tibble: 11 × 25
+   Model    Factor Family Test  Direction     n n_female n_male Adjustment  n_HC
+   &lt;chr&gt;    &lt;chr&gt;  &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt;     &lt;int&gt;    &lt;int&gt;  &lt;int&gt; &lt;chr&gt;      &lt;int&gt;
+ 1 matched  Facto… Conti… mPAP… Per SD i…    17        0     17 Age (sing…     0
+ 2 matched  Facto… Conti… sPAP… Per SD i…    17        0     17 Age (sing…     0
+ 3 matched  Facto… Conti… PVR_… Per SD i…    17        0     17 Age (sing…     0
+ 4 matched  Facto… DCM v… DCM_… DCM - HC     27        0     27 Age (sing…     7
+ 5 matched  Facto… Fibro… Fibr… Per SD i…    20        0     20 Age (sing…     0
+ 6 matched  Facto… Fibro… Fibr… Per SD i…    20        0     20 Age (sing…     0
+ 7 proteom… Facto… Conti… RVIT… Per SD i…    42        1     41 Age + sex      0
+ 8 proteom… Facto… Conti… TAPS… Per SD i…    43        1     42 Age + sex      0
+ 9 proteom… Facto… DCM v… DCM_… DCM - HC     63        7     56 Age + sex     20
+10 proteom… Facto… DCM v… DCM_… DCM - HC     63        7     56 Age + sex     20
+11 proteom… Facto… DCM v… DCM_… DCM - HC     63        7     56 Age + sex     20
+# ℹ 15 more variables: n_DCM &lt;int&gt;, n_compensated &lt;int&gt;, n_decompensated &lt;int&gt;,
+#   beta &lt;dbl&gt;, SE &lt;dbl&gt;, CI_low &lt;dbl&gt;, CI_high &lt;dbl&gt;, t &lt;dbl&gt;, p_value &lt;dbl&gt;,
+#   R2 &lt;dbl&gt;, status &lt;chr&gt;, reason &lt;chr&gt;, FDR_family_wide &lt;dbl&gt;,
+#   FDR_within_parameter &lt;dbl&gt;, FDR &lt;dbl&gt;</code></pre>
+</div>
+<div id="enrichment-functions" class="section level2">
+<h2>Enrichment functions</h2>
+<pre class="r"><code>mofa_view_colors &lt;- c(RNA = &quot;#33A02C&quot;, OLINK = &quot;#E38C82&quot;, MS = &quot;#2166AC&quot;)
+standardise_mofa_view_name &lt;- function(view) {
+    dplyr::case_when(view == &quot;RNA_pseudobulk&quot; ~ &quot;RNA&quot;, view == &quot;Olink&quot; ~ &quot;OLINK&quot;, view == &quot;LCMS&quot; ~ &quot;MS&quot;, TRUE ~ 
+        as.character(view))
+}
+clean_mofa_feature_name &lt;- function(feature) {
+    stringr::str_remove(as.character(feature), &quot;_(RNA_pseudobulk|RNA|Olink|OLINK|LCMS|MS)$&quot;)
+}
+format_p_value &lt;- function(p_value, prefix = &quot;P&quot;) {
+    dplyr::case_when(is.na(p_value) ~ paste0(prefix, &quot; = NA&quot;), p_value &lt; 0.001 ~ paste0(prefix, &quot; &lt; 0.001&quot;), TRUE ~ 
+        sprintf(&quot;%s = %.3f&quot;, prefix, p_value))
+}
+prepare_top_factor_loadings &lt;- function(weight_table, factor_name = &quot;Factor1&quot;, n_each_direction = 20) {
+    factor_weights &lt;- weight_table %&gt;% dplyr::filter(Factor == factor_name, is.finite(Weight)) %&gt;% dplyr::mutate(Modality = standardise_mofa_view_name(View), 
+        Feature_clean = clean_mofa_feature_name(Feature), Feature_label = paste(Modality, Feature_clean, sep = &quot;_&quot;))
+    positive_weights &lt;- factor_weights %&gt;% dplyr::filter(Weight &gt; 0) %&gt;% dplyr::slice_max(order_by = Weight, n = n_each_direction, 
+        with_ties = FALSE)
+    negative_weights &lt;- factor_weights %&gt;% dplyr::filter(Weight &lt; 0) %&gt;% dplyr::slice_min(order_by = Weight, n = n_each_direction, 
+        with_ties = FALSE)
+    dplyr::bind_rows(negative_weights, positive_weights) %&gt;% dplyr::arrange(Weight) %&gt;% dplyr::mutate(Feature_label = factor(Feature_label, 
+        levels = unique(Feature_label)))
+}
+plot_top_factor_loadings &lt;- function(loading_data, title_text) {
+    ggplot(loading_data, aes(x = Weight, y = Feature_label)) + geom_vline(xintercept = 0, linewidth = 0.35, color = &quot;grey40&quot;) + 
+        geom_segment(aes(x = 0, xend = Weight, yend = Feature_label), linewidth = 0.65, color = &quot;grey65&quot;) + geom_point(aes(fill = Modality), 
+        shape = 21, size = 3, color = &quot;black&quot;, stroke = 0.3) + scale_fill_manual(values = mofa_view_colors, drop = FALSE) + 
+        labs(title = title_text, x = &quot;MOFA feature weight&quot;, y = NULL, fill = &quot;Modality&quot;) + theme_classic() + theme(plot.title = element_text(hjust = 0.5, 
+        face = &quot;bold&quot;), legend.position = &quot;bottom&quot;)
+}
+scale_mofa_weights_within_view &lt;- function(weight_table, factor_table) {
+    weight_table %&gt;% dplyr::filter(Factor %in% factor_table$Factor, is.finite(Weight)) %&gt;% dplyr::mutate(Feature_original = as.character(Feature), 
+        Feature = clean_mofa_feature_name(Feature)) %&gt;% dplyr::inner_join(factor_table, by = &quot;Factor&quot;) %&gt;% dplyr::group_by(Factor, 
+        View) %&gt;% dplyr::mutate(Oriented_weight = Weight * orientation, maximum_absolute_weight = max(abs(Oriented_weight), 
+        na.rm = TRUE), Scaled_weight = dplyr::if_else(maximum_absolute_weight &gt; 0, Oriented_weight/maximum_absolute_weight, 
+        0), Absolute_scaled_weight = abs(Scaled_weight)) %&gt;% dplyr::ungroup()
+}
+prepare_mofa_ranked_gene_list &lt;- function(weight_table, factor_name, orientation) {
+    ranked_symbols &lt;- scale_mofa_weights_within_view(weight_table = weight_table, factor_table = tibble::tibble(Factor = factor_name, 
+        orientation = orientation, interpretation = factor_name)) %&gt;% dplyr::group_by(Factor, Feature) %&gt;% dplyr::summarise(Ranked_weight = mean(Scaled_weight, 
+        na.rm = TRUE), .groups = &quot;drop&quot;) %&gt;% dplyr::filter(is.finite(Ranked_weight), Ranked_weight != 0)
+    symbol_to_entrez &lt;- bitr(ranked_symbols$Feature, fromType = &quot;SYMBOL&quot;, toType = &quot;ENTREZID&quot;, OrgDb = org.Hs.eg.db) %&gt;% 
+        dplyr::distinct(SYMBOL, ENTREZID) %&gt;% dplyr::mutate(ENTREZID = as.character(ENTREZID))
+    ranked_entrez &lt;- ranked_symbols %&gt;% dplyr::inner_join(symbol_to_entrez, by = c(Feature = &quot;SYMBOL&quot;)) %&gt;% dplyr::group_by(ENTREZID) %&gt;% 
+        dplyr::slice_max(order_by = abs(Ranked_weight), n = 1, with_ties = FALSE) %&gt;% dplyr::ungroup() %&gt;% dplyr::arrange(dplyr::desc(Ranked_weight))
+    gene_list &lt;- ranked_entrez$Ranked_weight
+    names(gene_list) &lt;- ranked_entrez$ENTREZID
+    sort(gene_list, decreasing = TRUE)
+}
+prefix_go_descriptions &lt;- function(enrichment_result) {
+    if (is.null(enrichment_result) || nrow(enrichment_result@result) == 0L || !&quot;ONTOLOGY&quot; %in% colnames(enrichment_result@result)) {
+        return(enrichment_result)
+    }
+    already_prefixed &lt;- stringr::str_detect(enrichment_result@result$Description, &quot;^\\[(BP|CC|MF)\\] &quot;)
+    enrichment_result@result$Description[!already_prefixed] &lt;- paste0(&quot;[&quot;, enrichment_result@result$ONTOLOGY[!already_prefixed], 
+        &quot;] &quot;, enrichment_result@result$Description[!already_prefixed])
+    enrichment_result
+}
+run_mofa_gsea &lt;- function(weight_table, factor_table) {
+    gsea_objects &lt;- list()
+    ranked_lists &lt;- list()
+    for (factor_index in seq_len(nrow(factor_table))) {
+        factor_name &lt;- factor_table$Factor[factor_index]
+        orientation &lt;- factor_table$orientation[factor_index]
+        gene_list &lt;- prepare_mofa_ranked_gene_list(weight_table = weight_table, factor_name = factor_name, orientation = orientation)
+        ranked_lists[[factor_name]] &lt;- gene_list
+        if (length(gene_list) &lt; gsea_min_ranked_genes) {
+            next
+        }
+        go_result &lt;- tryCatch(gseGO(geneList = gene_list, ont = &quot;ALL&quot;, OrgDb = org.Hs.eg.db, keyType = &quot;ENTREZID&quot;, 
+            exponent = 1, minGSSize = 5, maxGSSize = 500, eps = 1e-10, pvalueCutoff = 1, pAdjustMethod = &quot;BH&quot;, 
+            verbose = FALSE, seed = TRUE, by = &quot;fgsea&quot;), error = function(e) {
+            warning(&quot;GO GSEA failed for &quot;, factor_name, &quot;: &quot;, conditionMessage(e))
+            NULL
+        })
+        go_result &lt;- prefix_go_descriptions(go_result)
+        gsea_objects[[paste(factor_name, &quot;GO_ALL&quot;, sep = &quot;__&quot;)]] &lt;- go_result
+    }
+    list(results = extract_gsea_results(gsea_objects), objects = gsea_objects, ranked_lists = ranked_lists)
+}
+extract_gsea_results &lt;- function(object_list) {
+    output &lt;- tibble::tibble()
+    for (object_name in names(object_list)) {
+        current_object &lt;- object_list[[object_name]]
+        if (is.null(current_object) || nrow(as.data.frame(current_object)) == 0L) {
+            next
+        }
+        name_parts &lt;- strsplit(object_name, &quot;__&quot;, fixed = TRUE)[[1]]
+        current_table &lt;- as.data.frame(current_object) %&gt;% tibble::as_tibble() %&gt;% dplyr::mutate(Factor = name_parts[1], 
+            Direction = dplyr::if_else(NES &gt;= 0, &quot;Positive&quot;, &quot;Negative&quot;), database = name_parts[2])
+        output &lt;- dplyr::bind_rows(output, current_table)
+    }
+    output
+}
+subset_enrichment_object &lt;- function(enrichment_result, selected_ids) {
+    reduced_result &lt;- enrichment_result
+    reduced_result@result &lt;- enrichment_result@result[enrichment_result@result$ID %in% selected_ids, , drop = FALSE]
+    if (&quot;geneSets&quot; %in% methods::slotNames(reduced_result)) {
+        reduced_result@geneSets &lt;- enrichment_result@geneSets[intersect(selected_ids, names(enrichment_result@geneSets))]
+    }
+    reduced_result
+}
+simplify_go_all_result &lt;- function(enrichment_result, cutoff = enrichment_simplify_cutoff) {
+    if (is.null(enrichment_result) || nrow(enrichment_result@result) &lt; 2L) {
+        return(enrichment_result)
+    }
+    result_table &lt;- as.data.frame(enrichment_result) %&gt;% dplyr::filter(is.finite(p.adjust)) %&gt;% dplyr::arrange(p.adjust)
+    selected_table &lt;- result_table %&gt;% dplyr::filter(p.adjust &lt; enrichment_simplify_padj_cutoff)
+    if (nrow(selected_table) &lt; 2L) {
+        selected_table &lt;- result_table %&gt;% dplyr::slice_head(n = min(enrichment_simplify_max_terms, nrow(result_table)))
+    }
+    if (nrow(selected_table) &gt; enrichment_simplify_max_terms) {
+        selected_table &lt;- selected_table %&gt;% dplyr::slice_head(n = enrichment_simplify_max_terms)
+    }
+    selected_object &lt;- subset_enrichment_object(enrichment_result = enrichment_result, selected_ids = selected_table$ID)
+    selected_result_table &lt;- selected_object@result
+    if (!&quot;ONTOLOGY&quot; %in% colnames(selected_result_table)) {
+        return(tryCatch(clusterProfiler::simplify(selected_object, cutoff = cutoff, by = &quot;p.adjust&quot;, select_fun = min, 
+            measure = &quot;Wang&quot;), error = function(e) {
+            warning(&quot;GO simplification failed: &quot;, conditionMessage(e))
+            selected_object
+        }))
+    }
+    ontology_parts &lt;- list()
+    for (current_ontology in c(&quot;BP&quot;, &quot;CC&quot;, &quot;MF&quot;)) {
+        current_ids &lt;- selected_result_table$ID[selected_result_table$ONTOLOGY == current_ontology]
+        if (length(current_ids) == 0L) {
+            next
+        }
+        current_object &lt;- subset_enrichment_object(enrichment_result = selected_object, selected_ids = current_ids)
+        if (&quot;ontology&quot; %in% methods::slotNames(current_object)) {
+            current_object@ontology &lt;- current_ontology
+        }
+        if (&quot;setType&quot; %in% methods::slotNames(current_object)) {
+            current_object@setType &lt;- current_ontology
+        }
+        ontology_parts[[current_ontology]] &lt;- tryCatch(clusterProfiler::simplify(current_object, cutoff = cutoff, 
+            by = &quot;p.adjust&quot;, select_fun = min, measure = &quot;Wang&quot;), error = function(e) {
+            warning(&quot;GO simplification failed for &quot;, current_ontology, &quot;: &quot;, conditionMessage(e))
+            current_object
+        })
+    }
+    if (length(ontology_parts) == 0L) {
+        return(selected_object)
+    }
+    combined_object &lt;- selected_object
+    combined_object@result &lt;- do.call(rbind, lapply(ontology_parts, function(x) {
+        x@result
+    }))
+    if (&quot;geneSets&quot; %in% methods::slotNames(combined_object)) {
+        combined_object@geneSets &lt;- unlist(lapply(ontology_parts, function(x) {
+            x@geneSets
+        }), recursive = FALSE)
+    }
+    if (&quot;ontology&quot; %in% methods::slotNames(combined_object)) {
+        combined_object@ontology &lt;- &quot;ALL&quot;
+    }
+    if (&quot;setType&quot; %in% methods::slotNames(combined_object)) {
+        combined_object@setType &lt;- &quot;ALL&quot;
+    }
+    combined_object
+}
+simplify_enrichment_objects &lt;- function(object_list) {
+    lapply(names(object_list), function(object_name) {
+        current_object &lt;- object_list[[object_name]]
+        if (stringr::str_ends(object_name, &quot;GO_ALL&quot;)) {
+            simplify_go_all_result(current_object, cutoff = enrichment_simplify_cutoff)
+        }
+        else {
+            current_object
+        }
+    }) %&gt;% stats::setNames(names(object_list))
+}
+fit_factor_fibrosis_models &lt;- function(factor_scores, factor_names) {
+    required_columns &lt;- c(&quot;Factor&quot;, &quot;Factor_value&quot;, &quot;Fibrosis_percent&quot;, &quot;Age_years&quot;)
+    missing_columns &lt;- setdiff(required_columns, colnames(factor_scores))
+    if (length(missing_columns) &gt; 0L) {
+        stop(&quot;Missing fibrosis-analysis columns: &quot;, paste(missing_columns, collapse = &quot;, &quot;))
+    }
+    results &lt;- tibble::tibble()
+    for (factor_name in factor_names) {
+        factor_data &lt;- factor_scores %&gt;% dplyr::filter(Factor == factor_name) %&gt;% dplyr::select(Factor_value, Fibrosis_percent, 
+            Age_years) %&gt;% tidyr::drop_na()
+        if (nrow(factor_data) &lt; 6L || stats::sd(factor_data$Fibrosis_percent) == 0) {
+            next
+        }
+        factor_data &lt;- factor_data %&gt;% dplyr::mutate(fibrosis_scaled = as.numeric(scale(Fibrosis_percent)), age_scaled = as.numeric(scale(Age_years)))
+        fibrosis_fit &lt;- lm(Factor_value ~ fibrosis_scaled + age_scaled, data = factor_data)
+        fibrosis_coefficient &lt;- broom::tidy(fibrosis_fit, conf.int = TRUE) %&gt;% dplyr::filter(term == &quot;fibrosis_scaled&quot;)
+        results &lt;- dplyr::bind_rows(results, tibble::tibble(Factor = factor_name, n = nrow(factor_data), beta = fibrosis_coefficient$estimate, 
+            standard_error = fibrosis_coefficient$std.error, confidence_interval_low = fibrosis_coefficient$conf.low, 
+            confidence_interval_high = fibrosis_coefficient$conf.high, t_statistic = fibrosis_coefficient$statistic, 
+            p_value = fibrosis_coefficient$p.value, model_R2 = summary(fibrosis_fit)$r.squared, adjusted_model_R2 = summary(fibrosis_fit)$adj.r.squared))
+    }
+    if (nrow(results) == 0L) {
+        return(results)
+    }
+    results %&gt;% dplyr::mutate(FDR = p.adjust(p_value, method = &quot;BH&quot;)) %&gt;% dplyr::arrange(FDR)
+}
+plot_factor_fibrosis_associations &lt;- function(fibrosis_results, factor_names, title_text) {
+    plot_data &lt;- fibrosis_results %&gt;% dplyr::mutate(Factor = factor(Factor, levels = rev(factor_names)), label = format_fdr_label(FDR))
+    ggplot(plot_data, aes(x = beta, y = Factor)) + geom_vline(xintercept = 0, linetype = 2, color = &quot;grey50&quot;) + 
+        geom_segment(aes(x = confidence_interval_low, xend = confidence_interval_high, yend = Factor), linewidth = 0.7, 
+            color = &quot;grey35&quot;) + geom_point(aes(fill = beta), shape = 21, size = 4, color = &quot;black&quot;, stroke = 0.35) + 
+        geom_text(aes(x = Inf, label = label), hjust = 1.05, size = 3.1) + scale_fill_gradient2(low = &quot;#2166AC&quot;, 
+        mid = &quot;white&quot;, high = &quot;#B2182B&quot;, midpoint = 0) + scale_x_continuous(expand = expansion(mult = c(0.08, 0.35))) + 
+        labs(title = title_text, x = &quot;Adjusted coefficient per 1 SD increase\nin histological fibrosis&quot;, y = NULL, 
+            fill = &quot;Coefficient&quot;) + theme_classic() + theme(plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;))
+}</code></pre>
+</div>
+<div id="gene-ontology-enrichment" class="section level2">
+<h2>Gene Ontology enrichment</h2>
+<pre class="r"><code>library(clusterProfiler)
+library(org.Hs.eg.db)
+library(GO.db)
+library(stringr)
+library(purrr)
+BiocParallel::register(BiocParallel::SerialParam())
+for (nm in c(&quot;proteomics&quot;, &quot;matched&quot;)) {
+    enrichment_simplify_cutoff &lt;- 0.7
+    enrichment_simplify_padj_cutoff &lt;- 0.1
+    enrichment_simplify_max_terms &lt;- 300
+    gsea_min_ranked_genes &lt;- 20
+    b &lt;- readRDS(file.path(O, &quot;A_report_results.rds&quot;))[[nm]]
+    out &lt;- file.path(O, if (nm == &quot;proteomics&quot;) 
+        &quot;proteomics_model&quot;
+    else &quot;matched_three_view_model&quot;)
+    selected &lt;- unique(c(&quot;Factor1&quot;, &quot;Factor2&quot;, &quot;Factor3&quot;, &quot;Factor5&quot;, b$associations$Factor[!is.na(b$associations$FDR) &amp; 
+        b$associations$FDR &lt; 0.1]))
+    selected &lt;- intersect(unique(b$weights$Factor), selected)
+    write.csv(data.frame(Factor = selected, selection = &quot;F1/F2/F3/F5 or any requested association within-parameter BH FDR&lt;0.10&quot;), 
+        file.path(out, &quot;A_GSEA_factor_selection.csv&quot;), row.names = FALSE)
+    results &lt;- list()
+    summaries &lt;- list()
+    objects &lt;- list()
+    old_objects &lt;- list()
+    for (fac in selected) {
+        layers &lt;- if (nm == &quot;proteomics&quot;) 
+            &quot;Proteomics&quot;
+        else c(&quot;RNA&quot;, &quot;Proteomics&quot;)
+        for (layer in layers) {
+            ww &lt;- b$weights %&gt;% filter(Factor == fac, if (layer == &quot;RNA&quot;) 
+                View == &quot;RNA_pseudobulk&quot;
+            else View %in% c(&quot;Olink&quot;, &quot;LCMS&quot;))
+            ft &lt;- tibble(Factor = fac, orientation = 1, interpretation = fac)
+            key &lt;- paste(fac, layer, sep = &quot;__&quot;)
+            set.seed(20260715)
+            rr &lt;- if (key %in% names(old_objects)) 
+                old_objects[[key]]$raw
+            else run_mofa_gsea(ww, ft)
+            if (length(rr$ranked_lists[[fac]]) &gt;= gsea_min_ranked_genes &amp;&amp; length(rr$objects) == 0) 
+                stop(&quot;GSEA failed &quot;, fac, &quot; &quot;, layer)
+            simp &lt;- if (key %in% names(old_objects)) 
+                old_objects[[key]]$simplified
+            else simplify_enrichment_objects(rr$objects)
+            ss &lt;- extract_gsea_results(simp)
+            key &lt;- paste(fac, layer, sep = &quot;__&quot;)
+            objects[[key]] &lt;- list(raw = rr, simplified = simp)
+            if (nrow(rr$results) &gt; 0) 
+                results[[key]] &lt;- mutate(rr$results, Layer = layer)
+            if (nrow(ss) &gt; 0) 
+                summaries[[key]] &lt;- mutate(ss, Layer = layer)
+            saveRDS(objects, file.path(out, &quot;A_GSEA_objects.rds&quot;))
+        }
+    }
+    result &lt;- bind_rows(results)
+    simple &lt;- bind_rows(summaries)
+    write.csv(result, file.path(out, &quot;A_GO_GSEA_full.csv&quot;), row.names = FALSE)
+    write.csv(simple, file.path(out, &quot;A_GO_GSEA_simplified.csv&quot;), row.names = FALSE)
+    saveRDS(list(full = result, simplified = simple, selection = selected), file.path(out, &quot;A_GSEA_results.rds&quot;))
+}</code></pre>
+</div>
+<div id="setup-1" class="section level2">
+<h2>Setup</h2>
+<pre class="r"><code>library(ggplot2)
+library(ComplexHeatmap)
+library(circlize)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(stringr)
+library(purrr)
+library(patchwork)
+ggplot2::theme_set(theme_classic(base_family = &quot;Arial&quot;))
+ggplot2::update_geom_defaults(&quot;text&quot;, list(family = &quot;Arial&quot;))
+b &lt;- readRDS(file.path(O, &quot;A_report_results.rds&quot;))
+meta &lt;- readRDS(file.path(O, &quot;A_metadata.rds&quot;))
+clin_all &lt;- meta$clin_all
+proteomics_model &lt;- b$proteomics$model
+matched_model &lt;- b$matched$model
+proteomics_factor_scores &lt;- b$proteomics$scores
+matched_factor_scores &lt;- b$matched$scores
+proteomics_factor_weights &lt;- b$proteomics$weights
+matched_factor_weights &lt;- b$matched$weights
+proteomics_factor_names &lt;- unique(proteomics_factor_scores$Factor)
+matched_factor_names &lt;- unique(matched_factor_scores$Factor)
+proteomics_data &lt;- readRDS(proteomics_input_file)
+matched_data &lt;- readRDS(matched_input_file)
+group_colors &lt;- c(`Not overloaded` = &quot;#BDBDBD&quot;, Compensated = &quot;#E38C82&quot;, Decompensated = &quot;#9E3434&quot;)
+group_cols &lt;- c(HC = &quot;#004C8C&quot;, DCM = &quot;#A63A2A&quot;)
+rv_group_comparison_levels &lt;- c(&quot;Compensated&quot;, &quot;Decompensated&quot;)
+pretty_parameter_names &lt;- c(mPAP_mmHg = &quot;mPAP (mmHg)&quot;, sPAP_mmHg = &quot;sPAP (mmHg)&quot;, PCW_mmHg = &quot;PCWP (mmHg)&quot;, PVR_WU = &quot;PVR (WU)&quot;, 
+    TAPSE_mm = &quot;TAPSE (mm)&quot;, RVIT_mm = &quot;RVIT (mm)&quot;, LVEF_percent = &quot;LVEF (%)&quot;, LVEDD_mm = &quot;LVEDD (mm)&quot;, DCM_vs_HC = &quot;DCM vs HC&quot;)
+clinical_parameters &lt;- c(meta$clinical_parameters, &quot;DCM_vs_HC&quot;)
+exploratory_factor_fdr &lt;- 0.1
+format_fdr_label &lt;- function(x) ifelse(is.na(x), &quot;FDR = NA&quot;, ifelse(x &lt; 0.001, &quot;FDR &lt; 0.001&quot;, sprintf(&quot;FDR = %.3f&quot;, 
+    x)))
+for (nm in c(&quot;proteomics&quot;, &quot;matched&quot;)) {
+    a &lt;- b[[nm]]$associations %&gt;% filter(Test %in% clinical_parameters) %&gt;% mutate(parameter = Test, parameter_label = unname(pretty_parameter_names[Test]), 
+        FDR_global = FDR)
+    assign(paste0(nm, &quot;_continuous_results&quot;), a)
+}
+go &lt;- lapply(c(&quot;proteomics&quot;, &quot;matched&quot;), function(nm) readRDS(file.path(O, if (nm == &quot;proteomics&quot;) &quot;proteomics_model&quot; else &quot;matched_three_view_model&quot;, 
+    &quot;A_GSEA_objects.rds&quot;)))
+names(go) &lt;- c(&quot;proteomics&quot;, &quot;matched&quot;)
+fibrosis_data &lt;- matched_factor_scores %&gt;% select(Sample, Fibrosis_percent, Group) %&gt;% distinct()
+matched_fibrosis_results &lt;- b$matched$associations %&gt;% filter(Test == &quot;Fibrosis_percent&quot;) %&gt;% mutate(confidence_interval_low = CI_low, 
+    confidence_interval_high = CI_high)</code></pre>
+</div>
+<div id="cohorts" class="section level2">
+<h2>Cohorts</h2>
+<pre class="r"><code>knitr::kable(read.csv(file.path(O, &quot;A_model_donors.csv&quot;)) %&gt;% count(Model, Group))</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Model</th>
+<th align="left">Group</th>
+<th align="right">n</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">matched</td>
+<td align="left">DCM</td>
+<td align="right">20</td>
+</tr>
+<tr class="even">
+<td align="left">matched</td>
+<td align="left">HC</td>
+<td align="right">7</td>
+</tr>
+<tr class="odd">
+<td align="left">proteomics</td>
+<td align="left">DCM</td>
+<td align="right">44</td>
+</tr>
+<tr class="even">
+<td align="left">proteomics</td>
+<td align="left">HC</td>
+<td align="right">20</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="tuning" class="section level2">
+<h2>Tuning</h2>
+<pre class="r"><code>for (nm in c(&quot;proteomics&quot;, &quot;matched&quot;)) {
+    out &lt;- file.path(O, if (nm == &quot;proteomics&quot;) 
+        &quot;proteomics_model&quot;
+    else &quot;matched_three_view_model&quot;)
+    tt &lt;- read.csv(file.path(out, &quot;A_factor_tuning_all_runs.csv&quot;))
+    best &lt;- b[[nm]]$tuning
+    K &lt;- b[[nm]]$settings$selected_n_factors
+    print(ggplot(tt, aes(n_factors, weakest_factor_max_view_R2)) + geom_line(aes(group = factor(seed)), colour = &quot;grey70&quot;) + 
+        geom_point(colour = &quot;grey60&quot;, size = 1.8) + geom_line(data = best, linewidth = 0.8) + geom_point(data = best, 
+        size = 2.7) + geom_hline(yintercept = 5, linetype = 2) + geom_vline(xintercept = K, linetype = 3) + scale_x_continuous(breaks = 3:15) + 
+        labs(x = &quot;Number of factors in fitted model&quot;, y = &quot;Weakest factor variance (%)&quot;, title = if (nm == &quot;proteomics&quot;) 
+            &quot;Proteomics&quot;
+        else &quot;Matched multi-omics&quot;) + theme_classic(base_family = &quot;Arial&quot;, base_size = 11))
+}</code></pre>
+<img src="figure/Integrative_analysis.Rmd/tuning-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-tuning-1">
+Past versions of tuning-1.png
+</button>
+</p>
+<div id="fig-tuning-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/tuning-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/tuning-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/tuning-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/tuning-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/tuning-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/tuning-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/Integrative_analysis.Rmd/tuning-2.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-tuning-2">
+Past versions of tuning-2.png
+</button>
+</p>
+<div id="fig-tuning-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/tuning-2.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/tuning-2.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/tuning-2.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/tuning-2.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/tuning-2.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/tuning-2.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="proteomics-variance-explained" class="section level2">
+<h2>Proteomics variance explained</h2>
+<pre class="r"><code>proteomics_r2_heatmap_matrix &lt;- MOFA2::get_variance_explained(proteomics_model)$r2_per_factor[[1]]
+proteomics_r2_heatmap_data &lt;- as.data.frame(proteomics_r2_heatmap_matrix) %&gt;% tibble::rownames_to_column(&quot;Factor&quot;) %&gt;% 
+    tidyr::pivot_longer(cols = -Factor, names_to = &quot;View&quot;, values_to = &quot;R2&quot;) %&gt;% dplyr::mutate(Factor = factor(Factor, 
+    levels = rownames(proteomics_r2_heatmap_matrix)), View = factor(View, levels = colnames(proteomics_r2_heatmap_matrix)), 
+    text_color = dplyr::if_else(R2 &gt;= 0.55 * max(R2, na.rm = TRUE), &quot;white&quot;, &quot;black&quot;))
+ggplot(proteomics_r2_heatmap_data, aes(x = View, y = Factor, fill = R2)) + geom_tile(color = &quot;grey40&quot;, linewidth = 0.3) + 
+    geom_text(aes(label = sprintf(&quot;%.1f%%&quot;, R2), color = text_color), size = 3.2) + scale_color_identity() + scale_fill_gradient(low = &quot;white&quot;, 
+    high = &quot;navy&quot;) + labs(title = &quot;&quot;, x = NULL, y = NULL, fill = &quot;Variance\nexplained (%)&quot;) + theme_classic(base_family = &quot;Arial&quot;) + 
+    theme(plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;), axis.text.x = element_text(size = 11), axis.text.y = element_text(size = 11))</code></pre>
+<img src="figure/Integrative_analysis.Rmd/proteomics_variance_explained-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-proteomics_variance_explained-1">
+Past versions of proteomics_variance_explained-1.png
+</button>
+</p>
+<div id="fig-proteomics_variance_explained-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/proteomics_variance_explained-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/proteomics_variance_explained-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/proteomics_variance_explained-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/proteomics_variance_explained-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/proteomics_variance_explained-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/proteomics_variance_explained-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="proteomics-continuous-association-dotplot"
+class="section level2">
+<h2>Proteomics continuous association dotplot</h2>
+<pre class="r"><code>proteomics_continuous_plot_data &lt;- proteomics_continuous_results %&gt;% dplyr::mutate(parameter_label = factor(parameter_label, 
+    levels = unname(pretty_parameter_names[clinical_parameters])), Factor = factor(Factor, levels = rev(proteomics_factor_names)), 
+    dot_size = -log10(pmax(FDR_global, .Machine$double.xmin)), outlined = FDR_global &lt; exploratory_factor_fdr)
+ggplot(proteomics_continuous_plot_data, aes(x = parameter_label, y = Factor, size = dot_size, fill = beta)) + geom_point(shape = 21, 
+    color = &quot;grey60&quot;, stroke = 0.3) + geom_point(data = dplyr::filter(proteomics_continuous_plot_data, outlined), 
+    shape = 21, fill = NA, color = &quot;black&quot;, stroke = 1, show.legend = FALSE) + scale_size_continuous(range = c(2.5, 
+    8), breaks = c(1, 3, 6)) + scale_fill_gradient2(low = &quot;#2166AC&quot;, mid = &quot;white&quot;, high = &quot;#B2182B&quot;, midpoint = 0) + 
+    labs(x = NULL, y = NULL, size = expression(-log[10](FDR)), fill = &quot;Adjusted\ncoefficient&quot;) + theme_classic(base_family = &quot;Arial&quot;, 
+    base_size = 14) + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12), axis.text.y = element_text(size = 12), 
+    legend.title = element_text(size = 12), legend.text = element_text(size = 11)) + guides(size = guide_legend(order = 1), 
+    fill = guide_colorbar(order = 2, barheight = grid::unit(1.6, &quot;cm&quot;), barwidth = grid::unit(0.3, &quot;cm&quot;))) + theme(legend.spacing.y = grid::unit(1, 
+    &quot;mm&quot;), legend.title = element_text(size = 10), legend.text = element_text(size = 10), plot.margin = margin(8, 
+    8, 5, 5))</code></pre>
+<img src="figure/Integrative_analysis.Rmd/proteomics_continuous_association_dotplot-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-proteomics_continuous_association_dotplot-1">
+Past versions of proteomics_continuous_association_dotplot-1.png
+</button>
+</p>
+<div id="fig-proteomics_continuous_association_dotplot-1"
+class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/proteomics_continuous_association_dotplot-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/proteomics_continuous_association_dotplot-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/proteomics_continuous_association_dotplot-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/proteomics_continuous_association_dotplot-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/proteomics_continuous_association_dotplot-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/proteomics_continuous_association_dotplot-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="factor3-clinical-scatter" class="section level2">
+<h2>Factor3 clinical scatter</h2>
+<pre class="r"><code>for (trait in c(&quot;TAPSE_mm&quot;, &quot;RVIT_mm&quot;)) {
+    ar &lt;- b$proteomics$associations %&gt;% filter(Factor == &quot;Factor3&quot;, Test == trait)
+    dd &lt;- b$proteomics$fits[[paste(&quot;Factor3&quot;, trait, sep = &quot;__&quot;)]]$data
+    stopifnot(nrow(dd) == ar$n)
+    lab &lt;- paste0(&quot;βadj = &quot;, sprintf(&quot;%.2f&quot;, ar$beta), &quot;\n&quot;, format_fdr_label(ar$FDR))
+    p &lt;- ggplot(dd, aes(x = .data[[trait]], y = Factor_value)) + geom_point(size = 2) + geom_smooth(method = &quot;lm&quot;, 
+        se = TRUE) + annotate(&quot;text&quot;, x = Inf, y = Inf, label = lab, hjust = 1.08, vjust = 1.15, size = 3.5) + 
+        labs(title = &quot;Factor3&quot;, x = pretty_parameter_names[[trait]], y = &quot;Factor score&quot;) + scale_x_continuous(expand = expansion(mult = c(0.05, 
+        0.08))) + scale_y_continuous(expand = expansion(mult = c(0.05, 0.35))) + theme_classic(base_family = &quot;Arial&quot;, 
+        base_size = 12)
+    print(p)
+    write.csv(dd, file.path(proteomics_output_dir, paste0(&quot;A_Factor3_&quot;, trait, &quot;_scatter_data.csv&quot;)), row.names = FALSE)
+}</code></pre>
+<img src="figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Factor3_clinical_scatter-1">
+Past versions of Factor3_clinical_scatter-1.png
+</button>
+</p>
+<div id="fig-Factor3_clinical_scatter-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<img src="figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-2.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Factor3_clinical_scatter-2">
+Past versions of Factor3_clinical_scatter-2.png
+</button>
+</p>
+<div id="fig-Factor3_clinical_scatter-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-2.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-2.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-2.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-2.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-2.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/Factor3_clinical_scatter-2.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="factor3-rv-state" class="section level2">
+<h2>Factor3 rv state</h2>
+<pre class="r"><code>proteomics_group_pairwise_results &lt;- b$proteomics$associations %&gt;% filter(Test == &quot;Decomp_vs_Comp&quot;) %&gt;% mutate(p.value = p_value)
+proteomics_factor_scores_all &lt;- proteomics_factor_scores
+proteomics_factor_scores &lt;- b$proteomics$fits[[&quot;Factor3__Decomp_vs_Comp&quot;]]$data
+set.seed(20261116)
+proteomics_factor3_group_plot_data &lt;- proteomics_factor_scores %&gt;% dplyr::filter(Factor == &quot;Factor3&quot;, RV_group %in% 
+    rv_group_comparison_levels) %&gt;% dplyr::mutate(RV_group = factor(as.character(RV_group), levels = rv_group_comparison_levels))
+proteomics_factor3_group_p_value &lt;- proteomics_group_pairwise_results %&gt;% dplyr::filter(Factor == &quot;Factor3&quot;) %&gt;% 
+    dplyr::pull(p.value)
+proteomics_factor3_group_label &lt;- format_p_value(dplyr::first(proteomics_factor3_group_p_value))
+proteomics_factor3_group_plot &lt;- ggplot(proteomics_factor3_group_plot_data, aes(x = RV_group, y = Factor_value, 
+    fill = RV_group)) + geom_violin(trim = FALSE, alpha = 0.3, color = NA) + geom_boxplot(width = 0.18, outlier.shape = NA, 
+    color = &quot;grey20&quot;) + geom_jitter(width = 0.1, height = 0, size = 2, shape = 21, color = &quot;black&quot;, stroke = 0.25) + 
+    annotate(&quot;text&quot;, x = 1.5, y = Inf, label = proteomics_factor3_group_label, vjust = 1.2, size = 3.5) + scale_fill_manual(values = group_colors[rv_group_comparison_levels], 
+    drop = FALSE) + scale_y_continuous(expand = expansion(mult = c(0.05, 0.16))) + labs(x = NULL, y = &quot;Factor 3 score&quot;) + 
+    theme_classic(base_family = &quot;Arial&quot;) + theme(legend.position = &quot;none&quot;, axis.text.x = element_text(angle = 30, 
+    hjust = 1))
+proteomics_factor3_group_plot</code></pre>
+<img src="figure/Integrative_analysis.Rmd/Factor3_RV_state-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Factor3_RV_state-1">
+Past versions of Factor3_RV_state-1.png
+</button>
+</p>
+<div id="fig-Factor3_RV_state-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/Factor3_RV_state-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/Factor3_RV_state-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/Factor3_RV_state-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/Factor3_RV_state-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/Factor3_RV_state-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/Factor3_RV_state-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>proteomics_factor_scores &lt;- proteomics_factor_scores_all</code></pre>
+</div>
+<div id="factor2-gsea" class="section level2">
+<h2>Factor2 gsea</h2>
+<pre class="r"><code>proteomics_factor2_gsea_simplified_objects &lt;- go$proteomics[[&quot;Factor2__Proteomics&quot;]]$simplified
+top_n_positive &lt;- 8
+top_n_negative &lt;- 8
+gsea_fdr_cutoff &lt;- 0.05
+wrap_gsea_labels &lt;- function(x, width = 41) {
+    vapply(x, function(label) {
+        label &lt;- stringr::str_squish(as.character(label))
+        if (nchar(label) &lt;= width) {
+            return(label)
+        }
+        words &lt;- stringr::str_split(label, &quot;\\s+&quot;)[[1]]
+        lines &lt;- c(&quot;&quot;, &quot;&quot;, &quot;&quot;)
+        current_line &lt;- 1L
+        for (word in words) {
+            candidate &lt;- if (lines[current_line] == &quot;&quot;) {
+                word
+            }
+            else {
+                paste(lines[current_line], word)
+            }
+            if (nchar(candidate) &lt;= width) {
+                lines[current_line] &lt;- candidate
+            }
+            else if (current_line &lt; 3L) {
+                current_line &lt;- current_line + 1L
+                lines[current_line] &lt;- word
+            }
+            else {
+                lines[current_line] &lt;- paste0(substr(lines[current_line], 1, width - 1), &quot;…&quot;)
+                break
+            }
+        }
+        if (nchar(lines[3]) &gt; width) {
+            lines[3] &lt;- paste0(substr(lines[3], 1, width - 1), &quot;…&quot;)
+        }
+        paste(lines[lines != &quot;&quot;], collapse = &quot;\n&quot;)
+    }, FUN.VALUE = character(1))
+}
+proteomics_factor2_go_gsea_simplified &lt;- proteomics_factor2_gsea_simplified_objects[[&quot;Factor2__GO_ALL&quot;]]
+if (is.null(proteomics_factor2_go_gsea_simplified) || nrow(as.data.frame(proteomics_factor2_go_gsea_simplified)) == 
+    0L) {
+    message(&quot;The simplified Factor 2 GO GSEA result is empty.&quot;)
+} else {
+    proteomics_factor2_go_gsea_results &lt;- as.data.frame(proteomics_factor2_go_gsea_simplified) %&gt;% tibble::as_tibble() %&gt;% 
+        dplyr::filter(!is.na(NES), !is.na(p.adjust), p.adjust &lt; gsea_fdr_cutoff)
+    if (nrow(proteomics_factor2_go_gsea_results) == 0L) {
+        message(&quot;No significant terms with FDR &lt; &quot;, gsea_fdr_cutoff, &quot;.&quot;)
+    }
+    else {
+        positive_terms &lt;- proteomics_factor2_go_gsea_results %&gt;% dplyr::filter(NES &gt; 0) %&gt;% dplyr::arrange(dplyr::desc(NES)) %&gt;% 
+            dplyr::slice_head(n = top_n_positive)
+        negative_terms &lt;- proteomics_factor2_go_gsea_results %&gt;% dplyr::filter(NES &lt; 0) %&gt;% dplyr::arrange(NES) %&gt;% 
+            dplyr::slice_head(n = top_n_negative)
+        proteomics_factor2_go_gsea_plot_data &lt;- dplyr::bind_rows(positive_terms, negative_terms) %&gt;% dplyr::mutate(Description_clean = stringr::str_remove(Description, 
+            &quot;^\\[(BP|CC|MF)\\]\\s*&quot;), p_for_colour = dplyr::if_else(&quot;pvalue&quot; %in% colnames(proteomics_factor2_go_gsea_results) &amp; 
+            is.finite(pvalue) &amp; pvalue &gt; 0, pvalue, p.adjust), colour_score = -log10(pmax(p_for_colour, .Machine$double.xmin)) * 
+            sign(NES), Description_wrapped = wrap_gsea_labels(Description_clean, width = 41)) %&gt;% dplyr::arrange(NES) %&gt;% 
+            dplyr::mutate(Description_wrapped = factor(Description_wrapped, levels = unique(Description_wrapped)))
+        colour_limit &lt;- unname(stats::quantile(abs(proteomics_factor2_go_gsea_plot_data$colour_score), probs = 0.8, 
+            na.rm = TRUE))
+        if (!is.finite(colour_limit) || colour_limit == 0) {
+            colour_limit &lt;- max(abs(proteomics_factor2_go_gsea_plot_data$colour_score), na.rm = TRUE)
+        }
+        proteomics_factor2_go_gsea_plot &lt;- ggplot(proteomics_factor2_go_gsea_plot_data, aes(x = Description_wrapped, 
+            y = NES, fill = colour_score)) + geom_col(width = 0.9) + coord_flip() + scale_fill_gradient2(low = &quot;#004C8C&quot;, 
+            mid = &quot;white&quot;, high = &quot;#A63A2A&quot;, midpoint = 0, limits = c(-colour_limit, colour_limit), oob = scales::squish, 
+            name = expression(-log[10](p) %*% sign(NES))) + labs(title = &quot;Factor 2 | Proteomics | Gene Ontology&quot;, 
+            x = NULL, y = &quot;Normalized enrichment score (NES)&quot;) + theme_bw(base_family = &quot;Arial&quot;, base_size = 10) + 
+            theme(text = element_text(color = &quot;black&quot;), plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;, size = 11), 
+                axis.text = element_text(color = &quot;black&quot;), axis.title.x = element_text(color = &quot;black&quot;, size = 12), 
+                axis.text.y = element_text(size = 10.2, color = &quot;black&quot;, lineheight = 0.6), panel.grid.minor = element_blank(), 
+                legend.position = &quot;bottom&quot;, legend.direction = &quot;horizontal&quot;, legend.title = element_text(size = 9), 
+                legend.text = element_text(size = 9)) + guides(fill = guide_colorbar(barwidth = grid::unit(6, &quot;cm&quot;), 
+            barheight = grid::unit(0.3, &quot;cm&quot;), title.position = &quot;top&quot;, title.hjust = 0.5))
+        proteomics_factor2_go_gsea_plot
+    }
+}</code></pre>
+<img src="figure/Integrative_analysis.Rmd/Factor2_GSEA-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Factor2_GSEA-1">
+Past versions of Factor2_GSEA-1.png
+</button>
+</p>
+<div id="fig-Factor2_GSEA-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/Factor2_GSEA-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/Factor2_GSEA-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/Factor2_GSEA-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/Factor2_GSEA-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/Factor2_GSEA-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/Factor2_GSEA-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="factor3-gsea" class="section level2">
+<h2>Factor3 gsea</h2>
+<pre class="r"><code>proteomics_factor3_gsea_simplified_objects &lt;- go$proteomics[[&quot;Factor3__Proteomics&quot;]]$simplified
+top_n_positive &lt;- 8
+top_n_negative &lt;- 8
+gsea_fdr_cutoff &lt;- Inf
+wrap_gsea_labels &lt;- function(x, width = 41) {
+    vapply(x, function(label) {
+        label &lt;- stringr::str_squish(as.character(label))
+        if (nchar(label) &lt;= width) {
+            return(label)
+        }
+        words &lt;- stringr::str_split(label, &quot;\\s+&quot;)[[1]]
+        lines &lt;- c(&quot;&quot;, &quot;&quot;, &quot;&quot;)
+        current_line &lt;- 1L
+        for (word in words) {
+            candidate &lt;- if (lines[current_line] == &quot;&quot;) {
+                word
+            }
+            else {
+                paste(lines[current_line], word)
+            }
+            if (nchar(candidate) &lt;= width) {
+                lines[current_line] &lt;- candidate
+            }
+            else if (current_line &lt; 3L) {
+                current_line &lt;- current_line + 1L
+                lines[current_line] &lt;- word
+            }
+            else {
+                lines[current_line] &lt;- paste0(substr(lines[current_line], 1, width - 1), &quot;…&quot;)
+                break
+            }
+        }
+        if (nchar(lines[3]) &gt; width) {
+            lines[3] &lt;- paste0(substr(lines[3], 1, width - 1), &quot;…&quot;)
+        }
+        paste(lines[lines != &quot;&quot;], collapse = &quot;\n&quot;)
+    }, FUN.VALUE = character(1))
+}
+proteomics_factor3_go_gsea_simplified &lt;- proteomics_factor3_gsea_simplified_objects[[&quot;Factor3__GO_ALL&quot;]]
+if (is.null(proteomics_factor3_go_gsea_simplified) || nrow(as.data.frame(proteomics_factor3_go_gsea_simplified)) == 
+    0L) {
+    message(&quot;The simplified Factor 3 GO GSEA result is empty.&quot;)
+} else {
+    proteomics_factor3_go_gsea_results &lt;- as.data.frame(proteomics_factor3_go_gsea_simplified) %&gt;% tibble::as_tibble() %&gt;% 
+        dplyr::filter(!is.na(NES), !is.na(p.adjust), p.adjust &lt; gsea_fdr_cutoff)
+    if (nrow(proteomics_factor3_go_gsea_results) == 0L) {
+        message(&quot;No significant terms with FDR &lt; &quot;, gsea_fdr_cutoff, &quot;.&quot;)
+    }
+    else {
+        positive_terms &lt;- proteomics_factor3_go_gsea_results %&gt;% dplyr::filter(NES &gt; 0) %&gt;% dplyr::arrange(dplyr::desc(NES)) %&gt;% 
+            dplyr::slice_head(n = top_n_positive)
+        negative_terms &lt;- proteomics_factor3_go_gsea_results %&gt;% dplyr::filter(NES &lt; 0) %&gt;% dplyr::arrange(NES) %&gt;% 
+            dplyr::slice_head(n = top_n_negative)
+        proteomics_factor3_go_gsea_plot_data &lt;- dplyr::bind_rows(positive_terms, negative_terms) %&gt;% dplyr::mutate(Description_clean = stringr::str_remove(Description, 
+            &quot;^\\[(BP|CC|MF)\\]\\s*&quot;), p_for_colour = dplyr::if_else(&quot;pvalue&quot; %in% colnames(proteomics_factor3_go_gsea_results) &amp; 
+            is.finite(pvalue) &amp; pvalue &gt; 0, pvalue, p.adjust), colour_score = -log10(pmax(p_for_colour, .Machine$double.xmin)) * 
+            sign(NES), Description_wrapped = wrap_gsea_labels(Description_clean, width = 41)) %&gt;% dplyr::arrange(NES) %&gt;% 
+            dplyr::mutate(Description_wrapped = factor(Description_wrapped, levels = unique(Description_wrapped)))
+        colour_limit &lt;- unname(stats::quantile(abs(proteomics_factor3_go_gsea_plot_data$colour_score), probs = 0.8, 
+            na.rm = TRUE))
+        if (!is.finite(colour_limit) || colour_limit == 0) {
+            colour_limit &lt;- max(abs(proteomics_factor3_go_gsea_plot_data$colour_score), na.rm = TRUE)
+        }
+        proteomics_factor3_go_gsea_plot &lt;- ggplot(proteomics_factor3_go_gsea_plot_data, aes(x = Description_wrapped, 
+            y = NES, fill = colour_score)) + geom_col(width = 0.9) + coord_flip() + scale_fill_gradient2(low = &quot;#004C8C&quot;, 
+            mid = &quot;white&quot;, high = &quot;#A63A2A&quot;, midpoint = 0, limits = c(-colour_limit, colour_limit), oob = scales::squish, 
+            name = expression(-log[10](p) %*% sign(NES))) + labs(title = &quot;Factor 3 | Proteomics | Gene Ontology&quot;, 
+            subtitle = &quot;Exploratory: no GO terms at FDR &lt; 0.05&quot;, x = NULL, y = &quot;Normalized enrichment score (NES)&quot;) + 
+            theme_bw(base_family = &quot;Arial&quot;, base_size = 10) + theme(text = element_text(color = &quot;black&quot;), plot.title = element_text(hjust = 0.5, 
+            face = &quot;bold&quot;, size = 11), axis.text = element_text(color = &quot;black&quot;), axis.title.x = element_text(color = &quot;black&quot;, 
+            size = 12), axis.text.y = element_text(size = 10.2, color = &quot;black&quot;, lineheight = 0.6), panel.grid.minor = element_blank(), 
+            legend.position = &quot;bottom&quot;, legend.direction = &quot;horizontal&quot;, legend.title = element_text(size = 9), 
+            legend.text = element_text(size = 9)) + guides(fill = guide_colorbar(barwidth = grid::unit(6, &quot;cm&quot;), 
+            barheight = grid::unit(0.3, &quot;cm&quot;), title.position = &quot;top&quot;, title.hjust = 0.5))
+        proteomics_factor3_go_gsea_plot
+    }
+}</code></pre>
+<img src="figure/Integrative_analysis.Rmd/Factor3_GSEA-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Factor3_GSEA-1">
+Past versions of Factor3_GSEA-1.png
+</button>
+</p>
+<div id="fig-Factor3_GSEA-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/Factor3_GSEA-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/Factor3_GSEA-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/Factor3_GSEA-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/Factor3_GSEA-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/Factor3_GSEA-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/Factor3_GSEA-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>write.csv(proteomics_factor3_go_gsea_plot_data, file.path(proteomics_output_dir, &quot;A_Factor3_exploratory_GSEA_plotted_terms.csv&quot;), 
+    row.names = FALSE)</code></pre>
+</div>
+<div id="factor3-heatmap-selection" class="section level2">
+<h2>Factor3 heatmap selection</h2>
+<pre class="r"><code>functional_levels &lt;- c(&quot;Extracellular matrix and growth-factor signalling&quot;, &quot;Cytoskeletal organisation and stress response&quot;, 
+    &quot;Sarcomeric structure and calcium handling&quot;)
+selected_gsea_heatmap_features &lt;- tibble(Feature = c(&quot;FRZB&quot;, &quot;CCN1&quot;, &quot;SPOCK1&quot;, &quot;VEGFA&quot;, &quot;HBEGF&quot;, &quot;VEGFB&quot;, &quot;COL6A1&quot;, 
+    &quot;LUM&quot;, &quot;ARHGAP1&quot;, &quot;VCL&quot;, &quot;MAP4&quot;, &quot;HSPB6&quot;, &quot;CSRP3&quot;, &quot;SYNPO2L&quot;, &quot;MYOM2&quot;, &quot;SRL&quot;, &quot;ACTN2&quot;, &quot;MYOZ2&quot;, &quot;TNNT2&quot;, &quot;ATP2A2&quot;, 
+    &quot;FHL2&quot;, &quot;TNNI3&quot;, &quot;CASQ2&quot;, &quot;TNNC1&quot;), View = c(rep(&quot;Olink&quot;, 6), rep(&quot;LCMS&quot;, 18)), Pathway = factor(rep(functional_levels, 
+    c(8, 6, 10)), levels = functional_levels), Expected_sign = c(rep(1, 14), rep(-1, 10)))
+ww &lt;- proteomics_factor_weights %&gt;% filter(Factor == &quot;Factor3&quot;) %&gt;% mutate(Feature = clean_mofa_feature_name(Feature)) %&gt;% 
+    group_by(View) %&gt;% mutate(Scaled_weight = Weight/max(abs(Weight))) %&gt;% ungroup() %&gt;% select(Feature, View, 
+    Weight, Scaled_weight)
+selected_gsea_heatmap_features &lt;- left_join(selected_gsea_heatmap_features, ww, by = c(&quot;Feature&quot;, &quot;View&quot;))
+stopifnot(nrow(selected_gsea_heatmap_features) == 24, !anyNA(selected_gsea_heatmap_features$Weight), all(sign(selected_gsea_heatmap_features$Weight) == 
+    selected_gsea_heatmap_features$Expected_sign))</code></pre>
+</div>
+<div id="factor3-heatmap" class="section level2">
+<h2>Factor3 heatmap</h2>
+<pre class="r"><code>proteomics_gsea_heatmap_sample_metadata &lt;- clin_all %&gt;% dplyr::filter(Sample %in% intersect(colnames(proteomics_data$Olink), 
+    colnames(proteomics_data$LCMS))) %&gt;% dplyr::mutate(RV_group = factor(as.character(RV_group), levels = c(&quot;Not overloaded&quot;, 
+    &quot;Compensated&quot;, &quot;Decompensated&quot;))) %&gt;% dplyr::arrange(factor(Group, levels = c(&quot;HC&quot;, &quot;DCM&quot;)), is.na(RVIT_mm), 
+    RVIT_mm, Sample)
+proteomics_gsea_heatmap_sample_order &lt;- proteomics_gsea_heatmap_sample_metadata$Sample
+extract_factor3_gsea_heatmap_matrix &lt;- function(feature_table, data_views, sample_order) {
+    extracted_rows &lt;- vector(mode = &quot;list&quot;, length = nrow(feature_table))
+    row_found &lt;- logical(nrow(feature_table))
+    resolved_features &lt;- character(nrow(feature_table))
+    for (feature_index in seq_len(nrow(feature_table))) {
+        current_view &lt;- as.character(feature_table$View[feature_index])
+        current_feature &lt;- as.character(feature_table$Feature[feature_index])
+        if (!current_view %in% names(data_views)) {
+            next
+        }
+        feature_candidates &lt;- unique(c(current_feature, paste0(current_feature, &quot;_&quot;, current_view), paste0(current_feature, 
+            &quot;_&quot;, dplyr::case_when(current_view == &quot;Olink&quot; ~ &quot;OLINK&quot;, current_view == &quot;LCMS&quot; ~ &quot;MS&quot;, TRUE ~ current_view))))
+        resolved_feature &lt;- feature_candidates[feature_candidates %in% rownames(data_views[[current_view]])][1]
+        if (length(resolved_feature) == 0L || is.na(resolved_feature)) {
+            next
+        }
+        extracted_rows[[feature_index]] &lt;- as.numeric(data_views[[current_view]][resolved_feature, sample_order, 
+            drop = TRUE])
+        resolved_features[feature_index] &lt;- resolved_feature
+        row_found[feature_index] &lt;- TRUE
+    }
+    if (!any(row_found)) {
+        stop(&quot;None of the selected features were found in the proteomics matrices.&quot;)
+    }
+    if (any(!row_found)) {
+        warning(&quot;The following selected features were not found and were omitted: &quot;, paste(paste0(feature_table$Feature[!row_found], 
+            &quot; (&quot;, feature_table$View[!row_found], &quot;)&quot;), collapse = &quot;, &quot;))
+    }
+    retained_feature_table &lt;- feature_table[row_found, , drop = FALSE] %&gt;% dplyr::mutate(Resolved_feature = resolved_features[row_found], 
+        Display_feature = Feature, Modality = dplyr::case_when(View == &quot;Olink&quot; ~ &quot;OLINK&quot;, View == &quot;LCMS&quot; ~ &quot;MS&quot;, 
+            TRUE ~ as.character(View)), Internal_row_id = make.unique(paste(Pathway, View, Feature, sep = &quot;__&quot;)))
+    expression_matrix &lt;- do.call(rbind, extracted_rows[row_found])
+    colnames(expression_matrix) &lt;- sample_order
+    rownames(expression_matrix) &lt;- retained_feature_table$Internal_row_id
+    list(matrix = expression_matrix, feature_table = retained_feature_table)
+}
+prepare_factor3_gsea_heatmap_z_scores &lt;- function(expression_matrix) {
+    imputed_matrix &lt;- expression_matrix
+    for (row_index in seq_len(nrow(imputed_matrix))) {
+        row_values &lt;- imputed_matrix[row_index, , drop = TRUE]
+        finite_values &lt;- row_values[is.finite(row_values)]
+        if (length(finite_values) == 0L) {
+            next
+        }
+        row_values[!is.finite(row_values)] &lt;- stats::median(finite_values)
+        imputed_matrix[row_index, ] &lt;- row_values
+    }
+    row_means &lt;- rowMeans(imputed_matrix, na.rm = TRUE)
+    row_standard_deviations &lt;- apply(imputed_matrix, 1, stats::sd, na.rm = TRUE)
+    row_standard_deviations[!is.finite(row_standard_deviations) | row_standard_deviations == 0] &lt;- 1
+    z_score_matrix &lt;- sweep(imputed_matrix, 1, row_means, &quot;-&quot;)
+    z_score_matrix &lt;- sweep(z_score_matrix, 1, row_standard_deviations, &quot;/&quot;)
+    pmax(pmin(z_score_matrix, 2), -2)
+}
+make_grey_annotation_scale &lt;- function(values, dark_at = c(&quot;low&quot;, &quot;high&quot;)) {
+    dark_at &lt;- match.arg(dark_at)
+    finite_values &lt;- values[is.finite(values)]
+    value_range &lt;- if (length(finite_values) == 0L) {
+        c(0, 1)
+    }
+    else {
+        range(finite_values, na.rm = TRUE)
+    }
+    if (value_range[1] == value_range[2]) {
+        value_range &lt;- value_range + c(-0.5, 0.5)
+    }
+    annotation_colours &lt;- if (dark_at == &quot;low&quot;) {
+        c(&quot;grey10&quot;, &quot;grey95&quot;)
+    }
+    else {
+        c(&quot;grey95&quot;, &quot;grey10&quot;)
+    }
+    circlize::colorRamp2(value_range, annotation_colours)
+}
+selected_gsea_heatmap_data &lt;- extract_factor3_gsea_heatmap_matrix(feature_table = selected_gsea_heatmap_features, 
+    data_views = proteomics_data, sample_order = proteomics_gsea_heatmap_sample_order)
+selected_gsea_heatmap_matrix &lt;- prepare_factor3_gsea_heatmap_z_scores(selected_gsea_heatmap_data$matrix)
+selected_gsea_feature_metadata &lt;- selected_gsea_heatmap_data$feature_table
+stopifnot(nrow(selected_gsea_heatmap_matrix) == 24, ncol(selected_gsea_heatmap_matrix) == 64, all(table(proteomics_gsea_heatmap_sample_metadata$Group)[c(&quot;HC&quot;, 
+    &quot;DCM&quot;)] == c(20, 44)))
+rv &lt;- proteomics_gsea_heatmap_sample_metadata %&gt;% filter(Group == &quot;DCM&quot;, !is.na(RVIT_mm)) %&gt;% pull(RVIT_mm)
+stopifnot(all(diff(rv) &gt;= 0))
+write.csv(selected_gsea_heatmap_data$matrix, file.path(proteomics_output_dir, &quot;A_Factor3_curated_abundance.csv&quot;))
+write.csv(selected_gsea_heatmap_matrix, file.path(proteomics_output_dir, &quot;A_Factor3_curated_zscores.csv&quot;))
+write.csv(data.frame(missing_per_protein = rowSums(!is.finite(selected_gsea_heatmap_data$matrix))), file.path(proteomics_output_dir, 
+    &quot;A_Factor3_curated_missingness.csv&quot;))
+tapse_colour_function &lt;- make_grey_annotation_scale(proteomics_gsea_heatmap_sample_metadata$TAPSE_mm, dark_at = &quot;low&quot;)
+rvit_colour_function &lt;- make_grey_annotation_scale(proteomics_gsea_heatmap_sample_metadata$RVIT_mm, dark_at = &quot;high&quot;)
+rv_group_colors &lt;- c(`Not overloaded` = unname(group_colors[&quot;Not overloaded&quot;]), Compensated = unname(group_colors[&quot;Compensated&quot;]), 
+    Decompensated = unname(group_colors[&quot;Decompensated&quot;]))
+selected_gsea_top_annotation &lt;- ComplexHeatmap::HeatmapAnnotation(Group = ComplexHeatmap::anno_simple(as.character(proteomics_gsea_heatmap_sample_metadata$Group), 
+    col = group_cols, height = grid::unit(4.5, &quot;mm&quot;)), `TAPSE (mm)` = ComplexHeatmap::anno_simple(proteomics_gsea_heatmap_sample_metadata$TAPSE_mm, 
+    col = tapse_colour_function, na_col = &quot;white&quot;, height = grid::unit(4.5, &quot;mm&quot;)), `RVIT (mm)` = ComplexHeatmap::anno_simple(proteomics_gsea_heatmap_sample_metadata$RVIT_mm, 
+    col = rvit_colour_function, na_col = &quot;white&quot;, height = grid::unit(4.5, &quot;mm&quot;)), `RV state` = ComplexHeatmap::anno_simple(as.character(proteomics_gsea_heatmap_sample_metadata$RV_group), 
+    col = rv_group_colors, na_col = &quot;white&quot;, height = grid::unit(4.5, &quot;mm&quot;)), annotation_name_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+    fontsize = 11, fontface = &quot;bold&quot;, col = &quot;black&quot;), annotation_name_side = &quot;right&quot;, gap = grid::unit(1, &quot;mm&quot;))
+pathway_colors &lt;- setNames(c(&quot;#6A3D9A&quot;, &quot;#B87822&quot;, &quot;#238B45&quot;), functional_levels)
+pathway_slice_order &lt;- functional_levels
+pathway_display_labels &lt;- setNames(c(&quot;Extracellular matrix\nand growth-factor\nsignalling (+)&quot;, &quot;Cytoskeletal\norganisation\nand stress\nresponse (+)&quot;, 
+    &quot;Sarcomeric structure\nand calcium\nhandling (-)&quot;), functional_levels)
+selected_gsea_left_annotation &lt;- ComplexHeatmap::rowAnnotation(Pathway = ComplexHeatmap::anno_block(gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+    fill = unname(pathway_colors[pathway_slice_order]), col = NA), labels = unname(pathway_display_labels[pathway_slice_order]), 
+    labels_gp = grid::gpar(fontfamily = &quot;Arial&quot;, fontsize = 8, fontface = &quot;bold&quot;, col = &quot;white&quot;, lineheight = 0.9), 
+    labels_rot = 90, width = grid::unit(12, &quot;mm&quot;)), show_annotation_name = FALSE)
+modality_colors &lt;- c(RNA = &quot;#009E73&quot;, OLINK = &quot;#E69F00&quot;, MS = &quot;#7B61A8&quot;)
+selected_gsea_feature_metadata &lt;- selected_gsea_feature_metadata %&gt;% dplyr::mutate(Modality = factor(Modality, 
+    levels = c(&quot;RNA&quot;, &quot;OLINK&quot;, &quot;MS&quot;)))
+selected_gsea_right_annotation &lt;- ComplexHeatmap::rowAnnotation(Modality = selected_gsea_feature_metadata$Modality, 
+    col = list(Modality = modality_colors), show_legend = FALSE, annotation_name_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+        fontsize = 10, fontface = &quot;bold&quot;, col = &quot;black&quot;), simple_anno_size = grid::unit(4.5, &quot;mm&quot;))
+heatmap_colour_function &lt;- circlize::colorRamp2(c(-2, 0, 2), c(&quot;#2166AC&quot;, &quot;white&quot;, &quot;#B2182B&quot;))
+selected_gsea_heatmap &lt;- ComplexHeatmap::Heatmap(selected_gsea_heatmap_matrix, column_split = factor(proteomics_gsea_heatmap_sample_metadata$Group, 
+    levels = c(&quot;HC&quot;, &quot;DCM&quot;)), column_gap = grid::unit(2, &quot;mm&quot;), cluster_column_slices = FALSE, name = &quot;Row Z-score&quot;, 
+    col = heatmap_colour_function, na_col = &quot;grey90&quot;, show_heatmap_legend = FALSE, cluster_rows = FALSE, cluster_columns = FALSE, 
+    row_split = selected_gsea_feature_metadata$Pathway, row_gap = grid::unit(2, &quot;mm&quot;), cluster_row_slices = FALSE, 
+    top_annotation = selected_gsea_top_annotation, left_annotation = selected_gsea_left_annotation, right_annotation = selected_gsea_right_annotation, 
+    row_labels = selected_gsea_feature_metadata$Display_feature, row_names_side = &quot;left&quot;, row_names_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+        fontsize = 10, col = &quot;black&quot;), column_names_rot = 45, column_names_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+        fontsize = 6, col = &quot;black&quot;), show_row_dend = FALSE, show_column_dend = FALSE, row_title = NULL, column_title = NULL, 
+    border = TRUE, height = grid::unit(nrow(selected_gsea_heatmap_matrix) * 4, &quot;mm&quot;))
+row_z_score_legend &lt;- ComplexHeatmap::Legend(title = &quot;Row Z-score&quot;, col_fun = heatmap_colour_function, at = c(-2, 
+    0, 2))
+modality_legend &lt;- ComplexHeatmap::Legend(title = &quot;Modality&quot;, at = c(&quot;OLINK&quot;, &quot;MS&quot;), legend_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+    fill = unname(modality_colors[c(&quot;OLINK&quot;, &quot;MS&quot;)])))
+rv_state_legend &lt;- ComplexHeatmap::Legend(title = &quot;RV state&quot;, at = names(rv_group_colors), legend_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+    fill = unname(rv_group_colors)))
+legend_column_1 &lt;- ComplexHeatmap::packLegend(row_z_score_legend, modality_legend, rv_state_legend, direction = &quot;vertical&quot;, 
+    gap = grid::unit(4, &quot;mm&quot;))
+tapse_legend &lt;- ComplexHeatmap::Legend(title = &quot;TAPSE (mm)&quot;, col_fun = tapse_colour_function)
+rvit_legend &lt;- ComplexHeatmap::Legend(title = &quot;RVIT (mm)&quot;, col_fun = rvit_colour_function)
+legend_column_2 &lt;- ComplexHeatmap::packLegend(tapse_legend, rvit_legend, direction = &quot;vertical&quot;, gap = grid::unit(4, 
+    &quot;mm&quot;))
+group_legend &lt;- ComplexHeatmap::Legend(title = &quot;Group&quot;, at = c(&quot;HC&quot;, &quot;DCM&quot;), legend_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+    fill = group_cols[c(&quot;HC&quot;, &quot;DCM&quot;)]))
+selected_gsea_combined_legends &lt;- ComplexHeatmap::packLegend(legend_column_1, legend_column_2, direction = &quot;horizontal&quot;, 
+    gap = grid::unit(8, &quot;mm&quot;))
+selected_gsea_combined_legends &lt;- ComplexHeatmap::packLegend(group_legend, selected_gsea_combined_legends, direction = &quot;vertical&quot;, 
+    gap = grid::unit(3, &quot;mm&quot;))
+ComplexHeatmap::draw(selected_gsea_heatmap, padding = grid::unit(c(3, 8, 3, 3), &quot;mm&quot;), column_title = &quot;Factor 3 — selected proteins&quot;, 
+    column_title_gp = grid::gpar(fontfamily = &quot;Arial&quot;, fontsize = 14, fontface = &quot;bold&quot;), heatmap_legend_side = &quot;right&quot;, 
+    annotation_legend_side = &quot;right&quot;, heatmap_legend_list = list(selected_gsea_combined_legends), merge_legends = FALSE)</code></pre>
+<img src="figure/Integrative_analysis.Rmd/Factor3_heatmap-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Factor3_heatmap-1">
+Past versions of Factor3_heatmap-1.png
+</button>
+</p>
+<div id="fig-Factor3_heatmap-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/Factor3_heatmap-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/Factor3_heatmap-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/Factor3_heatmap-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/Factor3_heatmap-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/Factor3_heatmap-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/Factor3_heatmap-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>write.csv(selected_gsea_feature_metadata, file.path(proteomics_output_dir, &quot;A_Factor3_curated_heatmap_features.csv&quot;), 
+    row.names = FALSE)
+write.csv(proteomics_gsea_heatmap_sample_metadata, file.path(proteomics_output_dir, &quot;A_Factor3_curated_heatmap_sample_order.csv&quot;), 
+    row.names = FALSE)</code></pre>
+</div>
+<div id="matched-variance-explained" class="section level2">
+<h2>Matched variance explained</h2>
+<pre class="r"><code>matched_r2_heatmap_matrix &lt;- MOFA2::get_variance_explained(matched_model)$r2_per_factor[[1]]
+matched_r2_heatmap_data &lt;- as.data.frame(matched_r2_heatmap_matrix) %&gt;% tibble::rownames_to_column(&quot;Factor&quot;) %&gt;% 
+    tidyr::pivot_longer(cols = -Factor, names_to = &quot;View&quot;, values_to = &quot;R2&quot;) %&gt;% dplyr::mutate(Factor = factor(Factor, 
+    levels = rownames(matched_r2_heatmap_matrix)), View = factor(View, levels = colnames(matched_r2_heatmap_matrix)), 
+    text_color = dplyr::if_else(R2 &gt;= 0.55 * max(R2, na.rm = TRUE), &quot;white&quot;, &quot;black&quot;))
+ggplot(matched_r2_heatmap_data, aes(x = View, y = Factor, fill = R2)) + geom_tile(color = &quot;grey40&quot;, linewidth = 0.3) + 
+    geom_text(aes(label = sprintf(&quot;%.1f%%&quot;, R2), color = text_color), size = 3.2) + scale_color_identity() + scale_fill_gradient(low = &quot;white&quot;, 
+    high = &quot;navy&quot;) + labs(title = &quot;&quot;, x = NULL, y = NULL, fill = &quot;Variance\nexplained (%)&quot;) + theme_classic(base_family = &quot;Arial&quot;) + 
+    theme(plot.title = element_text(hjust = 0.5, face = &quot;bold&quot;), axis.text.x = element_text(size = 11), axis.text.y = element_text(size = 11))</code></pre>
+<img src="figure/Integrative_analysis.Rmd/matched_variance_explained-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-matched_variance_explained-1">
+Past versions of matched_variance_explained-1.png
+</button>
+</p>
+<div id="fig-matched_variance_explained-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/matched_variance_explained-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/matched_variance_explained-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/matched_variance_explained-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/matched_variance_explained-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/matched_variance_explained-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/matched_variance_explained-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="matched-fibrosis-association-plot" class="section level2">
+<h2>Matched fibrosis association plot</h2>
+<pre class="r"><code>matched_fibrosis_plot &lt;- plot_factor_fibrosis_associations(fibrosis_results = matched_fibrosis_results, factor_names = matched_factor_names, 
+    title_text = &quot;Multi-omics factors and histological fibrosis&quot;) + theme(axis.text.y = element_text(size = 12))
+matched_fibrosis_plot</code></pre>
+<img src="figure/Integrative_analysis.Rmd/matched_fibrosis_association_plot-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-matched_fibrosis_association_plot-1">
+Past versions of matched_fibrosis_association_plot-1.png
+</button>
+</p>
+<div id="fig-matched_fibrosis_association_plot-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/matched_fibrosis_association_plot-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/matched_fibrosis_association_plot-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/matched_fibrosis_association_plot-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/matched_fibrosis_association_plot-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/matched_fibrosis_association_plot-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/matched_fibrosis_association_plot-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="factor5-fibrosis" class="section level2">
+<h2>Factor5 fibrosis</h2>
+<pre class="r"><code>matched_factor5_fibrosis_data &lt;- matched_factor_scores %&gt;% dplyr::filter(Factor == &quot;Factor5&quot;, Group == &quot;DCM&quot;, is.finite(Fibrosis_percent), 
+    is.finite(Factor_value))
+matched_factor5_fibrosis_correlation &lt;- stats::cor.test(matched_factor5_fibrosis_data$Fibrosis_percent, matched_factor5_fibrosis_data$Factor_value, 
+    method = &quot;spearman&quot;, exact = FALSE)
+matched_factor5_fibrosis_label &lt;- paste0(&quot;Spearman ρ = &quot;, sprintf(&quot;%.2f&quot;, unname(matched_factor5_fibrosis_correlation$estimate)), 
+    &quot;\n&quot;, format_p_value(matched_factor5_fibrosis_correlation$p.value))
+matched_factor5_fibrosis_plot &lt;- ggplot(matched_factor5_fibrosis_data, aes(x = Fibrosis_percent, y = Factor_value)) + 
+    geom_point(size = 2.4) + geom_smooth(method = &quot;lm&quot;, se = TRUE, linewidth = 0.8) + annotate(&quot;text&quot;, x = -Inf, 
+    y = Inf, label = matched_factor5_fibrosis_label, hjust = -0.05, vjust = 1.1, size = 3.5) + labs(x = &quot;Fibrotic area (%)&quot;, 
+    y = &quot;Factor 5 score&quot;) + scale_x_continuous(labels = function(x) x * 100) + theme_classic(base_family = &quot;Arial&quot;)
+matched_factor5_fibrosis_plot</code></pre>
+<img src="figure/Integrative_analysis.Rmd/Factor5_fibrosis-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Factor5_fibrosis-1">
+Past versions of Factor5_fibrosis-1.png
+</button>
+</p>
+<div id="fig-Factor5_fibrosis-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/Factor5_fibrosis-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/Factor5_fibrosis-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/Factor5_fibrosis-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/Factor5_fibrosis-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/Factor5_fibrosis-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/Factor5_fibrosis-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>write.csv(matched_factor5_fibrosis_data, file.path(matched_output_dir, &quot;MOFA_matched_Factor5_histological_fibrosis_scatter_data.csv&quot;), 
+    row.names = FALSE)</code></pre>
+</div>
+<div id="matched-continuous-association-dotplot" class="section level2">
+<h2>Matched continuous association dotplot</h2>
+<pre class="r"><code>matched_continuous_plot_data &lt;- matched_continuous_results %&gt;% dplyr::mutate(parameter_label = factor(parameter_label, 
+    levels = unname(pretty_parameter_names[clinical_parameters])), Factor = factor(Factor, levels = rev(matched_factor_names)), 
+    dot_size = -log10(pmax(FDR_global, .Machine$double.xmin)), outlined = FDR_global &lt; exploratory_factor_fdr)
+ggplot(matched_continuous_plot_data, aes(x = parameter_label, y = Factor, size = dot_size, fill = beta)) + geom_point(shape = 21, 
+    color = &quot;grey60&quot;, stroke = 0.3) + geom_point(data = dplyr::filter(matched_continuous_plot_data, outlined), 
+    shape = 21, fill = NA, color = &quot;black&quot;, stroke = 1, show.legend = FALSE) + scale_size_continuous(range = c(2.5, 
+    8), breaks = c(1, 5, 10)) + scale_fill_gradient2(low = &quot;#2166AC&quot;, mid = &quot;white&quot;, high = &quot;#B2182B&quot;, midpoint = 0) + 
+    labs(x = NULL, y = NULL, size = expression(-log[10](FDR)), fill = &quot;Adjusted\ncoefficient&quot;) + theme_classic(base_family = &quot;Arial&quot;, 
+    base_size = 14) + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12), axis.text.y = element_text(size = 12), 
+    legend.title = element_text(size = 12), legend.text = element_text(size = 11), plot.margin = margin(t = 30, 
+        r = 8, b = 5, l = 5, unit = &quot;pt&quot;)) + guides(size = guide_legend(order = 1), fill = guide_colorbar(order = 2, 
+    barheight = grid::unit(1.6, &quot;cm&quot;), barwidth = grid::unit(0.3, &quot;cm&quot;))) + theme(legend.spacing.y = grid::unit(1, 
+    &quot;mm&quot;), legend.title = element_text(size = 10), legend.text = element_text(size = 10), plot.margin = margin(8, 
+    8, 5, 5))</code></pre>
+<img src="figure/Integrative_analysis.Rmd/matched_continuous_association_dotplot-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-matched_continuous_association_dotplot-1">
+Past versions of matched_continuous_association_dotplot-1.png
+</button>
+</p>
+<div id="fig-matched_continuous_association_dotplot-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/matched_continuous_association_dotplot-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/matched_continuous_association_dotplot-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/matched_continuous_association_dotplot-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/matched_continuous_association_dotplot-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/matched_continuous_association_dotplot-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/matched_continuous_association_dotplot-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="factor5-custom-heatmap" class="section level2">
+<h2>Factor5 custom heatmap</h2>
+<pre class="r"><code>clean_matched_feature_name &lt;- function(feature) {
+    stringr::str_remove(as.character(feature), &quot;_(RNA_pseudobulk|Olink|OLINK|LCMS|RNA|MS)$&quot;)
+}
+factor5_fibrosis_beta &lt;- matched_fibrosis_results %&gt;% dplyr::filter(Factor == &quot;Factor5&quot;) %&gt;% dplyr::pull(beta)
+if (length(factor5_fibrosis_beta) != 1L || !is.finite(factor5_fibrosis_beta)) {
+    stop(&quot;A valid fibrosis coefficient for Factor5 was not found.&quot;)
+}
+factor5_fibrosis_orientation &lt;- ifelse(factor5_fibrosis_beta &gt;= 0, 1, -1)
+matched_factor5_custom_sets &lt;- tibble::tribble(~Feature, ~View, ~Annotation, &quot;FOSB&quot;, &quot;RNA_pseudobulk&quot;, &quot;AP-1 / immediate-early activation&quot;, 
+    &quot;FOS&quot;, &quot;RNA_pseudobulk&quot;, &quot;AP-1 / immediate-early activation&quot;, &quot;JUNB&quot;, &quot;RNA_pseudobulk&quot;, &quot;AP-1 / immediate-early activation&quot;, 
+    &quot;FOSL1&quot;, &quot;RNA_pseudobulk&quot;, &quot;AP-1 / immediate-early activation&quot;, &quot;EGR3&quot;, &quot;RNA_pseudobulk&quot;, &quot;AP-1 / immediate-early activation&quot;, 
+    &quot;MYC&quot;, &quot;RNA_pseudobulk&quot;, &quot;AP-1 / immediate-early activation&quot;, &quot;SERPINE1&quot;, &quot;RNA_pseudobulk&quot;, &quot;Profibrotic matricellular / TGF-beta-associated&quot;, 
+    &quot;TNC&quot;, &quot;RNA_pseudobulk&quot;, &quot;Profibrotic matricellular / TGF-beta-associated&quot;, &quot;CCN2&quot;, &quot;RNA_pseudobulk&quot;, &quot;Profibrotic matricellular / TGF-beta-associated&quot;, 
+    &quot;ADAMTS1&quot;, &quot;RNA_pseudobulk&quot;, &quot;Profibrotic matricellular / TGF-beta-associated&quot;, &quot;LTBP3&quot;, &quot;Olink&quot;, &quot;Profibrotic matricellular / TGF-beta-associated&quot;, 
+    &quot;ITGA11&quot;, &quot;Olink&quot;, &quot;Profibrotic matricellular / TGF-beta-associated&quot;, &quot;VCAN&quot;, &quot;RNA_pseudobulk&quot;, &quot;ECM organization and adhesion&quot;, 
+    &quot;MATN3&quot;, &quot;Olink&quot;, &quot;ECM organization and adhesion&quot;, &quot;LUM&quot;, &quot;LCMS&quot;, &quot;ECM organization and adhesion&quot;, &quot;PRELP&quot;, 
+    &quot;LCMS&quot;, &quot;ECM organization and adhesion&quot;, &quot;FBLN1&quot;, &quot;LCMS&quot;, &quot;ECM organization and adhesion&quot;, &quot;ITGB1&quot;, &quot;LCMS&quot;, 
+    &quot;ECM organization and adhesion&quot;, &quot;CD151&quot;, &quot;LCMS&quot;, &quot;ECM organization and adhesion&quot;, &quot;VIM&quot;, &quot;RNA_pseudobulk&quot;, 
+    &quot;Myofibroblast / contractile cytoskeleton&quot;, &quot;TAGLN&quot;, &quot;RNA_pseudobulk&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, 
+    &quot;TPM4&quot;, &quot;RNA_pseudobulk&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, &quot;FLNA&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, 
+    &quot;TAGLN&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, &quot;CNN1&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, 
+    &quot;S100A4&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, &quot;PLS3&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, 
+    &quot;TAGLN2&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, &quot;ACTN1&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, 
+    &quot;MYL6&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, &quot;VCL&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, 
+    &quot;MYH9&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, &quot;ACTR3&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;, 
+    &quot;PARVA&quot;, &quot;LCMS&quot;, &quot;Myofibroblast / contractile cytoskeleton&quot;) %&gt;% dplyr::mutate(Annotation = factor(Annotation, 
+    levels = c(&quot;AP-1 / immediate-early activation&quot;, &quot;Profibrotic matricellular / TGF-beta-associated&quot;, &quot;ECM organization and adhesion&quot;, 
+        &quot;Myofibroblast / contractile cytoskeleton&quot;)))
+matched_factor5_weights_clean &lt;- matched_factor_weights %&gt;% dplyr::filter(Factor == &quot;Factor5&quot;, View %in% c(&quot;RNA_pseudobulk&quot;, 
+    &quot;Olink&quot;, &quot;LCMS&quot;), is.finite(Weight)) %&gt;% dplyr::mutate(Feature_clean = clean_matched_feature_name(Feature), 
+    Fibrosis_oriented_weight = Weight * factor5_fibrosis_orientation)
+matched_factor5_heatmap_features &lt;- matched_factor5_custom_sets %&gt;% dplyr::mutate(Feature_clean = Feature) %&gt;% 
+    dplyr::left_join(matched_factor5_weights_clean %&gt;% dplyr::select(Feature_actual = Feature, Feature_clean, View, 
+        Weight, Fibrosis_oriented_weight), by = c(&quot;Feature_clean&quot;, &quot;View&quot;))
+missing_heatmap_features &lt;- matched_factor5_heatmap_features %&gt;% dplyr::filter(is.na(Weight))
+if (nrow(missing_heatmap_features) &gt; 0L) {
+    warning(&quot;The following selected features were not found in the current Factor5 weight table: &quot;, paste(paste0(missing_heatmap_features$Feature, 
+        &quot; (&quot;, missing_heatmap_features$View, &quot;)&quot;), collapse = &quot;, &quot;))
+}
+write.csv(missing_heatmap_features, file.path(matched_output_dir, &quot;A_custom_heatmap_missing_features.csv&quot;), row.names = FALSE)
+matched_factor5_heatmap_features &lt;- matched_factor5_heatmap_features %&gt;% dplyr::filter(!is.na(Weight)) %&gt;% dplyr::mutate(Modality = dplyr::case_when(View == 
+    &quot;RNA_pseudobulk&quot; ~ &quot;RNA&quot;, View == &quot;Olink&quot; ~ &quot;OLINK&quot;, View == &quot;LCMS&quot; ~ &quot;MS&quot;, TRUE ~ View), Modality = factor(Modality, 
+    levels = c(&quot;RNA&quot;, &quot;OLINK&quot;, &quot;MS&quot;))) %&gt;% dplyr::arrange(Annotation, dplyr::desc(Fibrosis_oriented_weight))
+matched_sample_intersection &lt;- Reduce(intersect, lapply(matched_data[c(&quot;RNA_pseudobulk&quot;, &quot;Olink&quot;, &quot;LCMS&quot;)], colnames))
+matched_fibrosis_sample_metadata &lt;- fibrosis_data %&gt;% dplyr::filter(Group == &quot;DCM&quot;) %&gt;% dplyr::transmute(Group = as.character(Group), 
+    Sample = as.character(Sample), Fibrotic_area_percent = as.numeric(Fibrosis_percent)) %&gt;% dplyr::filter(Sample %in% 
+    matched_sample_intersection, is.finite(Fibrotic_area_percent)) %&gt;% dplyr::arrange(Fibrotic_area_percent, Sample)
+stopifnot(all(matched_fibrosis_sample_metadata$Group == &quot;DCM&quot;), nrow(matched_fibrosis_sample_metadata) &gt; 0)
+matched_fibrosis_sample_order &lt;- matched_fibrosis_sample_metadata$Sample
+extract_matched_factor5_heatmap_matrix &lt;- function(feature_table, data_views, sample_order) {
+    extracted_rows &lt;- vector(mode = &quot;list&quot;, length = nrow(feature_table))
+    row_found &lt;- logical(nrow(feature_table))
+    resolved_features &lt;- character(nrow(feature_table))
+    for (feature_index in seq_len(nrow(feature_table))) {
+        current_view &lt;- as.character(feature_table$View[feature_index])
+        current_feature &lt;- as.character(feature_table$Feature_actual[feature_index])
+        if (!current_view %in% names(data_views)) {
+            next
+        }
+        feature_candidates &lt;- unique(c(current_feature, as.character(feature_table$Feature[feature_index]), paste0(as.character(feature_table$Feature[feature_index]), 
+            &quot;_&quot;, current_view), paste0(as.character(feature_table$Feature[feature_index]), &quot;_&quot;, dplyr::case_when(current_view == 
+            &quot;Olink&quot; ~ &quot;OLINK&quot;, current_view == &quot;LCMS&quot; ~ &quot;MS&quot;, current_view == &quot;RNA_pseudobulk&quot; ~ &quot;RNA_pseudobulk&quot;, 
+            TRUE ~ current_view))))
+        resolved_feature &lt;- feature_candidates[feature_candidates %in% rownames(data_views[[current_view]])][1]
+        if (length(resolved_feature) == 0L || is.na(resolved_feature)) {
+            next
+        }
+        extracted_rows[[feature_index]] &lt;- as.numeric(data_views[[current_view]][resolved_feature, sample_order, 
+            drop = TRUE])
+        resolved_features[feature_index] &lt;- resolved_feature
+        row_found[feature_index] &lt;- TRUE
+    }
+    if (!any(row_found)) {
+        stop(&quot;None of the selected matched-model features were found in matched_data.&quot;)
+    }
+    if (any(!row_found)) {
+        warning(&quot;The following selected features were not found and were omitted: &quot;, paste(paste0(feature_table$Feature[!row_found], 
+            &quot; (&quot;, feature_table$View[!row_found], &quot;)&quot;), collapse = &quot;, &quot;))
+    }
+    retained_feature_table &lt;- feature_table[row_found, , drop = FALSE] %&gt;% dplyr::mutate(Resolved_feature = resolved_features[row_found], 
+        Display_feature = Feature, Internal_row_id = make.unique(paste(Annotation, View, Feature, sep = &quot;__&quot;)))
+    expression_matrix &lt;- do.call(rbind, extracted_rows[row_found])
+    colnames(expression_matrix) &lt;- sample_order
+    rownames(expression_matrix) &lt;- retained_feature_table$Internal_row_id
+    list(matrix = expression_matrix, feature_table = retained_feature_table)
+}
+prepare_matched_heatmap_z_scores &lt;- function(expression_matrix) {
+    imputed_matrix &lt;- expression_matrix
+    for (row_index in seq_len(nrow(imputed_matrix))) {
+        row_values &lt;- imputed_matrix[row_index, , drop = TRUE]
+        finite_values &lt;- row_values[is.finite(row_values)]
+        if (length(finite_values) == 0L) {
+            next
+        }
+        row_values[!is.finite(row_values)] &lt;- stats::median(finite_values)
+        imputed_matrix[row_index, ] &lt;- row_values
+    }
+    row_means &lt;- rowMeans(imputed_matrix, na.rm = TRUE)
+    row_standard_deviations &lt;- apply(imputed_matrix, 1, stats::sd, na.rm = TRUE)
+    row_standard_deviations[!is.finite(row_standard_deviations) | row_standard_deviations == 0] &lt;- 1
+    z_score_matrix &lt;- sweep(imputed_matrix, 1, row_means, &quot;-&quot;)
+    z_score_matrix &lt;- sweep(z_score_matrix, 1, row_standard_deviations, &quot;/&quot;)
+    pmax(pmin(z_score_matrix, 2), -2)
+}
+make_fibrosis_grey_scale &lt;- function(values) {
+    finite_values &lt;- values[is.finite(values)]
+    value_range &lt;- if (length(finite_values) == 0L) {
+        c(0, 1)
+    }
+    else {
+        range(finite_values, na.rm = TRUE)
+    }
+    if (value_range[1] == value_range[2]) {
+        value_range &lt;- value_range + c(-0.5, 0.5)
+    }
+    circlize::colorRamp2(value_range, c(&quot;grey95&quot;, &quot;grey10&quot;))
+}
+matched_factor5_heatmap_data &lt;- extract_matched_factor5_heatmap_matrix(feature_table = matched_factor5_heatmap_features, 
+    data_views = matched_data, sample_order = matched_fibrosis_sample_order)
+matched_factor5_heatmap_matrix &lt;- prepare_matched_heatmap_z_scores(matched_factor5_heatmap_data$matrix)
+matched_factor5_feature_metadata &lt;- matched_factor5_heatmap_data$feature_table
+fibrosis_colour_function &lt;- make_fibrosis_grey_scale(matched_fibrosis_sample_metadata$Fibrotic_area_percent)
+matched_factor5_top_annotation &lt;- ComplexHeatmap::HeatmapAnnotation(`Fibrotic area (%)` = ComplexHeatmap::anno_simple(matched_fibrosis_sample_metadata$Fibrotic_area_percent, 
+    col = fibrosis_colour_function, na_col = &quot;white&quot;, height = grid::unit(4.5, &quot;mm&quot;)), annotation_name_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+    fontsize = 11, fontface = &quot;bold&quot;, col = &quot;black&quot;), annotation_name_side = &quot;right&quot;)
+set_colors &lt;- c(`AP-1 / immediate-early activation` = &quot;#6A3D9A&quot;, `Profibrotic matricellular / TGF-beta-associated` = &quot;#B35806&quot;, 
+    `ECM organization and adhesion` = &quot;#1B7837&quot;, `Myofibroblast / contractile cytoskeleton` = &quot;#2166AC&quot;)
+annotation_slice_order &lt;- unique(as.character(matched_factor5_feature_metadata$Annotation))
+annotation_display_labels &lt;- c(`AP-1 / immediate-early activation` = &quot;AP-1 /\nimmediate-early\nactivation&quot;, `Profibrotic matricellular / TGF-beta-associated` = &quot;Profibrotic /\nTGF-beta-associated&quot;, 
+    `ECM organization and adhesion` = &quot;ECM organization\nand adhesion&quot;, `Myofibroblast / contractile cytoskeleton` = &quot;Myofibroblast /\ncontractile cytoskeleton&quot;)
+matched_factor5_left_annotation &lt;- ComplexHeatmap::rowAnnotation(Annotation = ComplexHeatmap::anno_block(gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+    fill = unname(set_colors[annotation_slice_order]), col = NA), labels = unname(annotation_display_labels[annotation_slice_order]), 
+    labels_gp = grid::gpar(fontfamily = &quot;Arial&quot;, fontsize = 8.5, fontface = &quot;bold&quot;, col = &quot;white&quot;, lineheight = 0.85), 
+    labels_rot = 90, width = grid::unit(9, &quot;mm&quot;)), show_annotation_name = FALSE)
+modality_colors &lt;- c(RNA = &quot;#009E73&quot;, OLINK = &quot;#E69F00&quot;, MS = &quot;#7B61A8&quot;)
+matched_factor5_right_annotation &lt;- ComplexHeatmap::rowAnnotation(Modality = matched_factor5_feature_metadata$Modality, 
+    col = list(Modality = modality_colors), show_legend = FALSE, annotation_name_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+        fontsize = 10, fontface = &quot;bold&quot;, col = &quot;black&quot;), simple_anno_size = grid::unit(4.5, &quot;mm&quot;))
+heatmap_colour_function &lt;- circlize::colorRamp2(c(-2, 0, 2), c(&quot;#2166AC&quot;, &quot;white&quot;, &quot;#B2182B&quot;))
+matched_factor5_custom_heatmap &lt;- ComplexHeatmap::Heatmap(matched_factor5_heatmap_matrix, name = &quot;Row Z-score&quot;, 
+    col = heatmap_colour_function, na_col = &quot;grey90&quot;, show_heatmap_legend = FALSE, cluster_rows = FALSE, cluster_columns = FALSE, 
+    row_split = matched_factor5_feature_metadata$Annotation, row_gap = grid::unit(2, &quot;mm&quot;), cluster_row_slices = FALSE, 
+    top_annotation = matched_factor5_top_annotation, left_annotation = matched_factor5_left_annotation, right_annotation = matched_factor5_right_annotation, 
+    row_labels = matched_factor5_feature_metadata$Display_feature, row_names_side = &quot;left&quot;, row_names_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+        fontsize = 9, col = &quot;black&quot;), column_names_rot = 45, column_names_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+        fontsize = 6, col = &quot;black&quot;), show_row_dend = FALSE, show_column_dend = FALSE, row_title = NULL, column_title = NULL, 
+    border = TRUE, height = grid::unit(nrow(matched_factor5_heatmap_matrix) * 6, &quot;mm&quot;))
+row_z_score_legend &lt;- ComplexHeatmap::Legend(title = &quot;Row Z-score&quot;, col_fun = heatmap_colour_function, at = c(-2, 
+    0, 2))
+modality_legend &lt;- ComplexHeatmap::Legend(title = &quot;Modality&quot;, at = c(&quot;RNA&quot;, &quot;OLINK&quot;, &quot;MS&quot;), legend_gp = grid::gpar(fontfamily = &quot;Arial&quot;, 
+    fill = unname(modality_colors[c(&quot;RNA&quot;, &quot;OLINK&quot;, &quot;MS&quot;)])))
+fibrosis_legend &lt;- ComplexHeatmap::Legend(title = &quot;Fibrotic area (%)&quot;, col_fun = fibrosis_colour_function, at = c(0, 
+    0.2, 0.4, 0.6, 0.8), labels = c(&quot;0&quot;, &quot;20&quot;, &quot;40&quot;, &quot;60&quot;, &quot;80&quot;))
+matched_factor5_combined_legends &lt;- ComplexHeatmap::packLegend(row_z_score_legend, modality_legend, fibrosis_legend, 
+    direction = &quot;vertical&quot;, gap = grid::unit(5, &quot;mm&quot;))
+ComplexHeatmap::draw(matched_factor5_custom_heatmap, padding = grid::unit(c(3, 3, 3, 10), &quot;mm&quot;), heatmap_legend_side = &quot;right&quot;, 
+    annotation_legend_side = &quot;right&quot;, heatmap_legend_list = list(matched_factor5_combined_legends), merge_legends = FALSE)</code></pre>
+<img src="figure/Integrative_analysis.Rmd/Factor5_custom_heatmap-1.png" style="display: block; margin: auto;" />
+<div class="alert alert-warning">
+<strong>Warning!</strong> The custom <code>fig.path</code> you set was
+ignored by workflowr.
+</div>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-Factor5_custom_heatmap-1">
+Past versions of Factor5_custom_heatmap-1.png
+</button>
+</p>
+<div id="fig-Factor5_custom_heatmap-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d4b8eb1443c4351150e0c106a45675850f739f78/docs/figure/Integrative_analysis.Rmd/Factor5_custom_heatmap-1.png" target="_blank">d4b8eb1</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/0ab82a3e32bdaa766cc9f1c85eda0b7f1ecbf520/docs/figure/Integrative_analysis.Rmd/Factor5_custom_heatmap-1.png" target="_blank">0ab82a3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/cda42631b4290b05a76fc892d2ae9b95c9742db4/docs/figure/Integrative_analysis.Rmd/Factor5_custom_heatmap-1.png" target="_blank">cda4263</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/78001e37f3c7d2b65e6537f057b61933b5c81aa5/docs/figure/Integrative_analysis.Rmd/Factor5_custom_heatmap-1.png" target="_blank">78001e3</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/9a47f63f4c56b7d31d8e4dea1f928e0d812c382c/docs/figure/Integrative_analysis.Rmd/Factor5_custom_heatmap-1.png" target="_blank">9a47f63</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-11-18
+</td>
+</tr>
+<tr>
+<td>
+<a href="https://github.com/GinoBonazza/DCM_snRNAseq/blob/d136073823de03a4d23429fae2eb314862b8af4f/docs/figure/Integrative_analysis.Rmd/Factor5_custom_heatmap-1.png" target="_blank">d136073</a>
+</td>
+<td>
+GinoBonazza
+</td>
+<td>
+2026-10-19
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<pre class="r"><code>write.csv(matched_factor5_feature_metadata, file.path(matched_output_dir, &quot;MOFA_matched_Factor5_custom_fibrosis_heatmap_features.csv&quot;), 
+    row.names = FALSE)
+write.csv(matched_fibrosis_sample_metadata, file.path(matched_output_dir, &quot;MOFA_matched_Factor5_custom_fibrosis_heatmap_sample_order.csv&quot;), 
+    row.names = FALSE)</code></pre>
+</div>
+<div id="datasets-ev10-and-ev11" class="section level2">
+<h2>Datasets EV10 and EV11</h2>
+<pre class="r"><code>for (nm in c(&quot;proteomics&quot;, &quot;matched&quot;)) {
+    x &lt;- b[[nm]]
+    out &lt;- file.path(O, if (nm == &quot;proteomics&quot;) 
+        &quot;proteomics_model&quot;
+    else &quot;matched_three_view_model&quot;)
+    enrichment &lt;- readRDS(file.path(out, &quot;A_GSEA_results.rds&quot;))
+    tables &lt;- list(Donors = dplyr::distinct(x$scores, Sample, .keep_all = TRUE) %&gt;% dplyr::select(-Factor, -Factor_value), 
+        Tuning = read.csv(file.path(out, &quot;A_factor_tuning_all_runs.csv&quot;)), Model_settings = x$settings, Variance_explained = x$r2, 
+        Factor_scores = x$scores %&gt;% dplyr::select(Sample, Factor, Factor_value), Feature_weights = x$weights, 
+        Associations = x$associations, GO_enrichment = enrichment$full, GO_simplified = enrichment$simplified)
+    number &lt;- if (nm == &quot;proteomics&quot;) 
+        10
+    else 11
+    writexl::write_xlsx(tables, here::here(&quot;output&quot;, &quot;Datasets&quot;, paste0(&quot;Dataset_EV&quot;, number, &quot;.xlsx&quot;)), format_headers = FALSE)
+}</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.5.2 (2025-10-31)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.3 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Etc/UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] grid      stats4    stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] patchwork_1.3.2             circlize_0.4.16            
+ [3] ComplexHeatmap_2.26.0       ggplot2_4.0.1              
+ [5] purrr_1.2.0                 stringr_1.6.0              
+ [7] GO.db_3.22.0                org.Hs.eg.db_3.22.0        
+ [9] AnnotationDbi_1.72.0        clusterProfiler_4.18.2     
+[11] broom_1.0.11                qs2_0.1.7                  
+[13] MOFA2_1.20.2                DESeq2_1.50.2              
+[15] SummarizedExperiment_1.40.0 Biobase_2.70.0             
+[17] MatrixGenerics_1.22.0       GenomicRanges_1.62.0       
+[19] Seqinfo_1.0.0               IRanges_2.44.0             
+[21] S4Vectors_0.48.0            BiocGenerics_0.56.0        
+[23] generics_0.1.4              edgeR_4.8.0                
+[25] limma_3.66.0                SeuratObject_5.0.2         
+[27] Seurat_4.4.0                matrixStats_1.5.0          
+[29] Matrix_1.6-5                tibble_3.3.0               
+[31] tidyr_1.3.2                 dplyr_1.2.1                
+[33] here_1.0.2                 
+
+loaded via a namespace (and not attached):
+  [1] fs_2.1.0                spatstat.sparse_3.1-0   enrichplot_1.30.4      
+  [4] doParallel_1.0.17       httr_1.4.7              RColorBrewer_1.1-3     
+  [7] tools_4.5.2             sctransform_0.4.2       backports_1.5.0        
+ [10] utf8_1.2.6              R6_2.6.1                HDF5Array_1.38.0       
+ [13] mgcv_1.9-3              lazyeval_0.2.2          uwot_0.2.4             
+ [16] GetoptLong_1.1.0        rhdf5filters_1.22.0     withr_3.0.2            
+ [19] sp_2.2-0                gridExtra_2.3           progressr_0.18.0       
+ [22] cli_3.6.6               Cairo_1.7-0             spatstat.explore_3.6-0 
+ [25] scatterpie_0.2.6        labeling_0.4.3          sass_0.4.10            
+ [28] S7_0.2.1                spatstat.data_3.1-9     ggridges_0.5.7         
+ [31] pbapply_1.7-4           systemfonts_1.3.1       yulab.utils_0.2.2      
+ [34] gson_0.1.0              DOSE_4.4.0              R.utils_2.13.0         
+ [37] parallelly_1.45.1       readxl_1.4.5            RSQLite_2.4.5          
+ [40] shape_1.4.6.1           gridGraphics_0.5-1      ica_1.0-3              
+ [43] spatstat.random_3.4-3   abind_1.4-8             R.methodsS3_1.8.2      
+ [46] lifecycle_1.0.5         whisker_0.4.1           yaml_2.3.11            
+ [49] rhdf5_2.54.0            qvalue_2.42.0           SparseArray_1.10.4     
+ [52] Rtsne_0.17              blob_1.2.4              promises_1.5.0         
+ [55] crayon_1.5.3            dir.expiry_1.18.0       miniUI_0.1.2           
+ [58] ggtangle_0.0.9          lattice_0.22-7          cowplot_1.2.0          
+ [61] KEGGREST_1.50.0         pillar_1.11.1           knitr_1.50             
+ [64] fgsea_1.36.0            rjson_0.2.23            future.apply_1.20.0    
+ [67] codetools_0.2-20        fastmatch_1.1-6         leiden_0.4.3.1         
+ [70] glue_1.8.0              ggiraph_0.9.2           fontLiberation_0.1.0   
+ [73] ggfun_0.2.0             spatstat.univar_3.1-5   data.table_1.17.8      
+ [76] treeio_1.34.0           vctrs_0.7.3             png_0.1-8              
+ [79] spam_2.11-1             cellranger_1.1.0        gtable_0.3.6           
+ [82] cachem_1.1.0            xfun_0.56               S4Arrays_1.10.1        
+ [85] mime_0.13               survival_3.8-3          pheatmap_1.0.13        
+ [88] iterators_1.0.14        statmod_1.5.1           fitdistrplus_1.2-4     
+ [91] ROCR_1.0-11             nlme_3.1-168            ggtree_4.0.1           
+ [94] bit64_4.6.0-1           fontquiver_0.2.1        filelock_1.0.3         
+ [97] RcppAnnoy_0.0.22        rprojroot_2.1.1         bslib_0.9.0            
+[100] irlba_2.3.5.1           KernSmooth_2.23-26      otel_0.2.0             
+[103] colorspace_2.1-2        DBI_1.2.3               tidyselect_1.2.1       
+[106] bit_4.6.0               compiler_4.5.2          git2r_0.36.2           
+[109] h5mread_1.2.1           fontBitstreamVera_0.1.1 DelayedArray_0.36.0    
+[112] plotly_4.11.0           stringfish_0.18.0       scales_1.4.0           
+[115] lmtest_0.9-40           rappdirs_0.3.3          digest_0.6.39          
+[118] goftest_1.2-3           spatstat.utils_3.2-0    rmarkdown_2.30         
+[121] basilisk_1.22.0         XVector_0.50.0          htmltools_0.5.9        
+[124] pkgconfig_2.0.3         fastmap_1.2.0           GlobalOptions_0.1.3    
+[127] rlang_1.2.0             htmlwidgets_1.6.4       shiny_1.12.0           
+[130] farver_2.1.2            jquerylib_0.1.4         zoo_1.8-14             
+[133] jsonlite_2.0.0          BiocParallel_1.44.0     GOSemSim_2.36.0        
+[136] R.oo_1.27.1             magrittr_2.0.4          ggplotify_0.1.3        
+[139] dotCall64_1.2           Rhdf5lib_1.32.0         Rcpp_1.1.0             
+[142] ape_5.8-1               ggnewscale_0.5.2        gdtools_0.4.4          
+[145] reticulate_1.44.1       stringi_1.8.7           MASS_7.3-65            
+[148] plyr_1.8.9              parallel_4.5.2          listenv_0.10.0         
+[151] ggrepel_0.9.6           forcats_1.0.1           deldir_2.0-4           
+[154] Biostrings_2.78.0       splines_4.5.2           tensor_1.5.1           
+[157] locfit_1.5-9.12         igraph_2.2.1            spatstat.geom_3.6-1    
+[160] reshape2_1.4.5          evaluate_1.0.5          RcppParallel_5.1.11-1  
+[163] foreach_1.5.2           tweenr_2.0.3            httpuv_1.6.16          
+[166] RANN_2.6.2              polyclip_1.10-7         clue_0.3-66            
+[169] future_1.68.0           scattermore_1.2         ggforce_0.5.0          
+[172] xtable_1.8-4            tidytree_0.4.6          tidydr_0.0.6           
+[175] later_1.4.4             viridisLite_0.4.2       aplot_0.2.9            
+[178] memoise_2.0.1           writexl_2.0.0           cluster_2.1.8.3        
+[181] corrplot_0.95           workflowr_1.7.2         globals_0.18.0         </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
