@@ -48,6 +48,8 @@ clinical <- bind_rows(q$clinical, rna_metadata) %>% distinct(Sample, .keep_all =
 clinical <- clinical %>% select(any_of(c("Sample", "Group", "Age_years", "Sex", "LVEF_percent", "LVID_mm", "LVEDD_mm", 
     "RVIT_mm", "TAPSE_mm", "RAA_cm2", "RVS_cm.s", "RVSP_mmHg", "sPAP_mmHg", "mPAP_mmHg", "PCW_mmHg", "PVR_WU", 
     "TPG_mmHg", "CO_l.min")))
+batches <- rna[[]] %>% select(any_of(c("Sample", "Batch_processing", "Batch_sequencing"))) %>% group_by(Sample) %>% summarise(across(everything(), ~paste(unique(as.character(.x)), collapse="; ")), .groups="drop")
+clinical <- left_join(clinical, batches, by="Sample")
 clinical$snRNAseq <- clinical$Sample %in% unique(rna$Sample)
 clinical$Olink <- clinical$Sample %in% colnames(q$olink)
 clinical$LC_MS_MS <- clinical$Sample %in% colnames(q$ms)
